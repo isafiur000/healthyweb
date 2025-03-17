@@ -1,0 +1,269 @@
+' Gambas class file
+
+Export
+
+Private $ShowMaternity As Boolean
+Private $WardFormat As String
+
+Private varTable1 As Variant[]
+Private varTable2 As Variant[]
+Private varTable3 As Variant[]
+
+Private dtfir As Date
+Private dtlast As Date
+Private $start As Date
+
+Static Public Sub _init()
+
+  Env["GB_WEB_GUI_DEBUG"] = "1"
+  modHelpVariable.GetSessionParam()
+
+End
+
+Public Sub _new()
+
+  Dim xmater As String
+
+  Me.AddHeader("<meta name='viewport' content='width=device-width, initial-scale=1'>")
+  Me.AddHeader("<link rel=\"stylesheet\" href=\"" & modPrint.GetHTTPReferer() & "://" & modHelpVariable.$HostPath & "/css/" & Application.Name & ".css" & "\">")
+  Me.AddJavascriptFile("js/webcontrols.js")
+  Me.AddJavascriptFile("js/jquery.min.js")
+  Me.AddJavascriptFile("js/Chart.js")
+  WebForm.Debug = True
+
+  modHelpVariable.MakeWorkingDir()
+  modHelpVariable.CreateWorkingDir()
+  modHelpVariable.SetAppConfigFile()
+
+  WebImage1.Image = modPrint.GetFixedWebURL(modHelpVariable.$appetcFolder &/ "header-logo.png")
+  WebImage2.Image = modPrint.GetFixedWebURL(modHelpVariable.$appetcFolder &/ "header.jpg")
+  WebHtml1.Html = modSettings.ShowSettingFromFIle("Dashboard/Introduction")
+  xmater = modSettings.ShowSettingFromFIle("Dashboard/NewBorn")
+  If xmater = "Yes" Then
+    $ShowMaternity = True
+  Else
+    $ShowMaternity = False
+  Endif
+  $WardFormat = modSettings.ShowSettingFromFIle("Dashboard/WardFormat")
+  WebHtml2.Html = "<small>Developed By: D Code Technology Pvt Ltd, Kathmandu</small>"
+
+  ' dtfir = DateAdd(Now(), gb.Year, -1)
+  dtfir = Now()
+  dtlast = Now()
+
+End
+
+Public Sub WebForm_Close()
+
+  Session.Abandon()
+  Try modDatabase.$syConn.Close()
+  Try modDatabase.$myConn.Close()
+  modExternal.DeleteFolderRecursive("/tmp" &/ modHelpVariable.AppName &/ "docs" &/ modHelpVariable.$SessionCode)
+  modExternal.DeleteFolderRecursive(modHelpVariable.AppCacheDir)
+
+End
+
+Public Sub btnagree_Click()
+
+  If Not modDatabase.$syConn Or If Not modDatabase.$syConn.Opened Then
+    modHelpVariable.ConnectionDashboard()
+  Endif
+
+  If modDatabase.$syConn.Opened = True Then
+    ShowRegistrationSumm()
+    ShowServiceSummary()
+    ShowDiagnostics()
+    ShowConsultations()
+    ShowBedOccupancy()
+
+    $start = Now()
+    WebTimer1.Enabled = True
+    btnagree.Enabled = False
+
+    ' Try modDatabase.$syConn.Close()
+    ' Try modDatabase.$myConn.Close()
+  Endif
+
+End
+
+Public Sub WebTimer1_Timer()
+
+  If btnagree.Enabled = False Then
+    If DateDiff($start, Now(), gb.Second) > 60 Then
+      btnagree.Text = "Refresh"
+      btnagree.Enabled = True
+      WebTimer1.Enabled = False
+    Else
+      btnagree.Text = Format(Now(), "yyyy-mm-dd hh:nn:ss")
+    Endif
+  Endif
+
+End
+
+''=========================== Procedures ==========================
+Private Sub ShowRegistrationSumm()
+
+  Dim xFinal As Variant[]
+  Dim xWebCanv As WebCanvas
+
+  xFinal = modHospitalDash.GetPublicRegistrationSumm(dtfir, dtlast, "", "")
+  If wbregist.Children.Count Then
+    wbregist.DeleteChildren()
+  Endif
+  xWebCanv = New WebCanvas(wbregist)
+  xWebCanv.Width = "80%"
+  xWebCanv.Height = "80%"
+  CreateChartImage("pie", "Registration", 1, xFinal, xWebCanv)
+
+End
+
+Private Sub CreateChartImage(sType As String, sTitle As String, Column As Integer, xFinal As Variant[], xWebCanvas As WebCanvas)
+
+  Dim xValues As Variant[]
+  Dim yValues As Variant[]
+  Dim sColl As Collection
+  Dim xChart As Collection
+  Dim sPath As String
+
+  xValues = New Variant[]
+  yValues = New Variant[]
+  For Each sColl In xFinal
+    If sColl["0"] = "Total" Then
+    Else
+      xValues.Add(sColl["0"])
+      yValues.Add(CFloat(sColl[Column]))
+    Endif
+  Next
+  xChart = modChartJS.GetHTMLChartScript(sType, sTitle, xValues, yValues)
+  sPath = "new Chart(\"" & xWebCanvas.Name & "\", " & JSON.Encode(xChart) & ")"
+  Me.Exec(sPath)
+
+End
+
+Private Sub ShowServiceSummary()
+
+  Dim xFinal As Variant[]
+  Dim asx As Collection
+  Dim xWebCanv As WebCanvas
+
+  Dim xValues As Variant[]
+  Dim yValues As Variant[]
+  Dim zValues As Variant[]
+
+  xFinal = modHospitalDash.GetPublicDepartmentSumm(dtfir, dtlast, $ShowMaternity, "", "")
+
+  xValues = New Variant[]
+  yValues = New Variant[]
+  zValues = New Variant[]
+  For Each asx In xFinal
+    xValues.Add(asx[CStr(0)])
+    yValues.Add(asx[CStr(1)])
+    zValues.Add(asx[CStr(2)])
+  Next
+
+  If wbsummary.Children.Count Then
+    wbsummary.DeleteChildren()
+  Endif
+  xWebCanv = New WebCanvas(wbsummary)
+  xWebCanv.Width = "80%"
+  xWebCanv.Height = "80%"
+  CreateStackedBarImage(["Male", "Female"], xValues, yValues, zValues, xWebCanv)
+
+End
+
+Private Sub CreateStackedBarImage(sTitles As String[], xValues As Variant[], yValues As Variant[], zValues As Variant[], xWebCanvas As WebCanvas)
+
+  Dim xChart As Collection
+  Dim sPath As String
+
+  xChart = modChartJS.GetHTMLStackedScript("stacked", sTitles, xValues, yValues, zValues)
+  sPath = "new Chart(\"" & xWebCanvas.Name & "\", " & JSON.Encode(xChart) & ")"
+  Me.Exec(sPath)
+
+End
+
+Private Sub ShowDiagnostics()
+
+  Dim sList As String[] = ["X-ray", "Ultrasonogram (USG)", "Echocardiogram (Echo)", "Electro Encephalo Gram (EEG)", "Electrocardiogram (ECG)", "Trademill", "Computed Tomographic (CT) Scan", "Magnetic Resonance Imaging (MRI)"]
+  Dim xFinal As Variant[]
+
+  WebTable1.Clear()
+  WebTable1.Columns.Count = 2
+  WebTable1.Count = sList.Count + 1
+  With WebTable1
+    .Columns[0].Expand = True
+    .Columns[1].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
+
+    .Columns[0].Text = "Particulars"
+    .Columns[1].Text = "Number"
+  End With
+
+  xFinal = modHospitalDash.SubGetRadiologyDash(sList, dtfir, dtlast, "", "")
+  varTable1 = xFinal
+
+End
+
+Public Sub WebTable1_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  modGridView.GridViewDecoration(Data, Row)
+  Data.Text = varTable1[Row][CStr(Column)]
+
+End
+
+Private Sub ShowConsultations()
+
+  Dim xFinal As Variant[]
+
+  xFinal = modHospitalDash.SubGetConsultationDash(dtfir, dtlast, "", "")
+
+  WebTable2.Clear()
+  WebTable2.Columns.Count = 2
+  WebTable2.Count = xFinal.Count
+  With WebTable2
+    .Columns[0].Expand = True
+    .Columns[1].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
+
+    .Columns[0].Text = "Particulars"
+    .Columns[1].Text = "Number"
+  End With
+
+  varTable2 = xFinal
+
+End
+
+Public Sub WebTable2_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  modGridView.GridViewDecoration(Data, Row)
+  Data.Text = varTable2[Row][CStr(Column)]
+
+End
+
+Private Sub ShowBedOccupancy()
+
+  Dim xFinal As Variant[]
+
+  xFinal = modHospitalDash.SubGetCurrOccupancyDash($WardFormat, "", "")
+
+  WebTable3.Clear()
+  WebTable3.Columns.Count = 3
+  WebTable3.Count = xFinal.Count
+  With WebTable3
+    .Columns[0].Expand = True
+    .Columns[1].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
+    .Columns[2].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
+
+    .Columns[0].Text = "Particulars"
+    .Columns[1].Text = "Total"
+    .Columns[2].Text = "Occupied"
+  End With
+
+  varTable3 = xFinal
+
+End
+
+Public Sub WebTable3_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  modGridView.GridViewDecoration(Data, Row)
+  Data.Text = varTable3[Row][CStr(Column)]
+
+End

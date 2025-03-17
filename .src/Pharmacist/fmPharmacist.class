@@ -1,0 +1,368 @@
+' Gambas class file
+
+' Export
+
+Public Sub _new()
+
+  Me.AddHeader("<meta name='viewport' content='width=device-width, initial-scale=1'>")
+  Me.AddHeader("<link rel=\"stylesheet\" href=\"" & modHelpVariable.$AppCssPath & "\">")
+  Me.AddJavascriptFile("js/webcontrols.js")
+  Me.AddJavascriptFile("js/jquery.min.js")
+  Me.AddJavascriptFile("js/print.min.js")
+  Me.AddJavascriptFile("js/toastify.js")
+  Me.AddJavascriptFile("js/Chart.js")
+  Me.AddJavascriptFile("js/tribute.js")
+  Me.AddJavascriptFile("js/download.js")
+  Me.AddJavascriptFile("js/select2.min.js")
+
+  Me.AddJavascriptFile("js/sketchpad.js")
+  ''slow js
+  Me.AddJavascriptFile("js/html2pdf.bundle.min.js")
+  Me.AddJavascriptFile("js/xlsx.full.min.js")
+  Me.Font = MMain.$AppFontName
+  WebImage1.Image = modHelpVariable.$headerImage
+  WebForm.Debug = MMain.$isdebug
+  mnucuruserid.Text = modBasic.$lbluser
+
+End
+
+Public Sub WebForm_Open()
+
+  If MMain.$WebEntry = True Then
+    modDataRepo.$RepositoryMode = MMain.$AppLogCategory
+    modBasic.$HospCode = MMain.$AppLogString
+  Endif
+  modHelpVariable.SetApplicationGUI()
+  MMain.GetApplVersionType()
+  DiaplayCustMenu()
+
+  modBasic.LoadCashierBillingSettings()
+  modBasic.ChartSettingsAll()
+
+  SetFormAccess()
+
+End
+
+Private Sub SetFormAccess()
+
+  modGeneralMain.ShowSelectedFormMenu(mnumedicine)
+  modGeneralMain.ShowSelectedFormMenu(mnusurgicals)
+  modGeneralMain.ShowSelectedFormMenu(mnuextra)
+
+  modGeneralMain.ShowSelectedFormMenu(mnulabeling)
+  modGeneralMain.ShowSelectedFormMenu(mnuprotocols)
+  modGeneralMain.ShowSelectedFormMenu(mnufixed)
+  modGeneralMain.ShowSelectedFormMenu(mnuactivation)
+  modGeneralMain.ShowSelectedFormMenu(mnuoutorder)
+
+  modGeneralMain.ShowSelectedFormMenu(mnuinvenreport)
+  modGeneralMain.ShowSelectedFormMenu(mnudispenreport)
+  modGeneralMain.ShowSelectedFormMenu(mnutransfreport)
+  modGeneralMain.ShowSelectedFormMenu(mnuinvendb)
+
+  modGeneralMain.ShowSelectedFormMenu(mnucustomquery)
+  modGeneralMain.ShowSelectedFormMenu(mnupersonal)
+
+End
+
+Public Sub mnuexit_Click()
+
+  Session.Abandon()
+  WebForm.Current = fmLogIn
+  Me.Close()
+
+End
+
+Public Sub WebForm_Close()
+
+  modDevice.CamOnClose()
+  modDatabase.CloseDatabase()
+  modExternal.DeleteFolderRecursive("/tmp" &/ modHelpVariable.AppName &/ "docs" &/ modHelpVariable.$SessionCode)
+  modExternal.DeleteFolderRecursive(modHelpVariable.AppCacheDir)
+
+End
+
+Public Sub mnuhelppage_Click()
+
+  Dim xLink As String = "http://bitnepal.safiur.com.np/healthybit/help/" & modHelpVariable.$LogInCategory & "/"
+
+  Me.Exec("window.open('" & xLink & "'); ")
+
+End
+
+Public Sub mnuclearcache_Click()
+
+  modGeneralMain.CLearUserCollection()
+
+End
+
+Public Sub mnubugrepo_Click()
+
+  modGeneralMain.SendBugReport(modBasic.$lbluser)
+
+End
+
+' Public Sub WebContainer2_Render()
+'
+'   Print "<iframe src='" & modBasic.$FormLeftURL & "' width='100%' height='100%'></iframe>";
+'
+' End
+'
+' Public Sub WebContainer3_Render()
+'
+'   Print "<iframe src='" & modBasic.$FormRightURL & "' width='100%' height='100%'></iframe>";
+'
+' End
+
+Public Sub btnquit_Click()
+
+  Session.Abandon()
+  WebForm.Current = fmLogIn
+  Me.Close()
+
+End
+
+Public Sub btnfullscreen_Click()
+
+  If btnfullscreen.Image = "icon:/small/zoom-normal" Then
+    btnfullscreen.Image = "icon:/small/zoom-fit"
+    Me.Exec("openFullscreen()")
+
+  Else If btnfullscreen.Image = "icon:/small/zoom-fit" Then
+    btnfullscreen.Image = "icon:/small/zoom-normal"
+    Me.Exec("closeFullscreen()")
+
+  Endif
+
+End
+
+''---------------------------------------- CustomAccount Reports -------------------------------------
+Private Sub DiaplayCustMenu()
+
+  If modSettings.ShowSettingForReport("Pharmacist.CustomQuery1/Name") Then
+    mnucust1.Text = modSettings.ShowSettingForReport("Pharmacist.CustomQuery1/Name")
+    mnucust1.Tag = "Pharmacist.CustomQuery1"
+    mnucust1.Visible = True
+  Endif
+
+  If modSettings.ShowSettingForReport("Pharmacist.CustomQuery2/Name") Then
+    mnucust2.Text = modSettings.ShowSettingForReport("Pharmacist.CustomQuery2/Name")
+    mnucust2.Tag = "Pharmacist.CustomQuery2"
+    mnucust2.Visible = True
+  Endif
+
+  If modSettings.ShowSettingForReport("Pharmacist.CustomQuery3/Name") Then
+    mnucust3.Text = modSettings.ShowSettingForReport("Pharmacist.CustomQuery3/Name")
+    mnucust3.Tag = "Pharmacist.CustomQuery3"
+    mnucust3.Visible = True
+  Endif
+
+  If modSettings.ShowSettingForReport("Pharmacist.CustomQuery4/Name") Then
+    mnucust4.Text = modSettings.ShowSettingForReport("Pharmacist.CustomQuery4/Name")
+    mnucust4.Tag = "Pharmacist.CustomQuery4"
+    mnucust4.Visible = True
+  Endif
+
+  If modSettings.ShowSettingForReport("Pharmacist.CustomQuery5/Name") Then
+    mnucust5.Text = modSettings.ShowSettingForReport("Pharmacist.CustomQuery5/Name")
+    mnucust5.Tag = "Pharmacist.CustomQuery5"
+    mnucust5.Visible = True
+  Endif
+
+End
+
+Public Sub mnucust1_Click()
+
+  Dim hForm As FmCustQueryTable
+
+  If Workspace1.Children.Count Then
+    Workspace1.DeleteChildren()
+  Endif
+  hForm = New FmCustQueryTable(modDatabase.$syConn, mnucust1.Tag, Workspace1)
+
+End
+
+Public Sub mnucust2_Click()
+
+  Dim hForm As FmCustQueryTable
+
+  If Workspace1.Children.Count Then
+    Workspace1.DeleteChildren()
+  Endif
+  hForm = New FmCustQueryTable(modDatabase.$syConn, mnucust2.Tag, Workspace1)
+
+End
+
+Public Sub mnucust3_Click()
+
+  Dim hForm As FmCustQueryTable
+
+  If Workspace1.Children.Count Then
+    Workspace1.DeleteChildren()
+  Endif
+  hForm = New FmCustQueryTable(modDatabase.$syConn, mnucust3.Tag, Workspace1)
+
+End
+
+Public Sub mnucust4_Click()
+
+  Dim hForm As FmCustQueryTable
+
+  If Workspace1.Children.Count Then
+    Workspace1.DeleteChildren()
+  Endif
+  hForm = New FmCustQueryTable(modDatabase.$syConn, mnucust4.Tag, Workspace1)
+
+End
+
+Public Sub mnucust5_Click()
+
+  Dim hForm As FmCustQueryTable
+
+  If Workspace1.Children.Count Then
+    Workspace1.DeleteChildren()
+  Endif
+  hForm = New FmCustQueryTable(modDatabase.$syConn, mnucust5.Tag, Workspace1)
+
+End
+
+Public Sub mnucustsetting_Click()
+
+  fmCusAccReport.Close
+  fmCusAccReport.ShowModal
+
+End
+
+''============Settings
+Public Sub mnuchartsett_Click()
+
+  fmChartSetting.ShowModal
+
+End
+
+Public Sub mnureposett_Click()
+
+  fmReportSetting.ShowModal
+
+End
+
+Public Sub mnuappsetting_Click()
+
+  fmAppSetting.ShowModal
+
+End
+
+Public Sub mnupersonal_Click()
+
+  Dim hForm As FmPersonal
+
+  If Workspace1.Children.Count Then
+    Workspace1.DeleteChildren()
+  Endif
+  hForm = New FmPersonal(Workspace1)
+
+End
+
+Public Sub mnucuruserid_Click()
+
+  Dim hForm As FmReportUsers
+
+  If modBasic.$lbluser Then
+    hForm = New FmReportUsers(modBasic.$lbluser)
+    hForm.ShowModal
+  Endif
+
+End
+
+''===============================
+Public Sub mnumedicine_Click()
+
+  Dim hForm As FmMedicine
+
+  If Workspace1.Children.Count Then
+    Workspace1.DeleteChildren()
+  Endif
+  hForm = New FmMedicine(Workspace1)
+
+End
+
+Public Sub mnusurgicals_Click()
+
+End
+
+Public Sub mnuextra_Click()
+
+End
+
+Public Sub mnuformulary_Click()
+
+  Dim hForm As FmFormulary
+
+  If modSettings.ShowSettingFromFIle("Formulary/Medicine_Source") = "Internet" Then
+    If Not modWeb.$webMedConn Then
+      modWeb.ConnectRemoteMedServer()
+    Endif
+    hForm = New FmFormulary(modWeb.$webMedConn)
+    hForm.ShowModal
+  Else
+    hForm = New FmFormulary(modDatabase.$syConn)
+    hForm.ShowModal
+  Endif
+
+End
+
+Public Sub mnuinvenreport_Click()
+
+  Dim hForm As Fmmedreport
+
+  If Workspace1.Children.Count Then
+    Workspace1.DeleteChildren()
+  Endif
+  hForm = New Fmmedreport(Workspace1)
+
+End
+
+Public Sub mnudispenreport_Click()
+
+End
+
+Public Sub mnutransfreport_Click()
+
+  Dim hForm As FmmedTransfer
+
+  If Workspace1.Children.Count Then
+    Workspace1.DeleteChildren()
+  Endif
+  hForm = New FmmedTransfer(Workspace1)
+
+End
+
+Public Sub mnuinvendb_Click()
+
+  fmStockDB.ShowModal
+
+End
+
+Public Sub mnulabeling_Click()
+
+End
+
+Public Sub mnuprotocols_Click()
+
+  fmGroupMedSurg.ShowModal
+
+End
+
+Public Sub mnuactivation_Click()
+
+End
+
+Public Sub mnuoutorder_Click()
+
+End
+
+Public Sub mnudarkmode_Click()
+
+  Me.Exec("changeScreenMode();")
+
+End

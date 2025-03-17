@@ -1,0 +1,203 @@
+' Gambas class file
+
+Private $billMode As String
+Private $rData As Result
+Private $aMyFields As String[]
+
+Public Sub _new(sName As String, sBillMode As String)
+  
+  txtdisclabel.Text = sName
+  $billMode = sBillMode
+  
+  cmbtype.List = modNonMedical.BillItemCategory()
+  ShowDeptValues()
+  ShowDiscountException()
+  
+End
+
+Public Sub btnclose_Click()
+  
+  Me.Close()
+  
+End
+
+Private Sub ShowDeptValues()
+  
+  Dim res As Result
+  
+  res = modDatabase.$myConn.Exec("select fldqtylab,fldqtyradio,fldqtyproc,fldqtyequip,fldqtyservice,fldqtyother,fldqtymedicine,fldqtysurgical,fldqtyextra from tbldiscount where fldtype=&1", txtdisclabel.Text)
+  If res.Available Then
+    txtlabper.Value = res["fldqtylab"]
+    txtradioper.Value = res["fldqtyradio"]
+    txtprocper.Value = res["fldqtyproc"]
+    txtequipper.Value = res["fldqtyequip"]
+    txtserviceper.Value = res["fldqtyservice"]
+    txtotherper.Value = res["fldqtyother"]
+    txtmedper.Value = res["fldqtymedicine"]
+    txtsurgper.Value = res["fldqtysurgical"]
+    txtextraper.Value = res["fldqtyextra"]
+  Endif                                                             ''
+  
+End
+
+Public Sub btneditall_Click()
+  
+  Dim res As Result
+  
+  res = modDatabase.$myConn.Edit("tbldiscount", "fldtype=&1", txtdisclabel.Text)
+  If res.Available Then
+    res["fldqtylab"] = txtlabper.Value
+    res["fldqtyradio"] = txtradioper.Value
+    res["fldqtyproc"] = txtprocper.Value
+    res["fldqtyequip"] = txtequipper.Value
+    res["fldqtyservice"] = txtserviceper.Value
+    res["fldqtyother"] = txtotherper.Value
+    res["fldqtymedicine"] = txtmedper.Value
+    res["fldqtysurgical"] = txtsurgper.Value
+    res["fldqtyextra"] = txtextraper.Value
+    res.Update
+    Me.Exec("Toastify({text: 'Information saved', duration: 3000}).showToast()")
+    ' Balloon.Delay = modBasic.$BalloonDelay
+  Endif
+  
+End
+
+''========================= Exception ================
+Public Sub cmbtype_Click()
+  
+  cmbitem.List = GetComboList()
+  
+End
+
+Private Function GetComboList() As String[]
+  
+  Dim xxx As String[]
+  Dim xxx1 As String[]
+  Dim xxx2 As String[]
+  
+  Select cmbtype.Text
+    Case "Medicines", "Surgicals", "Extra Items"
+      xxx = New String[]
+      If cmbtype.Text = "Medicines" Then
+        xxx1 = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select fldbrandid as col from tblmedbrand"))
+        If $billMode Then 
+          xxx2 = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditemname from tblstockrate where fldbillingmode=&1 and flddrug in(select flddrug from tbldrug)", $billMode))
+        Endif 
+      Else If cmbtype.Text = "Surgicals" Then
+        xxx1 = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select fldbrandid as col from tblsurgbrand"))
+        If $billMode Then 
+          xxx2 = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditemname from tblstockrate where fldbillingmode=&1 and flddrug in(select fldsurgid from tblsurgicals)", $billMode))
+        Endif 
+      Else If cmbtype.Text = "Extra Items" Then
+        xxx1 = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select fldbrandid as col from tblextrabrand"))
+        If $billMode Then 
+          xxx2 = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditemname from tblstockrate where fldbillingmode=&1 and flddrug in(select fldextraid from tblextrabrand)", $billMode))
+        Endif 
+      Endif 
+      If xxx1.Count Then 
+        xxx.Insert(xxx1)
+      Endif 
+      If $billMode And If xxx2.Count Then 
+        xxx.Insert(xxx2)
+      Endif 
+      
+    Case Else 
+      If $billMode Then 
+        xxx = modNonMedical.NonStockBillingItemArray(cmbtype.Text, $billMode)
+      Else 
+        xxx = modNonMedical.NonStockBillingItemArray(cmbtype.Text, "%")
+      Endif 
+  End Select
+  
+  Return xxx
+  
+End
+
+' Public Sub cmbitem_KeyRelease()
+'
+'   modFillContainer.AutoFillComboBox(cmbitem)
+'   modFillContainer.RestrictComboToContent(cmbitem)
+'
+' End
+
+Public Sub btnaddexcept_Click()
+  
+  Dim res As Result
+  
+  If cmbitem.Text Then
+    res = modDatabase.$myConn.Create("tblcustquantity")
+    res["fldtype"] = txtdisclabel.Text
+    res["flditemname"] = cmbitem.Text
+    res["flditemtype"] = cmbtype.Text
+    res["fldmaxqty"] = txtexception.Text
+    res["flduserid"] = modBasic.$lbluser
+    res["fldtime"] = Now()
+    res["fldcomp"] = modBasic.$compID
+    res.Update
+    ShowDiscountException()
+    cmbtype.Text = ""
+    cmbitem.Clear()
+    cmbitem.Text = ""
+    txtexception.Value = 0
+    cmbtype.SetFocus
+  Endif
+  
+End
+
+Private Sub ShowDiscountException()
+  
+  Dim sql As String
+  
+  sql = "select fldid,flditemtype,flditemname,fldmaxqty from tblcustquantity where fldtype=&1"
+  $rData = modDatabase.$myConn.Exec(sql, txtdisclabel.Text)
+  $aMyFields = New String[]
+  modGridView.ReadSmallData(GridView1, $rData, $aMyFields)
+  
+  With GridView1
+    .Columns[0].Hidden = True
+    .Columns[1].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
+    .Columns[2].Width = CStr(250 * modBasic.$AppWidthRatio) & "px"
+    .Columns[3].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
+    
+    .Columns[1].Text = "Category"
+    .Columns[2].Text = "ItemName"
+    .Columns[3].Text = "Disc%"
+  End With
+  
+End
+
+Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableData)
+  
+  $rData.MoveTo(Row)
+  modGridView.GridViewDecoration(Data, Row)
+  Data.Text = $rData[$aMyFields[Column]]
+  
+End
+
+Public Sub btnedit_Click()
+  
+  Dim res As Result
+  Dim xval As Float
+  
+  If GridView1.Selection.Count Then
+    $rData.MoveTo(GridView1.Selection[0])
+    xval = InputValue(("Enter Maximum Quantity"), "Custom Quantity", $rData["fldmaxqty"])
+    res = modDatabase.$myConn.Edit("tblcustquantity", "fldid=&1", $rData["fldid"])
+    res["fldpercent"] = xval
+    res.Update
+    ShowDiscountException()
+  Endif
+  
+End
+
+Public Sub mnudelete_Click()
+  
+  If GridView1.Selection.Count Then
+    $rData.MoveTo(GridView1.Selection[0])
+    modDatabase.$myConn.Delete("tblcustquantity", "fldid=&1", $rData["fldid"])
+    ShowDiscountException()
+    Me.Exec("Toastify({text: 'Information deleted', duration: 3000}).showToast()")
+    ' Balloon.Delay = modBasic.$BalloonDelay
+  Endif
+  
+End

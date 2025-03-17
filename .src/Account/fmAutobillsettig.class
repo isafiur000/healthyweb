@@ -1,0 +1,303 @@
+' Gambas class file
+
+Private $rData As Result
+Private $aMyFields As String[]
+Private $DepartLst As String[]
+
+Public Sub _new()
+
+  cmbvisit.List = ["New", "Follow-up"]
+  cmbtype.List = ["Test", "Service", "Procedure", "Equipment", "Radio", "Others"]
+  cmbtypeextra.List = ["AllTime", "Before", "After"]
+  cmbpayable.List = ["Enable", "Disable"]
+  $DepartLst = modGeneral.GetDepartmentsForOPDBoth()
+  cmbpackage.List = modNonMedical.FillDiscountCombo()
+
+End
+
+Public Sub cmbpackage_Click()
+
+  cmbbilmode.Text = modNonMedical.GetDiscBindBillMode(cmbpackage.Text)
+
+End
+
+Public Sub btnaddept_Click()
+
+  lstdepart.List = GridListView("Select Departments", $DepartLst)
+
+End
+
+Public Sub btncleardept_Click()
+
+  lstdepart.Clear()
+
+End
+
+Public Sub btnrefresh_Click()
+
+  If cmbpackage.Text Then
+    FillGroupGrid()
+    cmbtype.SetFocus
+  Endif
+
+End
+
+Public Sub btnrefreshrate_Click()
+
+  If cmbbilmode.Text Then
+    FillRateGrid()
+    cmbtype.SetFocus
+  Endif
+
+End
+
+Private Sub FillGroupGrid()
+
+  Dim sql As String
+
+  sql = "select fldid,fldgroup,flddisctype,fldfollow,flditemname,flditemqty,fldexitemtype,fldcutoff,fldbillingmode from tblautogroup where flddisctype=&1"
+  $rData = modDatabase.$myConn.Exec(sql, cmbpackage.Text)
+  $aMyFields = New String[]
+  modGridView.ReadSmallData(GridView1, $rData, $aMyFields)
+  FillGridData()
+
+End
+
+Private Sub FillRateGrid()
+
+  Dim sql As String
+
+  sql = "select fldid,fldgroup,flddisctype,fldfollow,flditemname,flditemqty,fldexitemtype,fldcutoff,fldbillingmode from tblautogroup where fldbillingmode=&1"
+  $rData = modDatabase.$myConn.Exec(sql, cmbbilmode.Text)
+  $aMyFields = New String[]
+  modGridView.ReadSmallData(GridView1, $rData, $aMyFields)
+  FillGridData()
+
+End
+
+Private Sub FillGridData()
+
+  With GridView1
+    .Columns[0].Hidden = True
+    .Columns[1].Width = 125 * modBasic.$AppWidthRatio
+    .Columns[2].Width = 125 * modBasic.$AppWidthRatio
+    .Columns[3].Width = 75 * modBasic.$AppWidthRatio
+    .Columns[4].Width = 225 * modBasic.$AppWidthRatio
+    .Columns[5].Width = 50 * modBasic.$AppWidthRatio
+    .Columns[6].Width = 100 * modBasic.$AppWidthRatio
+    .Columns[7].Width = 100 * modBasic.$AppWidthRatio
+    .Columns[8].Hidden = True
+
+    .Columns[1].Text = "Department"
+    .Columns[2].Text = "Package"
+    .Columns[3].Text = "Visit"
+    .Columns[4].Text = "Particulars"
+    .Columns[5].Text = "QTY"
+    .Columns[6].Text = "Timing"
+    .Columns[7].Text = "CutOff"
+  End With
+
+End
+
+Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  $rData.MoveTo(Row)
+  modGridView.GridViewDecoration(Data, Row)
+  Data.Text = $rData[$aMyFields[Column]]
+
+End
+
+Public Sub GridView1_Select()
+
+  Dim res As Result
+
+  If GridView1.Selection.Count Then
+    $rData.MoveTo(GridView1.Selection[0])
+    res = modDatabase.$myConn.Exec("select fldgroup,flddisctype,fldbillingmode,fldfollow,flditemtype,flditemname,flditemqty,fldexitemtype,fldcutoff,fldpayable from tblautogroup where fldid=&1", $rData["fldid"])                                                 ''
+    If res.Available Then
+      cmbpackage.Text = res["flddisctype"]
+      cmbbilmode.Text = res["fldbillingmode"]
+      cmbvisit.Text = res["fldfollow"]
+      cmbtype.Text = res["flditemtype"]
+      cmbtest.Text = res["flditemname"]
+      txtqty.Value = res["flditemqty"]
+      cmbtypeextra.Text = res["fldexitemtype"]
+      dtextra.Text = CStr(res["fldcutoff"])
+      cmbpayable.Text = res["fldpayable"]
+    Endif
+  Endif
+
+End
+
+Public Sub cmbtype_Click()
+
+  If cmbbilmode.Text And If cmbtype.Text Then
+    cmbtest.List = modNonMedical.NonStockBillActiveItemArray(modNonMedical.GetBillItemCategoryFromCombo(cmbtype.Text), cmbbilmode.Text)
+  Endif
+
+End
+
+Public Sub btntest_Click()
+
+  Dim xLst As String[]
+
+  If cmbbilmode.Text And If cmbtype.Text Then
+    If Not cmbtest.Text Then
+
+      xLst = modNonMedical.NonStockBillActiveItemArray(modNonMedical.GetBillItemCategoryFromCombo(cmbtype.Text), cmbbilmode.Text)
+      If xLst.Count Then
+        cmbtest.Text = GridViewNew("Select Particulars", xLst, False)
+      Endif
+
+    Endif
+  Endif
+
+End
+
+Public Sub btnBrOK_Click()
+
+  Dim res As Result
+  Dim xdept As String
+  Dim xIntVal As String
+
+  If lstdepart.List.Count And If cmbtest.Text And If cmbtype.Text And If cmbbilmode.Text Then
+    For Each xdept In lstdepart.List
+      res = modDatabase.$myConn.Create("tblautogroup")
+      res["fldgroup"] = xdept
+      res["flddisctype"] = cmbpackage.Text
+      res["fldbillingmode"] = cmbbilmode.Text
+      res["fldfollow"] = cmbvisit.Text
+      res["flditemtype"] = cmbtype.Text
+      res["flditemname"] = cmbtest.Text
+      res["flditemqty"] = txtqty.Value
+      res["fldexitemtype"] = cmbtypeextra.Text
+      res["fldcutoff"] = CDate(dtextra.Text)
+      res["fldpayable"] = cmbpayable.Text
+      res["xyz"] = False
+      If MMain.$WebEntry = True Then
+        xIntVal = modString.GetDateString(Now())
+        res["fldid"] = CLong(xIntVal)
+        res["fldrepoid"] = modMisc.GetWebIndexStr(xIntVal)
+        res["fldrepodate"] = Now()
+        res["fldrepomac"] = CGI["REMOTE_ADDR"] & ":" & CGI["REMOTE_PORT"]
+        res["fldhospcode"] = modBasic.$HospCode
+      Endif
+      res.Update
+    Next
+    FillGroupGrid()
+    cmbtype.Text = ""
+    cmbtest.Text = ""
+    txtqty.Value = 0
+    cmbtypeextra.Text = ""
+    Me.Exec("Toastify({text: 'Information saved', duration: 3000}).showToast()")
+    cmbtype.SetFocus
+  Endif
+
+End
+
+Public Sub btnedit_Click()
+
+  Dim res As Result
+
+  If GridView1.Selection.Count Then
+    $rData.MoveTo(GridView1.Selection[0])
+    res = modDatabase.$myConn.Edit("tblautogroup", "fldid=&1", $rData["fldid"])
+    res["flddisctype"] = cmbpackage.Text
+    res["fldbillingmode"] = cmbbilmode.Text
+    res["fldfollow"] = cmbvisit.Text
+    res["flditemtype"] = cmbtype.Text
+    res["flditemname"] = cmbtest.Text
+    res["flditemqty"] = txtqty.Value
+    res["fldexitemtype"] = cmbtypeextra.Text
+    res["fldcutoff"] = CDate(dtextra.Text)
+    res["fldpayable"] = cmbpayable.Text
+    res["xyz"] = False
+    res.Update
+    FillGroupGrid()
+    Me.Exec("Toastify({text: 'Information updated', duration: 3000}).showToast()")
+  Endif
+
+End
+
+Public Sub mnudel_Click()
+
+  If GridView1.Selection.Count Then
+    $rData.MoveTo(GridView1.Selection[0])
+    modDatabase.$myConn.Delete("tblautogroup", "fldid=&1", $rData["fldid"])
+    FillGroupGrid()
+    Me.Exec("Toastify({text: 'Information deleted', duration: 3000}).showToast()")
+  Endif
+
+End
+
+Public Sub btnexport_Click()
+
+  modCHTMLReport.ExportGridToHTML(GridView1, "Registration Auto Billing", cmbpackage.Text)
+
+End
+
+Public Sub btndeptreport_Click()
+
+  Dim xPath As String
+
+  xPath = modRepoMaster.RegistAutoBillingList()
+  modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
+
+End
+
+Public Sub btnpackreport_Click()
+
+  Dim xPath As String
+
+  xPath = modRepoMaster.RegistAutoBillingPackList()
+  modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
+
+End
+
+' Public Sub cmbtypeextra_KeyRelease()
+'
+'   modFillContainer.AutoFillComboBox(cmbtypeextra)
+'   modFillContainer.RestrictComboToContent(cmbtypeextra)
+'
+' End
+
+' Public Sub cmbtype_KeyRelease()
+'
+'   modFillContainer.AutoFillComboBox(cmbtype)
+'   modFillContainer.RestrictComboToContent(cmbtype)
+'
+' End
+
+' Public Sub cmbpackage_KeyRelease()
+'
+'   modFillContainer.AutoFillComboBox(cmbpackage)
+'   modFillContainer.RestrictComboToContent(cmbpackage)
+'
+' End
+'
+' Public Sub cmbtest_KeyRelease()
+'
+'   modFillContainer.AutoFillComboBox(cmbtest)
+'   modFillContainer.RestrictComboToContent(cmbtest)
+'
+' End
+'
+' Public Sub cmbvisit_KeyRelease()
+'
+'   modFillContainer.AutoFillComboBox(cmbvisit)
+'   modFillContainer.RestrictComboToContent(cmbvisit)
+'
+' End
+'
+' Public Sub cmbpayable_KeyRelease()
+'
+'   modFillContainer.AutoFillComboBox(cmbpayable)
+'   modFillContainer.RestrictComboToContent(cmbpayable)
+'
+' End
+
+Public Sub btnclosse_Click()
+
+  Me.Close()
+
+End
