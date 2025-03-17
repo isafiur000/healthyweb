@@ -1,0 +1,354 @@
+' Gambas class file
+
+Export
+Inherits WebContainer
+
+Public Const _IsContainer As Boolean = False
+Public Const _Properties As String = "*,RichText,Text,KeyList,PlaceHolder,UserList"
+
+Property Text As String
+Property RichText As String
+Property KeyList As String[]
+Property UserList As Variant[]
+Property PlaceHolder As String
+
+Private hTopBox As WebContainer
+Private TextEdit1 As WebRichText
+Private WebContainer1 As WebScrollView
+
+' Private btnComplete As WebButton
+Private btnBold As WebButton
+Private btnItalic As WebButton
+Private btnUnderline As WebButton
+Private btnStrikeOut As WebButton
+Private btnAlignLeft As WebButton
+Private btnAlignCenter As WebButton
+Private btnAlignRight As WebButton
+Private btnAlignJustify As WebButton
+Private btnindent As WebButton
+Private btnoutdent As WebButton
+Private btnlistOrder As WebButton
+Private btnlistunorder As WebButton
+Private btnsubscript As WebButton
+Private btnsuperscript As WebButton
+Private btntextload As WebFileButton
+Private btnuserlist As WebButton
+
+Private $KeyList As String[]
+Private $UserList As Variant[]
+
+Public Sub _new()
+
+  Me.Arrangement = Arrange.Vertical
+
+  hTopBox = New WebContainer(Me)
+  hTopBox.Arrangement = Arrange.Row
+  $KeyList = New String[]
+
+  ' btnComplete = New WebButton(hBox) As "btnComplete"
+  ' btnComplete.Immediate = True
+  ' btnComplete.Height = "2em"
+  ' btnComplete.Width = "2em"
+  ' btnComplete.Image = "icon:/small/exec"
+
+  ''format buttons
+  btnBold = New WebButton(hTopBox) As "btnBold"
+  btnBold.Image = "icon:/32/text-bold"
+  FormatButton(btnBold, "Bold")
+
+  btnItalic = New WebButton(hTopBox) As "btnItalic"
+  btnItalic.Image = "icon:/32/text-italic"
+  FormatButton(btnItalic, "Italic")
+
+  btnUnderline = New WebButton(hTopBox) As "btnUnderline"
+  btnUnderline.Image = "icon:/32/text-underline"
+  FormatButton(btnUnderline, "Underline")
+
+  btnStrikeOut = New WebButton(hTopBox) As "btnStrikeOut"
+  btnStrikeOut.Image = "icon:/32/text-strike"
+  FormatButton(btnStrikeOut, "StrikeOut")
+
+  btnAlignLeft = New WebButton(hTopBox) As "btnAlignLeft"
+  btnAlignLeft.Image = "icon:/32/text-left"
+  FormatButton(btnAlignLeft, "Align Left")
+
+  btnAlignCenter = New WebButton(hTopBox) As "btnAlignCenter"
+  btnAlignCenter.Image = "icon:/32/text-center"
+  FormatButton(btnAlignCenter, "Align Center")
+
+  btnAlignRight = New WebButton(hTopBox) As "btnAlignRight"
+  btnAlignRight.Image = "icon:/32/text-right"
+  FormatButton(btnAlignRight, "Align Right")
+
+  btnAlignJustify = New WebButton(hTopBox) As "btnAlignJustify"
+  btnAlignJustify.Image = "icon:/32/text-fill"
+  FormatButton(btnAlignJustify, "Align Justify")
+
+  btnindent = New WebButton(hTopBox) As "btnindent"
+  btnindent.Image = "icon:/32/indent"
+  FormatButton(btnindent, "Indent")
+
+  btnoutdent = New WebButton(hTopBox) As "btnoutdent"
+  btnoutdent.Image = "icon:/32/unindent"
+  FormatButton(btnoutdent, "Unindent")
+
+  btnlistOrder = New WebButton(hTopBox) As "btnlistOrder"
+  btnlistOrder.Image = "icons/coll1.png"
+  FormatButton(btnlistOrder, "Ordered list")
+
+  btnlistunorder = New WebButton(hTopBox) As "btnlistunorder"
+  btnlistunorder.Image = "icons/coll2.png"
+  FormatButton(btnlistunorder, "Unordered list")
+
+  btnsubscript = New WebButton(hTopBox) As "btnsubscript"
+  btnsubscript.Image = "icon:/32/sort-ascent"
+  FormatButton(btnsubscript, "Subscript")
+
+  btnsuperscript = New WebButton(hTopBox) As "btnsuperscript"
+  btnsuperscript.Image = "icon:/32/sort-descent"
+  FormatButton(btnsuperscript, "Superscript")
+
+  btntextload = New WebFileButton(hTopBox) As "btntextload"
+  btntextload.Image = "icon:/32/upload"
+  FormatFileButton(btntextload, "Upload Text")
+
+  btnuserlist = New WebButton(hTopBox) As "btnuserlist"
+  btnuserlist.Image = "icon:/32/user"
+  SetButtonNormal(btnuserlist, "Select User")
+
+  ''Main control
+  WebContainer1 = New WebScrollView(Me)
+  WebContainer1.Class = "test-autocomplete-container"
+  WebContainer1.Expand = True
+  WebContainer1.Border = True
+
+  TextEdit1 = New WebRichText(WebContainer1)
+  TextEdit1.Class = "dotted-control"
+  TextEdit1.Expand = True
+
+End
+
+Private Sub FormatButton(xButton As WebButton, sToolTip As String)
+
+  xButton.Class = "toolButton"
+  xButton.Height = "2em"
+  xButton.Width = "2em"
+  xButton.Tooltip = sToolTip
+  xButton.Immediate = True
+
+End
+
+Private Sub FormatFileButton(xButton As WebFileButton, sToolTip As String)
+
+  xButton.Class = "toolButton"
+  xButton.Height = "2em"
+  xButton.Width = "2em"
+  xButton.Tooltip = sToolTip
+
+End
+
+Private Sub SetButtonNormal(xButton As WebButton, sToolTip As String)
+
+  xButton.Class = "toolButton"
+  xButton.Height = "2em"
+  xButton.Width = "2em"
+  xButton.Tooltip = sToolTip
+
+End
+
+''========================= Functions ========================
+Private Function Text_Read() As String
+
+  Dim xstr As String
+
+  If modString.GetRichTextMode(TextEdit1.Html) = True Then
+    xstr = modString.ConvertRichTextToPlain(TextEdit1.Html)
+  Else
+    xstr = TextEdit1.Html
+  Endif
+  Return xstr
+
+End
+
+Private Sub Text_Write(Value As String)
+
+  TextEdit1.Html = modString.TextToHTML(Value)
+
+End
+
+Private Function RichText_Read() As String
+
+  Dim xx As String
+
+  If Not Trim(TextEdit1.Html) Then
+    xx = ""
+  Else If Trim(TextEdit1.Html) = "<br>" Then
+    xx = ""
+  Else If Trim(TextEdit1.Html) = "<span><br></span>" Then
+    xx = ""
+  Else
+    xx = TextEdit1.Html
+  Endif
+  Return xx
+
+End
+
+Private Sub RichText_Write(Value As String)
+
+  TextEdit1.Html = Value
+
+End
+
+Private Function PlaceHolder_Read() As String
+
+  Return TextEdit1.PlaceHolder
+
+End
+
+Private Sub PlaceHolder_Write(Value As String)
+
+  TextEdit1.PlaceHolder = Value
+  Me.Refresh
+
+End
+
+Private Function KeyList_Read() As String[]
+
+  Return $KeyList
+
+End
+
+Private Sub KeyList_Write(Value As String[])
+
+  ''nothing
+
+End
+
+Private Function UserList_Read() As Variant[]
+  ''nothing
+
+End
+
+Private Sub UserList_Write(Value As Variant[])
+
+  $UserList = Value
+
+End
+
+''----------------- Format buttons ---------------
+' Public Sub btnComplete_Click()
+'
+'   WebForm.Exec("htmlautocomplete(" & JS(TextEdit1.Name) & ", " & JS(WebContainer1.Name) & ")")
+'
+' End
+
+Public Sub btnBold_Click()
+
+  WebForm.Exec("document.execCommand('bold', false, false)")
+
+End
+
+Public Sub btnItalic_Click()
+
+  WebForm.Exec("document.execCommand('italic', false, false)")
+
+End
+
+Public Sub btnUnderline_Click()
+
+  WebForm.Exec("document.execCommand('underline', false, false)")
+
+End
+
+Public Sub btnStrikeOut_Click()
+
+  WebForm.Exec("document.execCommand('strikethrough', false, false)")
+
+End
+
+Public Sub btnAlignLeft_Click()
+
+  WebForm.Exec("document.execCommand('justifyleft', false, false)")
+
+End
+
+Public Sub btnAlignCenter_Click()
+
+  WebForm.Exec("document.execCommand('justifycenter', false, false)")
+
+End
+
+Public Sub btnAlignRight_Click()
+
+  WebForm.Exec("document.execCommand('justifyright', false, false)")
+
+End
+
+Public Sub btnAlignJustify_Click()
+
+  WebForm.Exec("document.execCommand('justifyfull', false, false)")
+
+End
+
+Public Sub btnindent_Click()
+
+  WebForm.Exec("document.execCommand('indent', false, false)")
+
+End
+
+Public Sub btnoutdent_Click()
+
+  WebForm.Exec("document.execCommand('outdent', false, false)")
+
+End
+
+Public Sub btnlistOrder_Click()
+
+  WebForm.Exec("document.execCommand('insertOrderedList', false, false)")
+
+End
+
+Public Sub btnlistunorder_Click()
+
+  WebForm.Exec("document.execCommand('insertUnorderedList', false, false)")
+
+End
+
+Public Sub btnsubscript_Click()
+
+  WebForm.Exec("document.execCommand('Subscript', false, false)")
+
+End
+
+Public Sub btnsuperscript_Click()
+
+  WebForm.Exec("document.execCommand('Superscript', false, false)")
+
+End
+
+Public Sub btntextload_Click()
+
+  btntextload.Upload()
+
+End
+
+Public Sub btntextload_Finish()
+
+  TextEdit1.Html = TextEdit1.Html & File.Load(btntextload.Path)
+
+End
+
+Public Sub btnuserlist_Click()
+
+  Dim xval As String
+
+  If $UserList And If $UserList.Count Then
+    xval = MedicalSelectedUser("Select User", $UserList)
+    If xval Then
+      If $KeyList.Exist(xval) = False Then
+        $KeyList.Add(xval)
+      Endif
+    Endif
+  Endif
+
+End

@@ -1,0 +1,104 @@
+' Gambas class file
+
+Private $sType As String
+Private $sLink As String
+
+Public Sub _new(sType As String)
+
+  $sType = sType
+
+  Me.Title = $sType & " Dashboard"
+  dtfir.Value = Now()
+  dtlast.Value = Now()
+  modHelpVariable.CreateUserCacheDir()
+  modDate.$LocalDateData = New Collection
+  modHelpVariable.CalenderConnection()
+
+End
+
+Public Sub btnrefresh_Click()
+
+  Dim xPath As String
+  Dim xfile As String
+
+  If Not modDatabase.$syConn Or If Not modDatabase.$syConn.Opened Then
+    modHelpVariable.ConnectionDashboard()
+  Endif
+  If modDatabase.$syConn.Opened = True Then
+    If $sType = modMaternalDash.$Chapter Then
+      xPath = modMaternalDash.GetMaternalDashBoard(modDatabase.$syConn, dtfir.Value, dtlast.Value)
+    Endif
+
+    If xPath Then
+      $sLink = xPath
+      xfile = File.Load($sLink)
+      If InStr(xfile, modReportVar.$HTMLStart) > 0 Then
+        WebView1.Html = modString.GetSelectedText(xfile, modReportVar.$HTMLStart, modReportVar.$HTMLEnd)
+      Else
+        WebView1.Html = xfile
+      Endif
+    Endif
+  Endif
+
+End
+
+Public Sub dtnepfir_Click()
+
+  Dim xx As String
+
+  xx = BSDateFormat(("Enter BS Date in yyyy/mm/dd format"), ("Date Converter"), modDate.ConvertToLocaldate(dtfir.Value))
+  If xx Then
+    dtfir.Value = modDate.ConvertToEnglishdate(xx)
+  Endif
+
+End
+
+Public Sub dtneplast_Click()
+
+  Dim xx As String
+
+  xx = BSDateFormat(("Enter BS Date in yyyy/mm/dd format"), ("Date Converter"), modDate.ConvertToLocaldate(dtlast.Value))
+  If xx Then
+    dtlast.Value = modDate.ConvertToEnglishdate(xx)
+  Endif
+
+End
+
+Public Sub mnuprint_Click()
+
+  If $sLink Then
+    Me.Exec("printJS({printable: 'printable@report', type: 'html', scanStyles: false})")
+  Endif
+
+End
+
+Public Sub btnprint_Click()
+
+  ' mnuprint_Click()
+
+End
+
+Public Sub btnclose_Click()
+
+  Me.Close()
+
+End
+
+' Private Function GetPrintableHTML(sLink As String) As String
+'
+'   Dim xhtml As String
+'
+'   If sLink Then
+'     xhtml = modString.GetSelectedText(File.Load(sLink), modReportVar.$CSSStart, modReportVar.$FooterEnd)
+'   Endif
+'   Return xhtml
+'
+' End
+
+''printJS('test.pdf')
+''printJS({printable: 'test', type: 'html', scanStyles: false})
+''printJS({printable: 'test', type: 'html', style: style, scanStyles: false})
+''printJS({printable: 'test', type: 'html', css: 'test.css', scanStyles: false})
+''printJS({printable: `<h1>Print.js Raw HTML Print Test</h1>`,type: 'raw-html',style: '.blueText {color:blue;}'})
+''printJS('ramdhan.jpg', 'image')
+'' Me.Exec("window.print()")

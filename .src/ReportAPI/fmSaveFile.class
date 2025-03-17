@@ -1,0 +1,66 @@
+' Gambas class file
+
+Private $sFIle As String
+Private $encid As String
+Private $sType As String
+
+Public Sub _new(sPath As String, encid As String, sType As String)
+
+  $sFIle = sPath
+  $encid = encid
+  $sType = sType
+
+  txtfile.ProgressControl = WebProgressBar1
+  WebLabel3.Text = $sType
+  txtfile.Text = File.Name($sFIle)
+  If $encid Then
+    rbarchive.Value = True
+  Else
+    rbarchive.Enabled = False
+    rbpersonal.Value = True
+  Endif
+  txtdetail.SetFocus
+
+End
+
+Public Sub btnsend_Click()
+
+  If rbpersonal.Value = True Then
+    SaveToPersonal()
+  Else If rbarchive.Value = True Then
+    SaveToArchive()
+  Endif
+  Me.Exec("Toastify({text: 'Information saved', duration: 3000}).showToast()")
+
+End
+
+Private Sub SaveToPersonal()
+
+  If txtdetail.Text Then
+    modImage.SaveDocumentToPersonal(modBasic.$lbluser, txtdetail.Text, $sFIle)
+  Endif
+
+End
+
+Private Sub SaveToArchive()
+
+  Dim sLongID As Long
+  Dim sTitle As String
+
+  If $sType Then
+    sTitle = $sType
+  Else
+    sTitle = "General Reports"
+  Endif
+  sLongID = modImage.SavePatientFileGeneral($encid, sTitle, txtdetail.Text, $sFIle, modReportVar.$ReportHash)                  ''
+  If sLongID Then
+    Me.Exec("Toastify({text: 'File saved', duration: 3000}).showToast()")
+  Endif
+
+End
+
+Public Sub btnclose_Click()
+
+  Me.Close
+
+End
