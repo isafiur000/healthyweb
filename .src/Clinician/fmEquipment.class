@@ -21,14 +21,14 @@ Private aObj4 As New Object[50]
 Private aWebBlank As New Object[50]
 
 Public Sub _new(encid As String, DiscType As String)
-  
+
   Dim xstatus As String
   Dim accLst As String[]
-  
+
   $encid = encid
   $sPackage = DiscType
   modGeneralMain.GetOpenModalForm(Me)
-  
+
   accLst = modBasic.$BillDiscountCash
   If accLst.Count = 0 Then
     accLst.Add($sPackage)
@@ -41,12 +41,12 @@ Public Sub _new(encid As String, DiscType As String)
   If Not $BillMode Then
     $BillMode = modpatient.GetPatBillingMode($encid)
   Endif
-  
+
   xstatus = modPatient.CurrentAdmissionStatus($encid)
   txtlocation.Text = modPatient.GetLocationSetting($encid, xstatus)
   $xFinClear = modNonMedical.GetFinanceClearance($encid)
   cmbequip.List = modNonMedical.NonStockBillActiveItemArray("Equipment", $BillMode)
-  
+
   btnrefer.Tag = modBillings.GetReferralUserSetting("Equipment", $encid)
   If btnrefer.Tag Then
     btnrefer.Text = modGeneral.GetUserFullName(btnrefer.Tag)
@@ -63,20 +63,20 @@ Public Sub _new(encid As String, DiscType As String)
   Else
     cmbequip.SetFocus
   Endif
-  
+
 End
 
 Public Sub TabPanel1_Click()
-  
+
   If TabPanel1.Index = 0 Then
   Else If TabPanel1.Index = 1 Then
     CompleteGrid()
   Endif
-  
+
 End
 
 Public Sub btnscheme_Click()
-  
+
   If cmbdisctype.Text Then
     $BillMode = modNonMedical.GetDiscBindBillMode(cmbdisctype.Text)
     If Not $BillMode Then
@@ -84,14 +84,14 @@ Public Sub btnscheme_Click()
     Endif
     cmbequip.List = modNonMedical.NonStockBillActiveItemArray("Equipment", $BillMode)
   Endif
-  
+
 End
 
 Private Sub FillFrame()
-  
+
   Dim i As Integer
   Dim res As Result
-  
+
   res = modDatabase.$myConn.Exec("select fldid,flditem,fldfirsttime from tblpattiming where fldencounterval=&1 and fldtype=&2 and fldfirstsave=&3 and fldsecondsave=&4", $encid, "Equipment", True, False)                                                                   ''
   $totRecord = res.Count
   If res.Available = True Then
@@ -102,52 +102,52 @@ Private Sub FillFrame()
     Next
     $tot = i - 1
   Endif
-  
+
 End
 
 Public Sub btnadd_Click()
-  
+
   If modNonMedical.GetControlServCombo(cmbequip.Text) = False Then
     cmbequip.Text = ""
     Message.Warning(("Item not listed"), ("OK"))
     ' Balloon.Delay = modBasic.$BalloonDelay
   Endif
-  
+
   If cmbequip.Text Then
     $tot = $tot + 1
     FillObjectInFrame($tot, cmbequip.Text, True, "", "", 0)
   Endif
-  
+
 End
 
 Private Sub FillObjectInFrame(i As Integer, txtitem As String, optnew As Boolean, txt1 As Date, txt2 As Date, id As Long)
-  
+
   Dim AppFactor As Float
-  
+
   AppFactor = modBasic.$AppScaleFactor
   aObjP[i] = New WebContainer(Frame1)
-  
+
   aWebFrame[i] = New WebContainer(aObjP[i])
   aObj1[i] = New WebLabel(aWebFrame[i])
-  
+
   aWebPanel[i] = New WebContainer(aObjP[i])
   aObj2[i] = New WebTextBox(aWebPanel[i])
   aObj22[i] = New WebButton(aWebPanel[i]) As "StartButton"
   aObj3[i] = New WebTextBox(aWebPanel[i])
   aObj33[i] = New WebButton(aWebPanel[i]) As "StopButton"
   aObj4[i] = New WebValueBox(aWebPanel[i]) As "ValueGroup"
-  
+
   aWebBlank[i] = New WebContainer(Frame1)
-  
+
   With aObjP[i]
     .Arrangement = Arrange.Row
   End With
-  
+
   With aWebFrame[i]
     .Arrangement = Arrange.Horizontal
     .Class = "size-tablet less-container-margin"
   End With
-  
+
   With aObj1[i]
     .Expand = True
     .Height = "2em"
@@ -155,12 +155,12 @@ Private Sub FillObjectInFrame(i As Integer, txtitem As String, optnew As Boolean
     .Tag = i
     .Border = True
   End With
-  
+
   With aWebPanel[i]
     .Arrangement = Arrange.Horizontal
     .Class = "size-tablet less-container-margin"
   End With
-  
+
   With aObj2[i]
     .Expand = True
     .Height = "2em"
@@ -178,7 +178,7 @@ Private Sub FillObjectInFrame(i As Integer, txtitem As String, optnew As Boolean
       .Enabled = False
     Endif
   End With
-  
+
   With aObj3[i]
     .Expand = True
     .Height = "2em"
@@ -203,75 +203,75 @@ Private Sub FillObjectInFrame(i As Integer, txtitem As String, optnew As Boolean
     .Visible = False
     .Tag = i
   End With
-  
+
   With aWebBlank[i]
     .Height = "1em"
   End With
-  
+
 End
 
 Public Sub StartButton_Click()
-  
+
   Dim j As Integer
   Dim xidno As Long
-  
+
   j = Last.Tag
   aObj2[j].Text = modReportVar.GetDateTimeReport(Now(), gb.GeneralDate)
-  xidno = modPatientGeneral.AddPatientTableFirstTime($encid, "Equipment", cmbdisctype.Text, aObj1[j].Text, "", Now())
+  xidno = modPatientGeneral.AddPatientTableFirstTime($encid, "Equipment", cmbdisctype.Text, aObj1[j].Text, "", Now(), "")
   aObj22[j].Enabled = False
   aObj33[j].Enabled = True
-  
+
 End
 
 Public Sub StopButton_Click()
-  
+
   Dim j As Integer
   Dim hr As Float
   Dim autobil As String
   Dim unitrate As String
   Dim res As Result
-  
+
   Dim xrefer As String
   Dim xpayble As String
-  
+
   If btnrefer.Tag Then
     xrefer = btnrefer.Tag
   Else
     xrefer = modBillings.GetReferralUserSetting("Equipment", $encid)
   Endif
   xpayble = modBillings.GetPayableUserSetting("Equipment", $encid)
-  
+
   j = Last.Tag
   autobil = modBasic.$AutoBillEquipment
   If aObj4[j].Value > 0 Then
     aObj3[j].Text = modReportVar.GetDateTimeReport(Now(), gb.GeneralDate)
-    
+
     modDatabase.$myConn.Begin
     modPatientGeneral.UpdatePatientTableSecondTime(aObj4[j].Value, "")
     unitrate = modNonMedical.GetBillingTargeDept(aObj1[j].Text, "Equipment")
     res = modDatabase.$myConn.Exec("select fldfirsttime,fldsecondtime,flddisctype from tblpattiming where fldid=&1", aObj4[j].Value)
     hr = modPatPatho.GetServiceUseDuration($encid, "Equipment", aObj1[j].Text, unitrate, res["fldfirsttime"], res["fldsecondtime"])
-    
+
     If autobil = "Yes" Or If autobil = "Full" Or If autobil = "Partial" Then
       modBillings.EnterBillingForInterval(autobil, "Equipment", $encid, res["flddisctype"], aObj1[j].Text, hr, aObj4[j].Value, xpayble, xrefer)
     Endif
     modDatabase.$myConn.Commit
-    
+
     aObj33[j].Enabled = False
     aObj22[j].Enabled = True
   Endif
   CompleteGrid()
-  
+
 Catch
   modDatabase.$myConn.Rollback
   modHelpVariable.CreateErrorReport()
-  
+
 End
 
 Public Sub btnselectuser_Click()
-  
+
   Dim xMedUser As String[]
-  
+
   xMedUser = MedicalSelectedValue(("Select Payable User"), modBasic.$PayUserList)
   If xMedUser And If xMedUser.Count Then
     btnrefer.Tag = xMedUser[0]
@@ -280,27 +280,27 @@ Public Sub btnselectuser_Click()
     btnrefer.Tag = ""
     btnrefer.Text = ""
   Endif
-  
+
 End
 
 Public Sub btnrefer_Change()
-  
+
   If btnrefer.Text = "" Then
     btnrefer.Tag = ""
   Endif
-  
+
 End
 
 ''================= completed ==============
 Private Sub CompleteGrid()
-  
+
   Dim sql As String
-  
+
   sql = "select fldid,flditem,fldfirsttime,fldsecondtime,fldid,fldfirstuserid,fldseconduserid from tblpattiming where fldencounterval=&1 and fldtype=&2"
   $rData = modDatabase.$myConn.Exec(sql, $encid, "Equipment")
   $aMyFields = New String[]
   modGridView.ReadSmallData(GridView1, $rData, $aMyFields)
-  
+
   With GridView1
     .Columns[0].Hidden = True
     .Columns[1].Width = CStr(250 * modBasic.$AppWidthRatio) & "px"
@@ -309,7 +309,7 @@ Private Sub CompleteGrid()
     .Columns[4].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
     .Columns[5].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
     .Columns[6].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
-    
+
     .Columns[1].Text = "Equipment"
     .Columns[2].Text = "StartTime"
     .Columns[3].Text = "EndTime"
@@ -317,11 +317,11 @@ Private Sub CompleteGrid()
     .Columns[5].Text = "User1"
     .Columns[6].Text = "User2"
   End With
-  
+
 End
 
 Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableData)
-  
+
   $rData.MoveTo(Row)
   modGridView.GridViewDecoration(Data, Row)
   If Column = 2 Then
@@ -333,17 +333,17 @@ Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableDat
   Else
     Data.Text = $rData[$aMyFields[Column]]
   Endif
-  
+
 End
 
 Public Sub btnclose_Click()
-  
+
   Me.Close()
-  
+
 End
 
 ' Public Sub cmbequip_Render()
-'   
+'
 '   modJavaScript.SetSelect2Combo(cmbequip)
-'   
+'
 ' End

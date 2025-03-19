@@ -1576,13 +1576,17 @@ Public Function GetIPEventsReport(conn As Connection, dt1 As Date, dt2 As Date, 
   Dim $BillingReport As CReportHTML
   Dim asx As New String[0]
   Dim i As Integer
+  Dim RepoStr As String
+
   Dim xcount As Integer
   Dim xoutLst As String[] = ["Discharged", "LAMA", "Death", "Refer", "Absconder"]
   Dim xout As String
 
   Dim res1 As Result
   Dim res2 As Result
-  Dim RepoStr As String
+  Dim rsx1 As Result
+  Dim rsx2 As Result
+  'Dim rsx3 As Result
 
   RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
   $BillingReport = New CReportHTML([("SNo"), ("EncID"), ("Name"), ("Age/Sex"), ("Bed")], "", "")
@@ -1620,6 +1624,15 @@ Public Function GetIPEventsReport(conn As Connection, dt1 As Date, dt2 As Date, 
   End With
   $BillingReport.Add(asx)
   asx.Clear()
+  With asx
+    .Add("")
+    .Add("")
+    .Add("")
+    .Add("")
+    .Add("")
+  End With
+  $BillingReport.Add(asx)
+  asx.Clear()
 
   xcount = 0
   For Each xout In xoutLst
@@ -1654,6 +1667,71 @@ Public Function GetIPEventsReport(conn As Connection, dt1 As Date, dt2 As Date, 
   End With
   $BillingReport.Add(asx)
   asx.Clear()
+  With asx
+    .Add("")
+    .Add("")
+    .Add("")
+    .Add("")
+    .Add("")
+  End With
+  $BillingReport.Add(asx)
+  asx.Clear()
+
+  rsx1 = conn.Exec("select fldencounterval,fldcomment from tblpattiming where fldtype=&1 and flditem=&2 and fldfirstreport=&3 and fldfirsttime>=&4 and fldfirsttime<=&5 and fldsecondsave=&6 and fldcomment<>&7", "General Services", sDept, "Bed", modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt1), True, "Intra Transfer")
+  If rsx1.Available Then
+    $BillingReport.AddChapter("TRANSFER IN")
+    i = 1
+    For Each rsx1
+      With asx
+        .Add(CStr(i))
+        .Add(rsx1["fldencounterval"])
+        .Add(modPatient.GetPatientNameByEnc(rsx1["fldencounterval"], conn))
+        .Add(modMedReports.GetPatientPastAgeString("tblencounter", rsx1["fldencounterval"]) & "/" & Left(modPatient.GetPatientSex(rsx1["fldencounterval"], conn), 1))
+        .Add(rsx1["fldcomment"])
+      End With
+      $BillingReport.Add(asx)
+      asx.Clear()
+      i = i + 1
+    Next
+    With asx
+      .Add("")
+      .Add("")
+      .Add("")
+      .Add("")
+      .Add("")
+    End With
+    $BillingReport.Add(asx)
+    asx.Clear()
+  Endif
+
+  rsx2 = conn.Exec("select fldencounterval,fldsecondreport from tblpattiming where fldtype=&1 and flditem=&2 and fldfirstreport=&3 and fldsecondtime>=&4 and fldsecondtime<=&5 and fldsecondsave=&6 and fldcomment=&7", "General Services", sDept, "Bed", modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt1), True, "Intra Transfer")
+  If rsx2.Available Then
+    $BillingReport.AddChapter("INTRA-WARD TRANSFER")
+    i = 1
+    For Each rsx2
+      With asx
+        .Add(CStr(i))
+        .Add(rsx2["fldencounterval"])
+        .Add(modPatient.GetPatientNameByEnc(rsx2["fldencounterval"], conn))
+        .Add(modMedReports.GetPatientPastAgeString("tblencounter", rsx2["fldencounterval"]) & "/" & Left(modPatient.GetPatientSex(rsx2["fldencounterval"], conn), 1))
+        .Add(rsx2["fldsecondreport"])
+      End With
+      $BillingReport.Add(asx)
+      asx.Clear()
+      i = i + 1
+    Next
+    With asx
+      .Add("")
+      .Add("")
+      .Add("")
+      .Add("")
+      .Add("")
+    End With
+    $BillingReport.Add(asx)
+    asx.Clear()
+  Endif
+
+  ''Trans Out
 
   Return $BillingReport.NewHTMLPath()
 
