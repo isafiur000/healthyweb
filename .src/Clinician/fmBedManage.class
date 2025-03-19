@@ -2,6 +2,7 @@
 
 Private $encid As String
 Private $bedNo As String
+Private $depart As String
 Private $DiscType As String
 
 Private $rData As Result
@@ -42,13 +43,12 @@ Private Sub GetCurrentBedData()
 
   Dim i As Integer
   Dim res As Result
-  Dim xdept As String
 
   res = modDatabase.$myConn.Exec("select flddept,fldbed from tbldepartmentbed where fldbed in(select fldcurrlocat from tblencounter where fldencounterval=&1)", $encid)
   If res.Available Then
     res.MoveLast
     $bedNo = res["fldbed"]
-    xdept = res["flddept"]
+    $depart = res["flddept"]
   Endif
 
   If modBasic.$FixedDepartment Then
@@ -59,7 +59,7 @@ Private Sub GetCurrentBedData()
     Next
   Else
     For i = 0 To lstdepartment.Count - 1
-      If lstdepartment.List[i] = xdept Then
+      If lstdepartment.List[i] = $depart Then
         lstdepartment.Index = i
       Endif
     Next
@@ -243,7 +243,7 @@ Public Sub btnclear_Click()
 
 End
 
-Private Sub SelectBed(bedno As String)
+Private Sub SelectBed(newbed As String)
 
   Dim res As Result
   Dim res1 As Result
@@ -255,12 +255,18 @@ Private Sub SelectBed(bedno As String)
   Dim xrefer As String
   Dim xpayble As String
   Dim xidno As Long
+  Dim xcomm As String
 
   If $encid Then
     xrefer = modBillings.GetReferralUserSetting("Service", $encid)
     xpayble = modBillings.GetPayableUserSetting("Service", $encid)
+    If $depart = lstdepartment.Text Then
+      xcomm = "Intra Transfer"
+    Else
+      xcomm = newbed
+    Endif
 
-    res1 = modDatabase.$myConn.Exec("select fldencounterval from tbldepartmentbed where flddept=&1 and fldbed=&2", lstdepartment.Text, bedno)
+    res1 = modDatabase.$myConn.Exec("select fldencounterval from tbldepartmentbed where flddept=&1 and fldbed=&2", lstdepartment.Text, newbed)
     If res1.Available And If res1["fldencounterval"] Then
       Message.Warning(("Bed not free"), ("OK"))
     Else
@@ -268,7 +274,7 @@ Private Sub SelectBed(bedno As String)
       res = modDatabase.$myConn.Exec("select fldid,flditem,flddisctype,fldfirsttime,fldfirstreport from tblpattiming where fldencounterval=&1 and fldtype=&2 and fldfirstsave=&3 and fldsecondsave=&4 and fldfirstreport=&5", $encid, "General Services", True, False, "Bed")                                                                   ''
       If res.Available = False Then
         modPatientSub.UpdateAdmissionWard($encid, lstdepartment.Text)
-        xidno = modPatientGeneral.AddPatientTableFirstTime($encid, "General Services", $DiscType, lstdepartment.Text, "Bed", dtnow.Value)
+        xidno = modPatientGeneral.AddPatientTableFirstTime($encid, "General Services", $DiscType, lstdepartment.Text, "Bed", dtnow.Value, newbed)
       Else
         res.MoveFirst
         modDatabase.$myConn.Begin
@@ -286,15 +292,16 @@ Private Sub SelectBed(bedno As String)
             WebForm.Exec("Toastify({text: 'Bed Charge not specified', duration: 3000}).showToast()")
           Endif
         Endif
-        xidno = modPatientGeneral.AddPatientTableFirstTime($encid, "General Services", $DiscType, lstdepartment.Text, "Bed", dtnow.Value)
+        xidno = modPatientGeneral.AddPatientTableFirstTime($encid, "General Services", $DiscType, lstdepartment.Text, "Bed", dtnow.Value, newbed)
         modDatabase.$myConn.Commit
       Endif
 
-      $bedNo = bedno
-      modPatientSub.UpdatePatLocation($encid, bedno, dtnow.Value)
+      $bedNo = newbed
+      $depart = lstdepartment.Text
+      modPatientSub.UpdatePatLocation($encid, newbed, dtnow.Value)
       FillBedGrid()
 
-      $sValue = bedno
+      $sValue = newbed
     Endif
   Endif
 
@@ -345,6 +352,8 @@ Private Sub ReleaseBed(bedno As String)
       Endif
 
       modPatientSub.UpdatePatLocationRelease($encid, dtnow.Value)
+      $bedNo = ""
+      $depart = ""
       FillBedGrid()
 
       $sValue = ""
