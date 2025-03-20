@@ -3179,9 +3179,10 @@ Public Function SubGetTreatmentNCDDetail(sFormat As String, xdtfir As Date, xdtl
         Column = Column + 1
       Next
 
+      ''for New only
       For Each xsex In sexList
         xcnt = 0
-        res2 = modDatabase.$syConn.Exec("select COUNT(fldid) as col from tblpatfindings where fldtime>=&1 and fldtime<=&2 and fldtype=&3 and fldcodenew in(select fldcodenew from tbldiagnogroup where fldgroupname=&4 and fldformat=&5) and fldencounterval in(select fldencounterval from tblencounter where flddoa IS NULL and fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex=&6)) and fldsave=&7" & modDataRepo.GetWhereStringRepo(sLocaType, sLocation), modDate.StartSqlDate(xdtfir), modDate.EndSqlDate(xdtlast), "Provisional Diagnosis", xgroup, sFormat, xsex, True)
+        res2 = modDatabase.$syConn.Exec("select COUNT(fldid) as col from tblpatfindings where fldtime>=&1 and fldtime<=&2 and fldtype=&3 and fldcodenew in(select fldcodenew from tbldiagnogroup where fldgroupname=&4 and fldformat=&5) and fldencounterval in(select fldencounterval from tblencounter where flddoa IS NULL and fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex=&6) and fldfollow=&8) and fldsave=&7" & modDataRepo.GetWhereStringRepo(sLocaType, sLocation), modDate.StartSqlDate(xdtfir), modDate.EndSqlDate(xdtlast), "Provisional Diagnosis", xgroup, sFormat, xsex, True, "New")
         If res2["col"] Then
           xcnt = res2["col"]
         Endif
@@ -3189,10 +3190,11 @@ Public Function SubGetTreatmentNCDDetail(sFormat As String, xdtfir As Date, xdtl
         Column = Column + 1
       Next
 
+      ''for New only
       For Each xage In ageList
         agelim = Split(GetHMISAgeValueNCD(xage), ";")
         xcnt = 0
-        res3 = modDatabase.$syConn.Exec("select COUNT(tblpatfindings.fldid) as col from (tblpatfindings inner join tblencounter on tblpatfindings.fldencounterval=tblencounter.fldencounterval) inner join tblpatientinfo on tblencounter.fldpatientval=tblpatientinfo.fldpatientval where tblpatfindings.fldtime>=&1 and tblpatfindings.fldtime<=&2 and tblpatfindings.fldtype=&3 and tblencounter.flddoa IS NULL and tblpatfindings.fldcodenew in(select tbldiagnogroup.fldcodenew from tbldiagnogroup where tbldiagnogroup.fldgroupname=&4 and tbldiagnogroup.fldformat=&5) and " & xdtstr & ">=&6 and " & xdtstr & "<&7 and tblpatfindings.fldsave=&8" & modDataRepo.GetWhereStringRepo(sLocaType, sLocation, "tblpatfindings"), modDate.StartSqlDate(xdtfir), modDate.EndSqlDate(xdtlast), "Provisional Diagnosis", xgroup, sFormat, CInt(agelim[0]), CInt(agelim[1]), True)
+        res3 = modDatabase.$syConn.Exec("select COUNT(tblpatfindings.fldid) as col from (tblpatfindings inner join tblencounter on tblpatfindings.fldencounterval=tblencounter.fldencounterval) inner join tblpatientinfo on tblencounter.fldpatientval=tblpatientinfo.fldpatientval where tblpatfindings.fldtime>=&1 and tblpatfindings.fldtime<=&2 and tblpatfindings.fldtype=&3 and tblencounter.flddoa IS NULL and tblpatfindings.fldcodenew in(select tbldiagnogroup.fldcodenew from tbldiagnogroup where tbldiagnogroup.fldgroupname=&4 and tbldiagnogroup.fldformat=&5) and " & xdtstr & ">=&6 and " & xdtstr & "<&7 and tblpatfindings.fldsave=&8 and tblencounter.fldfollow=&9" & modDataRepo.GetWhereStringRepo(sLocaType, sLocation, "tblpatfindings"), modDate.StartSqlDate(xdtfir), modDate.EndSqlDate(xdtlast), "Provisional Diagnosis", xgroup, sFormat, CInt(agelim[0]), CInt(agelim[1]), True, "New")
         If res3["col"] Then
           xcnt = res3["col"]
         Endif
