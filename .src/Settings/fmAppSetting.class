@@ -4,6 +4,10 @@ Public Sub _new()
 
   ''userwise
   cmbmedview.List = ["ComboBox", "GridView"]
+  If MMain.$SISHAppMode = "HIS" Then
+    WebContainer10.Visible = True
+    WebContainer17.Visible = True
+  Endif
   GeneralSetting()
 
 End
@@ -529,13 +533,34 @@ Public Sub btnpacspass_Click()
 
 End
 
+''-------------------- Upload ---
+Public Sub chkencid_Click()
+
+  txtencid.Enabled = chkencid.Value
+
+End
+
 Public Sub btnpacsupload_Click()
 
   Dim xxx As String
+  Dim xNew As String
 
   If txtpacshost.Text Then
     If txtpacsupload.Text Then
-      xxx = modPACS.UploadDicomArchive(txtpacshost.Text, txtorthancport.Text, txtpacsupload.Text, txtpacsuser.Text, txtpacspass.Text, cmbpacsssl.Text)
+
+      If chkencid.Value = True And If txtencid.Text Then
+        xNew = modDevAll.ChangeEncIdDicom(Trim(txtencid.Text), txtpacsupload.Text)
+        If Exist(xNew) Then
+          xxx = modPACS.UploadDicomArchive(txtpacshost.Text, txtorthancport.Text, xNew, txtpacsuser.Text, txtpacspass.Text, cmbpacsssl.Text)
+        Endif
+      Else
+        xxx = modPACS.UploadDicomArchive(txtpacshost.Text, txtorthancport.Text, txtpacsupload.Text, txtpacsuser.Text, txtpacspass.Text, cmbpacsssl.Text)
+      Endif
+
+      If xxx Then
+        Me.Exec("Toastify({text: 'File Uploaded', duration: 3000}).showToast()")
+      Endif
+
     Endif
   Endif
 

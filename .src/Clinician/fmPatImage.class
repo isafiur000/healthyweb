@@ -15,8 +15,15 @@ Public Sub _new(strType As String, encid As String, sPath As String)
   Select MMain.$SISHAppMode
     Case "REP", "TeleMed"
       pnlmanual.Visible = False
+      pnlupload.Visible = False
     Case Else
       pnlmanual.Visible = True
+      If $strType = "DICOM" Then
+        cmbserver.List = modMisc.GetPacsServerList()
+        pnlupload.Visible = True
+      Else
+        pnlupload.Visible = False
+      Endif
   End Select
 
   If sPath Then
@@ -425,6 +432,36 @@ Public Sub btnscrpen_Click()
       If PictureBox1.Tag Then
         PictureBox1.Image = modPrint.GetFileWebURL(PictureBox1.Tag)
       Endif
+    Endif
+  Endif
+
+End
+
+''-------------- upload dicom --------
+Public Sub btnpacsupload_Click()
+
+  Dim FileList As String[]
+  Dim xfile As String
+  Dim xxx As String
+  Dim xNew As String
+
+  If cmbserver.Text Then
+    modPACS.GetPacsSetting(cmbserver.Text)
+    If txtpacsupload.Text Then
+
+      If chkencid.Value = True And If txtencid.Text Then
+        xNew = modDevAll.ChangeEncIdDicom(Trim(txtencid.Text), txtpacsupload.Text)
+        If Exist(xNew) Then
+          xxx = modPACS.UploadDicomArchive(modPACS.$sHost, modPACS.$sHttPort, xNew, modPACS.$sHTTPUser, modPACS.$sHTTPPass, modPACS.$sSSL)
+        Endif
+      Else
+        xxx = modPACS.UploadDicomArchive(modPACS.$sHost, modPACS.$sHttPort, txtpacsupload.Text, modPACS.$sHTTPUser, modPACS.$sHTTPPass, modPACS.$sSSL)
+      Endif
+
+      If xxx Then
+        Me.Exec("Toastify({text: 'File Uploaded', duration: 3000}).showToast()")
+      Endif
+
     Endif
   Endif
 
