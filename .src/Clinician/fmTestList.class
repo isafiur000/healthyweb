@@ -170,6 +170,7 @@ Public Sub TabPanel1_Click()
     ShowGrid()
   Else If TabPanel1.Index = 2 Then
     cmbcategory.List = $LabDepartList
+    cmbcategory.Add("All Sections")
     ShowGridTree()
   Else If TabPanel1.Index = 3 Then
     FillLabtable()
@@ -182,6 +183,7 @@ Public Sub rblabs_Click()
 
   cmbtestgroup.Clear()
   cmbtestgroup.List = $LabDepartList
+  cmbtestgroup.Add("All Sections")
 
 End
 
@@ -235,8 +237,13 @@ Private Sub FillLabCOlumnView(sDepart As String)
   Dim xxx As String[]
 
   If Not $TestList.Count Then
-    sstr1 = "select distinct(fldgroupname) as col from tblgrouptest where fldgroupname in(select flditemname from tblservicecost where (fldgroup=&1 or fldgroup=&2) and fldstatus=&3) and fldtestid in(select fldtestid from tbltest where fldcategory=&4)"                                                ''
-    res = modDatabase.$myConn.Exec(sstr1, $BillMode, "%", "Active", sDepart)
+    If sDepart = "All Sections" Then
+      sstr1 = "select distinct(fldgroupname) as col from tblgrouptest where fldgroupname in(select flditemname from tblservicecost where (fldgroup=&1 or fldgroup=&2) and fldstatus=&3) ORDER BY fldgroupname"                                                ''
+      res = modDatabase.$myConn.Exec(sstr1, $BillMode, "%", "Active")
+    Else
+      sstr1 = "select distinct(fldgroupname) as col from tblgrouptest where fldgroupname in(select flditemname from tblservicecost where (fldgroup=&1 or fldgroup=&2) and fldstatus=&3) and fldtestid in(select fldtestid from tbltest where fldcategory=&4) ORDER BY fldgroupname"                                                ''
+      res = modDatabase.$myConn.Exec(sstr1, $BillMode, "%", "Active", sDepart)
+    Endif
     xxx = modControlSub.GetDirectFillresult(res)
     $TestList = xxx
   Endif
@@ -515,7 +522,11 @@ Private Sub LoadActiveTestsList(sDepart As String)
   Dim sColl As Collection
 
   $TestListFile = New Variant[]
-  res = modDatabase.$myConn.Exec("select fldgroupname,fldtestid from tblgrouptest where fldgroupname in(select flditemname from tblservicecost where (fldgroup=&1 or fldgroup=&2) and fldstatus=&3) and fldtestid in(select fldtestid from tbltest where fldcategory=&4)", $BillMode, "%", "Active", sDepart)
+  If sDepart = "All Sections" Then
+    res = modDatabase.$myConn.Exec("select fldgroupname,fldtestid from tblgrouptest where fldgroupname in(select flditemname from tblservicecost where (fldgroup=&1 or fldgroup=&2) and fldstatus=&3) ORDER BY fldtestid", $BillMode, "%", "Active")
+  Else
+    res = modDatabase.$myConn.Exec("select fldgroupname,fldtestid from tblgrouptest where fldgroupname in(select flditemname from tblservicecost where (fldgroup=&1 or fldgroup=&2) and fldstatus=&3) and fldtestid in(select fldtestid from tbltest where fldcategory=&4) ORDER BY fldtestid", $BillMode, "%", "Active", sDepart)
+  Endif
   If res.Available Then
     For Each res
       sColl = New Collection
