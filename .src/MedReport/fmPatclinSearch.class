@@ -858,15 +858,14 @@ Public Sub mnucountuni_Click()
   Dim Column As Integer
   Dim Row As Integer
   Dim yval As Variant
-  Dim xList As String[]
 
-  Dim xVar As Variant[]
+  Dim xColl As Collection
   Dim xPath As String
 
   Column = ListIndex("Column Index", modGridView.GetGridViewColumns(GridView1))
   If Column + 1 > 0 Then
 
-    xList = New String[]
+    xColl = New Collection
     For Row = 0 To $enctr.Count - 1
       If Column = 6 Then
         yval = GetGridViewValue(Column, $enctr[Row])
@@ -878,14 +877,17 @@ Public Sub mnucountuni_Click()
         Endif
       Endif
       If yval Then
-        xList.Add(yval)
+        If xColl.Exist(CStr(yval)) Then
+          xColl[CStr(yval)] = xColl[CStr(yval)] + 1
+        Else
+          xColl[CStr(yval)] = 1
+        Endif
       Endif
 
     Next
 
-    If xList.Count Then
-      xVar = modString.GetUnivariateSummary(xList)
-      xPath = modCHTMLReport.CreateHTMLReportFromArray(["Variable", "Count"], xVar, GridView1.Columns[Column].Text, modReportVar.GetDateTimeReport(Now(), gb.GeneralDate))
+    If xColl.Count Then
+      xPath = modCHTMLReport.CreateHTMLReportFromCollection(["Variable", "Count"], xColl, GridView1.Columns[Column].Text, modReportVar.GetDateTimeReport(Now(), gb.GeneralDate))
     Endif
 
     modControlSub.OpenHTMLPreview("", xPath, "ReportSize")

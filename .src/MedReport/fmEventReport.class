@@ -492,9 +492,8 @@ Public Sub mnucountuni_Click()
   Dim xFieColm As String
   Dim res As Result
   Dim yval As Variant
-  Dim xList As String[]
 
-  Dim xVar As Variant[]
+  Dim xColl As Collection
   Dim xFldList As String[]
   Dim xPath As String
 
@@ -503,18 +502,21 @@ Public Sub mnucountuni_Click()
     xFldList = $SSQLFields
     xFieColm = xFldList[Column]
     res = ExecuteQuery([xFieColm])
-    xList = New String[]
+    xColl = New Collection
     If res.Available Then
       For Each res
         yval = GetGridViewValue(Column, res[xFieColm])
         If yval Then
-          xList.Add(yval)
+          If xColl.Exist(CStr(yval)) Then
+            xColl[CStr(yval)] = xColl[CStr(yval)] + 1
+          Else
+            xColl[CStr(yval)] = 1
+          Endif
         Endif
       Next
     Endif
-    If xList.Count Then
-      xVar = modString.GetUnivariateSummary(xList)
-      xPath = modCHTMLReport.CreateHTMLReportFromArray(["Variable", "Count"], xVar, GridView1.Columns[Column].Text, modReportVar.GetDateTimeReport(Now(), gb.GeneralDate))
+    If xColl.Count Then
+      xPath = modCHTMLReport.CreateHTMLReportFromCollection(["Variable", "Count"], xColl, GridView1.Columns[Column].Text, modReportVar.GetDateTimeReport(Now(), gb.GeneralDate))
     Endif
 
     modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
