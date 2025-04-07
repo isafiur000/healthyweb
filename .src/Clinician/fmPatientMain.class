@@ -613,7 +613,7 @@ Private Sub ButtonControl()
   ''presenting complaints
   btnsympadd.Enabled = xx
   btnaddsymplist.Enabled = xx
-  btnsymplocation.Enabled = xx
+  btnsympunit.Enabled = xx
   btnsympdura.Enabled = xx
   btnsympedit.Enabled = xx
   btnsympdel.Enabled = xx
@@ -806,7 +806,7 @@ Private Sub RestrictUserAccess()
   If $UserRestrict.Exist("Presenting Complaints") Then
     btnsympadd.Visible = False
     btnaddsymplist.Visible = False
-    btnsymplocation.Visible = False
+    btnsympunit.Visible = False
     btnsympdura.Visible = False
     btnsympedit.Visible = False
     btnsympdel.Visible = False
@@ -1469,11 +1469,10 @@ End
 
 Public Sub mnucloudai_Click()
 
-  Dim hForm As FmPatCloudAI
+  Dim xx As String
 
   If txtencid.Text Then
-    hForm = New FmPatCloudAI(Trim(txtencid.Text))
-    hForm.ShowModal
+    xx = PatCloudAI(Trim(txtencid.Text), "", modBasic.$CloudAIClinQuery, "")
   Endif
 
 End
@@ -2644,7 +2643,7 @@ Public Sub btnaddsymplist_Click()
       aList = GridListView("Select Presenting Complaints", xlist)
       If aList And If aList.Count Then
         For Each xitem In aList
-          modPatientGeneral.AddExamGeneralQualiQuantiData(Trim(txtencid.Text), "Presenting Symptoms", xitem, "", 0, "")
+          modPatientGeneral.AddPatComplaintsData(Trim(txtencid.Text), "Presenting Symptoms", xitem, "", 0, "")
         Next
         ShowChiefSymptomData()
       Endif
@@ -2733,15 +2732,10 @@ End
 
 Public Sub btnsympadd_Click()
 
-  Dim xhour As Float
-
   If txtencid.Text Then
 
     If cmbsymptom.Text Then
-      If cmbsympunit.Text Then
-        xhour = txtsympval.Value * modDate.GetHoursValue(cmbsympunit.Text)
-      Endif
-      modPatientGeneral.AddExamGeneralQualiQuantiData(Trim(txtencid.Text), "Presenting Symptoms", cmbsymptom.Text, cmbsymdura.Text, xhour, "")
+      modPatientGeneral.AddPatComplaintsData(Trim(txtencid.Text), "Presenting Symptoms", cmbsymptom.Text, cmbsymdura.Text, txtsympval.Value, cmbsympunit.Text)
       ShowChiefSymptomData()
       cmbsymptom.Text = ""
       cmbsymdura.Text = ""
@@ -2771,13 +2765,13 @@ Public Sub ShowChiefSymptomData()
     .Columns[0].Hidden = True
     .Columns[1].Hidden = True
     .Columns[2].Hidden = True
-    .Columns[3].Width = CStr(225 * modBasic.$AppWidthRatio) & "px"
-    .Columns[4].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
+    .Columns[3].Width = CStr(250 * modBasic.$AppWidthRatio) & "px"
+    .Columns[4].Width = CStr(50 * modBasic.$AppWidthRatio) & "px"
     .Columns[5].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
     .Columns[6].Hidden = True
     .Columns[7].Hidden = True
     .Columns[8].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
-    .Columns[9].Hidden = True
+    .Columns[9].Width = CStr(250 * modBasic.$AppWidthRatio) & "px"
 
     .Columns[3].Text = "Symptom"
     .Columns[4].Text = "Dura"
@@ -2793,22 +2787,20 @@ Public Sub grdchiefsymptom_Data(Row As Integer, Column As Integer, Data As WebTa
   modGridView.GridViewDecoration(Data, Row)
   If Column = 8 Then
     Data.Text = modReportVar.GetDateTimeReport($rSympRes[$aSympFields[Column]], gb.GeneralDate)
-  Else If Column = 4 Then
-    Data.Text = modDate.ConvertHoursToString($rSympRes[$aSympFields[Column]])
   Else
     Data.Text = $rSympRes[$aSympFields[Column]]
   Endif
 
 End
 
-Public Sub btnsymplocation_Click()
+Public Sub btnsympunit_Click()
 
   Dim xval As String
   Dim res As Result
 
   If grdchiefsymptom.Selection.Count Then
     $rSympRes.MoveTo(grdchiefsymptom.Selection[0])
-    xval = InputCombo($rSympRes["flditem"], "Loction of Symptom", cmbsymdura.List, $rSympRes["fldreportquali"], True)
+    xval = InputCombo("Update Unit of Symptom Duration", $rSympRes["flditem"], ["Hours", "Days", "Weeks", "Months", "Years", "Episodes"], $rSympRes["fldreportquali"], True)
     If xval Then
       res = modDatabase.$myConn.Edit("tblexamgeneral", "fldid=&1", $rSympRes["fldid"])
       If modGeneral.AllowClinicalEdit(res["flduserid"]) = True Then
@@ -2828,24 +2820,26 @@ End
 
 Public Sub btnsympdura_Click()
 
-  ' Dim yval As Float
-  ' Dim res As Result
-  '
-  ' If grdchiefsymptom.Selection.Count Then
-  '   $rSympRes.MoveTo(grdchiefsymptom.Selection[0])
-  '   yval = InputValue("Select duration of Symptom", $rSympRes["flditem"], modDate.ConvertHoursToString($rSympRes["fldreportquanti"]))
-  '   res = modDatabase.$myConn.Edit("tblexamgeneral", "fldid=&1", $rSympRes["fldid"])
-  '   If modGeneral.AllowClinicalEdit(res["flduserid"]) = True Then
-  '     res["fldreportquanti"] = yval
-  '     res["flduptime"] = Now()
-  '     res["flduserid"] = modBasic.$lbluser
-  '     res["xyz"] = False
-  '     res.Update()
-  '     ShowChiefSymptomData()
-  '   Else
-  '     Message.Warning("Authorization with " & res["flduserid"], ("OK"))
-  '   Endif
-  ' Endif
+  Dim yval As Float
+  Dim res As Result
+
+  If grdchiefsymptom.Selection.Count Then
+    $rSympRes.MoveTo(grdchiefsymptom.Selection[0])
+    yval = InputValue("Update duration of Symptom", $rSympRes["flditem"], $rSympRes["fldreportquanti"])
+    If yval Then
+      res = modDatabase.$myConn.Edit("tblexamgeneral", "fldid=&1", $rSympRes["fldid"])
+      If modGeneral.AllowClinicalEdit(res["flduserid"]) = True Then
+        res["fldreportquanti"] = yval
+        res["flduptime"] = Now()
+        res["flduserid"] = modBasic.$lbluser
+        res["xyz"] = False
+        res.Update()
+        ShowChiefSymptomData()
+      Else
+        Message.Warning("Authorization with " & res["flduserid"], ("OK"))
+      Endif
+    Endif
+  Endif
 
 End
 
@@ -6223,25 +6217,25 @@ End
 ''------------------ exec
 Public Sub btnexechistory_Click()
 
-  txthistory.RichText = txthistory.RichText & modString.TextToHTML(modCloudAI.GetPatCloudAIResponse(Trim(txtencid.Text)))
+  txthistory.RichText = txthistory.RichText & modString.TextToHTML(modCloudAI.GetPatCloudAIResponse(Trim(txtencid.Text), txthistory.Text))
 
 End
 
 Public Sub btnexecadmit_Click()
 
-  txtadmitcause.Text = txtadmitcause.Text & modCloudAI.GetPatCloudAIResponse(Trim(txtencid.Text))
+  txtadmitcause.Text = txtadmitcause.Text & modCloudAI.GetPatCloudAIResponse(Trim(txtencid.Text), txtadmitcause.Text)
 
 End
 
 Public Sub btnexecnote_Click()
 
-  txtnote.RichText = txtnote.RichText & modString.TextToHTML(modCloudAI.GetPatCloudAIResponse(Trim(txtencid.Text)))
+  txtnote.RichText = txtnote.RichText & modString.TextToHTML(modCloudAI.GetPatCloudAIResponse(Trim(txtencid.Text), txtnote.Text))
 
 End
 
 Public Sub btnexecexpert_Click()
 
-  txtplanfinal.RichText = txtplanfinal.RichText & modString.TextToHTML(modCloudAI.GetPatCloudAIResponse(Trim(txtencid.Text)))
+  txtplanfinal.RichText = txtplanfinal.RichText & modString.TextToHTML(modCloudAI.GetPatCloudAIResponse(Trim(txtencid.Text), txtplanfinal.Text))
 
 End
 

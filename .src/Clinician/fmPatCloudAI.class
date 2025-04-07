@@ -1,25 +1,26 @@
 ' Gambas class file
 
 Private $encid As String
-Private $categList As String[]
+Private $sText As String
+Private $quesList As String[]
+Private $sExtra As String
+Private $sValue As String
 
-Public Sub _new(encid As String)
-
-  $encid = encid
-  OpenForm()
-
-End
-
-Public Sub OpenForm()
+Public Sub Run(encid As String, sText As String, questionList As String[], sExtra As String) As String
 
   Dim xgender As String
   Dim xage As String
   Dim xstr As String
 
+  $encid = encid
+  $sText = sText
+  $quesList = questionList
+  $sExtra = sExtra
+
+  cmbquestion.List = $quesList
   If modBasic.$CloudAIURL = "https://api.groq.com/openai/v1/chat/completions" Then
     cmblanguage.List = modCloudAI.$GroqCloudModels
   Endif
-  rbfirst.Value = True
 
   xgender = modPatient.GetPatientSex($encid)
   xage = modPatient.GetPatientAgeString($encid, Now())
@@ -35,6 +36,52 @@ Public Sub OpenForm()
   Endif
   If xstr Then
     TextArea1.Text = xstr
+  Endif
+  rbfirst.Value = True
+
+  If Me.ShowModal() Then Return $sValue
+
+End
+
+Public Sub btnpaste_Click()
+
+  TextArea1.Text = TextArea1.Text & gb.NewLine & $sText
+
+End
+
+Public Sub btnquestion_Click()
+
+  If cmbquestion.Text Then
+    TextArea1.Text = TextArea1.Text & gb.NewLine & cmbquestion.Text
+  Endif
+
+End
+
+Public Sub btncategory_Click()
+
+  Dim xList As String[]
+
+  xList = GridListView("Select Variables", modMedicine.GetCloudAIVariables())
+  If xList And If xList.Count Then
+    AddCategories(xList)
+  Endif
+
+End
+
+Private Sub AddCategories(sList As String[])
+
+  Dim xval As String
+  Dim xcateg As String
+  Dim xnewtext As String
+
+  If sList And If sList.Count Then
+    For Each xcateg In sList
+      xval = GetPatientReport(xcateg)
+      If xval Then
+        xnewtext = xnewtext & gb.NewLine & gb.NewLine & GetPatientReport(xcateg)
+      Endif
+    Next
+    TextArea1.Text = TextArea1.Text & gb.NewLine & xnewtext
   Endif
 
 End
@@ -108,36 +155,6 @@ Private Function GetPatientReport(sCateg As String) As String
 
 End
 
-Public Sub btncategory_Click()
-
-  Dim xList As String[]
-
-  $categList = New String[]
-  xList = GridListView("Select Variables", modMedicine.GetCloudAIVariables())
-  If xList And If xList.Count Then
-    $categList.Insert(xList)
-  Endif
-
-End
-
-Public Sub btnadd_Click()
-
-  Dim xval As String
-  Dim xcateg As String
-  Dim xnewtext As String
-
-  If $categList And If $categList.Count Then
-    For Each xcateg In $categList
-      xval = GetPatientReport(xcateg)
-      If xval Then
-        xnewtext = xnewtext & gb.NewLine & gb.NewLine & modString.ConvertRichTextToPlain(GetPatientReport(xcateg))
-      Endif
-    Next
-    TextArea1.Text = TextArea1.Text & gb.NewLine & xnewtext
-  Endif
-
-End
-
 Public Sub Button1_Click()
 
   Dim cForm As CGroqAPI
@@ -150,12 +167,6 @@ Public Sub Button1_Click()
 
 End
 
-Public Sub btnclose_Click()
-
-  Me.Close()
-
-End
-
 Public Sub btngetlist_Click()
 
   If modBasic.$CloudAIKey Then
@@ -163,5 +174,12 @@ Public Sub btngetlist_Click()
   Else
     cmblanguage.List = modCloudAI.$GroqCloudModels
   Endif
+
+End
+
+Public Sub btnclose_Click()
+
+  $sValue = txtnewtext.Text
+  Me.Close(True)
 
 End

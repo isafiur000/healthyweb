@@ -1,7 +1,7 @@
 ' Gambas class file
 
 Public Sub _new(encid As String)
-  
+
   txtencid.Text = encid
   modGeneralMain.GetOpenModalForm(Me)
   txthistorylabel.List = GetHistoryList()
@@ -10,26 +10,26 @@ Public Sub _new(encid As String)
   Else
     pnlfirst.Visible = True
   Endif
-  
+
 End
 
 Public Sub txtencid_Activate()
-  
+
   btnshow_Click()
-  
+
 End
 
 Public Sub btnwebcam_Click()
-  
+
   txtencid.Text = QRScanValue("")
   If txtencid.Text Then
     btnshow_Click()
   Endif
-  
+
 End
 
 Public Sub btnshow_Click()
-  
+
   If txtencid.Text Then
     txtname.Text = modPatient.GetPatientNameByEnc(Trim(txtencid.Text))
     txtgencomplaint.RichText = modPatPatho.ShowSelectedHistoryValue(Trim(txtencid.Text), "General Complaints")
@@ -38,78 +38,78 @@ Public Sub btnshow_Click()
       txtgencomplaint.SetFocus
     Endif
   Endif
-  
+
 End
 
 Private Function GetHistoryList() As String[]
-  
+
   Dim xList As String[]
   Dim xnew As String[]
   Dim xfinal As String[]
-  
+
   xList = New String[]
   xList.Add("History of Illness")
   xnew = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tblhistory where fldcomp like &1", modBasic.$compID))
   If xnew And If xnew.Count Then
     xList.Insert(xnew)
   Endif
-  
+
   xfinal = modString.BinaryDistinctStringArray(xList)
   Return xfinal
-  
+
 End
 
 Public Sub btnclose_Click()
-  
+
   Me.Close
-  
+
 End
 
 ''---------------------Coplaints -------------------
 Public Sub btngencompln_Click()
-  
+
   Dim xboolean As Boolean
-  
+
   If modBasic.$ClinHistoryInput = "Single" Then
     xboolean = True
   Else
     xboolean = False
   Endif
-  
+
   If txtgencomplaint.Text Then
     modPatientGeneral.AddExamGeneralQualiData(Trim(txtencid.Text), "History", "General Complaints", txtgencomplaint.KeyList.Join(";"), txtgencomplaint.RichText, xboolean)
     Me.Exec("Toastify({text: 'Information saved', duration: 3000}).showToast()")
     ' Balloon.Delay = modBasic.$BalloonDelay
   Endif
-  
+
 End
 
 ''--------------------- History ------------------------
 
 Public Sub txthistorylabel_Click()
-  
+
   btndatahistory_Click()
-  
+
 End
 
 Public Sub btndatahistory_Click()
-  
+
   If txthistorylabel.Text Then
     txthistory.RichText = modPatPatho.ShowSelectedHistoryValue(Trim(txtencid.Text), txthistorylabel.Text)
   Endif
-  
+
 End
 
 Public Sub tlbtnhistory_Click()
-  
+
   Dim xboolean As Boolean
-  
+
   If modBasic.$ClinHistoryInput = "Single" Then
     xboolean = True
   Else
     xboolean = False
   Endif
-  
+
   If txthistorylabel.Text Then
     If txthistory.Text Then
       modPatientGeneral.AddExamGeneralQualiData(Trim(txtencid.Text), "History", txthistorylabel.Text, txthistory.KeyList.Join(";"), txthistory.RichText, xboolean)
@@ -117,65 +117,65 @@ Public Sub tlbtnhistory_Click()
       ' Balloon.Delay = modBasic.$BalloonDelay
     Endif
   Endif
-  
+
 End
 
 ' Public Sub txthistorylabel_Render()
-'   
+'
 '   modJavaScript.SetSelect2Combo(txthistorylabel)
-'   
+'
 ' End
 
 ''----------database
 Public Sub btndatacompl_Click()
-  
+
 End
 
 Public Sub btnhistorydef_Click()
-  
+
   If txthistorylabel.Text Then
     txthistory.RichText = AddHistory("History", txthistorylabel.Text)
   Endif
-  
+
 End
 
 ''------------- pen
 Public Sub btnpancompl_Click()
-  
+
   txtgencomplaint.RichText = txtgencomplaint.RichText & Space(1) & modFillContainer.GetExtraTextArea("General Complaints", txtgencomplaint.Text)
-  
+
 End
 
 Public Sub btnpanhistory_Click()
-  
+
   If txthistorylabel.Text Then
     txthistory.RichText = txthistory.RichText & Space(1) & modFillContainer.GetExtraTextArea(txthistorylabel.Text, txthistory.Text)
   Endif
-  
+
 End
 
 ''------------ exec
 Public Sub btnexeccompl_Click()
-  
-  txtgencomplaint.RichText = txtgencomplaint.RichText & modString.TextToHTML(modCloudAI.GetPatCloudAIResponse(Trim(txtencid.Text)))
-  
+
+  txtgencomplaint.RichText = txtgencomplaint.RichText & modString.TextToHTML(modCloudAI.GetPatCloudAIResponse(Trim(txtencid.Text), txtgencomplaint.Text))
+
 End
 
 Public Sub btnexechistory_Click()
-  
-  txthistory.RichText = txthistory.RichText & modString.TextToHTML(modCloudAI.GetPatCloudAIResponse(Trim(txtencid.Text)))
-  
+
+  txthistory.RichText = txthistory.RichText & modString.TextToHTML(modCloudAI.GetPatCloudAIResponse(Trim(txtencid.Text), txthistory.Text))
+
 End
 
 ''----------- attach
 Public Sub btnattcompl_Click()
-  
+
   txtgencomplaint.RichText = txtgencomplaint.RichText & DictionaryVIew(modBasic.$dictadvPath)
-  
+
 End
 
 Public Sub btnatthistory_Click()
-  
+
   txthistory.RichText = txthistory.RichText & DictionaryVIew(modBasic.$dictadvPath)
-  
+
 End
