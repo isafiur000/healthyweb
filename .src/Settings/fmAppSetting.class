@@ -19,6 +19,9 @@ Public Sub IconPanel1_Click()
     cmbbothside.List = ["Yes", "No"]
     ShowOptionSettings()
   Else If IconPanel1.Index = 1 Then
+    cmbimagetopdf.List = ["imagemagick", "img2pdf"]
+    cmbhtmltopdf.List = ["wkhtmltopdf", "chrome"]
+    cmbnumtotext.List = ["number", "num2words"]
     SetApplicationSettings()
   Else If IconPanel1.Index = 2 Then
     cmbarformat.List = BarCodeFormats()
@@ -52,6 +55,9 @@ Public Sub IconPanel1_Click()
     cmbssficdformat.List = ["ICD10", "ICD11"]
     cmbssflock.List = ["Enable", "Disable"]
     ShowSSFundParam()
+  Else If IconPanel1.Index = 8 Then
+    cmbAIurl.List = ["https://api.groq.com/openai/v1/chat/completions"]
+    DisplayCloudAI()
   Endif
 
 End
@@ -156,12 +162,43 @@ Private Sub SetApplicationSettings()
 
   modSettings.ShowCheckBox(chkdebugmsg, "GeneralSettings/DebuggingMessage_Enable")
 
+  cmbimagetopdf.Text = modSettings.ShowSettingFromFIle("Converter/imagetopdf")
+  cmbhtmltopdf.Text = modSettings.ShowSettingFromFIle("Converter/htmltopdf")
+  cmbnumtotext.Text = modSettings.ShowSettingFromFIle("Converter/NumberToText")
+
 End
 
 Public Sub btndebugmsg_Click()
 
   modSettings.EnterCheckSetting(chkdebugmsg, "GeneralSettings/DebuggingMessage_Enable")
   modBasic.$DebugMsg = chkdebugmsg.Value
+  Me.Exec("Toastify({text: 'Information saved', duration: 3000}).showToast()")
+  ' Balloon.Delay = modBasic.$BalloonDelay
+
+End
+
+Public Sub btnimagetopdf_Click()
+
+  modSettings.SaveSettingsToFile("Converter/imagetopdf", cmbimagetopdf.Text)
+  modBasic.$ConvImagePDF = cmbimagetopdf.Text
+  Me.Exec("Toastify({text: 'Information saved', duration: 3000}).showToast()")
+  ' Balloon.Delay = modBasic.$BalloonDelay
+
+End
+
+Public Sub btnhtmltopdf_Click()
+
+  modSettings.SaveSettingsToFile("Converter/htmltopdf", cmbhtmltopdf.Text)
+  modBasic.$ConvHtmlPDF = cmbhtmltopdf.Text
+  Me.Exec("Toastify({text: 'Information saved', duration: 3000}).showToast()")
+  ' Balloon.Delay = modBasic.$BalloonDelay
+
+End
+
+Public Sub btnnumtotext_Click()
+
+  modSettings.SaveSettingsToFile("Converter/NumberToText", cmbnumtotext.Text)
+  modBasic.$ConvNumberText = cmbnumtotext.Text
   Me.Exec("Toastify({text: 'Information saved', duration: 3000}).showToast()")
   ' Balloon.Delay = modBasic.$BalloonDelay
 
@@ -1186,6 +1223,97 @@ Public Sub lnkssfbookURL_Click()
 
 End
 
+''------------------------- Cloud AI -------------------
+Private Sub DisplayCloudAI()
+
+  cmbAIurl.Text = modSettings.ShowSettingFromFIle("CloudAI/API_URL")
+  cmbAImodel.Text = modSettings.ShowSettingFromFIle("CloudAI/Modality")
+  txtAIkey.Text = modSettings.ShowSettingFromFIle("CloudAI/API_Key")
+  txtAIqueryclin.Text = modSettings.ShowSettingFromFIle("CloudAI/Clinic_QueryList")
+  txtAIquerydrug.Text = modSettings.ShowSettingFromFIle("CloudAI/Medicine_QueryList")
+
+End
+
+Public Sub btnfillAImodel_Click()
+
+  cmbAImodel.Clear()
+  If cmbAIurl.Text = "https://api.groq.com/openai/v1/chat/completions" Then
+    If txtAIkey.Text Then
+      cmbAImodel.List = modCloudAI.GetGroqModelList(txtAIkey.Text)
+    Else
+      cmbAImodel.List = modCloudAI.$GroqCloudModels
+    Endif
+  Endif
+
+End
+
+Public Sub btnAIurl_Click()
+
+  modSettings.SaveSettingsToFile("CloudAI/API_URL", cmbAIurl.Text)
+  modBasic.$CloudAIURL = cmbAIurl.Text
+  Me.Exec("Toastify({text: 'Information saved', duration: 3000}).showToast()")
+  ' Balloon.Delay = modBasic.$BalloonDelay
+
+End
+
+Public Sub btnAImodel_Click()
+
+  modSettings.SaveSettingsToFile("CloudAI/Modality", cmbAImodel.Text)
+  modBasic.$CloudAIModel = cmbAImodel.Text
+  Me.Exec("Toastify({text: 'Information saved', duration: 3000}).showToast()")
+  ' Balloon.Delay = modBasic.$BalloonDelay
+
+End
+
+Public Sub btnAIkey_Click()
+
+  modSettings.SaveSettingsToFile("CloudAI/API_Key", Trim(txtAIkey.Text))
+  modBasic.$CloudAIKey = Trim(txtAIkey.Text)
+  Me.Exec("Toastify({text: 'Information saved', duration: 3000}).showToast()")
+  ' Balloon.Delay = modBasic.$BalloonDelay
+
+End
+
+Public Sub btnAIqueryclin_Click()
+
+  modSettings.SaveSettingsToFile("CloudAI/Clinic_QueryList", txtAIqueryclin.Text)
+  modBasic.CloudAISettings()
+  Me.Exec("Toastify({text: 'Information saved', duration: 3000}).showToast()")
+  ' Balloon.Delay = modBasic.$BalloonDelay
+
+End
+
+Public Sub btnAIquerydrug_Click()
+
+  modSettings.SaveSettingsToFile("CloudAI/Medicine_QueryList", txtAIquerydrug.Text)
+  modBasic.CloudAISettings()
+  Me.Exec("Toastify({text: 'Information saved', duration: 3000}).showToast()")
+  ' Balloon.Delay = modBasic.$BalloonDelay
+
+End
+
+Public Sub btnaddAIqueryclin_Click()
+
+  Dim xx As String
+
+  xx = InputBox("QUestion for Clinical Query", "AI Output", "")
+  If xx Then
+    modBasic.$CloudAIClinQuery.Add(Trim(xx))
+  Endif
+
+End
+
+Public Sub btnaddAIquerydrug_Click()
+
+  Dim xx As String
+
+  xx = InputBox("QUestion for Drug Query", "AI Output", "")
+  If xx Then
+    modBasic.$CloudAIDrugQuery.Add(Trim(xx))
+  Endif
+
+End
+
 ''---------------- Buttons ---------------------------
 Public Sub WebButtonL1_Click()
 
@@ -1251,6 +1379,14 @@ Public Sub WebButtonL8_Click()
 
 End
 
+Public Sub WebButtonL9_Click()
+
+  GetNormalButtons()
+  IconPanel1.Index = 8
+  WebButtonL9.Background = Color.LightGray
+
+End
+
 Private Sub GetNormalButtons()
 
   WebButtonL1.Background = Color.Default
@@ -1261,6 +1397,7 @@ Private Sub GetNormalButtons()
   WebButtonL6.Background = Color.Default
   WebButtonL7.Background = Color.Default
   WebButtonL8.Background = Color.Default
+  WebButtonL9.Background = Color.Default
 
 End
 
