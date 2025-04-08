@@ -1,0 +1,935 @@
+' Gambas class file
+
+Private $Index As Long
+Private $Format As String
+Private $sUnit As String
+
+Private $rData As Result
+Private $encid As String
+Private $HashCode As String
+Private $xSection As String
+
+Public Sub _new(sIndex As Long, sFormat As String, sUnit As String)
+
+  $Index = sIndex
+  $Format = sFormat
+  $sUnit = sUnit
+  LoadQuery()
+
+End
+
+Private Sub LoadQuery()
+
+  Dim fldList As String[]
+
+  fldList = ["fldid", "fldencounterval", "fldchk", "fldsave_report", "fldtest_type", "fldtestid", "fldsampletype", "fldsampleid", "fldtime_sample", "fldabnormal", "fldid", "flvisible", "fldstatus", "flduserid_sample", "flduserid_report", "flduserid_verify", "fldrefername", "fldcondition", "fldsampleid", "fldsampletype", "fldtime_sample", "fldtime_report", "fldtime_report", "fldprint", "fldorder", "fldtestid", "fldcomment", "flduptime_report", "fldtime_verify", "flduptime_verify", "fldbillno", "fldupuser_report", "fldupuser_verify"]
+  $rData = modDatabase.$myConn.Exec("select " & fldList.Join(",") & " from tblpatlabtest where fldid=&1 and fldsave_report=&2 and fldstatus=&3 and flvisible=&4", $Index, True, "Reported", "Visible")
+  If $rData.Available Then
+    $xSection = modFixLab.GetLabTestCategory($rData["fldtestid"])
+    $encid = $rData["fldencounterval"]
+    SelectGridItems($Index)
+  Endif
+
+End
+
+Private Sub ShowPatLaboratoryReport(sType As String, sHide As Boolean)
+
+  Dim $SensTable As String[]
+  Dim $tblpatlabtest As String = "tblpatlabtest"
+  Dim $tblpatlabsubtest As String = "tblpatlabsubtest"
+
+  Dim $BillingReport As CReportHTML
+  Dim res As Result
+  Dim asx As New String[0]
+  Dim unt As String
+
+  Dim sTitles As String[]
+  Dim aColl As Collection
+  Dim xType As String
+
+  Dim dtcont As String
+  Dim xintrp As String
+  Dim xexlabel As String
+  Dim xquali As String
+  Dim xspecolm As String
+  Dim xbarcode As String
+  Dim xqrcode As String
+  Dim xbarinv As String
+  Dim xqrinv As String
+
+  Dim repor As String
+  Dim verif As String
+  Dim repolast As String
+  Dim verilast As String
+  Dim xrefstr As String
+  Dim yrefstr As String
+
+  Dim xfontcol1 As String
+  Dim xfontcol2 As String
+  Dim xfontbod As String
+  Dim col1Font As String
+  Dim col2Font As String
+
+  Dim aa As String
+  Dim bb As String
+  Dim cc As String
+  Dim dd As String
+
+  Dim $reportedBy As String[]
+  Dim $verifiedBy As String[]
+  Dim $reportedLast As String[]
+  Dim $verifiedLast As String[]
+  Dim $referName As String[]
+  Dim $condiName As String[]
+  Dim $sampleID As String[]
+  Dim $sampleType As String[]
+  Dim $sampleDate As String[]
+  Dim $ReportDate As String[]
+  Dim $ReportLastDate As String[]
+  Dim $VerifyDate As String[]
+  Dim $VerifyLastDate As String[]
+  Dim $invoiceNo As String[]
+
+  xfontbod = modSettings.ShowSettingFromFIle("ReportFormat/ReportBody_ContentFont")
+  xfontcol1 = modSettings.ShowSettingFromFIle("ReportFormat/ReportBody_Font_Column1")
+  xfontcol2 = modSettings.ShowSettingFromFIle("ReportFormat/ReportBody_Font_Column2")
+  xintrp = modSettings.ShowSettingFromFIle("Laboratory/Observation_Comment")
+  xspecolm = modSettings.ShowSettingFromFIle("Laboratory/ExtraColumn")
+
+  If xfontcol1 Then
+    col1Font = xfontcol1
+  Else
+    If xfontbod Then
+      col1Font = xfontbod
+    Else
+      col1Font = "bold"
+    Endif
+  Endif
+
+  If xfontcol2 Then
+    col2Font = xfontcol2
+  Else
+    If xfontbod Then
+      col2Font = xfontbod
+    Else
+      col2Font = ""
+    Endif
+  Endif
+
+  If $sUnit Then
+    unt = $sUnit
+  Else
+    unt = "Metric"
+  Endif
+
+  If $rData.Available Then
+    aColl = New Collection
+    $SensTable = New String[]
+
+    If $Format = "A" Then
+      If xspecolm = "Specimen" Then
+        sTitles = [("Examination"), ("Specimen"), ("Observation")]
+      Else If xspecolm = "Comment" Then
+        sTitles = [("Examination"), ("Observation"), ("Comment")]
+      Else If xspecolm = "Invoice" Then
+        sTitles = [("Examination"), ("Invoice"), ("Observation")]
+      Else
+        sTitles = [("Examination"), ("Observation")]
+      Endif
+    Else If $Format = "C" Then
+      sTitles = [("Examination")]
+    Else If $Format = "D" Then
+      If xspecolm = "Specimen" Then
+        sTitles = [("Examination"), ("Specimen"), ("Observation"), ("Reference Range"), ("Method")]
+      Else If xspecolm = "Comment" Then
+        sTitles = [("Examination"), ("Observation"), ("Comment"), ("Reference Range"), ("Method")]
+      Else If xspecolm = "Invoice" Then
+        sTitles = [("Examination"), ("Invoice"), ("Observation"), ("Reference Range"), ("Method")]
+      Else If xspecolm = "TestUnit" Then
+        sTitles = [("Examination"), ("Observation"), ("Unit"), ("Reference Range"), ("Method")]
+      Else
+        sTitles = [("Examination"), ("Observation"), ("Reference Range"), ("Method")]
+      Endif
+    Else
+      If xspecolm = "Specimen" Then
+        sTitles = [("Examination"), ("Specimen"), ("Observation"), ("Reference Range")]
+      Else If xspecolm = "Comment" Then
+        sTitles = [("Examination"), ("Observation"), ("Comment"), ("Reference Range")]
+      Else If xspecolm = "Invoice" Then
+        sTitles = [("Examination"), ("Invoice"), ("Observation"), ("Reference Range")]
+      Else If xspecolm = "TestUnit" Then
+        sTitles = [("Examination"), ("Observation"), ("Unit"), ("Reference Range")]
+      Else
+        sTitles = [("Examination"), ("Observation"), ("Reference Range")]
+      Endif
+    Endif
+
+    If sHide = True Then
+      $BillingReport = New CReportHTML(sTitles, "LaboratoryReport", $encid, ["Title", "FootImage"])
+    Else
+      $BillingReport = New CReportHTML(sTitles, "LaboratoryReport", $encid)
+    Endif
+    $HashCode = $BillingReport.GetReportHash()
+
+    $BillingReport.UserData.Add("SECTION", "Report")
+    $BillingReport.UserData.Add($xSection, "PARAM1")
+
+    $reportedBy = New String[]
+    $verifiedBy = New String[]
+    $reportedLast = New String[]
+    $verifiedLast = New String[]
+    $referName = New String[]
+    $condiName = New String[]
+    $sampleID = New String[]
+    $sampleType = New String[]
+    $sampleDate = New String[]
+    $ReportDate = New String[]
+    $ReportLastDate = New String[]
+    $VerifyDate = New String[]
+    $VerifyLastDate = New String[]
+    $invoiceNo = New String[]
+
+    dtcont = modSettings.ShowSettingFromFIle("Laboratory/DateContent")
+    aa = ""
+    bb = ""
+    cc = ""
+    dd = ""
+
+    $reportedBy.Add($rData["flduserid_report"])
+    $verifiedBy.Add($rData["flduserid_verify"])
+    If $rData["fldupuser_report"] Then
+      $reportedLast.Add($rData["fldupuser_report"])
+    Else
+      $reportedLast.Add($rData["flduserid_report"])
+    Endif
+    If $rData["fldupuser_verify"] Then
+      $verifiedLast.Add($rData["fldupuser_verify"])
+    Else
+      $verifiedLast.Add($rData["flduserid_verify"])
+    Endif
+    $referName.Add($rData["fldrefername"])
+    $condiName.Add($rData["fldcondition"])
+    $sampleID.Add($rData["fldsampleid"])
+    $sampleType.Add($rData["fldsampletype"])
+    $invoiceNo.Add($rData["fldbillno"])
+    If dtcont = "DateTime" Then
+      $sampleDate.Add(modReportVar.GetDateTimeReport($rData["fldtime_sample"], gb.GeneralDate))
+      $ReportDate.Add(modReportVar.GetDateTimeReport($rData["fldtime_report"], gb.GeneralDate))
+      If $rData["flduptime_report"] Then
+        $ReportLastDate.Add(modReportVar.GetDateTimeReport($rData["flduptime_report"], gb.GeneralDate))
+      Else
+        $ReportLastDate.Add(modReportVar.GetDateTimeReport($rData["fldtime_report"], gb.GeneralDate))
+      Endif
+      $VerifyDate.Add(modReportVar.GetDateTimeReport($rData["fldtime_verify"], gb.GeneralDate))
+      If $rData["flduptime_verify"] Then
+        $VerifyLastDate.Add(modReportVar.GetDateTimeReport($rData["flduptime_verify"], gb.GeneralDate))
+      Else
+        $VerifyLastDate.Add(modReportVar.GetDateTimeReport($rData["fldtime_verify"], gb.GeneralDate))
+      Endif
+    Else
+      $sampleDate.Add(modReportVar.GetDateTimeReport($rData["fldtime_sample"], gb.MediumDate))
+      $ReportDate.Add(modReportVar.GetDateTimeReport($rData["fldtime_report"], gb.MediumDate))
+      If $rData["flduptime_report"] Then
+        $ReportLastDate.Add(modReportVar.GetDateTimeReport($rData["flduptime_report"], gb.MediumDate))
+      Else
+        $ReportLastDate.Add(modReportVar.GetDateTimeReport($rData["fldtime_report"], gb.MediumDate))
+      Endif
+      $VerifyDate.Add(modReportVar.GetDateTimeReport($rData["fldtime_verify"], gb.MediumDate))
+      If $rData["flduptime_verify"] Then
+        $VerifyLastDate.Add(modReportVar.GetDateTimeReport($rData["flduptime_verify"], gb.MediumDate))
+      Else
+        $VerifyLastDate.Add(modReportVar.GetDateTimeReport($rData["fldtime_verify"], gb.MediumDate))
+      Endif
+    Endif
+
+    If $Format = "A" Then
+      aa = modLabTest.GetTestnameFromTestID($rData["fldid"], $tblpatlabtest)
+      If $rData["fldtest_type"] = "Quantitative" Then
+        If xintrp = "Interpretation" Then
+          xrefstr = "<br>" & "<small>" & modLabTest.TestInterpretByTestID($rData["fldid"], $tblpatlabtest) & "</small>"
+        Else If xintrp = "Comment" Then
+          xrefstr = "<br>" & "<small>" & $rData["fldcomment"] & "</small>"
+        Else
+          xrefstr = ""
+        Endif
+        bb = modLabTest.GetLabTestValueGridString($encid, $rData["fldid"], unt, True, $tblpatlabtest) & " [" & modLabTest.GetTestLimitSrting($rData["fldid"], unt, $tblpatlabtest) & "]" & xrefstr
+      Else If $rData["fldtest_type"] = "Qualitative" Then
+        xrefstr = modLabTest.GetTestLimitSrting($rData["fldid"], unt, $tblpatlabtest)
+        If xrefstr Then
+          bb = modLabTest.GetLabTestValueGridString($encid, $rData["fldid"], unt, True, $tblpatlabtest) & " [" & xrefstr & "]"
+        Else
+          bb = modLabTest.GetLabTestValueGridString($encid, $rData["fldid"], unt, True, $tblpatlabtest)
+        Endif
+      Endif
+      With asx
+        .Add(aa)
+        If xspecolm = "Specimen" Then
+          .Add($rData["fldsampletype"])
+        Else If xspecolm = "Invoice" Then
+          .Add($rData["fldbillno"])
+        Endif
+        .Add(bb)
+        If xspecolm = "Comment" Then
+          .Add($rData["fldcomment"])
+        Endif
+      End With
+      $BillingReport.Add(asx)
+      asx.Clear()
+
+    Else If $Format = "C" Then
+      aa = modLabTest.GetTestnameFromTestID($rData["fldid"], $tblpatlabtest)
+      If $rData["fldtest_type"] = "Quantitative" Then
+        If xintrp = "Interpretation" Then
+          xrefstr = "<br>" & "<small>" & modLabTest.TestInterpretByTestID($rData["fldid"], $tblpatlabtest) & "</small>"
+        Else If xintrp = "Comment" Then
+          xrefstr = "<br>" & "<small>" & $rData["fldcomment"] & "</small>"
+        Else
+          xrefstr = ""
+        Endif
+        bb = modLabTest.GetLabTestValueGridString($encid, $rData["fldid"], unt, True, $tblpatlabtest) & " [" & modLabTest.GetTestLimitSrting($rData["fldid"], unt, $tblpatlabtest) & "]" & xrefstr
+      Else If $rData["fldtest_type"] = "Qualitative" Then
+        xrefstr = modLabTest.GetTestLimitSrting($rData["fldid"], unt, $tblpatlabtest)
+        If xrefstr Then
+          bb = modLabTest.GetLabTestValueGridString($encid, $rData["fldid"], unt, True, $tblpatlabtest) & " [" & xrefstr & "]"
+        Else
+          bb = modLabTest.GetLabTestValueGridString($encid, $rData["fldid"], unt, True, $tblpatlabtest)
+        Endif
+      Endif
+      With asx
+        If xspecolm = "Specimen" Then
+          .Add(modString.GetFormatTextFontString(aa & " [" & $rData["fldsampletype"] & "]", col1Font) & "<br>" & modString.GetFormatTextFontString(bb, col2Font))
+        Else If xspecolm = "Comment" Then
+          .Add(modString.GetFormatTextFontString(aa & " [" & $rData["fldcomment"] & "]", col1Font) & "<br>" & modString.GetFormatTextFontString(bb, col2Font))
+        Else If xspecolm = "Invoice" Then
+          .Add(modString.GetFormatTextFontString(aa & " [" & $rData["fldbillno"] & "]", col1Font) & "<br>" & modString.GetFormatTextFontString(bb, col2Font))
+        Else
+          .Add(modString.GetFormatTextFontString(aa, col1Font) & "<br>" & modString.GetFormatTextFontString(bb, col2Font))
+        Endif
+      End With
+      $BillingReport.Add(asx)
+      asx.Clear()
+
+    Else If $Format = "D" Then
+      aa = modLabTest.GetTestnameFromTestID($rData["fldid"], $tblpatlabtest)
+      dd = modLabTest.GetTestMethodLabID($rData["fldid"], $tblpatlabtest)
+      If $rData["fldtest_type"] = "Quantitative" Then
+        If xintrp = "Interpretation" Then
+          xrefstr = "<br>" & "<small>" & modLabTest.TestInterpretByTestID($rData["fldid"], $tblpatlabtest) & "</small>"
+        Else If xintrp = "Comment" Then
+          xrefstr = "<br>" & "<small>" & $rData["fldcomment"] & "</small>"
+        Else
+          xrefstr = ""
+        Endif
+        bb = modLabTest.GetLabTestValueGridString($encid, $rData["fldid"], unt, True, $tblpatlabtest) & xrefstr
+        cc = modLabTest.GetTestLimitSrting($rData["fldid"], unt, $tblpatlabtest)
+      Else If $rData["fldtest_type"] = "Qualitative" Then
+        bb = modLabTest.GetLabTestValueGridString($encid, $rData["fldid"], unt, True, $tblpatlabtest)
+        cc = modLabTest.GetTestLimitSrting($rData["fldid"], unt, $tblpatlabtest)
+      Endif
+      With asx
+        .Add(aa)
+        If xspecolm = "Specimen" Then
+          .Add($rData["fldsampletype"])
+        Else If xspecolm = "Invoice" Then
+          .Add($rData["fldbillno"])
+        Endif
+        .Add(bb)
+        If xspecolm = "Comment" Then
+          .Add($rData["fldcomment"])
+        Else If xspecolm = "TestUnit" Then
+          .Add(modLabTest.GetTestUnitSrting($rData["fldid"], unt, $tblpatlabtest))
+        Endif
+        .Add(cc)
+        .Add(dd)
+      End With
+      $BillingReport.Add(asx)
+      asx.Clear()
+
+    Else
+      aa = modLabTest.GetTestnameFromTestID($rData["fldid"], $tblpatlabtest)
+      If $rData["fldtest_type"] = "Quantitative" Then
+        If xintrp = "Interpretation" Then
+          xrefstr = "<br>" & "<small>" & modLabTest.TestInterpretByTestID($rData["fldid"], $tblpatlabtest) & "</small>"
+        Else If xintrp = "Comment" Then
+          xrefstr = "<br>" & "<small>" & $rData["fldcomment"] & "</small>"
+        Else
+          xrefstr = ""
+        Endif
+        bb = modLabTest.GetLabTestValueGridString($encid, $rData["fldid"], unt, True, $tblpatlabtest) & xrefstr
+        cc = modLabTest.GetTestLimitSrting($rData["fldid"], unt, $tblpatlabtest)
+      Else If $rData["fldtest_type"] = "Qualitative" Then
+        bb = modLabTest.GetLabTestValueGridString($encid, $rData["fldid"], unt, True, $tblpatlabtest)
+        cc = modLabTest.GetTestLimitSrting($rData["fldid"], unt, $tblpatlabtest)
+      Endif
+      With asx
+        .Add(aa)
+        If xspecolm = "Specimen" Then
+          .Add($rData["fldsampletype"])
+        Else If xspecolm = "Invoice" Then
+          .Add($rData["fldbillno"])
+        Endif
+        .Add(bb)
+        If xspecolm = "Comment" Then
+          .Add($rData["fldcomment"])
+        Else If xspecolm = "TestUnit" Then
+          .Add(modLabTest.GetTestUnitSrting($rData["fldid"], unt, $tblpatlabtest))
+        Endif
+        .Add(cc)
+      End With
+      $BillingReport.Add(asx)
+      asx.Clear()
+
+    Endif
+
+    If $rData["fldtest_type"] = "Qualitative" Then
+      If SensiFormat() = "Summary" Then
+        $SensTable.Add(modLabTest.GetSensitivityTable($encid, $rData["fldid"], $tblpatlabsubtest))
+      Endif
+
+      xType = modFixLab.GetLabTestOptionType($rData["fldtestid"])
+      If xType = "Left/Right Components" Then
+        With asx
+          If $Format = "A" Then
+            .Add("")
+            If xspecolm = "Specimen" Then
+              .Add("")
+            Else If xspecolm = "Invoice" Then
+              .Add("")
+            Endif
+            .Add(modString.GetLeftRightTableHeader())
+            If xspecolm = "Comment" Then
+              .Add("")
+            Endif
+          Else If $Format = "C" Then
+            .Add(modString.GetFormatTextFontString(bb, col2Font))
+          Else If $Format = "D" Then
+            .Add("")
+            If xspecolm = "Specimen" Then
+              .Add("")
+            Else If xspecolm = "Invoice" Then
+              .Add("")
+            Endif
+            .Add(modString.GetLeftRightTableHeader())
+            If xspecolm = "Comment" Then
+              .Add("")
+            Else If xspecolm = "TestUnit" Then
+              .Add("")
+            Endif
+            .Add("")
+            .Add("")
+          Else
+            .Add("")
+            If xspecolm = "Specimen" Then
+              .Add("")
+            Else If xspecolm = "Invoice" Then
+              .Add("")
+            Endif
+            .Add(modString.GetLeftRightTableHeader())
+            If xspecolm = "Comment" Then
+              .Add("")
+            Else If xspecolm = "TestUnit" Then
+              .Add("")
+            Endif
+            .Add("")
+          Endif
+        End With
+        $BillingReport.Add(asx)
+        asx.Clear()
+      Endif
+
+      res = modDatabase.$myConn.Exec("select fldsubtest,fldabnormal,fldreport,fldid,fldtestid,fldtanswertype,fldindex from " & $tblpatlabsubtest & " where fldtestid=&1 and fldchk=&2 and fldsave=&3" & modLabSub.GetLabRepoOrder("SubTest"), $rData["fldid"], True, True)
+      If res.Available = True Then
+        For Each res
+          If xType = "Left/Right Components" Then
+            xquali = modString.GetLeftRightTableValue(res["fldreport"])
+          Else
+            If res["fldtanswertype"] = "Multiple Selection" Then
+              xquali = modLabTest.GetSubTestTableReportString(res["fldtestid"], res["fldid"], False, res["fldindex"])
+            Else If res["fldtanswertype"] = "Text Table" Then
+              xquali = modLabTest.GetSubTestTableReportString(res["fldtestid"], res["fldid"], True, res["fldindex"])
+            Else If res["fldtanswertype"] = "Dual Columns" Then
+              xquali = modLabTest.GetSubTestDualTableString(res["fldtestid"], res["fldid"], True, res["fldindex"])
+            Else If res["fldtanswertype"] = "Triple Columns" Then
+              xquali = modLabTest.GetSubTestTriTableString(res["fldtestid"], res["fldid"], True, res["fldindex"])
+            Else If res["fldtanswertype"] = "Single Column" Then
+              xquali = modLabTest.GetSubTestTableReportString(res["fldtestid"], res["fldid"], True, res["fldindex"])
+            Else If res["fldtanswertype"] = "Drug Sensitivity" Or If res["fldtanswertype"] = "WHO Sensitivity" Then
+              If SensiFormat() = "Table" Then
+                xquali = modLabTest.GetSubSensiTableReportString(res["fldtanswertype"], res["fldtestid"], res["fldid"], res["fldindex"], True)
+              Endif
+            Else If res["fldtanswertype"] = "Left and Right" Then
+              xquali = modString.GetJSONToDualHTMLTable(res["fldreport"])
+            Else
+              If res["fldabnormal"] = True And If modBasic.$AbnFormat Then
+                xquali = modString.GetAbnormalFormattedString(res["fldreport"])
+              Else
+                xquali = res["fldreport"]
+              Endif
+            Endif
+          Endif
+
+          If res["fldtanswertype"] = "Label Only" Then
+            aa = modString.HTMLBlankSpace(3) & res["fldsubtest"]
+            With asx
+              If $Format = "A" Then
+                .Add(aa)
+                .Add("")
+              Else If $Format = "C" Then
+                .Add(res["fldsubtest"])
+              Else If $Format = "D" Then
+                .Add(aa)
+                .Add("")
+                .Add("")
+                .Add("")
+              Else
+                .Add(aa)
+                .Add("")
+                .Add("")
+              Endif
+            End With
+            $BillingReport.Add(asx)
+            asx.Clear()
+
+          Else
+            If xquali Then
+              If $Format = "A" Then
+                aa = modString.HTMLBlankSpace(5) & res["fldsubtest"]
+                yrefstr = modFixLab.GetSubLatTestQualiReference(modLabTest.GetTestnameFromTestID($rData["fldid"], $tblpatlabtest), res["fldsubtest"])
+                If yrefstr Then
+                  bb = xquali & gb.NewLine & " [" & yrefstr & " ]"
+                Else
+                  bb = xquali
+                Endif
+                With asx
+                  .Add(aa)
+                  If xspecolm = "Specimen" Then
+                    .Add("")
+                  Else If xspecolm = "Invoice" Then
+                    .Add("")
+                  Endif
+                  .Add(bb)
+                  If xspecolm = "Comment" Then
+                    .Add("")
+                  Endif
+                End With
+                $BillingReport.Add(asx)
+                asx.Clear()
+
+              Else If $Format = "C" Then
+                aa = res["fldsubtest"]
+                yrefstr = modFixLab.GetSubLatTestQualiReference(modLabTest.GetTestnameFromTestID($rData["fldid"], $tblpatlabtest), res["fldsubtest"])
+                If yrefstr Then
+                  bb = xquali & gb.NewLine & " [" & yrefstr & " ]"
+                Else
+                  bb = xquali
+                Endif
+                With asx
+                  .Add(modString.GetFormatTextFontString(aa, col1Font) & "<br>" & modString.GetFormatTextFontString(bb, col2Font))
+                End With
+                $BillingReport.Add(asx)
+                asx.Clear()
+
+              Else If $Format = "D" Then
+                aa = modString.HTMLBlankSpace(5) & res["fldsubtest"]
+                bb = xquali
+                cc = modFixLab.GetSubLatTestQualiReference(modLabTest.GetTestnameFromTestID($rData["fldid"], $tblpatlabtest), res["fldsubtest"])
+                dd = ""
+                With asx
+                  .Add(aa)
+                  If xspecolm = "Specimen" Then
+                    .Add("")
+                  Else If xspecolm = "Invoice" Then
+                    .Add("")
+                  Endif
+                  .Add(bb)
+                  If xspecolm = "Comment" Then
+                    .Add("")
+                  Else If xspecolm = "TestUnit" Then
+                    .Add("")
+                  Endif
+                  .Add(cc)
+                  .Add(dd)
+                End With
+                $BillingReport.Add(asx)
+                asx.Clear()
+
+              Else
+                aa = modString.HTMLBlankSpace(5) & res["fldsubtest"]
+                bb = xquali
+                cc = modFixLab.GetSubLatTestQualiReference(modLabTest.GetTestnameFromTestID($rData["fldid"], $tblpatlabtest), res["fldsubtest"])
+                With asx
+                  .Add(aa)
+                  If xspecolm = "Specimen" Then
+                    .Add("")
+                  Else If xspecolm = "Invoice" Then
+                    .Add("")
+                  Endif
+                  .Add(bb)
+                  If xspecolm = "Comment" Then
+                    .Add("")
+                  Else If xspecolm = "TestUnit" Then
+                    .Add("")
+                  Endif
+                  .Add(cc)
+                End With
+                $BillingReport.Add(asx)
+                asx.Clear()
+
+              Endif
+            Endif
+
+          Endif
+
+        Next
+      Endif
+    Endif
+
+    ''default footer
+    If aColl.Count Then
+      $BillingReport.UserData.Add(modString.GetCollectionString(aColl).Join("<br>"), "FooterComment")
+    Else
+      $BillingReport.UserData.Add("", "FooterComment")
+    Endif
+    repor = modSettings.ShowSettingFromFIle("Laboratory/Footer_ReportedBy")
+    verif = modSettings.ShowSettingFromFIle("Laboratory/Footer_VerifiedBy")
+    repolast = modSettings.ShowSettingFromFIle("Laboratory/Footer_ReportedPos")
+    verilast = modSettings.ShowSettingFromFIle("Laboratory/Footer_VerifiedPos")
+
+    modReportVar.$FoottUser1 = ""
+    modReportVar.$FoottUser2 = ""
+    modReportVar.$FoottUser3 = ""
+
+    If repolast = "Last" Then
+      If repor = "Column1" Then
+        modReportVar.$FoottUser1 = modString.BinaryDistinctStringArray($reportedLast).Join(",")
+      Else If repor = "Column2" Then
+        modReportVar.$FoottUser2 = modString.BinaryDistinctStringArray($reportedLast).Join(",")
+      Else If repor = "Column3" Then
+        modReportVar.$FoottUser3 = modString.BinaryDistinctStringArray($reportedLast).Join(",")
+      Endif
+    Else
+      If repor = "Column1" Then
+        modReportVar.$FoottUser1 = modString.BinaryDistinctStringArray($reportedBy).Join(",")
+      Else If repor = "Column2" Then
+        modReportVar.$FoottUser2 = modString.BinaryDistinctStringArray($reportedBy).Join(",")
+      Else If repor = "Column3" Then
+        modReportVar.$FoottUser3 = modString.BinaryDistinctStringArray($reportedBy).Join(",")
+      Endif
+    Endif
+
+    If verilast = "Last" Then
+      If verif = "Column1" Then
+        modReportVar.$FoottUser1 = modString.BinaryDistinctStringArray($verifiedLast).Join(",")
+      Else If verif = "Column2" Then
+        modReportVar.$FoottUser2 = modString.BinaryDistinctStringArray($verifiedLast).Join(",")
+      Else If verif = "Column3" Then
+        modReportVar.$FoottUser3 = modString.BinaryDistinctStringArray($verifiedLast).Join(",")
+      Endif
+    Else
+      If verif = "Column1" Then
+        modReportVar.$FoottUser1 = modString.BinaryDistinctStringArray($verifiedBy).Join(",")
+      Else If verif = "Column2" Then
+        modReportVar.$FoottUser2 = modString.BinaryDistinctStringArray($verifiedBy).Join(",")
+      Else If verif = "Column3" Then
+        modReportVar.$FoottUser3 = modString.BinaryDistinctStringArray($verifiedBy).Join(",")
+      Endif
+    Endif
+
+    ''header
+    $BillingReport.UserData.Add("", "EXTRA1")
+    $BillingReport.UserData.Add("", "EXTRA2")
+    $BillingReport.UserData.Add("", "EXTRA3")
+    $BillingReport.UserData.Add("", "EXTRA4")
+    $BillingReport.UserData.Add("", "EXTRA5")
+    $BillingReport.UserData.Add("", "EXTRA6")
+    $BillingReport.UserData.Add("", "EXTRA7")
+    $BillingReport.UserData.Add("", "EXTRA8")
+
+    xexlabel = modSettings.ShowSettingFromFIle("Laboratory/Show_ExtraLabel")
+    If xexlabel = "Yes" Then
+      If modLabSub.GetLabExtraColumnName("SampleDate") Then
+        $BillingReport.UserData.Add("Sampling Date: " & modString.BinaryDistinctStringArray($sampleDate).Join(","), modLabSub.GetLabExtraColumnName("SampleDate"))
+      Endif
+      If modLabSub.GetLabExtraColumnName("ReportDate") Then
+        $BillingReport.UserData.Add("Reporting Date: " & modString.BinaryDistinctStringArray($ReportDate).Join(","), modLabSub.GetLabExtraColumnName("ReportDate"))
+      Endif
+      If modLabSub.GetLabExtraColumnName("ReportLastDate") Then
+        $BillingReport.UserData.Add("Reporting Date: " & modString.BinaryDistinctStringArray($ReportLastDate).Join(","), modLabSub.GetLabExtraColumnName("ReportLastDate"))
+      Endif
+      If modLabSub.GetLabExtraColumnName("VerifydDate") Then
+        $BillingReport.UserData.Add("Verification Date: " & modString.BinaryDistinctStringArray($VerifyDate).Join(","), modLabSub.GetLabExtraColumnName("VerifydDate"))
+      Endif
+      If modLabSub.GetLabExtraColumnName("VerifyLastDate") Then
+        $BillingReport.UserData.Add("Verification Date: " & modString.BinaryDistinctStringArray($VerifyLastDate).Join(","), modLabSub.GetLabExtraColumnName("VerifyLastDate"))
+      Endif
+      If modLabSub.GetLabExtraColumnName("SampleID") Then
+        $BillingReport.UserData.Add("Sample No: " & modString.BinaryDistinctStringArray($sampleID).Join(","), modLabSub.GetLabExtraColumnName("SampleID"))
+      Endif
+      If modLabSub.GetLabExtraColumnName("Specimen") Then
+        $BillingReport.UserData.Add("Specimen: " & modString.BinaryDistinctStringArray($sampleType).Join(","), modLabSub.GetLabExtraColumnName("Specimen"))
+      Endif
+      If modLabSub.GetLabExtraColumnName("ReferBy") Then
+        $BillingReport.UserData.Add("Reffered By: " & modString.BinaryDistinctStringArray($referName).Join(","), modLabSub.GetLabExtraColumnName("ReferBy"))
+      Endif
+      If modLabSub.GetLabExtraColumnName("Condition") Then
+        $BillingReport.UserData.Add("Clinical Note: " & modString.BinaryDistinctStringArray($condiName).Join(","), modLabSub.GetLabExtraColumnName("Condition"))
+      Endif
+      If modLabSub.GetLabExtraColumnName("InvoiceNo") Then
+        $BillingReport.UserData.Add("Invoice No: " & modString.BinaryDistinctStringArray($invoiceNo).Join(","), modLabSub.GetLabExtraColumnName("InvoiceNo"))
+      Endif
+
+    Else
+      If modLabSub.GetLabExtraColumnName("SampleDate") Then
+        $BillingReport.UserData.Add(modString.BinaryDistinctStringArray($sampleDate).Join(","), modLabSub.GetLabExtraColumnName("SampleDate"))
+      Endif
+      If modLabSub.GetLabExtraColumnName("ReportDate") Then
+        $BillingReport.UserData.Add(modString.BinaryDistinctStringArray($ReportDate).Join(","), modLabSub.GetLabExtraColumnName("ReportDate"))
+      Endif
+      If modLabSub.GetLabExtraColumnName("ReportLastDate") Then
+        $BillingReport.UserData.Add(modString.BinaryDistinctStringArray($ReportLastDate).Join(","), modLabSub.GetLabExtraColumnName("ReportLastDate"))
+      Endif
+      If modLabSub.GetLabExtraColumnName("VerifydDate") Then
+        $BillingReport.UserData.Add(modString.BinaryDistinctStringArray($VerifyDate).Join(","), modLabSub.GetLabExtraColumnName("VerifydDate"))
+      Endif
+      If modLabSub.GetLabExtraColumnName("VerifyLastDate") Then
+        $BillingReport.UserData.Add(modString.BinaryDistinctStringArray($VerifyLastDate).Join(","), modLabSub.GetLabExtraColumnName("VerifyLastDate"))
+      Endif
+      If modLabSub.GetLabExtraColumnName("Specimen") Then
+        $BillingReport.UserData.Add(modString.BinaryDistinctStringArray($sampleType).Join(","), modLabSub.GetLabExtraColumnName("Specimen"))
+      Endif
+      If modLabSub.GetLabExtraColumnName("SampleID") Then
+        $BillingReport.UserData.Add(modString.BinaryDistinctStringArray($sampleID).Join(","), modLabSub.GetLabExtraColumnName("SampleID"))
+      Endif
+      If modLabSub.GetLabExtraColumnName("ReferBy") Then
+        $BillingReport.UserData.Add(modString.BinaryDistinctStringArray($referName).Join(","), modLabSub.GetLabExtraColumnName("ReferBy"))
+      Endif
+      If modLabSub.GetLabExtraColumnName("Condition") Then
+        $BillingReport.UserData.Add(modString.BinaryDistinctStringArray($condiName).Join(","), modLabSub.GetLabExtraColumnName("Condition"))
+      Endif
+      If modLabSub.GetLabExtraColumnName("InvoiceNo") Then
+        $BillingReport.UserData.Add(modString.BinaryDistinctStringArray($invoiceNo).Join(","), modLabSub.GetLabExtraColumnName("InvoiceNo"))
+      Endif
+
+    Endif
+    If modLabSub.GetLabExtraColumnName("SampleIDBarCode") Then
+      xbarcode = modDevAll.GetBarCodeWithOptions(modString.BinaryDistinctStringArray($sampleID)[0])
+      If xbarcode Then
+        $BillingReport.UserData.Add(modPrint.GetFileWebURL(xbarcode), modLabSub.GetLabExtraColumnName("SampleIDBarCode"))
+      Else
+        $BillingReport.UserData.Add("", modLabSub.GetLabExtraColumnName("SampleIDBarCode"))
+      Endif
+    Endif
+    If modLabSub.GetLabExtraColumnName("SampleIDQRCode") Then
+      xqrcode = modDevAll.MakeQRCode(modString.BinaryDistinctStringArray($sampleID)[0])
+      If xqrcode Then
+        $BillingReport.UserData.Add(modPrint.GetFileWebURL(xqrcode), modLabSub.GetLabExtraColumnName("SampleIDQRCode"))
+      Else
+        $BillingReport.UserData.Add("", modLabSub.GetLabExtraColumnName("SampleIDQRCode"))
+      Endif
+    Endif
+    If modLabSub.GetLabExtraColumnName("InvoiceBarCode") Then
+      xbarinv = modDevAll.GetBarCodeWithOptions(modString.BinaryDistinctStringArray($invoiceNo)[0])
+      If xbarinv Then
+        $BillingReport.UserData.Add(modPrint.GetFileWebURL(xbarinv), modLabSub.GetLabExtraColumnName("InvoiceBarCode"))
+      Else
+        $BillingReport.UserData.Add("", modLabSub.GetLabExtraColumnName("InvoiceBarCode"))
+      Endif
+    Endif
+    If modLabSub.GetLabExtraColumnName("InvoiceQRCode") Then
+      xqrinv = modDevAll.MakeQRCode(modString.BinaryDistinctStringArray($invoiceNo)[0])
+      If xqrinv Then
+        $BillingReport.UserData.Add(modPrint.GetFileWebURL(xqrinv), modLabSub.GetLabExtraColumnName("InvoiceQRCode"))
+      Else
+        $BillingReport.UserData.Add("", modLabSub.GetLabExtraColumnName("InvoiceQRCode"))
+      Endif
+    Endif
+
+    ''final print
+    If sType = "Report" Then
+      modControlSub.OpenHTMLPreview($encid, $BillingReport.NewHTMLPath(), "ReportSize", "Diagnostic Tests")
+    Else If sType = "FTP" Then
+      SendFTPSMS($BillingReport.NewHTMLPath())
+    Else If sType = "Save" Then
+      If modBasic.$LabArchComment = "Identification" Then
+        SaveReportAsHTML($BillingReport.NewHTMLPath(), $encid)
+      Else If modBasic.$LabArchComment = "SampleID" Then
+        SaveReportAsHTML($BillingReport.NewHTMLPath(), modString.BinaryDistinctStringArray($sampleID).Join(","))
+      Else If modBasic.$LabArchComment = "Section" Then
+        SaveReportAsHTML($BillingReport.NewHTMLPath(), $xSection)
+      Else If modBasic.$LabArchComment = "Section+SampleID" Then
+        SaveReportAsHTML($BillingReport.NewHTMLPath(), $xSection & Space(1) & modString.BinaryDistinctStringArray($sampleID).Join(","))
+      Else
+        SaveReportAsHTML($BillingReport.NewHTMLPath(), "")
+      Endif
+    Else If sType = "Log" Then
+      If modBasic.$LabArchComment = "Identification" Then
+        SaveReportLogAsHTML($BillingReport.NewHTMLPath(), $encid)
+      Else If modBasic.$LabArchComment = "SampleID" Then
+        SaveReportLogAsHTML($BillingReport.NewHTMLPath(), modString.BinaryDistinctStringArray($sampleID).Join(","))
+      Else If modBasic.$LabArchComment = "Section" Then
+        SaveReportLogAsHTML($BillingReport.NewHTMLPath(), $xSection)
+      Else If modBasic.$LabArchComment = "Section+SampleID" Then
+        SaveReportLogAsHTML($BillingReport.NewHTMLPath(), $xSection & Space(1) & modString.BinaryDistinctStringArray($sampleID).Join(","))
+      Else
+        SaveReportLogAsHTML($BillingReport.NewHTMLPath(), "")
+      Endif
+    Endif
+
+  Endif
+
+End
+
+Private Sub SaveReportAsHTML(sHTML As String, sTitle As String)
+
+  Dim xx As String
+  Dim sPath As String
+  Dim sInt As String
+  Dim sLongID As Long
+
+  sInt = modString.GetNowString()
+  sPath = modPrint.ConvertHTMLToPDFString(sHTML, "ReportSize", sInt)
+  If sTitle Then
+    xx = InputBox(("Title of Report for Archive"), "Diagnostic Tests", sTitle)
+  Else
+    xx = InputBox(("Title of Report for Archive"), "Diagnostic Tests", $xSection)
+  Endif
+  sLongID = modImage.SavePatientFileGeneral($encid, "Diagnostic Tests", xx, sPath, $HashCode)
+  If sLongID Then
+    Me.Exec("Toastify({text: 'File saved', duration: 3000}).showToast()")
+  Endif
+
+End
+
+Private Sub SaveReportLogAsHTML(sHTML As String, sTitle As String)
+
+  Dim xx As String
+  Dim sPath As String
+  Dim sInt As String
+  Dim sLongID As Long
+
+  sInt = modString.GetNowString()
+  sPath = modPrint.ConvertHTMLToPDFString(sHTML, "ReportSize", sInt)
+  If sTitle Then
+    xx = InputBox(("Title of Report for Log"), "Diagnostic Tests", sTitle)
+  Else
+    xx = InputBox(("Title of Report for Log"), "Diagnostic Tests", $xSection)
+  Endif
+  sLongID = modImage.SavePatientFileGeneral($encid, "Diagnostic Tests Log", xx, sPath)
+  If sLongID Then
+    Me.Exec("Toastify({text: 'File saved', duration: 3000}).showToast()")
+  Endif
+
+End
+
+Private Sub SendFTPSMS(sHTML As String)
+
+  Dim sPath As String
+  Dim sInt As String
+  Dim xmsg As String
+  Dim xmode As String
+  Dim sLongID As Long
+
+  sInt = modString.GetNowString()
+  sPath = modPrint.ConvertHTMLToPDFString(sHTML, "ReportSize", sInt)
+
+  sLongID = modImage.SavePatientFileGeneral($encid, "Diagnostic Tests", "SMS Sent", sPath, $HashCode)
+  xmode = modSettings.ShowSettingFromFIle("Laboratory/Messaging_Format")
+  If xmode = "EMail" Then
+    modDevice.SendEMailLabPatient($encid, sPath)
+  Else If xmode = "SMS+EMail" Then
+    xmsg = modDevice.SendSMSLabPatient($encid, "", "")
+    modDevice.SendEMailLabPatient($encid, sPath)
+  Else
+    xmsg = modDevice.SendSMSLabPatient($encid, "", "")
+  Endif
+
+  If sLongID Then
+    Me.Exec("Toastify({text: 'File saved', duration: 3000}).showToast()")
+  Endif
+  If xmsg Then
+    Message.Info(xmsg, ("OK"))
+  Endif
+
+End
+
+Private Sub SelectGridItems(sInt As Long)
+
+  Dim res As Result
+  Dim res1 As Result
+
+  res1 = modDatabase.$myConn.Edit("tblpatlabtest", "fldid=&1 and flvisible=&2", sInt, "Visible")
+  If res1.Available Then
+    res1["fldchk"] = True
+    res1["xyz"] = False
+
+    res = modDatabase.$myConn.Edit("tblpatlabsubtest", "fldtestid=&1", sInt)
+    If res.Available Then
+      For Each res
+        res["fldchk"] = True
+        res["xyz"] = False
+        res.Update
+      Next
+    Endif
+
+    res1.Update
+  Endif
+
+End
+
+Private Function SensiFormat() As String
+
+  Dim xsens As String
+  Dim xsumm As String
+
+  xsens = modSettings.ShowSettingFromFIle("Laboratory/SensitivityReport")
+  If xsens Then
+    xsumm = xsens
+  Else
+    xsumm = "Table"
+  Endif
+  Return xsumm
+
+End
+
+''----------------- API --------------
+Public Sub GetReportArchived()
+
+  Dim xpass As String
+
+  If $encid Then
+    If modNonMedical.AllowEntryWithDeposit($encid, "Test") = True Then
+      ShowPatLaboratoryReport("Save", False)
+      xpass = modGeneral.SendPatientPasswordForRemote($encid)
+      If modBasic.$LabArchieveLog = "Enable" Then
+        ShowPatLaboratoryReport("Log", True)
+      Endif
+    Else
+      Message.Warning("Report printing not allowed", ("OK"))
+    Endif
+  Endif
+
+End
+
+Public Sub GetReportComplete()
+
+  If $encid Then
+    If modNonMedical.AllowEntryWithDeposit($encid, "Test") = True
+      ShowPatLaboratoryReport("Report", False)
+    Else
+      Message.Warning("Report printing not allowed", ("OK"))
+    Endif
+  Endif
+
+End
+
+Public Sub GetReportHeadless()
+
+  If $encid Then
+    If modNonMedical.AllowEntryWithDeposit($encid, "Test") = True
+      ShowPatLaboratoryReport("Report", True)
+    Else
+      Message.Warning("Report printing not allowed", ("OK"))
+    Endif
+  Endif
+
+End
