@@ -88,9 +88,9 @@ Private Sub FillBedGrid()
   Dim sql As String
 
   If modBasic.$ClinDepartFormat = "Service" Then
-    sql = "select fldencounterval,fldoxyport,fldventilator,fldbed,fldencounterval,fldencounterval,fldencounterval,fldbed,fldbed from tbldepartmentbed where (fldservice=&1 or fldaddservice=&1) and (fldstatus IS NULL or fldstatus=&2)"
+    sql = "select fldencounterval,fldoxyport,fldventilator,fldbed,fldencounterval,fldencounterval,fldencounterval,fldfreedate,fldbed from tbldepartmentbed where (fldservice=&1 or fldaddservice=&1) and (fldstatus IS NULL or fldstatus=&2)"
   Else
-    sql = "select fldencounterval,fldoxyport,fldventilator,fldbed,fldencounterval,fldencounterval,fldencounterval,fldbed,fldbed from tbldepartmentbed where flddept=&1 and (fldstatus IS NULL or fldstatus=&2)"
+    sql = "select fldencounterval,fldoxyport,fldventilator,fldbed,fldencounterval,fldencounterval,fldencounterval,fldfreedate,fldbed from tbldepartmentbed where flddept=&1 and (fldstatus IS NULL or fldstatus=&2)"
   Endif
   $rData = modDatabase.$myConn.Exec(sql, lstdepartment.Text, "Active")
   $aMyFields = New String[]
@@ -104,7 +104,7 @@ Private Sub FillBedGrid()
     .Columns[4].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
     .Columns[5].Width = CStr(225 * modBasic.$AppWidthRatio) & "px"
     .Columns[6].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
-    .Columns[7].Hidden = True
+    .Columns[7].Width = CStr(35 * modBasic.$AppWidthRatio) & "px"
     .Columns[8].Hidden = True
 
     .Columns[3].Text = "Bed"
@@ -138,6 +138,9 @@ Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableDat
     Else
       Data.Text = ""
     Endif
+  Else If Column = 7 Then
+    Data.Html = modString.GetImageForHTMLGrid(ShowFreeColor($rData[$aMyFields[Column]]), "auto", "auto")
+    Data.Text = ""
   Else
     Data.Text = $rData[$aMyFields[Column]]
   Endif
@@ -152,6 +155,23 @@ Private Function ShowBedColor(encid As String) As String
     xx = "/" &/ Application.Root &/ "icons/false.svg"
   Else
     xx = "/" &/ Application.Root &/ "icons/null.svg"
+  Endif
+  Return xx
+
+End
+
+Private Function ShowFreeColor(sDischarge As Date) As String
+
+  Dim xx As String
+
+  If modBasic.$ClinBedHoldTime Then
+    If DateDiff(sDischarge, Now(), gb.Hour) <= modBasic.$ClinBedHoldTime Then
+      xx = "/" &/ Application.Root &/ "icons/coll5.png"
+    Else
+      xx = ""
+    Endif
+  Else
+    xx = ""
   Endif
   Return xx
 

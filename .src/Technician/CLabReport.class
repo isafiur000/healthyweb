@@ -3,17 +3,22 @@
 Private $Index As Long
 Private $Format As String
 Private $sUnit As String
+Private $Mark As Boolean
 
 Private $rData As Result
 Private $encid As String
 Private $HashCode As String
 Private $xSection As String
 
-Public Sub _new(sIndex As Long, sFormat As String, sUnit As String)
+Private $tblpatlabtest As String = "tblpatlabtest"
+Private $tblpatlabsubtest As String = "tblpatlabsubtest"
+
+Public Sub _new(sIndex As Long, sFormat As String, sUnit As String, sMark As Boolean)
 
   $Index = sIndex
   $Format = sFormat
   $sUnit = sUnit
+  $Mark = sMark
   LoadQuery()
 
 End
@@ -23,7 +28,7 @@ Private Sub LoadQuery()
   Dim fldList As String[]
 
   fldList = ["fldid", "fldencounterval", "fldchk", "fldsave_report", "fldtest_type", "fldtestid", "fldsampletype", "fldsampleid", "fldtime_sample", "fldabnormal", "fldid", "flvisible", "fldstatus", "flduserid_sample", "flduserid_report", "flduserid_verify", "fldrefername", "fldcondition", "fldsampleid", "fldsampletype", "fldtime_sample", "fldtime_report", "fldtime_report", "fldprint", "fldorder", "fldtestid", "fldcomment", "flduptime_report", "fldtime_verify", "flduptime_verify", "fldbillno", "fldupuser_report", "fldupuser_verify"]
-  $rData = modDatabase.$myConn.Exec("select " & fldList.Join(",") & " from tblpatlabtest where fldid=&1 and fldsave_report=&2 and fldstatus=&3 and flvisible=&4", $Index, True, "Reported", "Visible")
+  $rData = modDatabase.$myConn.Exec("select " & fldList.Join(",") & " from " & $tblpatlabtest & " where fldid=&1 and fldsave_report=&2 and fldstatus=&3 and flvisible=&4", $Index, True, "Reported", "Visible")
   If $rData.Available Then
     $xSection = modFixLab.GetLabTestCategory($rData["fldtestid"])
     $encid = $rData["fldencounterval"]
@@ -35,9 +40,6 @@ End
 Private Sub ShowPatLaboratoryReport(sType As String, sHide As Boolean)
 
   Dim $SensTable As String[]
-  Dim $tblpatlabtest As String = "tblpatlabtest"
-  Dim $tblpatlabsubtest As String = "tblpatlabsubtest"
-
   Dim $BillingReport As CReportHTML
   Dim res As Result
   Dim asx As New String[0]
@@ -94,7 +96,7 @@ Private Sub ShowPatLaboratoryReport(sType As String, sHide As Boolean)
   xfontcol1 = modSettings.ShowSettingFromFIle("ReportFormat/ReportBody_Font_Column1")
   xfontcol2 = modSettings.ShowSettingFromFIle("ReportFormat/ReportBody_Font_Column2")
   xintrp = modSettings.ShowSettingFromFIle("Laboratory/Observation_Comment")
-  xspecolm = modSettings.ShowSettingFromFIle("Laboratory/ExtraColumn")
+  xspecolm = modBasic.$LabExtraColumn
 
   If xfontcol1 Then
     col1Font = xfontcol1
@@ -857,12 +859,12 @@ Private Sub SelectGridItems(sInt As Long)
   Dim res As Result
   Dim res1 As Result
 
-  res1 = modDatabase.$myConn.Edit("tblpatlabtest", "fldid=&1 and flvisible=&2", sInt, "Visible")
+  res1 = modDatabase.$myConn.Edit($tblpatlabtest, "fldid=&1 and flvisible=&2", sInt, "Visible")
   If res1.Available Then
     res1["fldchk"] = True
     res1["xyz"] = False
 
-    res = modDatabase.$myConn.Edit("tblpatlabsubtest", "fldtestid=&1", sInt)
+    res = modDatabase.$myConn.Edit($tblpatlabsubtest, "fldtestid=&1", sInt)
     If res.Available Then
       For Each res
         res["fldchk"] = True
@@ -881,13 +883,26 @@ Private Function SensiFormat() As String
   Dim xsens As String
   Dim xsumm As String
 
-  xsens = modSettings.ShowSettingFromFIle("Laboratory/SensitivityReport")
+  xsens = modBasic.$LabSensitivityReport
   If xsens Then
     xsumm = xsens
   Else
     xsumm = "Table"
   Endif
   Return xsumm
+
+End
+
+Private Sub MarkPrintedSelected()
+
+  Dim res As Result
+
+  If $Mark = True Then
+    res = modDatabase.$myConn.Edit($tblpatlabtest, "fldid=&1", $Index)
+    res["fldprint"] = True
+    res["xyz"] = False
+    res.Update
+  Endif
 
 End
 
@@ -898,6 +913,7 @@ Public Sub GetReportArchived()
 
   If $encid Then
     If modNonMedical.AllowEntryWithDeposit($encid, "Test") = True Then
+      MarkPrintedSelected()
       ShowPatLaboratoryReport("Save", False)
       xpass = modGeneral.SendPatientPasswordForRemote($encid)
       If modBasic.$LabArchieveLog = "Enable" Then
@@ -913,7 +929,8 @@ End
 Public Sub GetReportComplete()
 
   If $encid Then
-    If modNonMedical.AllowEntryWithDeposit($encid, "Test") = True
+    If modNonMedical.AllowEntryWithDeposit($encid, "Test") = True Then
+      MarkPrintedSelected()
       ShowPatLaboratoryReport("Report", False)
     Else
       Message.Warning("Report printing not allowed", ("OK"))
@@ -925,7 +942,8 @@ End
 Public Sub GetReportHeadless()
 
   If $encid Then
-    If modNonMedical.AllowEntryWithDeposit($encid, "Test") = True
+    If modNonMedical.AllowEntryWithDeposit($encid, "Test") = True Then
+      MarkPrintedSelected()
       ShowPatLaboratoryReport("Report", True)
     Else
       Message.Warning("Report printing not allowed", ("OK"))
