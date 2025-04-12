@@ -1,16 +1,13 @@
 ' Gambas class file
 
 Private $RegistrationVar As String[] = ["{HospitalName}", "{HospitalAddress}", "{Department}", "{CurrentDate}", "{CurrentTime}", "{CurrentUser}", "{Encounter}", "{PatientNo}", "{PatientCode}", "{PatientName}", "{PatientAddress}", "{PatientDistrict}", "{PatientGuardian}", "{PatientDOB}", "{PatientAge}", "{AgeGroup}", "{AgeGroupCustom}", "{Age/Sex}", "{E-Mail}", "{ContactNo}", "{PatientFileNo}", "{PatientRelation}", "{RegdDepartment}", "{RegdDeptRoom}", "{RegdBillMode}", "{RegistrationDate}", "{RegistrationTime}", "{VisitMode}", "{Consultant}", "{ConsultantID}", "{RegdConsultationFree}", "{TotalPayment}"]                                                    ''
+Private $xList As String[]
 
 Public Sub _new()
 
-  Dim xList As String[]
+  $xList = modNonMedical.FillCashModeCombo()
+  $xList.Insert(["All", "None"])
 
-  xList = modNonMedical.FillCashModeCombo()
-  xList.Insert(["All", "None"])
-  cmbautopayble.List = xList
-
-  cmbautocalc.List = ["Calculator", "InvoiceInfo", "BlankForm"]
   'formating
   cmbatch.List = ["Yes", "No"]
   cmbqty.List = ["Yes", "No"]
@@ -30,15 +27,12 @@ Public Sub _new()
   cmbextrabill.List = ["Print", "Print+Print", "Save", "Print+Save", "None"]
   cmbextrefer.List = ["Yes", "No"]
   cmbregdslip.List = ["Sticker", "Prescription", "None"]
-  cmbeditax.List = ["Percent", "Amount"]
-  cmbwarncredit.List = ["Yes", "No"]
   cmbdischbill.List = ["Summary", "Detail"]
   cmbskiprint.List = ["Registration", "Discharge"]
   cmbitmselct.List = ["Current", "Multiple"]
-  cmbbillalert.List = ["Patient No", "Patient Code", "Data Repo", "None"]
+  cmbshowMRP.List = ["Yes", "No"]
 
   ShowPrintingParam()
-  GeneralBillSetting()
 
 End
 
@@ -157,8 +151,17 @@ Public Sub IconPanel1_Click()
     cmbconheader.List = ["BuiltIn", "External"]
     cmbcontable.List = ["BuiltIn", "External"]
     cmbconfooter.List = ["BuiltIn", "External"]
-    ShowLineSpacing()
+
+    cmbautopayble.List = $xList
+    cmbautocalc.List = ["Calculator", "InvoiceInfo", "BlankForm"]
+    cmbeditax.List = ["Percent", "Amount"]
+    cmbwarncredit.List = ["Yes", "No"]
+    cmbbillalert.List = ["Patient No", "Patient Code", "Data Repo", "None"]
+
     ShowDefaultComponent()
+    ShowLineSpacing()
+    GeneralBillSetting()
+    CBMSSetting()
 
   Else If IconPanel1.Index = 8 Then
     cmbregistrepo.List = ["Yes", "No"]
@@ -254,6 +257,7 @@ Private Sub ShowPrintingParam()
   cmbcashcredit.Text = modSettings.ShowSettingFromFIle("Invoice/CashCreditFormat")
   cmbtaxsum.Text = modSettings.ShowSettingFromFIle("Invoice/ShowSumTax")
   cmbdiscsum.Text = modSettings.ShowSettingFromFIle("Invoice/ShowSumDiscount")
+  cmbshowMRP.Text = modSettings.ShowSettingFromFIle("Invoice/ShowMaxRetailPrice")
 
   cmbmed.Text = modSettings.ShowSettingFromFIle("Invoice/MedicineName")
   cmbitemsuffix.Text = modSettings.ShowSettingFromFIle("Invoice/ParticularSuffix")
@@ -363,6 +367,14 @@ End
 Public Sub btntaxsum_Click()
 
   modSettings.SaveSettingsToFile("Invoice/ShowSumTax", cmbtaxsum.Text)
+  Me.Exec("Toastify({text: 'Information saved', duration: 3000}).showToast()")
+  'Balloon.Delay = modBasic.$BalloonDelay
+
+End
+
+Public Sub btnshowMRP_Click()
+
+  modSettings.SaveSettingsToFile("Invoice/ShowMaxRetailPrice", cmbshowMRP.Text)
   Me.Exec("Toastify({text: 'Information saved', duration: 3000}).showToast()")
   'Balloon.Delay = modBasic.$BalloonDelay
 
@@ -494,6 +506,47 @@ Public Sub btnwarncredit_Click()
   modBasic.$BillWarnCredits = cmbwarncredit.Text
   Me.Exec("Toastify({text: 'Information updated', duration: 3000}).showToast()")
   ' Balloon.Delay = modBasic.$BalloonDelay
+
+End
+
+''------------------------------------------------------------------------------------------
+Public Sub btncbmssave_Click()
+
+  If txtcbmsuser.Text Then
+    modSettings.SaveSettingsToFile("CBMSAPI/UserName", Base64(txtcbmsuser.Text))
+  Endif
+  If txtcbmspass.Text Then
+    modSettings.SaveSettingsToFile("CBMSAPI/Password", Base64(txtcbmspass.Text))
+  Endif
+  modSettings.SaveSettingsToFile("CBMSAPI/SalesURL", txtcbmsapi.Text)
+  modSettings.SaveSettingsToFile("CBMSAPI/ReturnURL", txtcbmsapiret.Text)
+  Me.Exec("Toastify({text: 'Information updated', duration: 3000}).showToast()")
+  ' Balloon.Delay = modBasic.$BalloonDelay
+
+End
+
+Public Sub lnkcbmsapi_Click()
+
+  txtcbmsapi.Text = "https://cbapi.ird.gov.np/api/bill"
+
+End
+
+Public Sub lnkcbmsapiret_Click()
+
+  txtcbmsapiret.Text = "https://cbapi.ird.gov.np/api/billreturn"
+
+End
+
+Private Sub CBMSSetting()
+
+  If modSettings.ShowSettingFromFIle("CBMSAPI/UserName") Then
+    txtcbmsuser.Text = UnBase64(modSettings.ShowSettingFromFIle("CBMSAPI/UserName"))
+  Endif
+  If modSettings.ShowSettingFromFIle("CBMSAPI/Password") Then
+    txtcbmspass.Text = UnBase64(modSettings.ShowSettingFromFIle("CBMSAPI/Password"))
+  Endif
+  txtcbmsapi.Text = modSettings.ShowSettingFromFIle("CBMSAPI/SalesURL")
+  txtcbmsapiret.Text = modSettings.ShowSettingFromFIle("CBMSAPI/ReturnURL")
 
 End
 

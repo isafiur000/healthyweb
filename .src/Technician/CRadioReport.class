@@ -2,16 +2,18 @@
 
 Private $Index As Long
 Private $Format As String
+Private $Mark As Boolean
 
 Private $rData As Result
 Private $encid As String
 Private $HashCode As String
 Private $xSection As String
 
-Public Sub _new(sIndex As Long, sFormat As String)
+Public Sub _new(sIndex As Long, sFormat As String, sMark As Boolean)
 
   $Index = sIndex
   $Format = sFormat
+  $Mark = sMark
   LoadQuery()
 
 End
@@ -626,6 +628,19 @@ Private Sub SendFTPSMS(sHTML As String)
 
 End
 
+Private Sub MarkPrintedSelected()
+
+  Dim res As Result
+
+  If $Mark = True Then
+    res = modDatabase.$myConn.Edit("tblpatradiotest", "fldid=&1", $Index)
+    res["fldprint"] = True
+    res["xyz"] = False
+    res.Update
+  Endif
+
+End
+
 ''----------------- API --------------
 Public Sub GetReportArchived()
 
@@ -633,6 +648,7 @@ Public Sub GetReportArchived()
 
   If $encid Then
     If modNonMedical.AllowEntryWithDeposit($encid, "Test") = True Then
+      MarkPrintedSelected()
       ShowRadioLaboratoryReport("Save", False)
       xpass = modGeneral.SendPatientPasswordForRemote($encid)
       If modBasic.$LabArchieveLog = "Enable" Then
@@ -648,7 +664,8 @@ End
 Public Sub GetReportComplete()
 
   If $encid Then
-    If modNonMedical.AllowEntryWithDeposit($encid, "Test") = True
+    If modNonMedical.AllowEntryWithDeposit($encid, "Test") = True Then
+      MarkPrintedSelected()
       ShowRadioLaboratoryReport("Report", False)
     Else
       Message.Warning("Report printing not allowed", ("OK"))
@@ -660,7 +677,8 @@ End
 Public Sub GetReportHeadless()
 
   If $encid Then
-    If modNonMedical.AllowEntryWithDeposit($encid, "Test") = True
+    If modNonMedical.AllowEntryWithDeposit($encid, "Test") = True Then
+      MarkPrintedSelected()
       ShowRadioLaboratoryReport("Report", True)
     Else
       Message.Warning("Report printing not allowed", ("OK"))

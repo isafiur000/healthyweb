@@ -4,6 +4,7 @@ Public $ItemStorageCodeData As Collection
 Public $ItemStockNameData As Collection
 Public $ItemStockBatchData As Collection
 Public $ItemStockExpData As Collection
+Public $ItemStockMRPData As Collection
 
 Public $SurgiNameFromStock As Collection
 Public $ExtraNameFromStock As Collection
@@ -946,6 +947,43 @@ Public Function GetBatchFromStockNo(txtstockno As Long) As String
     batch = ""
   Endif
   Return batch
+
+End
+
+Public Function GetMaxRPFromStockNo(txtstockno As Long) As Float
+
+  Dim yy As Variant
+  Dim xmrp As Float
+  Dim res As Result
+
+  If txtstockno Then
+    yy = modHelpVariable.GetCollectionValue($ItemStockMRPData, CStr(txtstockno), modBasic.$AppCacheInventoryParameters)
+    If yy Then
+      xmrp = CFloat(yy)
+    Else
+      xmrp = 0
+    Endif
+
+    If Not xmrp Then
+      res = modDatabase.$myConn.Exec("select fldmrp from tblentry where fldstockno=&1", txtstockno)
+      If res.Available Then
+        If res["fldmrp"] Then
+          xmrp = res["fldmrp"]
+          If modBasic.$AppCacheInventoryParameters = "Yes" Then
+            $ItemStockMRPData.Add(xmrp, CStr(txtstockno))
+          Endif
+        Else
+          xmrp = 0
+        Endif
+      Else
+        xmrp = 0
+      Endif
+    Endif
+
+  Else
+    xmrp = 0
+  Endif
+  Return xmrp
 
 End
 

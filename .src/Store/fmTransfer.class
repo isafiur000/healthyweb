@@ -320,7 +320,7 @@ Private Sub SaveEntry(sTarget As String, Optional sLate As String)
   Dim resx As Result
   Dim xIntVal As String
 
-  res1 = modDatabase.$myConn.Exec("select fldstockno,fldstockid,fldcategory,fldbatch,fldexpiry,fldqty,fldstatus,fldcategory,fldsellpr from tblentry where fldstockid=&1 and fldbatch=&2 and fldcomp=&3", cmbmedicine.Text, cmbbatch.Text, modBasic.$compID)                                                   ''
+  res1 = modDatabase.$myConn.Exec("select fldstockno,fldstockid,fldcategory,fldbatch,fldexpiry,fldqty,fldstatus,fldcategory,fldsellpr,fldmrp from tblentry where fldstockid=&1 and fldbatch=&2 and fldcomp=&3", cmbmedicine.Text, cmbbatch.Text, modBasic.$compID)                                                   ''
   If res1.Available Then
     res1.MoveFirst
     If sTarget <> modBasic.$compID And If txtqty.Value <= res1["fldqty"] Then
@@ -338,6 +338,7 @@ Private Sub SaveEntry(sTarget As String, Optional sLate As String)
           resx["fldqty"] = 0
           resx["fldstatus"] = modStock.ItemSaleStatus(res1["fldstockid"], sTarget)
           resx["fldsellpr"] = res1["fldsellpr"]
+          resx["fldmrp"] = res1["fldmrp"]
           resx["fldsav"] = False
           resx["fldcategory"] = res1["fldcategory"]
           resx["fldcomp"] = sTarget
@@ -443,12 +444,14 @@ Private Sub SaveEntryAll(stockno As Long, stockid As String, txtcateg As String,
 
   Dim xbatch As String
   Dim xexpiry As Date
+  Dim xmaxrp As Float
   Dim xstatus As Integer
 
   If modBasic.$compID <> cmbcompsent.Text Then
     xstock = modStock.NewStock(stockid, modStock.GetBatchFromStockNo(stockno), cmbcompsent.Text)
     xbatch = modStock.GetBatchFromStockNo(stockno)
     xexpiry = modStock.GetExpiryFromStockNo(stockno)
+    xmaxrp = modStock.GetMaxRPFromStockNo(stockno)
     xstatus = modStock.ItemSaleStatus(cmbmedicine.Text, cmbcompsent.Text)
 
     modDatabase.$myConn.Begin
@@ -463,6 +466,7 @@ Private Sub SaveEntryAll(stockno As Long, stockid As String, txtcateg As String,
         rs["fldqty"] = 0
         rs["fldstatus"] = xstatus
         rs["fldsellpr"] = sellpr
+        rs["fldmrp"] = xmaxrp
         rs["fldsav"] = True
         rs["fldcategory"] = txtcateg
         rs["fldcomp"] = cmbcompsent.Text
@@ -789,7 +793,7 @@ Private Sub SaveFinalLockTransfer()
         ref = modBillLock.ReferenceString("Stock Transfer")
         If ref Then
           For Each res
-            rsn = modDatabase.$myConn.Exec("select fldbatch,fldexpiry,fldsellpr,fldcategory from tblentry where fldstockno=&1", res["fldstockno"])
+            rsn = modDatabase.$myConn.Exec("select fldbatch,fldexpiry,fldsellpr,fldcategory,fldmrp from tblentry where fldstockno=&1", res["fldstockno"])
             If rsn.Available Then
               xstock = modStock.NewStock(res["fldstockid"], rsn["fldbatch"], res["fldlockcomp"])
               newstno = modStock.GetItemStockNo(res["fldstockid"], rsn["fldbatch"], res["fldlockcomp"])
@@ -803,6 +807,7 @@ Private Sub SaveFinalLockTransfer()
                   resx["fldqty"] = 0
                   resx["fldstatus"] = modStock.ItemSaleStatus(res["fldstockid"], res["fldlockcomp"])
                   resx["fldsellpr"] = rsn["fldsellpr"]
+                  resx["fldmrp"] = rsn["fldmrp"]
                   resx["fldsav"] = False
                   resx["fldcategory"] = rsn["fldcategory"]
                   resx["fldcomp"] = res["fldlockcomp"]
