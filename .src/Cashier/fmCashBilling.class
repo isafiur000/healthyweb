@@ -193,6 +193,7 @@ Public Sub btnshow_Click()
   Dim xcredit As Float
   Dim frmshow As Boolean
   Dim xlstenc As String
+  Dim xallow As Boolean
 
   If Not txtencid.Text Then Return
   If modBasic.$EncIdPrefix And If txtencid.Text = modBasic.$EncIdPrefix Then
@@ -255,7 +256,7 @@ Public Sub btnshow_Click()
           cmbdisctype.Enabled = False
         Endif
         xlock = False
-        resx = modDatabase.$myConn.Exec("select fldmode,fldbillingmode,fldacledger,fldbilltype,fldreference,fldlimit from tbldiscount where fldtype=&1", $DiscPackage)
+        resx = modDatabase.$myConn.Exec("select fldmode,fldbillingmode,fldacledger,fldbilltype,fldreference,fldlimit,fldlockstate from tbldiscount where fldtype=&1", $DiscPackage)
         If resx.Available Then
           ''billingmode
           If resx["fldbillingmode"] Then
@@ -284,6 +285,8 @@ Public Sub btnshow_Click()
                 txtreference.Text = modSSF.GetSSFClaimCodePatient(Trim(txtencid.Text), "Accident SSF")
               Else If resx["fldreference"] = "Critical SSF" Then
                 txtreference.Text = modSSF.GetSSFClaimCodePatient(Trim(txtencid.Text), "Critical SSF")
+              Else If resx["fldreference"] = "MedExtra SSF" Then
+                txtreference.Text = modSSF.GetSSFClaimCodePatient(Trim(txtencid.Text), "MedExtra SSF")
               Else If resx["fldreference"] = "Medical SSF" Then
                 txtreference.Text = modSSF.GetSSFClaimCodePatient(Trim(txtencid.Text), "Medical SSF")
               Endif
@@ -318,6 +321,28 @@ Public Sub btnshow_Click()
           Else If resx["fldlimit"] = "PatientDiscount" Then
             lbllimit.Text = "Disc Limit"
             txtcreditlimit.Value = modNonMedical.GetPatCharityLimit(Trim(txtencid.Text))
+          Endif
+          ''lock to state
+          Select $sTatus
+            Case "Registered"
+              If resx["fldlockstate"] And If resx["fldlockstate"] <> "OPD" Then
+                xallow = False
+              Else
+                xallow = True
+              Endif
+            Case "Admitted", "Discharged", "LAMA", "Death", "Refer", "Absconder"
+              If resx["fldlockstate"] And If resx["fldlockstate"] <> "IPD" Then
+                xallow = False
+              Else
+                xallow = True
+              Endif
+            Case Else
+              xallow = True
+          End Select
+          If xallow = False Then
+            Panel4.Enabled = False
+          Else
+            Panel4.Enabled = True
           Endif
         Endif
         If Not xbilltype Then
@@ -406,6 +431,7 @@ Private Sub ShowBillingParam(sPack As String)
   Dim xbilltype As String
   Dim xledger As String
   Dim xlock As Boolean
+  Dim xallow As Boolean
 
   If sPack Then
     cmbmode.Text = ""
@@ -414,7 +440,7 @@ Private Sub ShowBillingParam(sPack As String)
     txtreference.Tag = ""
     txtreference.ReadOnly = False
     xlock = False
-    resx = modDatabase.$myConn.Exec("select fldmode,fldbillingmode,fldacledger,fldbilltype,fldreference,fldlimit from tbldiscount where fldtype=&1", sPack)
+    resx = modDatabase.$myConn.Exec("select fldmode,fldbillingmode,fldacledger,fldbilltype,fldreference,fldlimit,fldlockstate from tbldiscount where fldtype=&1", sPack)
     If resx.Available Then
       ''billingmode
       If resx["fldbillingmode"] Then
@@ -443,6 +469,8 @@ Private Sub ShowBillingParam(sPack As String)
             txtreference.Text = modSSF.GetSSFClaimCodePatient(Trim(txtencid.Text), "Accident SSF")
           Else If resx["fldreference"] = "Critical SSF" Then
             txtreference.Text = modSSF.GetSSFClaimCodePatient(Trim(txtencid.Text), "Critical SSF")
+          Else If resx["fldreference"] = "MedExtra SSF" Then
+            txtreference.Text = modSSF.GetSSFClaimCodePatient(Trim(txtencid.Text), "MedExtra SSF")
           Else If resx["fldreference"] = "Medical SSF" Then
             txtreference.Text = modSSF.GetSSFClaimCodePatient(Trim(txtencid.Text), "Medical SSF")
           Endif
@@ -475,6 +503,28 @@ Private Sub ShowBillingParam(sPack As String)
       Else If resx["fldlimit"] = "PatientDiscount" Then
         lbllimit.Text = "Disc Limit"
         txtcreditlimit.Value = modNonMedical.GetPatCharityLimit(Trim(txtencid.Text))
+      Endif
+      ''lock to state
+      Select $sTatus
+        Case "Registered"
+          If resx["fldlockstate"] And If resx["fldlockstate"] <> "OPD" Then
+            xallow = False
+          Else
+            xallow = True
+          Endif
+        Case "Admitted", "Discharged", "LAMA", "Death", "Refer", "Absconder"
+          If resx["fldlockstate"] And If resx["fldlockstate"] <> "IPD" Then
+            xallow = False
+          Else
+            xallow = True
+          Endif
+        Case Else
+          xallow = True
+      End Select
+      If xallow = False Then
+        Panel4.Enabled = False
+      Else
+        Panel4.Enabled = True
       Endif
     Endif
     If Not xbilltype Then
@@ -714,6 +764,8 @@ Public Sub btncrdstate_Click()
       xmsg = modSSF.CheckSSFStatus(Trim(txtencid.Text), "Accident SSF")
     Else If xrefer = "Critical SSF" Then
       xmsg = modSSF.CheckSSFStatus(Trim(txtencid.Text), "Critical SSF")
+    Else If xrefer = "MedExtra SSF" Then
+      xmsg = modSSF.CheckSSFStatus(Trim(txtencid.Text), "MedExtra SSF")
     Else If xrefer = "Medical SSF" Then
       xmsg = modSSF.CheckSSFStatus(Trim(txtencid.Text), "Medical SSF")
     Endif
@@ -2833,7 +2885,7 @@ Private Sub GetSSFBookingLock(sInvoice As String)
   Endif
 
   If cmbdisctype.Text = modBasic.$SSFAccident Or If cmbdisctype.Text = modBasic.$SSFMedical Or If cmbdisctype.Text = modBasic.$SSFCritical Then
-    res = modDatabase.$myConn.Exec(Subst("select fldencounterval,fldbillno,fldchequeno,flduserid,flditemamt from &1", sTable) & " where fldbillno=&1 and fldencounterval=&2 and fldbankname in(select fldacledger from tbldiscount where (fldreference=&3 or fldreference=&4 or fldreference=&5))", sInvoice, Trim(txtencid.Text), "Accident SSF", "Medical SSF", "Critical SSF")
+    res = modDatabase.$myConn.Exec(Subst("select fldencounterval,fldbillno,fldchequeno,flduserid,flditemamt from &1", sTable) & " where fldbillno=&1 and fldencounterval=&2 and fldbankname in(select fldacledger from tbldiscount where (fldreference=&3 or fldreference=&4 or fldreference=&5 or fldreference=&6))", sInvoice, Trim(txtencid.Text), "Accident SSF", "Medical SSF", "MedExtra SSF", "Critical SSF")
     If res.Available And If res["flditemamt"] Then
 
       aForm = New CssfAPIBooking($xNHISCode, Trim(txtencid.Text), res["fldchequeno"], sInvoice, res["flditemamt"])
@@ -2864,7 +2916,7 @@ Public Sub mnussfBooking_Click()
   '   Next
   ' Endif
   ' xinvlst = GridTriColumn("SSF Booking", xdata)
-  res = modDatabase.$myConn.Exec("select fldbillno from tblpatbilldetail where fldencounterval=&1 and fldbankname in(select fldacledger from tbldiscount where (fldreference=&2 or fldreference=&3)) UNION ALL select fldbillno from tbltempbilldetail where fldencounterval=&1 and fldbankname in(select fldacledger from tbldiscount where (fldreference=&2 or fldreference=&3 or fldreference=&4))", Trim(txtencid.Text), "Accident SSF", "Medical SSF", "Critical SSF")
+  res = modDatabase.$myConn.Exec("select fldbillno from tblpatbilldetail where fldencounterval=&1 and fldbankname in(select fldacledger from tbldiscount where (fldreference=&2 or fldreference=&3)) UNION ALL select fldbillno from tbltempbilldetail where fldencounterval=&1 and fldbankname in(select fldacledger from tbldiscount where (fldreference=&2 or fldreference=&3 or fldreference=&4 or fldreference=&5))", Trim(txtencid.Text), "Accident SSF", "Medical SSF", "MedExtra SSF", "Critical SSF")
   xinvlst = SelectListView("Select Invoices for SSF Booking", modControlSub.GetDirectFillresultNoNull(res), False)
   If xinvlst And If xinvlst.Count Then
     For Each xinvno In xinvlst
