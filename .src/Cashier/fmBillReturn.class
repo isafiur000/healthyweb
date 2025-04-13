@@ -152,6 +152,8 @@ Public Sub btnshow_Click()
                 $InvReference = modSSF.GetSSFClaimVIewMedical(res["fldencounterval"], "Accident")
             Case "Medical SSF"
               $InvReference = modSSF.GetSSFClaimVIewMedical(res["fldencounterval"], "Patient Ward")
+            Case "MedExtra SSF"
+              $InvReference = modSSF.GetSSFClaimVIewMedical(res["fldencounterval"], "Medical Extra")
             Case "Critical SSF"
               $InvReference = modSSF.GetSSFClaimVIewMedical(res["fldencounterval"], "Post Diagnosis")
           End Select
@@ -997,7 +999,7 @@ Private Sub GetSSFBookingLock(sInvoice As String)
     sTable = "tbltempbilldetail"
   Endif
 
-  res = modDatabase.$myConn.Exec(Subst("select fldencounterval,fldbillno,fldchequeno,flduserid,flditemamt from &1", sTable) & " where fldbillno=&1 and fldencounterval=&2 and fldbankname in(select fldacledger from tbldiscount where (fldreference=&3 or fldreference=&4 or fldreference=&5))", sInvoice, $encid, "Accident SSF", "Medical SSF", "Critical SSF")
+  res = modDatabase.$myConn.Exec(Subst("select fldencounterval,fldbillno,fldchequeno,flduserid,flditemamt from &1", sTable) & " where fldbillno=&1 and fldencounterval=&2 and fldbankname in(select fldacledger from tbldiscount where (fldreference=&3 or fldreference=&4 or fldreference=&5 or fldreference=&6))", sInvoice, $encid, "Accident SSF", "Medical SSF", "MedExtra SSF", "Critical SSF")
   If res.Available And If res["flditemamt"] Then
 
     aForm = New CssfAPIBooking($xNHISCode, $encid, res["fldchequeno"], sInvoice, res["flditemamt"])
@@ -1026,7 +1028,7 @@ Public Sub mnussfBooking_Click()
   '   Next
   ' Endif
   ' xinvlst = GridTriColumn("SSF Booking", xdata)
-  res = modDatabase.$myConn.Exec("select fldbillno from tblpatbilldetail where fldencounterval=&1 and fldbankname in(select fldacledger from tbldiscount where (fldreference=&2 or fldreference=&3)) UNION ALL select fldbillno from tbltempbilldetail where fldencounterval=&1 and fldbankname in(select fldacledger from tbldiscount where (fldreference=&2 or fldreference=&3 or fldreference=&4))", $encid, "Accident SSF", "Medical SSF", "Critical SSF")
+  res = modDatabase.$myConn.Exec("select fldbillno from tblpatbilldetail where fldencounterval=&1 and fldbankname in(select fldacledger from tbldiscount where (fldreference=&2 or fldreference=&3)) UNION ALL select fldbillno from tbltempbilldetail where fldencounterval=&1 and fldbankname in(select fldacledger from tbldiscount where (fldreference=&2 or fldreference=&3 or fldreference=&4 or fldreference=&5))", $encid, "Accident SSF", "Medical SSF", "MedExtra SSF", "Critical SSF")
   xinvlst = SelectListView("Select Invoices for SSF Booking", modControlSub.GetDirectFillresultNoNull(res), False)
   If xinvlst And If xinvlst.Count Then
     For Each xinvno In xinvlst

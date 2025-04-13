@@ -301,28 +301,16 @@ Private Sub GetSSFExtension()
         xsubProduct = 19
       Endif
 
+    Else If $rData["fldscheme"] = "MedExtra SSF" Then
+      xschemetype = 14
+      xsubProduct = 29
+
     Else If $rData["fldscheme"] = "Medical SSF" Then
       xschemetype = 2
-      If $PatCode Like "S" & "*" Then
-        If $rData["fldstatus"] Then
-          If $rData["fldstatus"] = "Consultation" Then
-            xsubProduct = 4
-          Else If $rData["fldstatus"] = "Patient Ward" Then
-            xsubProduct = 3
-          Endif
-        Else
-          xsubProduct = 4
-        Endif
+      If $rData["fldsubproduct"] Then
+        xsubProduct = modSSF.MedicalSubProduct($rData["fldsubproduct"], $rData["fldstatus"])
       Else
-        If $rData["fldstatus"] Then
-          If $rData["fldstatus"] = "Consultation" Then
-            xsubProduct = 2
-          Else If $rData["fldstatus"] = "Patient Ward" Then
-            xsubProduct = 1
-          Endif
-        Else
-          xsubProduct = 2
-        Endif
+        xsubProduct = modSSF.MedicalSubProduct("Medical Expenses", $rData["fldstatus"])
       Endif
 
     Endif
@@ -610,7 +598,7 @@ Private Function GetUploadClaim() As String
         Else
           xenddate = modDate.EndSqlDate(Now())
         Endif
-      Case "Patient Ward", "Post Diagnosis"
+      Case "Patient Ward", "Post Diagnosis", "Medical Extra"
         xstartdate = modDate.StartSqlDate(modPatient.GetRecordDate($EncID))
         xenddate = modDate.EndSqlDate(modPatient.GetDischargeDate($EncID))
     End Select

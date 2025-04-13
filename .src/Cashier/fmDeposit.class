@@ -184,7 +184,7 @@ Public Sub btnshow_Click()
           Case "Claim Code"
             txtclaim.Text = modClaim.GetCurrentClaimCodePrint(Trim(txtencid.Text))
             chkclaim.Value = True
-          Case "Accident SSF", "Critical SSF", "Medical SSF"
+          Case "Accident SSF", "Critical SSF", "Medical SSF", "MedExtra SSF"
             txtclaim.Text = modSSF.GetSSFClaimVIewMedical(Trim(txtencid.Text), $ClaimStr)
             chkclaim.Value = True
           Case Else
@@ -806,13 +806,29 @@ Public Sub btnokadmit_Click()
                   txtclaim.Text = modSSF.GetSSFClaimCodePatient(Trim(txtencid.Text), "Accident SSF")
 
                 Else If $ClaimStr = "Critical SSF" Then
-                  xstate = modSSF.GetCtiticalSSFStatus(Trim(txtencid.Text))
-                  txtclaim.Text = modSSF.GetSSFClaimCodePatient(Trim(txtencid.Text), "Critical SSF", xstate)
-                  If xstate = "Post Diagnosis" Then
+                  If modBasic.$SSFCritical Then
+                    xstate = modSSF.GetCtiticalSSFStatus(Trim(txtencid.Text))
+                    txtclaim.Text = modSSF.GetSSFClaimCodePatient(Trim(txtencid.Text), "Critical SSF", xstate)
+                    If xstate = "Post Diagnosis" Then
+                      hCElig = New CssfAPIEligible($PatientCode)
+                      xmedipd = hCElig.GetPostDiagnoAmt()
+                      If xmedipd > 0 Then
+                        xcashper = modNonMedical.GetCashinCreditFixPercent(modBasic.$SSFCritical)
+                        res = modDatabase.$myConn.Edit("tblencounter", "fldencounterval=&1", Trim(txtencid.Text))
+                        res["fldcashcredit"] = xmedipd * (100 - xcashper) / 100
+                        res.Update
+                      Endif
+                    Endif
+                  Endif
+
+                Else If $ClaimStr = "MedExtra SSF" Then
+                  If modBasic.$SSFMedExtra Then
+                    xstate = modSSF.GetSSFClaimStatus(Trim(txtencid.Text))
+                    txtclaim.Text = modSSF.GetSSFClaimCodePatient(Trim(txtencid.Text), "MedExtra SSF", xstate)
                     hCElig = New CssfAPIEligible($PatientCode)
-                    xmedipd = hCElig.GetPostDiagnoAmt()
+                    xmedipd = hCElig.GetMedExtraAmt()
                     If xmedipd > 0 Then
-                      xcashper = modNonMedical.GetCashinCreditFixPercent(modBasic.$SSFCritical)
+                      xcashper = modNonMedical.GetCashinCreditFixPercent(modBasic.$SSFMedExtra)
                       res = modDatabase.$myConn.Edit("tblencounter", "fldencounterval=&1", Trim(txtencid.Text))
                       res["fldcashcredit"] = xmedipd * (100 - xcashper) / 100
                       res.Update
@@ -820,17 +836,20 @@ Public Sub btnokadmit_Click()
                   Endif
 
                 Else If $ClaimStr = "Medical SSF" Then
-                  xstate = modSSF.GetSSFClaimStatus(Trim(txtencid.Text))
-                  txtclaim.Text = modSSF.GetSSFClaimCodePatient(Trim(txtencid.Text), "Medical SSF", xstate)
-                  hCElig = New CssfAPIEligible($PatientCode)
-                  xmedopd = hCElig.GetMedicalOPDAmt()
-                  xmedipd = hCElig.GetMedicalIPDAmt()
-                  If xmedopd + xmedipd > 0 Then
-                    xcashper = modNonMedical.GetCashinCreditFixPercent(modBasic.$SSFMedical)
-                    res = modDatabase.$myConn.Edit("tblencounter", "fldencounterval=&1", Trim(txtencid.Text))
-                    res["fldcashcredit"] = (xmedopd + xmedipd) * (100 - xcashper) / 100
-                    res.Update
+                  If modBasic.$SSFMedical Then
+                    xstate = modSSF.GetSSFClaimStatus(Trim(txtencid.Text))
+                    txtclaim.Text = modSSF.GetSSFClaimCodePatient(Trim(txtencid.Text), "Medical SSF", xstate)
+                    hCElig = New CssfAPIEligible($PatientCode)
+                    xmedopd = hCElig.GetMedicalOPDAmt()
+                    xmedipd = hCElig.GetMedicalIPDAmt()
+                    If xmedopd + xmedipd > 0 Then
+                      xcashper = modNonMedical.GetCashinCreditFixPercent(modBasic.$SSFMedical)
+                      res = modDatabase.$myConn.Edit("tblencounter", "fldencounterval=&1", Trim(txtencid.Text))
+                      res["fldcashcredit"] = (xmedopd + xmedipd) * (100 - xcashper) / 100
+                      res.Update
+                    Endif
                   Endif
+
                 Endif
               Endif
               modDatabase.$myConn.Commit

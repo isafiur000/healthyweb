@@ -5,46 +5,47 @@ Private $aMyFields As String[]
 Private $BillingReport As CReportHTML
 
 Public Sub _new()
-  
+
   cmbinvmode.List = ["Credit", "Cash"]
   cmallowbinvoice.List = ["Enable", "Disable"]
   cmbdiscmode.List = ["Fixed Percent", "Custom Values", "Lock Discount"]
   cmbexpenlimit.List = ["PatientDiscount", "PatientCreditAMT", "YearlyDiscount", "YearlyCreditAMT", "None"]
   cmbbillmode.List = modNonMedical.FillCashModeCombo()
   cmbledger.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select fldacledger as col from tblacledger"))
-  cmbreference.List = ["Claim Code", "Accident SSF", "Medical SSF", "Critical SSF", "Staff List"]
+  cmbreference.List = ["Claim Code", "Accident SSF", "Medical SSF", "MedExtra SSF", "Critical SSF", "Staff List"]
   cmbreserve.List = ["Scheme", "Cancel"]
   cmbonline.List = ["Enable", "Disable"]
   cmbforce.List = ["Enable", "Custom", "Disable"]
   cmbqtylimit.List = ["Encounter", "Year Interval", "Fiscal Year", "Item/Fiscal Year"]
+  cmbfixstate.List = ["OPD", "IPD", "All"]
   cmbfixdepart.List = modGeneral.GetDepartCaptionList()
   cmboffspring.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select fldtype as col from tbldiscount"))
   ShowDiscount()
-  
+
 End
 
 Public Sub cmbdiscmode_Click()
-  
+
   If cmbdiscmode.Text = "Custom Values" Then
     txtdiscper.Enabled = False
   Else
     txtdiscper.Enabled = True
   Endif
-  
+
 End
 
 Public Sub cmbledger_Click()
-  
+
   If cmbledger.Text Then
     cmbinvmode.Text = modNonMedical.GetDefaultACBillType(cmbledger.Text)
   Endif
-  
+
 End
 
 Public Sub btnOKdisc_Click()
-  
+
   Dim res As Result
-  
+
   If txtdisctyp.Text And If cmbdiscmode.Text And If cmbledger.Text Then
     res = modDatabase.$myConn.Create("tbldiscount")
     res["fldtype"] = Trim(txtdisctyp.Text)
@@ -64,10 +65,11 @@ Public Sub btnOKdisc_Click()
     res["fldforce"] = cmbforce.Text
     res["fldqtylimit"] = cmbqtylimit.Text
     res["fldfixdepart"] = cmbfixdepart.Text
+    res["fldlockstate"] = cmbfixstate.Text
     res["fldonline"] = cmbonline.Text
     res["fldoffspring"] = cmboffspring.Text
     res["fldbankaccount"] = Trim(txtbankaccount.Text)
-    
+
     res["fldlab"] = 0
     res["fldradio"] = 0
     res["fldproc"] = 0
@@ -78,7 +80,7 @@ Public Sub btnOKdisc_Click()
     res["fldsurgical"] = 0
     res["fldextra"] = 0
     res["fldregist"] = 0
-    
+
     res["fldcrdlab"] = 0
     res["fldcrdradio"] = 0
     res["fldcrdproc"] = 0
@@ -88,7 +90,7 @@ Public Sub btnOKdisc_Click()
     res["fldcrdmedicine"] = 0
     res["fldcrdsurgical"] = 0
     res["fldcrdextra"] = 0
-    
+
     res["flduserid"] = modBasic.$lbluser
     res["fldtime"] = Now()
     res["fldcomp"] = modBasic.$compID
@@ -98,13 +100,13 @@ Public Sub btnOKdisc_Click()
     Me.Exec("Toastify({text: 'Information saved', duration: 3000}).showToast()")
     txtdisctyp.SetFocus
   Endif
-  
+
 End
 
 Public Sub btnedit_Click()
-  
+
   Dim res As Result
-  
+
   If txtdisctyp.Text And If cmbdiscmode.Text And If cmbledger.Text Then
     res = modDatabase.$myConn.Edit("tbldiscount", "fldtype=&1", txtdisctyp.Text)
     res["fldmode"] = cmbdiscmode.Text
@@ -123,10 +125,11 @@ Public Sub btnedit_Click()
     res["fldforce"] = cmbforce.Text
     res["fldqtylimit"] = cmbqtylimit.Text
     res["fldfixdepart"] = cmbfixdepart.Text
+    res["fldlockstate"] = cmbfixstate.Text
     res["fldonline"] = cmbonline.Text
     res["fldoffspring"] = cmboffspring.Text
     res["fldbankaccount"] = Trim(txtbankaccount.Text)
-    
+
     res["flduserid"] = modBasic.$lbluser
     res["fldtime"] = Now()
     res["fldcomp"] = modBasic.$compID
@@ -136,26 +139,26 @@ Public Sub btnedit_Click()
     Me.Exec("Toastify({text: 'Information saved', duration: 3000}).showToast()")
     txtdisctyp.SetFocus
   Endif
-  
+
 End
 
 Private Sub ShowDiscount()
-  
+
   $rDisc = modDatabase.$myConn.Exec("select fldtype,fldtype from tbldiscount")
   $aMyFields = New String[]
   modGridView.ReadSmallData(GridView1, $rDisc, $aMyFields)
-  
+
   With GridView1
     .Columns[0].Width = CStr(250 * modBasic.$AppWidthRatio) & "px"
     .Columns[1].Width = CStr(20 * modBasic.$AppWidthRatio) & "px"
-    
+
     .Columns[0].Text = "Scheme Name"
   End With
-  
+
 End
 
 Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableData)
-  
+
   $rDisc.MoveTo(Row)
   modGridView.GridViewDecoration(Data, Row)
   If Column = 1 Then
@@ -163,16 +166,16 @@ Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableDat
   Else
     Data.Text = $rDisc[$aMyFields[Column]]
   Endif
-  
+
 End
 
 Public Sub GridView1_Select()
-  
+
   Dim res As Result
-  
+
   If GridView1.Selection.Count Then
     $rDisc.MoveTo(GridView1.Selection[0])
-    res = modDatabase.$myConn.Exec("select fldtype,fldmode,fldacledger,fldbilltype,fldamount,fldcredit,fldpercent,fldlimit,fldbillingmode,fldacledger,fldreference,fldyear,fldinvoice,fldreserved,fldcashincredit,fldforce,fldqtylimit,fldfixdepart,fldonline,fldoffspring,fldbankaccount from tbldiscount where fldtype=&1", $rDisc["fldtype"])    ''
+    res = modDatabase.$myConn.Exec("select fldtype,fldmode,fldacledger,fldbilltype,fldamount,fldcredit,fldpercent,fldlimit,fldbillingmode,fldacledger,fldreference,fldyear,fldinvoice,fldreserved,fldcashincredit,fldforce,fldqtylimit,fldfixdepart,fldlockstate,fldonline,fldoffspring,fldbankaccount from tbldiscount where fldtype=&1", $rDisc["fldtype"])    ''
     If res.Available Then
       txtdiscper.Enabled = True
       txtdisctyp.Text = res["fldtype"]
@@ -192,20 +195,21 @@ Public Sub GridView1_Select()
       cmbreserve.Text = res["fldreserved"]
       txtcashcredit.Value = res["fldcashincredit"]
       cmbforce.Text = res["fldforce"]
-      cmbqtylimit.Text = res["fldqtylimit"] 
+      cmbqtylimit.Text = res["fldqtylimit"]
       cmbfixdepart.Text = res["fldfixdepart"]
+      cmbfixstate.Text = res["fldlockstate"]
       cmbonline.Text = res["fldonline"]
       cmboffspring.Text = res["fldoffspring"]
       txtbankaccount.Text = res["fldbankaccount"]
     Endif
   Endif
-  
+
 End
 
 Public Sub GridView1_Click(Row As Integer, Column As Integer)
-  
+
   Dim res As Result
-  
+
   If GridView1.Selection.Count Then
     If Column = 1 Then
       If Message.Question(("Are you sure?"), ("No"), ("Yes")) = 2 Then
@@ -222,67 +226,67 @@ Public Sub GridView1_Click(Row As Integer, Column As Integer)
       Endif
     Endif
   Endif
-  
+
 End
 
 Public Sub btnexport_Click()
-  
+
   modCHTMLReport.ExportGridToHTML(GridView1, "DISCOUNT MODES", modReportVar.GetDateTimeReport(Now(), gb.GeneralDate))
-  
+
 End
 
 Public Sub btncustom_Click()
-  
+
   Dim hForm As FmDiscCategory
-  
+
   If txtdisctyp.Text Then
     If cmbdiscmode.Text = "Custom Values" Then
       hForm = New FmDiscCategory(txtdisctyp.Text, cmbbillmode.Text)
       hForm.ShowModal
     Endif
   Endif
-  
+
 End
 
 Public Sub btnnodisclist_Click()
-  
+
   ' fmNoDiscForm.Close
   ' fmNoDiscForm.ShowModal
-  
+
 End
 
 Public Sub btnnepdate_Click()
-  
+
   Dim xx As String
-  
+
   xx = BSDateFormat(("Enter BS Date in yyyy/mm/dd format"), ("Date Converter"), modDate.ConvertToLocaldate(dtstart.Value))
   If xx Then
     dtstart.Value = modDate.ConvertToEnglishdate(xx)
   Endif
-  
+
 End
 
 Public Sub btnclose_Click()
-  
+
   Me.Close()
-  
+
 End
 
 Public Sub btncashcredit_Click()
-  
+
   Dim hForm As FmCashCredit
-  
+
   If txtdisctyp.Text Then
     If cmbinvmode.Text = "Credit" Then
       hForm = New FmCashCredit(txtdisctyp.Text, cmbbillmode.Text)
       hForm.ShowModal
     Endif
   Endif
-  
+
 End
 
 Public Sub btnschemes_Click()
-  
+
   Dim asx As New String[0]
   Dim Row As Integer
   Dim xPath As String
@@ -290,16 +294,16 @@ Public Sub btnschemes_Click()
   Dim cList As String[]
   Dim dList As String[]
   Dim xforLst As String[]
-  
+
   $BillingReport = New CReportHTML([("Scheme Code"), ("Description"), ("Options"), ("Value")], "", "")
   $BillingReport.UserData.Add("SCHEME RULES", "PARAM1")
   $BillingReport.UserData.Add(modReportVar.GetDateTimeReport(Now(), gb.GeneralDate), "PARAM2")
-  
+
   For Row = 0 To GridView1.Count - 1
-    res = modDatabase.$myConn.Exec("select fldtype,fldmode,fldacledger,fldbilltype,fldamount,fldcredit,fldpercent,fldlimit,fldbillingmode,fldacledger,fldreference,fldyear,fldinvoice,fldreserved,fldonline,fldcashincredit,fldforce,fldqtylimit,fldoffspring,fldfixdepart,fldlab,fldradio,fldproc,fldequip,fldservice,fldother,fldmedicine,fldsurgical,fldextra,fldregist,fldcrdlab,fldcrdradio,fldcrdproc,fldcrdequip,fldcrdservice,fldcrdother,fldcrdmedicine,fldcrdsurgical,fldcrdextra from tbldiscount where fldtype=&1", GridView1[Row, 0].Text)
+    res = modDatabase.$myConn.Exec("select fldtype,fldmode,fldacledger,fldbilltype,fldamount,fldcredit,fldpercent,fldlimit,fldbillingmode,fldacledger,fldreference,fldyear,fldinvoice,fldreserved,fldonline,fldcashincredit,fldforce,fldqtylimit,fldoffspring,fldfixdepart,fldlockstate,fldlab,fldradio,fldproc,fldequip,fldservice,fldother,fldmedicine,fldsurgical,fldextra,fldregist,fldcrdlab,fldcrdradio,fldcrdproc,fldcrdequip,fldcrdservice,fldcrdother,fldcrdmedicine,fldcrdsurgical,fldcrdextra from tbldiscount where fldtype=&1", GridView1[Row, 0].Text)
     If res.Available Then
       $BillingReport.AddSection(res["fldtype"], True)
-      
+
       cList = New String[]
       If res["fldlab"] Then
         cList.Add("Laboratory : " & res["fldlab"])
@@ -331,7 +335,7 @@ Public Sub btnschemes_Click()
       If res["fldregist"] Then
         cList.Add("Registration : " & res["fldregist"])
       Endif
-      
+
       dList = New String[]
       If res["fldcrdlab"] Then
         dList.Add("Laboratory : " & res["fldcrdlab"])
@@ -360,7 +364,7 @@ Public Sub btnschemes_Click()
       If res["fldcrdextra"] Then
         dList.Add("Extra Items : " & res["fldcrdextra"])
       Endif
-      
+
       AddSettingReport("Ledget Account", cmbledger.Tooltip, "", res["fldacledger"])
       AddSettingReport("Discount Mode", cmbdiscmode.Tooltip, cmbdiscmode.List.Join("; "), res["fldmode"])
       AddSettingReport("Default Rate Plan", cmbbillmode.Tooltip, cmbbillmode.List.Join("; "), res["fldbillingmode"])
@@ -383,6 +387,7 @@ Public Sub btnschemes_Click()
       Endif
       AddSettingReport("Quantity Limit", cmbqtylimit.Tooltip, cmbqtylimit.List.Join("; "), res["fldqtylimit"])
       AddSettingReport("Fixed Department", cmbfixdepart.Tooltip, "", res["fldfixdepart"])
+      AddSettingReport("Fixed Patient State", cmbfixstate.Tooltip, cmbfixstate.List.Join("; "), res["fldlockstate"])
       AddSettingReport("Online Billing", cmbonline.Tooltip, cmbonline.List.Join("; "), res["fldonline"])
       AddSettingReport("Offspring", cmboffspring.Tooltip, "", res["fldoffspring"])
       If res["fldyear"] Then
@@ -391,7 +396,7 @@ Public Sub btnschemes_Click()
         AddSettingReport("Start Date", dtstart.Tooltip, "", "")
       Endif
     Endif
-    
+
     With asx
       .Add("")
       .Add("")
@@ -401,16 +406,16 @@ Public Sub btnschemes_Click()
     $BillingReport.Add(asx)
     asx.Clear()
   Next
-  
+
   xPath = $BillingReport.NewHTMLPath()
   modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
-  
+
 End
 
 Private Sub AddSettingReport(sCode As String, sToolTip As String, sOptions As String, sValue As String)
-  
+
   Dim asx As New String[0]
-  
+
   With asx
     .Add(sCode)
     .Add(sToolTip)
@@ -419,31 +424,31 @@ Private Sub AddSettingReport(sCode As String, sToolTip As String, sOptions As St
   End With
   $BillingReport.Add(asx)
   asx.Clear()
-  
+
 End
 
 Public Sub btnforcerule_Click()
-  
+
   Dim hForm As FmAddVariableCombo
   Dim xList As String[]
-  
+
   If txtdisctyp.Text Then
     xList = modGeneral.GetDepartmentAllList("%")
     hForm = New FmAddVariableCombo("flddepart", "flddisctype", txtdisctyp.Text, "tblforcediscount", xList, True)
     hForm.ShowModal
   Endif
-  
+
 End
 
 Public Sub btnqtylimit_Click()
-  
+
   Dim hForm As FmQtyLimits
-  
+
   If txtdisctyp.Text Then
     If cmbqtylimit.Text And If cmbqtylimit.Text <> "None" Then
       hForm = New FmQtyLimits(txtdisctyp.Text, cmbbillmode.Text)
       hForm.ShowModal
     Endif
   Endif
-  
+
 End

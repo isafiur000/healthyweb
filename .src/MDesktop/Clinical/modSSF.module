@@ -66,30 +66,41 @@ Public Function CriticalSubProductCode(sCode As String) As Integer
 
 End
 
-Public Sub GetSSFClaimStatus(encid As String) As String
+Public Function MedicalSubProduct(sCode As String, sState As String) As Integer
 
-  Dim res As Result
-  Dim xx As String
+  Dim xval As Integer
 
-  res = modDatabase.$myConn.Exec("select fldadmission,fldadmitlocat from tblencounter where fldencounterval=&1", encid)
-  If res.Available Then
-    If res["fldadmission"] Then
-      Select res["fldadmission"]
-        Case "Admitted", "Discharged", "LAMA", "Death", "Refer", "Absconder"
-          xx = "Patient Ward"
-        Case Else
-          xx = "Consultation"
-      End Select
-    Else
-      xx = "Consultation"
+  If sCode = "Maternity Expenses" Then
+    If sState = "Consultation" Then
+      xval = 4
+    Else If sState = "Patient Ward" Then
+      xval = 3
+    Endif
+  Else If sCode = "Spouse Accident" Then
+    If sState = "Consultation" Then
+      xval = 28
+    Else If sState = "Patient Ward" Then
+      xval = 27
+    Endif
+  Else If sCode = "Child Accident" Then
+    If sState = "Consultation" Then
+      xval = 26
+    Else If sState = "Patient Ward" Then
+      xval = 25
     Endif
   Else
-    xx = ""
+    If sState = "Consultation" Then
+      xval = 2
+    Else If sState = "Patient Ward" Then
+      xval = 1
+    Endif
   Endif
-  Return xx
+
+  Return xval
 
 End
 
+''Critical
 Public Function GetCtiticalSSFStatus(encid As String) As String
 
   Dim res As Result
@@ -125,84 +136,6 @@ Public Function GetCtiticalSSFStatus(encid As String) As String
 
 End
 
-Public Function GetSSFClaimVIewMedical(encid As String, xstatus As String) As String
-
-  Dim res1 As Result
-  Dim xclaim As String
-
-  res1 = modDatabase.$myConn.Exec("select fldclaimid from tblssfclaim where fldencounterval=&1 and fldstatus=&2", encid, xstatus)
-  If res1.Available Then
-    res1.MoveLast
-    xclaim = res1["fldclaimid"]
-  Endif
-
-  Return xclaim
-
-End
-
-Public Function GetSSFClaimCodePatient(encid As String, sScheme As String, Optional aState As String) As String
-
-  Dim xstatus As String
-  Dim res1 As Result
-  Dim xclaim As String
-
-  If sScheme = "Accident SSF" Then
-    res1 = modDatabase.$myConn.Exec("select fldclaimid from tblssfclaim where fldencounterval=&1 and fldstatus=&2", encid, "Accident")
-    If res1.Available Then
-      res1.MoveLast
-      xclaim = res1["fldclaimid"]
-    Else
-      xclaim = GetNewSSFClaimCode(encid, sScheme)
-    Endif
-
-  Else If sScheme = "Critical SSF" Then
-    If aState Then
-      xstatus = aState
-    Else
-      xstatus = GetCtiticalSSFStatus(encid)
-    Endif
-    xclaim = GetSSFClaimValCritical(encid, sScheme, xstatus)
-
-  Else
-    If aState Then
-      xstatus = aState
-    Else
-      xstatus = GetSSFClaimStatus(encid)
-    Endif
-    xclaim = GetSSFClaimValMedical(encid, sScheme, xstatus)
-
-  Endif
-
-  Return xclaim
-
-End
-
-Private Function GetSSFClaimValMedical(encid As String, sScheme As String, xstatus As String) As String
-
-  Dim res1 As Result
-  Dim xclaim As String
-  Dim aState As String
-
-  If xstatus Then
-    aState = xstatus
-  Else
-    aState = "Consultation"
-  Endif
-
-  If aState Then
-    res1 = modDatabase.$myConn.Exec("select fldclaimid from tblssfclaim where fldencounterval=&1 and fldstatus=&2", encid, aState)
-    If res1.Available Then
-      res1.MoveLast
-      xclaim = res1["fldclaimid"]
-    Else
-      xclaim = GetNewSSFClaimCode(encid, sScheme)
-    Endif
-  Endif
-
-  Return xclaim
-
-End
-
 Private Function GetSSFClaimValCritical(encid As String, sScheme As String, xstatus As String) As String
 
   Dim res1 As Result
@@ -229,7 +162,63 @@ Private Function GetSSFClaimValCritical(encid As String, sScheme As String, xsta
 
 End
 
-Private Function GetNewSSFClaimCode(encid As String, sScheme As String) As String
+''Medical
+Public Sub GetSSFClaimStatus(encid As String) As String
+
+  Dim res As Result
+  Dim xx As String
+
+  res = modDatabase.$myConn.Exec("select fldadmission,fldadmitlocat from tblencounter where fldencounterval=&1", encid)
+  If res.Available Then
+    If res["fldadmission"] Then
+      Select res["fldadmission"]
+        Case "Admitted", "Discharged", "LAMA", "Death", "Refer", "Absconder"
+          xx = "Patient Ward"
+        Case Else
+          xx = "Consultation"
+      End Select
+    Else
+      xx = "Consultation"
+    Endif
+  Else
+    xx = ""
+  Endif
+  Return xx
+
+End
+
+Private Function GetSSFClaimValMedical(encid As String, sScheme As String, xstatus As String, Optional subScheme As String) As String
+
+  Dim res1 As Result
+  Dim xclaim As String
+  Dim aState As String
+
+  If xstatus Then
+    aState = xstatus
+  Else
+    aState = "Consultation"
+  Endif
+
+  If aState Then
+    res1 = modDatabase.$myConn.Exec("select fldclaimid from tblssfclaim where fldencounterval=&1 and fldstatus=&2", encid, aState)
+    If res1.Available Then
+      res1.MoveLast
+      xclaim = res1["fldclaimid"]
+    Else
+      If subScheme Then
+        xclaim = GetNewSSFClaimCode(encid, sScheme, subScheme)
+      Else
+        xclaim = GetNewSSFClaimCode(encid, sScheme)
+      Endif
+    Endif
+  Endif
+
+  Return xclaim
+
+End
+
+''--------------- Create Record ------------------
+Private Function GetNewSSFClaimCode(encid As String, sScheme As String, Optional subScheme As String) As String
 
   Dim res As Result
   Dim aclaim As String
@@ -246,6 +235,9 @@ Private Function GetNewSSFClaimCode(encid As String, sScheme As String) As Strin
     If sScheme = "Accident SSF" Then
       xstatus = "Accident"
       aclaim = "ACC-" & modBillLock.CurrentSSFClaim() & modBasic.$HospCode
+    Else If sScheme = "MedExtra SSF" Then
+      xstatus = "Medical Extra"
+      aclaim = "MEX-" & modBillLock.CurrentSSFClaim() & modBasic.$HospCode
     Else If sScheme = "Critical SSF" Then
       xstatus = GetCtiticalSSFStatus(encid)
       aclaim = "CRT-" & modBillLock.CurrentSSFClaim() & modBasic.$HospCode
@@ -261,6 +253,9 @@ Private Function GetNewSSFClaimCode(encid As String, sScheme As String) As Strin
       res["fldstatus"] = xstatus
 
       res["fldscheme"] = sScheme
+      If subScheme Then
+        res["fldsubproduct"] = subScheme
+      Endif
       res["fldtime"] = Now()
       res["flduserid"] = modBasic.$lbluser
       res["xyz"] = False
@@ -287,6 +282,7 @@ Public Function CheckSSFStatus(encid As String, sScheme As String) As String
   Dim xmsg As String
 
   Dim xaccdt As Float
+  Dim xmedextra As Float
   Dim xmedopd As Float
   Dim xmedipd As Float
   Dim xcritPre As Float
@@ -294,6 +290,7 @@ Public Function CheckSSFStatus(encid As String, sScheme As String) As String
   Dim xcritDisc As Float
   Dim boolMed As Boolean
   Dim boolAcc As Boolean
+  Dim boolExtra As Boolean
   Dim boolCrit As Boolean
 
   Dim xamt As Float
@@ -311,6 +308,9 @@ Public Function CheckSSFStatus(encid As String, sScheme As String) As String
     xaccdt = hCElig.GetAccidentAmt()
     boolAcc = hCElig.GetAccidentEnable()
 
+    xmedextra = hCElig.GetMedExtraAmt()
+    boolExtra = hCElig.GetMedExtraEnable()
+
     xmedopd = hCElig.GetMedicalOPDAmt()
     xmedipd = hCElig.GetMedicalIPDAmt()
     boolMed = hCElig.GetMedicalEnable()
@@ -323,6 +323,10 @@ Public Function CheckSSFStatus(encid As String, sScheme As String) As String
     If sScheme = "Accident SSF" Then
       xproc = boolAcc
       xamt = xaccdt
+
+    Else If sScheme = "MedExtra SSF" Then
+      xproc = boolExtra
+      xamt = xmedextra
 
     Else If sScheme = "Critical SSF" Then
       xproc = boolCrit
@@ -368,6 +372,7 @@ Public Function CheckSSFValues(encid As String, sScheme As String) As Variant[]
   Dim xmsg As Variant[]
 
   Dim xaccdt As Float
+  Dim xmedextra As Float
   Dim xmedopd As Float
   Dim xmedipd As Float
   Dim xcritPre As Float
@@ -375,6 +380,7 @@ Public Function CheckSSFValues(encid As String, sScheme As String) As Variant[]
   Dim xcritDisc As Float
   Dim boolMed As Boolean
   Dim boolAcc As Boolean
+  Dim boolExtra As Boolean
   Dim boolCrit As Boolean
 
   Dim xamt As Float
@@ -393,6 +399,9 @@ Public Function CheckSSFValues(encid As String, sScheme As String) As Variant[]
     xaccdt = hCElig.GetAccidentAmt()
     boolAcc = hCElig.GetAccidentEnable()
 
+    xmedextra = hCElig.GetMedExtraAmt()
+    boolExtra = hCElig.GetMedExtraEnable()
+
     xmedopd = hCElig.GetMedicalOPDAmt()
     xmedipd = hCElig.GetMedicalIPDAmt()
     boolMed = hCElig.GetMedicalEnable()
@@ -405,6 +414,10 @@ Public Function CheckSSFValues(encid As String, sScheme As String) As Variant[]
     If sScheme = "Accident SSF" Then
       xproc = boolAcc
       xamt = xaccdt
+
+    Else If sScheme = "MedExtra SSF" Then
+      xproc = boolExtra
+      xamt = xmedextra
 
     Else If sScheme = "Critical SSF" Then
       xproc = boolCrit
@@ -442,5 +455,119 @@ Public Function CheckSSFValues(encid As String, sScheme As String) As Variant[]
 
   Endif
   Return xmsg
+
+End
+
+''------------------ for all purpose --------------------
+Public Function GetSSFClaimCodePatient(encid As String, sScheme As String, Optional aState As String) As String
+
+  Dim xstatus As String
+  Dim res1 As Result
+  Dim xclaim As String
+
+  If sScheme = "Accident SSF" Then
+    res1 = modDatabase.$myConn.Exec("select fldclaimid from tblssfclaim where fldencounterval=&1 and fldstatus=&2", encid, "Accident")
+    If res1.Available Then
+      res1.MoveLast
+      xclaim = res1["fldclaimid"]
+    Else
+      xclaim = GetNewSSFClaimCode(encid, sScheme)
+    Endif
+
+  Else If sScheme = "MedExtra SSF" Then
+    res1 = modDatabase.$myConn.Exec("select fldclaimid from tblssfclaim where fldencounterval=&1 and fldstatus=&2", encid, "Medical Extra")
+    If res1.Available Then
+      res1.MoveLast
+      xclaim = res1["fldclaimid"]
+    Else
+      xclaim = GetNewSSFClaimCode(encid, sScheme)
+    Endif
+
+  Else If sScheme = "Critical SSF" Then
+    If aState Then
+      xstatus = aState
+    Else
+      xstatus = GetCtiticalSSFStatus(encid)
+    Endif
+    xclaim = GetSSFClaimValCritical(encid, sScheme, xstatus)
+
+  Else If sScheme = "Medical SSF" Then
+    If aState Then
+      xstatus = aState
+    Else
+      xstatus = GetSSFClaimStatus(encid)
+    Endif
+    res1 = modDatabase.$myConn.Exec("select fldsubproduct from tblssfclaim where fldencounterval=&1 and fldsubproduct like &2 ORDER BY fldtime", encid, "%")
+    If res1.Available Then
+      res1.MoveLast
+      xclaim = GetSSFClaimValMedical(encid, sScheme, xstatus, res1["fldsubproduct"])
+    Else
+      xclaim = GetSSFClaimValMedical(encid, sScheme, xstatus)
+    Endif
+
+  Endif
+
+  Return xclaim
+
+End
+
+Public Function GetSSFClaimVIewMedical(encid As String, xstatus As String) As String
+
+  Dim res1 As Result
+  Dim xclaim As String
+
+  res1 = modDatabase.$myConn.Exec("select fldclaimid from tblssfclaim where fldencounterval=&1 and fldstatus=&2", encid, xstatus)
+  If res1.Available Then
+    res1.MoveLast
+    xclaim = res1["fldclaimid"]
+  Endif
+
+  Return xclaim
+
+End
+
+''------------------- Registration form -----------
+Public Function GetSSFClaimRegistPatient(encid As String, sScheme As String) As String
+
+  Dim res1 As Result
+  Dim xclaim As String
+  Dim xstate As String
+
+  If sScheme = "Accident SSF" Then
+    res1 = modDatabase.$myConn.Exec("select fldclaimid from tblssfclaim where fldencounterval=&1 and fldstatus=&2", encid, "Accident")
+    If res1.Available Then
+      res1.MoveLast
+      xclaim = res1["fldclaimid"]
+    Else
+      xclaim = GetNewSSFClaimCode(encid, sScheme)
+    Endif
+
+  Else If sScheme = "MedExtra SSF" Then
+    res1 = modDatabase.$myConn.Exec("select fldclaimid from tblssfclaim where fldencounterval=&1 and fldstatus=&2", encid, "Medical Extra")
+    If res1.Available Then
+      res1.MoveLast
+      xclaim = res1["fldclaimid"]
+    Else
+      xclaim = GetNewSSFClaimCode(encid, sScheme)
+    Endif
+
+  Else If sScheme = "Critical SSF" Then
+    xstate = GetCtiticalSSFStatus(encid)
+    xclaim = GetSSFClaimValCritical(encid, sScheme, xstate)
+
+  Endif
+
+  Return xclaim
+
+End
+
+Public Function GetSSFClaimRegistMedical(encid As String, subScheme As String) As String
+
+  Dim xclaim As String
+  Dim xstate As String
+
+  xstate = GetSSFClaimStatus(encid)
+  xclaim = GetSSFClaimValMedical(encid, "Medical SSF", xstate, subScheme)
+  Return xclaim
 
 End

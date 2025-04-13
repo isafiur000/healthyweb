@@ -14,6 +14,7 @@ Private $imgList As String[]
 Private $ValidExpiry As Date
 Private $CredAmount As Float
 Private $DiscAmount As Float
+Private $APISelect As String
 
 Private $sProceed As Boolean
 
@@ -760,11 +761,22 @@ Public Sub btnOK_Click()
     If txtreference.Text = "Claim Code" Then
       xval = modClaim.GetClaimCidePatient(Trim(txtencounter.Text))
     Else If txtreference.Text = "Accident SSF" Then
-      xval = modSSF.GetSSFClaimCodePatient(Trim(txtencounter.Text), "Accident SSF")
+      xval = modSSF.GetSSFClaimRegistPatient(Trim(txtencounter.Text), "Accident SSF")
     Else If txtreference.Text = "Critical SSF" Then
-      xval = modSSF.GetSSFClaimCodePatient(Trim(txtencounter.Text), "Critical SSF")
+      xval = modSSF.GetSSFClaimRegistPatient(Trim(txtencounter.Text), "Critical SSF")
+    Else If txtreference.Text = "MedExtra SSF" Then
+      xval = modSSF.GetSSFClaimRegistPatient(Trim(txtencounter.Text), "MedExtra SSF")
     Else If txtreference.Text = "Medical SSF" Then
-      xval = modSSF.GetSSFClaimCodePatient(Trim(txtencounter.Text), "Medical SSF")
+      Select $APISelect
+        Case "Accident,C"
+          xval = modSSF.GetSSFClaimRegistMedical(Trim(txtencounter.Text), "Child Accident")
+        Case "Accident,S"
+          xval = modSSF.GetSSFClaimRegistMedical(Trim(txtencounter.Text), "Spouse Accident")
+        Case "Maternity"
+          xval = modSSF.GetSSFClaimRegistMedical(Trim(txtencounter.Text), "Maternity Expenses")
+        Case Else
+          xval = modSSF.GetSSFClaimRegistMedical(Trim(txtencounter.Text), "Medical Expenses")
+      End Select
     Endif
     If xval Then
       Me.Exec("Toastify({text: '" & "Claim Code: " & xval & "', duration: 3000}).showToast()")
@@ -1299,6 +1311,8 @@ Private Sub LoadDiscCreditVal()
           txtreference.Text = "Accident SSF"
         Else If resx["fldreference"] = "Critical SSF" Then
           txtreference.Text = "Critical SSF"
+        Else If resx["fldreference"] = "MedExtra SSF" Then
+          txtreference.Text = "MedExtra SSF"
         Else If resx["fldreference"] = "Medical SSF" Then
           txtreference.Text = "Medical SSF"
         Endif
@@ -2431,6 +2445,7 @@ Private Sub GetSSFDataAPI(xfile As String)
 
   Dim xallow As Boolean
   Dim xaccdt As Float
+  Dim xmedextra As Float
   Dim xmedopd As Float
   Dim xmedipd As Float
   Dim xcritPre As Float
@@ -2439,6 +2454,7 @@ Private Sub GetSSFDataAPI(xfile As String)
 
   Dim boolMed As Boolean
   Dim boolAcc As Boolean
+  Dim boolExtra As Boolean
   Dim boolCrit As Boolean
   Dim xcashper As Float
 
@@ -2446,6 +2462,7 @@ Private Sub GetSSFDataAPI(xfile As String)
 
     hCElig = New CssfAPIEligible(xfile)
     xaccdt = hCElig.GetAccidentAmt()
+    xmedextra = hCElig.GetMedExtraAmt()
     xmedopd = hCElig.GetMedicalOPDAmt()
     xmedipd = hCElig.GetMedicalIPDAmt()
     xcritPre = hCElig.GetPreDiagnoAmt()
@@ -2453,6 +2470,7 @@ Private Sub GetSSFDataAPI(xfile As String)
     xcritDisc = hCElig.GetDischargeAmt()
     boolMed = hCElig.GetMedicalEnable()
     boolAcc = hCElig.GetAccidentEnable()
+    boolExtra = hCElig.GetMedExtraEnable()
     boolCrit = hCElig.GetCriticalEnable()
     ximage = hCElig.GetPatientImage()
     If ximage Then
@@ -2488,29 +2506,59 @@ Private Sub GetSSFDataAPI(xfile As String)
         xmessage = xmessage & " [" & modReportVar.GetDateTimeReport(xdob, gb.MediumDate) & "]"
       Endif
       xmessage = xmessage & "<br>" & "<b>Address :</b> " & xmunic & " -" & xward & ", " & xdist & "<br>"
-      If boolAcc = True Then
-        aButton.Add("Accident")
-        xmessage = xmessage & "<br>" & "<b>Accident Credit:</b> " & modReportVar.GetLocaleNumberFormat(xaccdt, gb.Currency) & "<br>"
-      Else
-        xmessage = xmessage & "<br>" & "<b> Accident Credit suspended </b>" & "<br>"
-      Endif
-      If boolMed = True Then
-        aButton.Add("Out Patient")
-        xmessage = xmessage & "<br>" & "<b>Medical OPD Credit:</b> " & modReportVar.GetLocaleNumberFormat(xmedopd, gb.Currency) & "<br>"
-        xmessage = xmessage & "<br>" & "<b>Medical IPD Credit:</b> " & modReportVar.GetLocaleNumberFormat(xmedipd, gb.Currency) & "<br>"
-      Else
-        xmessage = xmessage & "<br>" & "<b> Medical Credit suspended </b>" & "<br>"
-      Endif
-      If boolCrit = True Then
-        aButton.Add("Critical")
-        xmessage = xmessage & "<br>" & "<b>Pre Diagnosis Credit:</b> " & modReportVar.GetLocaleNumberFormat(xcritPre, gb.Currency)
-        xmessage = xmessage & "<br>" & "<b>Post Diagnosis Credit:</b> " & modReportVar.GetLocaleNumberFormat(xcritPost, gb.Currency)
-        xmessage = xmessage & "<br>" & "<b>Post Discharge Credit:</b> " & modReportVar.GetLocaleNumberFormat(xcritDisc, gb.Currency)
-      Else
-        xmessage = xmessage & "<br>" & "<b> Critical Credit suspended </b>"
-      Endif
+      Select Left(xfile, 1)
+        Case "C", "D", "E", "F", "G"
+          If boolMed = True Then
+            aButton.Add("Accident,C")
+            xmessage = xmessage & "<br>" & "<b>Child Accident OPD Credit:</b> " & modReportVar.GetLocaleNumberFormat(xmedopd, gb.Currency)
+            xmessage = xmessage & "<br>" & "<b>Child Accident IPD Credit:</b> " & modReportVar.GetLocaleNumberFormat(xmedipd, gb.Currency) & "<br>"
+          Else
+            xmessage = xmessage & "<br>" & "<b>Child Accident Credit suspended </b>" & "<br>"
+          Endif
 
-      If xaccdt + xmedopd + xmedipd + xcritPre + xcritPost + xcritDisc = 0 Then
+        Case "S"
+          If boolMed = True Then
+            aButton.Add("Accident,S")
+            If xgender = "Female" Then
+              aButton.Add("Maternity")
+            Endif
+            xmessage = xmessage & "<br>" & "<b>Spouse OPD Credit:</b> " & modReportVar.GetLocaleNumberFormat(xmedopd, gb.Currency)
+            xmessage = xmessage & "<br>" & "<b>Spouse IPD Credit:</b> " & modReportVar.GetLocaleNumberFormat(xmedipd, gb.Currency) & "<br>"
+          Else
+            xmessage = xmessage & "<br>" & "<b>Spouse Accident Credit suspended </b>" & "<br>"
+          Endif
+
+        Case Else
+          If boolAcc = True Then
+            aButton.Add("Accident")
+            xmessage = xmessage & "<br>" & "<b>Accident Credit:</b> " & modReportVar.GetLocaleNumberFormat(xaccdt, gb.Currency) & "<br>"
+          Else
+            xmessage = xmessage & "<br>" & "<b> Accident Credit suspended </b>" & "<br>"
+          Endif
+          If boolMed = True Then
+            aButton.Add("Out Patient")
+            xmessage = xmessage & "<br>" & "<b>Medical OPD Credit:</b> " & modReportVar.GetLocaleNumberFormat(xmedopd, gb.Currency)
+            xmessage = xmessage & "<br>" & "<b>Medical IPD Credit:</b> " & modReportVar.GetLocaleNumberFormat(xmedipd, gb.Currency) & "<br>"
+          Else
+            xmessage = xmessage & "<br>" & "<b> Medical Credit suspended </b>" & "<br>"
+          Endif
+          If boolCrit = True Then
+            aButton.Add("Critical")
+            xmessage = xmessage & "<br>" & "<b>Pre Diagnosis Credit:</b> " & modReportVar.GetLocaleNumberFormat(xcritPre, gb.Currency)
+            xmessage = xmessage & "<br>" & "<b>Post Diagnosis Credit:</b> " & modReportVar.GetLocaleNumberFormat(xcritPost, gb.Currency)
+            xmessage = xmessage & "<br>" & "<b>Post Discharge Credit:</b> " & modReportVar.GetLocaleNumberFormat(xcritDisc, gb.Currency) & "<br>"
+          Else
+            xmessage = xmessage & "<br>" & "<b> Critical Credit suspended </b>"
+          Endif
+          If boolExtra = True Then
+            aButton.Add("Med Extra")
+            xmessage = xmessage & "<br>" & "<b>Medical Extra Credit:</b> " & modReportVar.GetLocaleNumberFormat(xmedextra, gb.Currency) & "<br>"
+          Else
+            xmessage = xmessage & "<br>" & "<b>Medical Extra Credit suspended </b>" & "<br>"
+          Endif
+      End Select
+
+      If xaccdt + xmedextra + xmedopd + xmedipd + xcritPre + xcritPost + xcritDisc = 0 Then
         xallow = False
         xmessage = xmessage & "<h3> No Credit in any Category </h3>"
         Message.Warning(xmessage, "OK")
@@ -2522,114 +2570,104 @@ Private Sub GetSSFDataAPI(xfile As String)
 
         xmessage = xmessage & "<h4> Select Service Format</h4>"
         xresp = MessageValue(xmessage, aButton, xpath, xfile)
-        ' If boolAcc = True And If boolMed = True Then
-        '   xresp = MessageValue(xmessage, ["Close", "Accident", "Out Patient"], xpath, xfile)
-        ' Else If boolAcc = True And If boolMed = False Then
-        '   xresp = MessageValue(xmessage, ["Close", "Accident"], xpath, xfile)
-        ' Else If boolAcc = False And If boolMed = True Then
-        '   xresp = MessageValue(xmessage, ["Close", "Out Patient"], xpath, xfile)
-        ' Else
-        '   xresp = MessageValue(xmessage, ["Close"], xpath, xfile)
-        ' Endif
+        $APISelect = xresp
 
-        If xresp = "Accident" Then
-          txtnamefir.Text = xname
-          txtnamelast.Text = xsurname
-          cmbsex.Text = xgender
-          txtcontact.Text = xcontact
-          txtemail.Text = xemail
-          dtdobmain.Value = xdob
-          If modBasic.$DistrictList.Exist(xdist) Then
-            cmbdistrict.Text = xdist
-          Endif
-          txtaddfir.Text = xmunic
-          txtward.Text = xward
-          modDateSub.DateToYearandMonth(dtdobmain.Value, txtyears, txtmonths, btnyear, btnmon)
+        Select xresp
+          Case "Accident", "Med Extra", "Out Patient", "Critical", "Accident,C", "Accident,S", "Maternity"
+            txtnamefir.Text = xname
+            txtnamelast.Text = xsurname
+            cmbsex.Text = xgender
+            txtcontact.Text = xcontact
+            txtemail.Text = xemail
+            dtdobmain.Value = xdob
+            If modBasic.$DistrictList.Exist(xdist) Then
+              cmbdistrict.Text = xdist
+            Endif
+            txtaddfir.Text = xmunic
+            txtward.Text = xward
+            modDateSub.DateToYearandMonth(dtdobmain.Value, txtyears, txtmonths, btnyear, btnmon)
+          Case Else
+            txtpatno.Text = ""
+            txtnamefir.Text = ""
+            txtnamelast.Text = ""
+        End Select
 
-          If modBasic.$SSFAccident Then
-            $ValidExpiry = DateAdd(Now(), gb.Year, 1)
-            If boolAcc = True And If xaccdt Then
-              $CredAmount = xaccdt
-              modFillContainer.ComboInsertNotItem(cmbdisctype, modBasic.$SSFAccident)
-              LoadDiscCreditVal()
-              If modNonMedical.GetReservePackageParam(cmbdisctype.Text) = "Scheme" Then
-                txtpatno.ReadOnly = True
+        Select xresp
+          Case "Accident"
+            If modBasic.$SSFAccident Then
+              $ValidExpiry = DateAdd(Now(), gb.Year, 1)
+              If boolAcc = True And If xaccdt Then
+                $CredAmount = xaccdt
+                cmbdisctype.Text = modBasic.$SSFAccident
+                ' modFillContainer.ComboInsertNotItem(cmbdisctype, modBasic.$SSFAccident)
+                LoadDiscCreditVal()
+                If modNonMedical.GetReservePackageParam(cmbdisctype.Text) = "Scheme" Then
+                  txtpatno.ReadOnly = True
+                Endif
+              Else
+                $CredAmount = 0
               Endif
-            Else
-              $CredAmount = 0
-            Endif
-            cmbconsult.List = modBasic.$RegERDeparts
-            If cmbconsult.List.Count = 1 Then
-              cmbconsult.Text = modBasic.$RegERDeparts[0]
-            Endif
-          Endif
-
-        Else If xresp = "Out Patient" Then
-          txtnamefir.Text = xname
-          txtnamelast.Text = xsurname
-          cmbsex.Text = xgender
-          txtcontact.Text = xcontact
-          txtemail.Text = xemail
-          dtdobmain.Value = xdob
-          If modBasic.$DistrictList.Exist(xdist) Then
-            cmbdistrict.Text = xdist
-          Endif
-          txtaddfir.Text = xmunic
-          txtward.Text = xward
-          modDateSub.DateToYearandMonth(dtdobmain.Value, txtyears, txtmonths, btnyear, btnmon)
-
-          If modBasic.$SSFMedical Then
-            $ValidExpiry = DateAdd(Now(), gb.Year, 1)
-            If boolMed = True And If xmedopd Then
-              xcashper = modNonMedical.GetCashinCreditFixPercent(modBasic.$SSFMedical)
-              $CredAmount = xmedopd * (100 - xcashper) / 100
-              modFillContainer.ComboInsertNotItem(cmbdisctype, modBasic.$SSFMedical)
-              LoadDiscCreditVal()
-              If modNonMedical.GetReservePackageParam(cmbdisctype.Text) = "Scheme" Then
-                txtpatno.ReadOnly = True
+              cmbconsult.List = modBasic.$RegERDeparts
+              If cmbconsult.List.Count = 1 Then
+                cmbconsult.Text = modBasic.$RegERDeparts[0]
               Endif
-            Else
-              $CredAmount = 0
             Endif
-          Endif
 
-        Else If xresp = "Critical" Then
-          txtnamefir.Text = xname
-          txtnamelast.Text = xsurname
-          cmbsex.Text = xgender
-          txtcontact.Text = xcontact
-          txtemail.Text = xemail
-          dtdobmain.Value = xdob
-          If modBasic.$DistrictList.Exist(xdist) Then
-            cmbdistrict.Text = xdist
-          Endif
-          txtaddfir.Text = xmunic
-          txtward.Text = xward
-          modDateSub.DateToYearandMonth(dtdobmain.Value, txtyears, txtmonths, btnyear, btnmon)
-
-          If modBasic.$SSFCritical Then
-            $ValidExpiry = DateAdd(Now(), gb.Year, 1)
-            If boolCrit = True And If xcritPre Then
-              xcashper = modNonMedical.GetCashinCreditFixPercent(modBasic.$SSFCritical)
-              $CredAmount = xcritPre * (100 - xcashper) / 100
-              modFillContainer.ComboInsertNotItem(cmbdisctype, modBasic.$SSFCritical)
-              LoadDiscCreditVal()
-              If modNonMedical.GetReservePackageParam(cmbdisctype.Text) = "Scheme" Then
-                txtpatno.ReadOnly = True
+          Case "Critical"
+            If modBasic.$SSFCritical Then
+              $ValidExpiry = DateAdd(Now(), gb.Year, 1)
+              If boolCrit = True And If xcritPre Then
+                xcashper = modNonMedical.GetCashinCreditFixPercent(modBasic.$SSFCritical)
+                $CredAmount = xcritPre * (100 - xcashper) / 100
+                cmbdisctype.Text = modBasic.$SSFCritical
+                ' modFillContainer.ComboInsertNotItem(cmbdisctype, modBasic.$SSFCritical)
+                LoadDiscCreditVal()
+                If modNonMedical.GetReservePackageParam(cmbdisctype.Text) = "Scheme" Then
+                  txtpatno.ReadOnly = True
+                Endif
+              Else
+                $CredAmount = 0
               Endif
-            Else
-              $CredAmount = 0
             Endif
-          Endif
 
-        Else
-          txtpatno.Text = ""
-          txtnamefir.Text = ""
-          txtnamelast.Text = ""
-          txtbookingid.SetFocus
-          $CredAmount = 0
+          Case "Med Extra"
+            If modBasic.$SSFMedExtra Then
+              $ValidExpiry = DateAdd(Now(), gb.Year, 1)
+              If boolExtra = True And If xmedextra Then
+                xcashper = modNonMedical.GetCashinCreditFixPercent(modBasic.$SSFMedExtra)
+                $CredAmount = xmedextra * (100 - xcashper) / 100
+                cmbdisctype.Text = modBasic.$SSFMedExtra
+                ' modFillContainer.ComboInsertNotItem(cmbdisctype, modBasic.$SSFMedExtra)
+                LoadDiscCreditVal()
+                If modNonMedical.GetReservePackageParam(cmbdisctype.Text) = "Scheme" Then
+                  txtpatno.ReadOnly = True
+                Endif
+              Else
+                $CredAmount = 0
+              Endif
+            Endif
 
-        Endif
+          Case "Out Patient", "Accident,C", "Accident,S", "Maternity"
+            If modBasic.$SSFMedical Then
+              $ValidExpiry = DateAdd(Now(), gb.Year, 1)
+              If boolMed = True And If xmedopd Then
+                xcashper = modNonMedical.GetCashinCreditFixPercent(modBasic.$SSFMedical)
+                $CredAmount = xmedopd * (100 - xcashper) / 100
+                cmbdisctype.Text = modBasic.$SSFMedical
+                ' modFillContainer.ComboInsertNotItem(cmbdisctype, modBasic.$SSFMedical)
+                LoadDiscCreditVal()
+                If modNonMedical.GetReservePackageParam(cmbdisctype.Text) = "Scheme" Then
+                  txtpatno.ReadOnly = True
+                Endif
+              Else
+                $CredAmount = 0
+              Endif
+            Endif
+
+          Case Else
+            txtbookingid.SetFocus
+            $CredAmount = 0
+        End Select
 
       Endif
     Endif

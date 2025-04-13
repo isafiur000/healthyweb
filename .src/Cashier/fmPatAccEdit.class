@@ -1,7 +1,7 @@
 ' Gambas class file
 
 Public Sub _new(encid As String)
-  
+
   If encid Then
     txtencid.Text = encid
     txtencid.ReadOnly = True
@@ -20,7 +20,7 @@ Public Sub _new(encid As String)
   Else
     txtencid.SetFocus
   Endif
-  
+
 End
 
 ' Public Sub Form_KeyRelease()
@@ -35,54 +35,54 @@ End
 ' End
 
 Public Sub btnneprefer_Click()
-  
+
   Dim xx As String
-  
+
   xx = BSDateFormat(("Enter BS Date in yyyy/mm/dd format"), ("Date Converter"), modDate.ConvertToLocaldate(dtrefer.Value))
   If xx Then
     dtrefer.Value = modDate.ConvertToEnglishdate(xx)
   Endif
-  
+
 End
 
 Public Sub btnrefrespatno_Click()
-  
+
   txtpatientname.Text = modPatient.PatientFullNameByPatID(Trim(txtpatno.Text))
-  
+
 End
 
 Public Sub cmbdiscmode_Click()
-  
+
   If cmbdiscmode.Text Then
     txtcredit.Value = modNonMedical.ShowCreditVAlues(cmbdiscmode.Text)
     cmbbillmode.Text = modNonMedical.GetDiscBindBillMode(cmbdiscmode.Text)
   Endif
-  
+
 End
 
 Public Sub btnnepvalid_Click()
-  
+
   Dim xx As String
-  
+
   xx = BSDateFormat(("Enter BS Date in yyyy/mm/dd format"), ("Date Converter"), modDate.ConvertToLocaldate(dtvalid.Value))
   If xx Then
     dtvalid.Value = modDate.ConvertToEnglishdate(xx)
   Endif
-  
+
 End
 
 Public Sub btnsearchenc_Click()
-  
+
   If Not txtencid.Text Then
     txtencid.Text = GetEncid()
   Endif
-  
+
 End
 
 Public Sub btnpatcode_Click()
-  
+
   Dim res As Result
-  
+
   If txtpatno.Text Then
     res = modDatabase.$myConn.Edit("tblpatientinfo", "fldpatientval=&1", txtpatno.Text)
     res["fldptcode"] = Trim(txtpatcode.Text)
@@ -90,16 +90,16 @@ Public Sub btnpatcode_Click()
     Me.Exec("Toastify({text: 'Information updated', duration: 3000}).showToast()")
     ' Balloon.Delay = modBasic.$BalloonDelay
   Endif
-  
+
 End
 
 Public Sub btnrefresh_Click()
-  
+
   Dim res As Result
   Dim xpolice As String
   Dim xgenvio As String
   Dim xrefdate As String
-  
+
   If txtencid.Text Then
     txtpatientname.Text = modPatient.GetPatientNameByEnc(Trim(txtencid.Text))
     res = modDatabase.$myConn.Exec("select fldpatientval,flddisctype,fldcashcredit,fldbillingmode,fldcharity,fldvalidity from tblencounter where fldencounterval=&1", Trim(txtencid.Text))                                      ''
@@ -116,7 +116,7 @@ Public Sub btnrefresh_Click()
       If res["fldvalidity"] Then
         dtvalid.Value = res["fldvalidity"]
       Endif
-      
+
       xpolice = modPatient.GetDemographAccountValue(Trim(txtencid.Text), "Police Case")
       If xpolice = "Yes" Then
         chkpolice.Value = True
@@ -134,20 +134,20 @@ Public Sub btnrefresh_Click()
       If xrefdate Then
         dtrefer.Value = CDate(xrefdate)
       Endif
-      
+
       If modHelpVariable.$LogInCategory = "Cashier" Then
         LockFilledControls()
       Else If modHelpVariable.$LogInCategory = "Dispensar" Then
         LockFilledControls()
       Endif
-      
+
     Endif
   Endif
-  
+
 End
 
 Private Sub LockFilledControls()
-  
+
   If txtcredit.Value Then
     txtcredit.Enabled = False
   Endif
@@ -158,13 +158,13 @@ Private Sub LockFilledControls()
     dtvalid.Enabled = False
     btnnepvalid.Enabled = False
   Endif
-  
+
 End
 
 Public Sub btnedit_Click()
-  
+
   Dim res As Result
-  
+
   If txtencid.Text Then
     If cmbbillmode.Text And If cmbdiscmode.Text Then
       If txtpatno.Text Then
@@ -184,11 +184,11 @@ Public Sub btnedit_Click()
       Endif
     Endif
   Endif
-  
+
 End
 
 Public Sub btneditgovt_Click()
-  
+
   If txtencid.Text Then
     If chkpolice.Value = True Then
       modPatientSub.AddAccGeneralQualiData(Trim(txtencid.Text), "Demographics", "Police Case", "Yes", "", Now(), True)
@@ -202,36 +202,38 @@ Public Sub btneditgovt_Click()
     If dtrefer.Value Then
       modPatientSub.AddAccGeneralQualiData(Trim(txtencid.Text), "Demographics", "Referral Date", CStr(dtrefer.Value), "", Now(), True)
     Endif
-    
+
     Me.Exec("Toastify({text: 'Information updated', duration: 3000}).showToast()")
     ' Balloon.Delay = modBasic.$BalloonDelay
   Endif
-  
+
 End
 
 Public Sub btnclose_Click()
-  
+
   Me.Close()
-  
+
 End
 
 Public Sub btnapi_Click()
-  
+
   Dim xrefer As String
   Dim xmsg As Variant[]
-  
+
   If cmbdiscmode.Text Then
-    
+
     xrefer = modNonMedical.GetFixedReferenceScheme(cmbdiscmode.Text)
     If xrefer = "Claim Code" Then
       xmsg = modClaim.CheckIMISValues(Trim(txtencid.Text))
     Else If xrefer = "Accident SSF" Then
       xmsg = modSSF.CheckSSFValues(Trim(txtencid.Text), "Accident SSF")
     Else If xrefer = "Critical SSF" Then
+    Else If xrefer = "MedExtra SSF" Then
+      xmsg = modSSF.CheckSSFValues(Trim(txtencid.Text), "MedExtra SSF")
     Else If xrefer = "Medical SSF" Then
       xmsg = modSSF.CheckSSFValues(Trim(txtencid.Text), "Medical SSF")
     Endif
-    
+
     If xmsg Then
       If xmsg[0] Then
         txtcredit.Value = xmsg[0]
@@ -242,7 +244,7 @@ Public Sub btnapi_Click()
         dtvalid.Enabled = False
       Endif
     Endif
-    
+
   Endif
-  
+
 End
