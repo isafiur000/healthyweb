@@ -15,13 +15,13 @@ Startup Class : FmLogIn \
 `Public $SISHAppMode As String = "REP"`  for Data Centre Front end \
 `Public $SISHAppMode As String = "HMIS"`  for HMIS Registers \
 `Public $SISHAppMode As String = "Registry"`  for Clinical Registry \
-`Public $SISHAppMode As String = "TeleMed"`  for Telemedicine Hub Page \
+`Public $SISHAppMode As String = "TeleMed"`  for Telemedicine Hub Page 
 
 \
 Startup Class : fmPatLogin \
-`Public $SISHAppMode As String = "Portal"`  for Patient Portal \
+`Public $SISHAppMode As String = "Portal"`  for Patient Portal 
 
 \
 Startup Class : fmHospDash \
-`Public $SISHAppMode As String = "Dashboard"`  for Public Dashboard \
+`Public $SISHAppMode As String = "Dashboard"`  for Public Dashboard 
 
