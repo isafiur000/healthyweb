@@ -7,7 +7,9 @@ gambas3 (https://gambas.sourceforge.net)
 
 \
 \
-Edit `MMain` module \
+Edit `MMain` module 
+
+\
 Startup Class : FmLogIn
 `Public $SISHAppMode As String = "HIS"`  for EMR \
 `Public $SISHAppMode As String = "REP"`  for Data Centre Front end \
