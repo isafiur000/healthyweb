@@ -5,20 +5,23 @@ Private $FixedListGrp As Variant[]
 
 Private $Conn As Connection
 Private $sType As String
-Private $selList As String[]
-Private $erList As String[]
 Private $allList As String[]
-Private $sDefGroup As String
+Private $sDefOPGroup As String
+Private $sDefERGroup As String
+Private $opdList As String[]
+Private $erList As String[]
 Private $sValue As String[]
 
-Public Sub Run(sConn As Connection, sType As String, selList As String[], erList As String[], allList As String[], sDefGroup As String) As String[]
+' Public Sub Run(sConn As Connection, sType As String, selList As String[], erList As String[], allList As String[], sDefGroup As String) As String[]
+Public Sub Run(sConn As Connection, sType As String, allList As String[], sDefOPDGroup As String, sDefERGroup As String, OPList As String[], erList As String[]) As String[]
 
   $Conn = sConn
   $sType = sType
-  $selList = selList
-  $erList = erList
   $allList = allList
-  $sDefGroup = sDefGroup
+  $sDefOPGroup = sDefOPDGroup
+  $sDefERGroup = sDefERGroup
+  $opdList = OPList
+  $erList = erList
 
   modGeneralMain.GetOpenModalForm(Me)
   $sValue = New String[]
@@ -73,12 +76,16 @@ Private Sub SetFixedListData()
   aList = New String[]
   aList.Add("All Categories")
   If rbemergency.Value = True Then
-    aList.Insert($erList)
-  Else If rboutpatient.Value = True
-    If $sDefGroup Then
-      aList = GetDefaultDiagnoList()
+    If $sDefERGroup Then
+      aList = GetDefaultDiagnoList($sDefERGroup)
     Else
-      aList.Insert($selList)
+      aList.Insert($erList)
+    Endif
+  Else If rboutpatient.Value = True
+    If $sDefOPGroup Then
+      aList = GetDefaultDiagnoList($sDefOPGroup)
+    Else
+      aList.Insert($opdList)
     Endif
   Else
     aList.Insert($allList)
@@ -125,10 +132,14 @@ Private Sub LoadDefinedDiagnosis(sItem As String)
   Endif
 
   If rbemergency.Value = True Then
-    $FixedListGrp = GetFixDiagnosisList(sItem, "Emergency Groups")
+    If $sDefERGroup Then
+      $FixedListGrp = GetICDDiagnosisSelected($sDefERGroup, sItem)
+    Else
+      $FixedListGrp = GetFixDiagnosisList(sItem, "Emergency Groups")
+    Endif
   Else If rboutpatient.Value = True
-    If $sDefGroup Then
-      $FixedListGrp = GetICDDiagnosisSelected(sItem)
+    If $sDefOPGroup Then
+      $FixedListGrp = GetICDDiagnosisSelected($sDefOPGroup, sItem)
     Else
       $FixedListGrp = GetFixDiagnosisList(sItem, "Diagnosis Groups")
     Endif
@@ -193,13 +204,13 @@ Private Function GetICDDiagnosisList(sGroup As String) As Variant[]
 End
 
 ''-------------------------- Default Group --------------------
-Private Function GetDefaultDiagnoList() As String[]
+Private Function GetDefaultDiagnoList(grpName As String) As String[]
 
   Dim sList As String[]
   Dim res As Result
 
   sList = New String[]
-  res = $Conn.Exec("select fldicdcode,fldoldcode,fldicdnme from tblicddisease where fldicdchpter=&1 and fldicdcode NOT LIKE &2", $sDefGroup, "%.%")
+  res = $Conn.Exec("select fldicdcode,fldoldcode,fldicdnme from tblicddisease where fldicdchpter=&1 and fldicdcode NOT LIKE &2", grpName, "%.%")
   If res.Available Then
     For Each res
       sList.Add(res["fldicdcode"] & "|" & res["fldicdnme"])
@@ -209,7 +220,7 @@ Private Function GetDefaultDiagnoList() As String[]
 
 End
 
-Private Function GetICDDiagnosisSelected(sItem As String) As Variant[]
+Private Function GetICDDiagnosisSelected(grpName As String, sItem As String) As Variant[]
 
   Dim res As Result
   Dim asx As String[]
@@ -218,7 +229,7 @@ Private Function GetICDDiagnosisSelected(sItem As String) As Variant[]
   sList = New String[]
   If sItem Then
     asx = Split(sItem, "|")
-    res = $Conn.Exec("select fldicdcode,fldoldcode,fldicdnme from tblicddisease where fldicdchpter=&1 and (fldicdcode=&2 or fldicdcode like &3)", $sDefGroup, asx[0], asx[0] & "." & "%")
+    res = $Conn.Exec("select fldicdcode,fldoldcode,fldicdnme from tblicddisease where fldicdchpter=&1 and (fldicdcode=&2 or fldicdcode like &3)", grpName, asx[0], asx[0] & "." & "%")
     If res.Available Then
       For Each res
         sList.Add([res["fldicdcode"], res["fldoldcode"], res["fldicdnme"]])
@@ -364,7 +375,7 @@ End
 
 Public Sub btnscroll1_Click()
 
-  WebScrollView1.EnsureVisible(wPanel3)
+  WebScrollView3.EnsureVisible(GridView2)
 
 End
 

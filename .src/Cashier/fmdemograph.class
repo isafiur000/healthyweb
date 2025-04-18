@@ -1,0 +1,419 @@
+' Gambas class file
+
+Private $encid As String
+Private $sType As String
+Private $mainList As String[]
+Private $ItemList As String[]
+
+Private aWebPanel As New Object[50]
+Private aXpanel As New Object[50]
+Private aIndexLabel As New Object[50]
+Private aNameLabel As New Object[50]
+Private aButtonBox As New Object[50]
+Private aButtonTip As New Object[50]
+Private aDateBox As New Object[50]
+Private aBSDate As New Object[50]
+Private aComboBox As New Object[50]
+Private aDichoValue As New Object[50]
+Private aValueBox As New Object[50]
+Private aLineText As New Object[50]
+Private aSpacePanel As New Object[50]
+
+Private $xType As String[]
+Private $xOption As String[]
+Private AppFactor As Float
+
+Public Sub _new(encid As String, sType As String)
+
+  $encid = encid
+  $sType = sType
+
+  LoadListData()
+  LoadControls()
+
+End
+
+Private Sub LoadListData()
+
+  If $sType = "Clinical" Then
+    $ItemList = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flddemoid as col from tbldemographic where (fldcomp=&1 or fldcomp=&2) ORDER BY fldindex", modBasic.$compID, "%"))
+  Else If $sType = "Acount" Then
+    $ItemList = modBasic.$DemogAccList
+  Endif
+
+End
+
+'''========================= Grouped ======================
+Private Sub LoadControls()
+
+  Dim i As Integer
+  Dim sType As String
+  Dim opt As String[]
+
+  $xType = New String[]
+  $xOption = New String[]
+  For i = 0 To $ItemList.Count - 1
+    If i < 49 Then
+      If $sType = "Clinical" Then
+        sType = modFixPatho.GetDemographicType($ItemList[i])
+      Else If $sType = "Acount" Then
+        sType = modPatient.GetAccDemographicType($ItemList[i])
+      Endif
+      $xType.Add(sType)
+
+      If sType = "Single Selection" Or If sType = "Dichotomous" Or If sType = "Multiple Selection" Then
+        If $sType = "Clinical" Then
+          opt = modFixPatho.GetDemographicOptionList($ItemList[i], sType)
+        Else If $sType = "Acount" Then
+          opt = modPatient.GetAccDemographicOptionList($ItemList[i], sType)
+        Endif
+        $xOption.Add(opt.Join(";"))
+      Else
+        $xOption.Add("")
+      Endif
+
+      aXpanel[i] = New WebHBox(Frame1)
+      aIndexLabel[i] = New WebLabel(aXpanel[i])
+      aNameLabel[i] = New WebHtml(aXpanel[i])
+      Select sType
+        Case "Multiple Selection"
+          aButtonBox[i] = New WebTextBox(aXpanel[i])
+          aButtonTip[i] = New WebButton(aXpanel[i]) As "ButtonBoxgroup"
+        Case "Date Time", "BS Date"
+          aDateBox[i] = New WebDateBox(aXpanel[i])
+          aBSDate[i] = New WebButton(aXpanel[i]) As "BSButton"
+        Case "Single Selection"
+          aComboBox[i] = New WebComboBox(aXpanel[i])
+        Case "Dichotomous"
+          aDichoValue[i] = New DichotomousValue(aXpanel[i])
+        Case "Quantitative"
+          aValueBox[i] = New WebValueBox(aXpanel[i])
+        Case Else
+          aLineText[i] = New WebTextBox(aXpanel[i])
+      End Select
+      aSpacePanel[i] = New WebContainer(aXpanel[i])
+    Endif
+  Next
+  DIsplayTextForm()
+
+End
+
+Private Sub DIsplayTextForm()
+
+  Dim i As Integer
+
+  AppFactor = modBasic.$AppScaleFactor
+  For i = 0 To $ItemList.Count - 1
+    If i < 49 Then
+
+      With aXpanel[i]
+        .Class = "less-container-margin"
+        .Border = True
+      End With
+
+      ''create index label
+      With aIndexLabel[i]
+        .Width = CStr(25 * AppFactor) & "px"
+        .Height = "2em"
+        .Text = i + 1
+        .Tag = i
+      End With
+
+      ''create Name Label
+      With aNameLabel[i]
+        ' .Expand = True
+        .Width = "40%"
+        .Height = "2em"
+        .Font = "bold"
+        .Text = "<p>" & $ItemList[i] & "</p>"
+        .Tag = i
+        .ToolTip = $ItemList[i]
+      End With
+
+      With aXpanel[i]
+        .Class = "less-container-margin"
+      End With
+
+      If $xType[i] = "Multiple Selection" Then
+        With aButtonBox[i]
+          .Expand = True
+          ' .Width = CStr(290 * AppFactor) & "px"
+          .Height = "2em"
+          .Tag = i
+        End With
+        With aButtonTip[i]
+          .Width = "2em"
+          .Height = "2em"
+          .Image = "icon:/small/attach"
+          .Tag = i
+        End With
+
+      Else If $xType[i] = "Single Selection" Then
+        With aComboBox[i]
+          .Width = "40%"
+          .Height = "2em"
+          .ReadOnly = False
+          .List = Split($xOption[i], ";")
+          .Tag = i
+        End With
+
+      Else If $xType[i] = "Dichotomous" Then
+        With aDichoValue[i]
+          .Width = "40%"
+          .Height = "2em"
+          .List = Split($xOption[i], ";")
+          .Tag = i
+        End With
+
+      Else If $xType[i] = "Date Time" Then
+        With aDateBox[i]
+          .Width = "15em"
+          .Height = "2em"
+          .DateTime = True
+          .Tag = i
+        End With
+        With aBSDate[i]
+          .Width = "2em"
+          .Height = "2em"
+          .Image = "icon:/small/calendar"
+          .Tag = i
+        End With
+
+      Else If $xType[i] = "BS Date" Then
+        With aDateBox[i]
+          .Width = "15em"
+          .Height = "2em"
+          .DateTime = True
+          .Tag = i
+        End With
+        With aBSDate[i]
+          .Width = "2em"
+          .Height = "2em"
+          .Image = "icon:/small/calendar"
+          .Tag = i
+        End With
+
+      Else If $xType[i] = "Quantitative" Then
+        With aValueBox[i]
+          .Width = "40%"
+          .Height = "2em"
+          .Tag = i
+        End With
+
+      Else
+        With aLineText[i]
+          .Width = "40%"
+          .Height = "2em"
+          .Tag = i
+        End With
+
+      Endif
+
+      With aSpacePanel[i]
+        .Height = "2em"
+      End With
+
+    Endif
+  Next
+
+End
+
+Public Sub BSButton_Click()
+
+  Dim j As Integer
+  Dim xx As String
+
+  j = Last.Tag
+  xx = BSDateFormat(("Enter BS Date in yyyy/mm/dd format"), ("Date Converter"), modDate.ConvertToLocaldate(aDateBox[j].Value))
+  If xx Then
+    aDateBox[j].Value = modDate.ConvertToEnglishdate(xx)
+  Endif
+
+End
+
+Public Sub ButtonBoxgroup_Click()
+
+  Dim j As Integer
+  Dim xList As String[]
+  Dim strLst As String[]
+
+  j = Last.Tag
+  xList = Split($xOption[j], ";")
+  If xList Then
+    strLst = SubChoose(xList, "Multiple Selection", $ItemList[j])
+    If strLst Then
+      aButtonBox[j].Text = strLst.Join(";")
+    Endif
+  Endif
+
+End
+
+Public Sub btnBrOK_Click()
+
+  Dim i As Integer
+  Dim xboolean As Boolean
+
+  If modBasic.$ClinHistoryInput = "Single" Then
+    xboolean = True
+  Else
+    xboolean = False
+  Endif
+
+  For i = 0 To $ItemList.Count - 1
+    If i < 49 Then
+
+      If $xType[i] = "Multiple Selection" Then
+        If aButtonBox[i].Text Then
+          If $sType = "Clinical" Then
+            modPatientGeneral.AddExamGeneralQualiData($encid, "Demographics", $ItemList[i], aButtonBox[i].Text, "", xboolean)
+          Else If $sType = "Acount" Then
+            modPatientSub.AddAccGeneralQualiData($encid, "Demographics", $ItemList[i], aButtonBox[i].Text, "", Now(), True)
+          Endif
+        Endif
+
+      Else If $xType[i] = "Single Selection" Then
+        If aComboBox[i].Text Then
+          If $sType = "Clinical" Then
+            modPatientGeneral.AddExamGeneralQualiData($encid, "Demographics", $ItemList[i], aComboBox[i].Text, "", xboolean)
+          Else If $sType = "Acount" Then
+            modPatientSub.AddAccGeneralQualiData($encid, "Demographics", $ItemList[i], aComboBox[i].Text, "", Now(), True)
+          Endif
+        Endif
+
+      Else If $xType[i] = "Dichotomous" Then
+        If aDichoValue[i].Value Then
+          If $sType = "Clinical" Then
+            modPatientGeneral.AddExamGeneralQualiData($encid, "Demographics", $ItemList[i], aDichoValue[i].Value, "", xboolean)
+          Else If $sType = "Acount" Then
+            modPatientSub.AddAccGeneralQualiData($encid, "Demographics", $ItemList[i], aDichoValue[i].Value, "", Now(), True)
+          Endif
+        Endif
+
+      Else If $xType[i] = "Date Time" Then
+        If aDateBox[i].Value Then
+          If $sType = "Clinical" Then
+            modPatientGeneral.AddExamGeneralQualiData($encid, "Demographics", $ItemList[i], modDate.DateStringForExam(aDateBox[i].Value), "", xboolean)
+          Else If $sType = "Acount" Then
+            modPatientSub.AddAccGeneralQualiData($encid, "Demographics", $ItemList[i], modDate.DateStringForExam(aDateBox[i].Value), "", Now(), True)
+          Endif
+        Endif
+
+      Else If $xType[i] = "BS Date" Then
+        If aDateBox[i].Value Then
+          If $sType = "Clinical" Then
+            modPatientGeneral.AddExamGeneralQualiData($encid, "Demographics", $ItemList[i], modDate.ConvertToLocaldate(aDateBox[i].Value), "", xboolean)
+          Else If $sType = "Acount" Then
+            modPatientSub.AddAccGeneralQualiData($encid, "Demographics", $ItemList[i], modDate.ConvertToLocaldate(aDateBox[i].Value), "", Now(), True)
+          Endif
+        Endif
+
+      Else If $xType[i] = "Quantitative" Then
+        If aValueBox[i].Value Then
+          If $sType = "Clinical" Then
+            modPatientGeneral.AddExamGeneralQuantiData($encid, "Demographics", $ItemList[i], aValueBox[i].Value, "", xboolean)
+          Else If $sType = "Acount" Then
+            modPatientSub.AddAccGeneralQuantiData($encid, "Demographics", $ItemList[i], aValueBox[i].Value, "", Now(), True)
+          Endif
+        Endif
+
+      Else
+        If aLineText[i].Text Then
+          If $sType = "Clinical" Then
+            modPatientGeneral.AddExamGeneralQualiData($encid, "Demographics", $ItemList[i], aLineText[i].Text, "", xboolean)
+          Else If $sType = "Acount" Then
+            modPatientSub.AddAccGeneralQualiData($encid, "Demographics", $ItemList[i], aLineText[i].Text, "", Now(), True)
+          Endif
+        Endif
+
+      Endif
+
+    Endif
+  Next
+  btnBrOK.Enabled = False
+  Me.Exec("Toastify({text: 'Informaton saved', duration: 3000}).showToast()")
+
+End
+
+Public Sub btndefaiult_Click()
+
+  Dim j As Integer
+  Dim res As Result
+  Dim sql As String
+
+  For j = 0 To $ItemList.Count - 1
+    If j < 49 Then
+
+      If $sType = "Clinical" Then
+        sql = "select flddefault from tbldemographic where flddemoid=&1 and (fldcomp=&2 or fldcomp=&3)"
+      Else If $sType = "Acount" Then
+        sql = "select flddefault from tblaccdemograp where flddemoid=&1 and (fldcomp=&2 or fldcomp=&3)"
+      Endif
+      res = modDatabase.$myConn.Exec(sql, $ItemList[j], modBasic.$compID, "%")
+      If res.Available Then
+        For Each res
+          If aComboBox[j] Then
+            If Not aComboBox[j].Text Then
+              aComboBox[j].Text = res["flddefault"]
+            Endif
+          Else If aValueBox[j] Then
+            If Not aValueBox[j].Value Then
+              If res["flddefault"] Then
+                aValueBox[j].Value = CFloat(res["flddefault"])
+              Endif
+            Endif
+          Else If aLineText[j] Then
+            If Not aLineText[j].Text Then
+              aLineText[j].Text = res["flddefault"]
+            Endif
+          Else If aDichoValue[j] Then
+            If Not aDichoValue[j].Value Then
+              aDichoValue[j].Value = res["flddefault"]
+            Endif
+          Endif
+        Next
+      Endif
+    Endif
+
+  Next
+
+End
+
+Public Sub btnlastval_Click()
+
+  Dim j As Integer
+  Dim stVal As String
+  Dim encid As String
+
+  encid = modPatient.GetSecondLastEncidPatient($encid)
+  For j = 0 To $ItemList.Count - 1
+    If j < 49 Then
+
+      If $sType = "Clinical" Then
+        stVal = modPatPatho.GetDemographicValue(encid, $ItemList[j])
+      Else If $sType = "Acount" Then
+      Endif
+
+      If aComboBox[j] Then
+        If Not aComboBox[j].Text Then
+          aComboBox[j].Text = stVal
+        Endif
+      Else If aValueBox[j] Then
+        If Not aValueBox[j].Value Then
+          If stVal Then
+            aValueBox[j].Value = CFloat(stVal)
+          Endif
+        Endif
+      Else If aLineText[j] Then
+        If Not aLineText[j].Text Then
+          aLineText[j].Text = stVal
+        Endif
+      Else If aDichoValue[j] Then
+        If Not aDichoValue[j].Value Then
+          aDichoValue[j].Value = stVal
+        Endif
+      Endif
+
+    Endif
+  Next
+
+End

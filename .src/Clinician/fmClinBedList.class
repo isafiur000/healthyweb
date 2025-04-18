@@ -643,6 +643,17 @@ Public Sub mnudashboard_Click()
 
 End
 
+Public Sub mnutoday_Click()
+
+  Dim xPath As String
+
+  If cmbdept.Text Then
+    xPath = modCHTMLDate.GetIPEventsReport(modDatabase.$syConn, Now(), Now(), cmbdept.Text, cmblocation.Text, cmbvalue.Text)
+    modControlSub.DisplayReportExport(xPath)
+  Endif
+
+End
+
 Public Sub mnucurdepart_Click()
 
   Dim xPath As String
@@ -1057,17 +1068,26 @@ Public Sub btnmobilediagno_Click()
 
   Dim hForm As FmAddDiagno
   Dim xGroup As String
+  Dim sName As String[]
 
   If GridView1.Selection.Count Then
     $rData.MoveTo(GridView1.Selection[0])
-    xGroup = modPathoSub.GetDiagnoGroupForService($rData["fldbed"])
-    If xGroup Then
-      hForm = New FmAddDiagno("Disease", $rData["fldencounterval"], "", xGroup)
+    If MMain.$Ayurveda = "Yes" Then
+      sName = AyurvedicDiagnosis(modAyurv.$AyurvedicDiagnosis)
     Else
-      hForm = New FmAddDiagno("Disease", $rData["fldencounterval"], "", modBasic.$DefaultDiagnoGroup)
+      xGroup = modPathoSub.GetDiagnoGroupForService($rData["fldbed"])
+      If xGroup Then
+        sName = ICDTree(modDatabase.$icdConn, "Disease", modBasic.$ClinDiagnoChapterGrouped, xGroup, modBasic.$FixDiagnoGroupER, modBasic.$ClinDiagnoSelectGrouped, modBasic.$ClinDiagnoSelectERGroup)
+      Else
+        sName = ICDTree(modDatabase.$icdConn, "Disease", modBasic.$ClinDiagnoChapterGrouped, modBasic.$FixDiagnoGroupOPD, modBasic.$FixDiagnoGroupER, modBasic.$ClinDiagnoSelectGrouped, modBasic.$ClinDiagnoSelectERGroup)
+      Endif
     Endif
-    hForm.ShowModal
-    FillBedGrid()
+    If sName Then
+      If sName[1] And If sName[0] Then
+        modPatientGeneral.AddPatientFindings("Provisional Diagnosis", $rData["fldencounterval"], sName[0], sName[1], sName[2])
+        FillBedGrid()
+      Endif
+    Endif
   Endif
 
 End
