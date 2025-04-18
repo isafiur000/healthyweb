@@ -197,6 +197,7 @@ Private Sub DIsplayTextForm()
 
   Dim i As Integer
   Dim asx As String[]
+  Dim aCoLst As String[]
 
   For i = 0 To $xData.Count - 1
     If i < 49 Then
@@ -261,13 +262,15 @@ Private Sub DIsplayTextForm()
 
       ''create observation entry
       If $xData[i][3] = "Multiple Selection" Or If $xData[i][3] = "Drug Sensitivity" Or If $xData[i][3] = "WHO Sensitivity" Or If $xData[i][3] = "Text Table" Or If $xData[i][3] = "Dual Columns" Or If $xData[i][3] = "Triple Columns" Or If $xData[i][3] = "Single Column" Then
+        If $xData[i][3] = "Dual Columns" Or If $xData[i][3] = "Triple Columns" Then
+          aCoLst = GetCustColHeadings(i)
+        Endif
         With aGridView[i]
           .Expand = True
           .Height = CStr(2 * Slider1.Value) & "em"
           .Border = True
           .Mode = Select.Single
           .ShowCheck = False
-          .ShowHeader = False
           .Tag = i
         End With
         xVarGridView[i] = LoadSubTable($xData[i][2], $frm, aGridView[i])
@@ -275,21 +278,21 @@ Private Sub DIsplayTextForm()
           If $xData[i][3] = "Dual Columns" Then
             .Columns[0].Hidden = True
             .Columns[1].Expand = True 'CStr(100 * modBasic.$AppWidthRatio) & "px"
-            .Columns[2].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
-            .Columns[3].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
+            .Columns[2].Width = CStr(200 * modBasic.$AppWidthRatio) & "px"
+            .Columns[3].Width = CStr(200 * modBasic.$AppWidthRatio) & "px"
             .Columns[1].Text = "Parameter"
-            .Columns[2].Text = "LEFT"
-            .Columns[3].Text = "RIGHT"
+            .Columns[2].Text = aCoLst[0]
+            .Columns[3].Text = aCoLst[1]
           Else If $xData[i][3] = "Triple Columns" Then
             .Columns[0].Hidden = True
             .Columns[1].Expand = True 'CStr(100 * modBasic.$AppWidthRatio) & "px"
-            .Columns[2].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
-            .Columns[3].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
-            .Columns[4].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
+            .Columns[2].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+            .Columns[3].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+            .Columns[4].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
             .Columns[1].Text = "Parameter"
-            .Columns[2].Text = "COLUMN-I"
-            .Columns[3].Text = "COLUMN-II"
-            .Columns[4].Text = "COLUMN-III"
+            .Columns[2].Text = aCoLst[0]
+            .Columns[3].Text = aCoLst[1]
+            .Columns[4].Text = aCoLst[2]
           Else If $xData[i][3] = "WHO Sensitivity" Then
             .Columns[0].Hidden = True
             .Columns[1].Expand = True 'CStr(100 * modBasic.$AppWidthRatio) & "px"
@@ -2084,5 +2087,41 @@ Public Sub btnreport_Click()
     cRadioForm = New CRadioReport($id, cmbprintform.Text, chkprinted.Value)
     cRadioForm.GetReportComplete()
   Endif
+
+End
+
+Private Function GetCustColHeadings(i As Integer) As String[]
+
+  Dim sDefault As String
+  Dim acolx As String[]
+  Dim aCoLst As String[]
+
+  sDefault = modAllExam.GetESubxamDefaultValue($frm, lblitem.Text, $xData[i][0])
+  If $xData[i][3] = "Dual Columns" Then
+    If sDefault Then
+      acolx = Split(sDefault, ":")
+      If acolx[0] = "Columns" Then
+        aCoLst = Split(acolx[1], ";")
+      Else
+        aCoLst = ["LEFT", "RIGHT"]
+      Endif
+    Else
+      aCoLst = ["LEFT", "RIGHT"]
+    Endif
+
+  Else If $xData[i][3] = "Triple Columns" Then
+    If sDefault Then
+      acolx = Split(sDefault, ":")
+      If acolx[0] = "Columns" Then
+        aCoLst = Split(acolx[1], ";")
+      Else
+        aCoLst = ["COLUMN-I", "COLUMN-II", "COLUMN-III"]
+      Endif
+    Else
+      aCoLst = ["COLUMN-I", "COLUMN-II", "COLUMN-III"]
+    Endif
+  Endif
+
+  Return aCoLst
 
 End

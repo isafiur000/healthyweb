@@ -1,0 +1,104 @@
+' Gambas class file
+
+Private $rData As Result
+Private $aMyFields As String[]
+
+Public Sub _new()
+
+  cmboption.List = ["No Selection", "Single Selection", "Multiple Selection", "Quantitative"]
+  FillGridSubTest()
+
+End
+
+Public Sub btnoption_Click()
+
+  Dim hForm As FmSubQuali
+
+  If cmboption.Text Then
+    If cmboption.Text = "No Selection" Then
+    Else If cmboption.Text = "Left and Right" Then
+    Else If cmboption.Text = "Clinical Scale" Then
+    Else If cmboption.Text = "Visual Input" Then
+    Else
+      hForm = New FmSubQuali("Patient Demographics", txttestname.Text, "", cmboption.Text)
+      hForm.ShowModal
+    Endif
+  Endif
+
+End
+
+Private Sub FillGridSubTest()
+
+  $rData = modDatabase.$myConn.Exec("select flddemoid,fldoption,flddefault from tblaccdemograp")
+  $aMyFields = New String[]
+  modGridView.ReadSmallData(GridView1, $rData, $aMyFields)
+
+  With GridView1
+    .Columns[0].Width = CStr(200 * modBasic.$AppWidthRatio) & "px"
+    .Columns[1].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
+    .Columns[2].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+    .Columns[0].Text = "Demographics"
+    .Columns[1].Text = "Option"
+    .Columns[2].Text = "Default"
+  End With
+
+End
+
+Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  $rData.MoveTo(Row)
+  modGridView.GridViewDecoration(Data, Row)
+  Data.Text = $rData[$aMyFields[Column]]
+
+End
+
+Public Sub GridView1_Select()
+
+  If GridView1.Selection.Count Then
+    $rData.MoveTo(GridView1.Selection[0])
+    txttestname.Text = $rData["flddemoid"]
+    cmboption.Text = $rData["fldoption"]
+    txtdefault.Text = $rData["flddefault"]
+  Endif
+
+End
+
+Public Sub btnBrOK_Click()
+
+  Dim res As Result
+
+  If txttestname.Text Then
+    res = modDatabase.$myConn.Create("tblaccdemograp")
+    res["flddemoid"] = Trim(txttestname.Text)
+    res["fldoption"] = cmboption.Text
+    res["flddefault"] = Trim(txtdefault.Text)
+    res.Update
+    FillGridSubTest()
+    Me.Exec("Toastify({text: 'Information saved', duration: 3000}).showToast()")
+    txttestname.Text = ""
+    cmboption.Text = ""
+    txtdefault.Text = ""
+    txttestname.SetFocus
+  Endif
+
+End
+
+Public Sub mnudel_Click()
+
+  If GridView1.Selection.Count Then
+    $rData.MoveTo(GridView1.Selection[0])
+    modDatabase.$myConn.Delete("tblaccdemograp", "flddemoid=&1", $rData["flddemoid"])
+    FillGridSubTest()
+    Me.Exec("Toastify({text: 'Information deleted', duration: 3000}).showToast()")
+    txttestname.Text = ""
+    cmboption.Text = ""
+    txtdefault.Text = ""
+  Endif
+
+End
+
+Public Sub btnclose_Click()
+
+  Me.Close()
+
+End

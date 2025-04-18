@@ -1591,11 +1591,13 @@ Public Function GetIPEventsReport(conn As Connection, dt1 As Date, dt2 As Date, 
   Dim rsx1 As Result
   Dim rsx2 As Result
   Dim rsx3 As Result
+  Dim rcur As Result
 
   Dim totadm As Integer
   Dim totout As Integer
   Dim transin As Integer
   Dim transout As Integer
+  Dim totcurr As Integer
 
   RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
   $BillingReport = New CReportHTML([("SNo"), ("EncID"), ("Bed"), ("Name"), ("Age/Sex"), ("Category"), ("Diary")], "", "")
@@ -1812,13 +1814,43 @@ Public Function GetIPEventsReport(conn As Connection, dt1 As Date, dt2 As Date, 
   Endif
 
   ''Summary
-  xcount = 0
   $BillingReport.AddChapter("SUMMARY")
   totadm = 0
+  transin = 0
+  totout = 0
+  transout = 0
+  totcurr = 0
   If xColl["Admission"] Then
     totadm = xColl["Admission"]
   Endif
-  xcount = xcount + totadm
+  If xColl["Transfer In"] Then
+    transin = xColl["Transfer In"]
+  Endif
+  If xColl["Exits"] Then
+    totout = xColl["Exits"]
+  Endif
+  If xColl["Transfer Out"] Then
+    transout = xColl["Transfer Out"]
+  Endif
+  If modDate.StartSqlDate(dt1) = modDate.StartSqlDate(dt2) And If modDate.StartSqlDate(dt1) = modDate.StartSqlDate(Now()) Then
+    rcur = conn.Exec("select count(fldbed) as cntbed from tbldepartmentbed where fldencounterval like &1 and flddept like &2", "%", sDept)
+    If rcur.Available Then
+      totcurr = rcur["cntbed"]
+    Endif
+
+    With asx
+      .Add("")
+      .Add("")
+      .Add("")
+      .Add("Beginning")
+      .Add(totcurr + totout + transout - totadm - transin)
+      .Add("")
+      .Add("")
+    End With
+    $BillingReport.Add(asx)
+    asx.Clear()
+  Endif
+
   With asx
     .Add("")
     .Add("")
@@ -1831,11 +1863,6 @@ Public Function GetIPEventsReport(conn As Connection, dt1 As Date, dt2 As Date, 
   $BillingReport.Add(asx)
   asx.Clear()
 
-  transin = 0
-  If xColl["Transfer In"] Then
-    transin = xColl["Transfer In"]
-  Endif
-  xcount = xcount + transin
   With asx
     .Add("")
     .Add("")
@@ -1852,23 +1879,6 @@ Public Function GetIPEventsReport(conn As Connection, dt1 As Date, dt2 As Date, 
     .Add("")
     .Add("")
     .Add("")
-    .Add("Total Entry")
-    .Add(xcount)
-    .Add("")
-    .Add("")
-  End With
-  $BillingReport.Add(asx)
-  asx.Clear()
-
-  totout = 0
-  If xColl["Exits"] Then
-    totout = xColl["Exits"]
-  Endif
-  xcount = xcount - transout
-  With asx
-    .Add("")
-    .Add("")
-    .Add("")
     .Add("All Exits")
     .Add(totout)
     .Add("")
@@ -1877,11 +1887,6 @@ Public Function GetIPEventsReport(conn As Connection, dt1 As Date, dt2 As Date, 
   $BillingReport.Add(asx)
   asx.Clear()
 
-  transout = 0
-  If xColl["Transfer Out"] Then
-    transout = xColl["Transfer Out"]
-  Endif
-  xcount = xcount - transout
   With asx
     .Add("")
     .Add("")
@@ -1894,17 +1899,19 @@ Public Function GetIPEventsReport(conn As Connection, dt1 As Date, dt2 As Date, 
   $BillingReport.Add(asx)
   asx.Clear()
 
-  With asx
-    .Add("")
-    .Add("")
-    .Add("")
-    .Add("Remaining")
-    .Add(xcount)
-    .Add("")
-    .Add("")
-  End With
-  $BillingReport.Add(asx)
-  asx.Clear()
+  If modDate.StartSqlDate(dt1) = modDate.StartSqlDate(dt2) And If modDate.StartSqlDate(dt1) = modDate.StartSqlDate(Now()) Then
+    With asx
+      .Add("")
+      .Add("")
+      .Add("")
+      .Add("Current")
+      .Add(totcurr)
+      .Add("")
+      .Add("")
+    End With
+    $BillingReport.Add(asx)
+    asx.Clear()
+  Endif
 
   Return $BillingReport.NewHTMLPath()
 

@@ -1,0 +1,425 @@
+' Gambas class file
+
+Private $rData2 As Result
+Private $aMyFields As String[]
+
+Private $MSurgicalLst As String[]
+Private $ExtraItemLst As String[]
+Private $OralBrandLst As String[]
+Private $OralGenricLst As String[]
+Private $InjBrandLst As String[]
+Private $InjGenricLst As String[]
+Private $LiqBrandLst As String[]
+Private $LiqGenricLst As String[]
+
+Public Sub _new()
+
+  cmbcomroute.List = modMedicine.ComboRoute()
+  cmbcomtaget.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tbltarget"))
+  DisplayDefaultConsumeMode()
+  dtconsume.Value = Now()
+  IniateCategoryPharmArray()
+  If modBasic.$AccessStockConsume = "Disable" Then
+    btncomsave.Enabled = False
+  Endif
+
+End
+
+Private Sub DisplayDefaultConsumeMode()
+
+  Dim def As String
+
+  def = modSettings.ShowSettingFromFIle("BrandOrGeneric/Consume")
+  modStockSub.GetBrandgenericSettingOption(def, rbrand2, rbgeneric2)
+
+End
+
+Public Sub btntarg_Click()
+
+  Dim hForm As FmAddVariableGrid
+
+  hForm = New FmAddVariableGrid("flditem", "tbltarget")
+  hForm.ShowModal
+  cmbcomtaget.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tbltarget"))
+
+End
+
+''------------------------------------------- consumption -----------------------------------------------------------
+Public Sub rbgeneric2_Click()
+
+  modSettings.SaveSettingsToFile("BrandOrGeneric/Consume", "Generic")
+
+End
+
+Public Sub rbrand2_Click()
+
+  modSettings.SaveSettingsToFile("BrandOrGeneric/Consume", "Brand")
+
+End
+
+Public Sub cmbcomroute_Click()
+
+  cmbcommedicine.Text = ""
+  cmbcombatch.Text = ""
+
+End
+
+Public Sub dtnepconsume_Click()
+
+  Dim xx As String
+
+  xx = BSDateFormat(("Enter BS Date in yyyy/mm/dd format"), ("Date Converter"), modDate.ConvertToLocaldate(dtconsume.Value))
+  If xx Then
+    dtconsume.Value = modDate.ConvertToEnglishdate(xx)
+  Endif
+
+End
+
+''--------------------- Array for Items to Load ----------------------------
+Private Sub IniateCategoryPharmArray()
+
+  $MSurgicalLst = New String[]
+  $ExtraItemLst = New String[]
+  $OralBrandLst = New String[]
+  $OralGenricLst = New String[]
+  $InjBrandLst = New String[]
+  $InjGenricLst = New String[]
+  $LiqBrandLst = New String[]
+  $LiqGenricLst = New String[]
+
+End
+
+Private Function GetCategoryArray(sRoute As String, sMode As String) As String[]
+
+  Dim xarry As String[]
+
+  If sRoute = "oral" Then
+    If sMode = "Brand" Then
+      If Not $OralBrandLst.Count Then
+        $OralBrandLst.Insert(modControlSub.GetDirectFillresult(modStock.FillMedicinesTransferComboResult(sRoute, sMode, modBasic.$compID)))
+      Endif
+      xarry = $OralBrandLst
+    Else If sMode = "Generic" Then
+      If Not $OralGenricLst.Count Then
+        $OralGenricLst.Insert(modControlSub.GetDirectFillresult(modStock.FillMedicinesTransferComboResult(sRoute, sMode, modBasic.$compID)))
+      Endif
+      xarry = $OralGenricLst
+    Endif
+
+  Else If sRoute = "liquid" Then
+    If sMode = "Brand" Then
+      If Not $LiqBrandLst.Count Then
+        $LiqBrandLst.Insert(modControlSub.GetDirectFillresult(modStock.FillMedicinesTransferComboResult(sRoute, sMode, modBasic.$compID)))
+      Endif
+      xarry = $LiqBrandLst
+    Else If sMode = "Generic" Then
+      If Not $LiqGenricLst.Count Then
+        $LiqGenricLst.Insert(modControlSub.GetDirectFillresult(modStock.FillMedicinesTransferComboResult(sRoute, sMode, modBasic.$compID)))
+      Endif
+      xarry = $LiqGenricLst
+    Endif
+
+  Else If sRoute = "injection" Then
+    If sMode = "Brand" Then
+      If Not $InjBrandLst.Count Then
+        $InjBrandLst.Insert(modControlSub.GetDirectFillresult(modStock.FillMedicinesTransferComboResult(sRoute, sMode, modBasic.$compID)))
+      Endif
+      xarry = $InjBrandLst
+    Else If sMode = "Generic" Then
+      If Not $InjGenricLst.Count Then
+        $InjGenricLst.Insert(modControlSub.GetDirectFillresult(modStock.FillMedicinesTransferComboResult(sRoute, sMode, modBasic.$compID)))
+      Endif
+      xarry = $InjGenricLst
+    Endif
+
+  Else If sRoute = "msurg" Then
+    If Not $MSurgicalLst.Count Then
+      $MSurgicalLst.Insert(modControlSub.GetDirectFillresult(modStock.FillMedicinesTransferComboResult(sRoute, sMode, modBasic.$compID)))
+    Endif
+    xarry = $MSurgicalLst
+
+  Else If sRoute = "extra" Then
+    If Not $ExtraItemLst.Count Then
+      $ExtraItemLst.Insert(modControlSub.GetDirectFillresult(modStock.FillMedicinesTransferComboResult(sRoute, sMode, modBasic.$compID)))
+    Endif
+    xarry = $ExtraItemLst
+
+  Else
+    xarry = modControlSub.GetDirectFillresult(modStock.FillMedicinesTransferComboResult(sRoute, sMode, modBasic.$compID))
+  Endif
+
+  Return xarry
+
+End
+''-------------------------------- END ------------------------------------
+
+Private Sub BlankComBox()
+
+  cmbcomroute.Text = ""
+  cmbcommedicine.Text = ""
+  cmbcombatch.Clear()
+  cmbcombatch.Text = ""
+  txtcomqty.Value = 0
+  txtcomstatus.Value = 0
+  lblcomdate.Value = Now()
+  txtcommax.Value = 0
+
+End
+
+Public Sub btnrefresh_Click()
+
+  If cmbcomtaget.Text Then
+    ShowConsumeGrid()
+    cmbcomroute.SetFocus
+  Endif
+
+End
+
+Public Sub btncommedList_Click()
+
+  Dim brandOrGeneric As String
+  Dim res As Result
+
+  If rbrand2.Value = True Then
+    brandOrGeneric = "Brand"
+  Else
+    brandOrGeneric = "Generic"
+  Endif
+
+  If Not cmbcomroute.Text Then
+    cmbcomroute.SetFocus
+  Else If cmbcomroute.Text Then
+    If Not cmbcommedicine.Text Then
+
+      If modBasic.$AppCacheGridViewData = "No" Then
+        res = modStock.FillMedicinesTransferComboResult(cmbcomroute.Text, brandOrGeneric, modBasic.$compID)
+        cmbcommedicine.Text = GridViewNew("Select Particulars", modControlSub.GetDirectFillresult(res), False)
+      Else
+        cmbcommedicine.Text = GridViewNew("Select Particulars", GetCategoryArray(cmbcomroute.Text, brandOrGeneric), False)
+      Endif
+      cmbcombatchGotFocus()
+
+    Endif
+  Endif
+
+End
+
+Private Sub cmbcombatchGotFocus()
+
+  Dim res1 As Result
+
+  If cmbcommedicine.Text Then
+    If modStockSub.GetComboStockControl(cmbcomroute.Text, cmbcommedicine.Text, rbgeneric2, rbrand2) = False Then
+      cmbcommedicine.Text = ""
+      Me.Exec("Toastify({text: 'Item not listed', duration: 3000}).showToast()")
+      cmbcomroute.SetFocus
+    Else
+      If cmbcomroute.Text = "suture" Or cmbcomroute.Text = "msurg" Or cmbcomroute.Text = "ortho" Or cmbcomroute.Text = "extra" Then
+      Else
+        If rbrand2.Value = True Then
+          cmbcommedicine.Text = modMedConstant.ConvertBrandToGeneric(cmbcomroute.Text, cmbcommedicine.Text)
+        Endif
+      Endif
+      res1 = modDatabase.$myConn.Exec("select distinct(fldbatch) as col from tblentry where fldstockid=&1 and fldcomp=&2 and fldqty>&3", cmbcommedicine.Text, modBasic.$compID, 0)
+      cmbcombatch.List = modControlSub.GetDirectFillresult(res1)
+      cmbcombatch.SetFocus
+    Endif
+  Endif
+
+End
+
+Public Sub cmbcombatch_Click()
+
+  Dim res As Result
+
+  res = modDatabase.$myConn.Exec("select fldstockno,fldexpiry,fldqty,fldstatus,fldcategory,fldsellpr,fldcode from tblentry where fldstockid=&1 and fldbatch=&2 and fldcomp=&3", cmbcommedicine.Text, cmbcombatch.Text, modBasic.$compID)                                                   ''
+  If res.Available Then
+    res.MoveFirst
+    txtcomstatus.Value = res["fldstatus"]
+    lblcomdate.Value = res["fldexpiry"]
+    txtcommax.Value = res["fldqty"]
+    lblcode.Text = res["fldcode"]
+  Endif
+
+End
+
+Public Sub chkcomsave_Click()
+
+  If cmbcomtaget.Text And If cmbcommedicine.Text And If cmbcombatch.Text Then
+    If txtcomqty.Value > 0 Then
+      SaveEntryComp()
+      ShowConsumeGrid()
+      cmbcomroute.SetFocus
+    Endif
+  Endif
+
+End
+
+Private Sub SaveEntryComp()
+
+  Dim res As Result
+  Dim res1 As Result
+
+  res1 = modDatabase.$myConn.Exec("select fldstockno,fldqty from tblentry where fldstockid=&1 and fldbatch=&2 and fldcomp=&3", cmbcommedicine.Text, cmbcombatch.Text, modBasic.$compID)
+  If res1.Available Then
+    res1.MoveFirst
+    If txtcomqty.Value <= res1["fldqty"] Then
+
+      res = modDatabase.$myConn.Create("tblbulksale")
+      res["fldtarget"] = cmbcomtaget.Text
+      res["fldbulktime"] = dtconsume.Value
+      res["fldcategory"] = modNonMedical.GetBillItemCategoryFromCombo(cmbcomroute.Text)
+      res["fldstockno"] = res1["fldstockno"]
+      res["fldstockid"] = cmbcommedicine.Text
+      res["fldnetcost"] = modStock.GetAverageCostPriceByStockNo(res1["fldstockno"])
+      res["fldqtydisp"] = txtcomqty.Value
+      res["fldqtyret"] = 0
+      res["flduserid"] = modBasic.$lbluser
+      res["fldtime"] = Now()
+      res["fldcomp"] = modBasic.$compID
+      res["fldsave"] = False
+      res["fldrequest"] = Trim(txtrequest.Text)
+      res["fldcomment"] = Trim(txtcomment.Text)
+      res["fldreference"] = ""
+      res["flduptime"] = ""
+      res["xyz"] = True
+      res.Update()
+      BlankComBox()
+
+    Endif
+  Endif
+
+End
+
+Private Sub ShowConsumeGrid()
+
+  $rData2 = modDatabase.$myConn.Exec("select fldid,fldstockno,fldcategory,fldstockid,fldstockno,fldstockno,fldqtydisp,fldreference,fldrequest,fldcomment from tblbulksale where fldtarget like &1 and fldsave=&2 and fldcomp=&3 ORDER BY fldid DESC", cmbcomtaget.Text, False, modBasic.$compID)
+  $aMyFields = New String[]
+  modGridView.ReadSmallData(GridView1, $rData2, $aMyFields)
+
+  With GridView1
+    .Columns[0].Hidden = True
+    .Columns[1].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
+    .Columns[2].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
+    .Columns[3].Width = CStr(300 * modBasic.$AppWidthRatio) & "px"
+    .Columns[4].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
+    .Columns[5].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+    .Columns[6].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
+    .Columns[7].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
+    .Columns[8].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
+    .Columns[9].Width = CStr(175 * modBasic.$AppWidthRatio) & "px"
+
+    .Columns[1].Text = "StockNo"
+    .Columns[2].Text = "Category"
+    .Columns[3].Text = "Particulars"
+    .Columns[4].Text = "Batch"
+    .Columns[5].Text = "Expiry"
+    .Columns[6].Text = "QTY"
+    .Columns[7].Text = "Reference"
+    .Columns[8].Text = "Order"
+    .Columns[9].Text = "Comment"
+  End With
+
+End
+
+Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  Dim xdate As Date
+
+  $rData2.MoveTo(Row)
+  modGridView.GridViewDecoration(Data, Row)
+  If Column = 4 Then
+    Data.Text = modStock.GetBatchFromStockNo($rData2[$aMyFields[Column]])
+  Else If Column = 5 Then
+    xdate = modStock.GetExpiryFromStockNo($rData2[$aMyFields[Column]])
+    If xdate <= Now() Then
+      Data.Foreground = modBasic.$HighLightColor
+    Endif
+    Data.Text = modStock.GetExpiryFromStockNo($rData2[$aMyFields[Column]])
+  Else
+    Data.Text = $rData2[$aMyFields[Column]]
+  Endif
+
+End
+
+Public Sub mnucomdel_Click()
+
+  If GridView1.Selection.Count Then
+    $rData2.MoveTo(GridView1.Selection[0])
+    modDatabase.$myConn.Delete("tblbulksale", "fldid=&1 and fldsave=&2", $rData2["fldid"], False)
+    ShowConsumeGrid()
+  Endif
+
+End
+
+Public Sub btncomsave_Click()
+
+  Dim res As Result
+  Dim rs As Result
+  Dim ref As String
+  Dim xPath As String
+  Dim idLock As Boolean
+  Dim xtot As Float
+
+  rs = modDatabase.$myConn.Exec("select fldid,fldstockno,fldqtydisp,fldreference from tblbulksale where fldtarget=&1 and fldsave=&2 and fldcomp=&3", cmbcomtaget.Text, False, modBasic.$compID)
+  If rs.Available Then
+
+    idLock = modBillLock.LockTableForID("Reference")
+    If idLock = True Then
+
+      modDatabase.$myConn.Begin
+      ref = modBillLock.ReferenceString("Bulk Dispensing")
+      If ref Then
+        For Each rs
+          xtot = modStock.TotalQTYbyStockNo(rs["fldstockno"])
+          If rs["fldqtydisp"] <= xtot Then
+            res = modDatabase.$myConn.Edit("tblbulksale", "fldid=&1", rs["fldid"])
+            res["fldsave"] = True
+            res["fldreference"] = ref
+            res["xyz"] = False
+            res.Update()
+            modStockSub.AddToExistEntry(rs["fldstockno"], (0 - rs["fldqtydisp"]), modBasic.$compID)
+          Else
+            Me.Exec("Toastify({text: 'Insufficient stock', duration: 3000}).showToast()")
+          Endif
+        Next
+      Endif   ''if reference no exist
+      modDatabase.$myConn.Commit
+
+      modBillLock.ReleaseLockTable("Reference")
+    Endif   ''if locked
+
+  Endif  ''if result available
+
+  If ref Then
+    If ckhconsumprint.Value = True Then
+      xPath = modHTMLStock.ShowStockConsumeReport(ref)
+      modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
+    Endif
+  Endif
+  ShowConsumeGrid()
+
+Catch
+  modDatabase.$myConn.Rollback
+  If idLock = True Then
+    modBillLock.ReleaseLockTable("Reference")
+  Endif
+  modHelpVariable.CreateErrorReport()
+
+End
+
+Public Sub btncomfullrep_Click()
+
+  modCHTMLReport.ExportGridToHTML(GridView1, "BULK SALE", cmbcomtaget.Text)
+
+End
+
+''====================== Reprint ========================
+Public Sub mnureprint_Click()
+
+  Dim hForm As FmReprintStore
+
+  hForm = New FmReprintStore("Consume")
+  hForm.ShowModal
+
+End
