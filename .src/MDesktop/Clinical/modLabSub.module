@@ -143,40 +143,60 @@ Public Sub UpdateLabTestSample(id As Long, sampleID As String, strTampleType As 
 
 End
 
-Public Sub InsertLabSubTest(encid As String, pttestid As Long, testname As String, subtestList As String[], Optional sTable As String)
+Public Sub InsertLabSubTestUnit(encid As String, testId As Long, testName As String, subTestName As String, optionType As String, sOrder As Variant, Optional sTable As String)
 
-  Dim res2 As Result
-  Dim xx As String
+  Dim res As Result
   Dim xIntVal As String
 
+  If sTable Then
+    res = modDatabase.$myConn.Create(sTable)
+  Else
+    res = modDatabase.$myConn.Create("tblpatlabsubtest")
+  Endif
+  res["fldencounterval"] = encid
+  res["fldtestid"] = testId
+  res["fldparent"] = testName
+  res["fldsubtest"] = subTestName
+  res["fldindex"] = modApplication.GetMD5SumString(testId & ":" & encid & ":" & testName & ":" & subTestName)
+  res["fldtanswertype"] = optionType
+  res["fldreport"] = ""
+  res["fldsave"] = False
+  res["fldabnormal"] = False
+  res["fldchk"] = False
+  If sOrder Then
+    res["fldorder"] = sOrder
+  Else
+    res["fldorder"] = 0
+  Endif
+  res["fldfilepath"] = ""
+  res["xyz"] = True
+  If MMain.$WebEntry = True Then
+    xIntVal = modString.GetDateString(Now())
+    res["fldid"] = CLong(xIntVal)
+    res["fldrepoid"] = modMisc.GetWebIndexStr(xIntVal)
+    res["fldrepodate"] = Now()
+    res["fldrepomac"] = CGI["REMOTE_ADDR"] & ":" & CGI["REMOTE_PORT"]
+    res["fldhospcode"] = modBasic.$HospCode
+  Endif
+  res.Update()
+  'don't catch error
+
+End
+
+Public Sub InsertLabSubTest(encid As String, testId As Long, testName As String, subtestList As String[], Optional sTable As String)
+
+  Dim xx As String
+  Dim xType As String
+  Dim tblName As String
+
+  If sTable Then
+    tblName = sTable
+  Else
+    tblName = "tblpatlabsubtest"
+  Endif
   For Each xx In subtestList
-    If sTable Then
-      res2 = modDatabase.$myConn.Create(sTable)
-    Else
-      res2 = modDatabase.$myConn.Create("tblpatlabsubtest")
-    Endif
-    res2["fldencounterval"] = encid
-    res2["fldtestid"] = pttestid
-    res2["fldparent"] = testname
-    res2["fldsubtest"] = xx
-    res2["fldindex"] = modApplication.GetMD5SumString(pttestid & ":" & encid & ":" & testname & ":" & xx)
-    res2["fldtanswertype"] = modFixLab.GetSubTestOption(testname, xx)
-    res2["fldreport"] = ""
-    res2["fldsave"] = False
-    res2["fldabnormal"] = False
-    res2["fldchk"] = False
-    res2["fldorder"] = 0
-    res2["fldfilepath"] = ""
-    res2["xyz"] = True
-    If MMain.$WebEntry = True Then
-      xIntVal = modString.GetDateString(Now())
-      res2["fldid"] = CLong(xIntVal)
-      res2["fldrepoid"] = modMisc.GetWebIndexStr(xIntVal)
-      res2["fldrepodate"] = Now()
-      res2["fldrepomac"] = CGI["REMOTE_ADDR"] & ":" & CGI["REMOTE_PORT"]
-      res2["fldhospcode"] = modBasic.$HospCode
-    Endif
-    res2.Update()
+    xType = modFixLab.GetSubTestOption(testName, xx)
+    InsertLabSubTestUnit(encid, testId, testName, xx, xType, 0, tblName)
   Next
   'don't catch error
 

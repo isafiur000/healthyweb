@@ -1339,11 +1339,11 @@ Public Sub btnupdate_Click()
 
   Dim Row As Integer
   Dim res As Result
-  Dim xxx As String[]
   Dim xallow As Boolean
   Dim xspec As String
   Dim txtsampno As String
   Dim xorder As Integer
+  Dim resx As Result
 
   If modBasic.$LabAutoSampleID = "Yes" Then
     If GridView1.Count Then
@@ -1388,9 +1388,11 @@ Public Sub btnupdate_Click()
           If res.Available = False Then
             Select modFixLab.GetLabTestOptionType($rData["fldtestid"])
               Case "Fixed Components", "Left/Right Components"
-                xxx = modFixLab.GetSubTestArray($rData["fldtestid"])     'modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldsubtest) as col from tbltestquali where fldtestid=&1", GridView1[Row, 3].Text))
-                If xxx.Count Then
-                  modLabSub.InsertLabSubTest($rData["fldencounterval"], $rData["fldid"], $rData["fldtestid"], xxx, $tblpatlabsubtest)
+                resx = modDatabase.$myConn.Exec("select fldsubtest,fldtanswertype,fldindex from tbltestquali where fldtestid=&1 GROUP BY fldsubtest", $rData["fldtestid"])
+                If resx.Available Then
+                  For Each resx
+                    modLabSub.InsertLabSubTestUnit($rData["fldencounterval"], $rData["fldid"], $rData["fldtestid"], resx["fldsubtest"], resx["fldtanswertype"], resx["fldindex"], $tblpatlabsubtest)
+                  Next
                 Endif
             End Select
           Endif

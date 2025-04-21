@@ -77,36 +77,50 @@ Public Sub InsertRadioTestOrder(encid As String, strTest As String, strType As S
 
 End
 
-Public Sub InsertRadioSubTest(encid As String, pttestid As Long, examname As String, subtestList As String[])
+Public Sub InsertRadioSubTestUnit(encid As String, testId As Long, examName As String, subExam As String, optionType As String, sOrder As Variant)
 
-  Dim xx As String
-  Dim res2 As Result
+  Dim res As Result
   Dim xIntVal As String
 
+  res = modDatabase.$myConn.Create("tblpatradiosubtest")
+  res["fldencounterval"] = encid
+  res["fldtestid"] = testId
+  res["fldparent"] = examName
+  res["fldsubtest"] = subExam
+  res["fldindex"] = modApplication.GetMD5SumString(testId & ":" & encid & ":" & examName & ":" & subExam)
+  res["fldtanswertype"] = optionType
+  res["fldreport"] = ""
+  res["fldsave"] = False
+  res["fldabnormal"] = False
+  res["fldchk"] = False
+  If sOrder Then
+    res["fldorder"] = sOrder
+  Else
+    res["fldorder"] = 0
+  Endif
+  res["fldfilepath"] = ""
+  res["xyz"] = True
+  If MMain.$WebEntry = True Then
+    xIntVal = modString.GetDateString(Now())
+    res["fldid"] = CLong(xIntVal)
+    res["fldrepoid"] = modMisc.GetWebIndexStr(xIntVal)
+    res["fldrepodate"] = Now()
+    res["fldrepomac"] = CGI["REMOTE_ADDR"] & ":" & CGI["REMOTE_PORT"]
+    res["fldhospcode"] = modBasic.$HospCode
+  Endif
+  res.Update()
+  'don't catch error
+
+End
+
+Public Sub InsertRadioSubTest(encid As String, testId As Long, examName As String, subtestList As String[])
+
+  Dim xx As String
+  Dim opType As String
+
   For Each xx In subtestList
-    res2 = modDatabase.$myConn.Create("tblpatradiosubtest")
-    res2["fldencounterval"] = encid
-    res2["fldtestid"] = pttestid
-    res2["fldparent"] = examname
-    res2["fldsubtest"] = xx
-    res2["fldindex"] = modApplication.GetMD5SumString(pttestid & ":" & encid & ":" & examname & ":" & xx)
-    res2["fldtanswertype"] = modFixRadio.GetSubRadioOption(examname, xx)
-    res2["fldreport"] = ""
-    res2["fldsave"] = False
-    res2["fldabnormal"] = False
-    res2["fldchk"] = False
-    res2["fldorder"] = 0
-    res2["fldfilepath"] = ""
-    res2["xyz"] = True
-    If MMain.$WebEntry = True Then
-      xIntVal = modString.GetDateString(Now())
-      res2["fldid"] = CLong(xIntVal)
-      res2["fldrepoid"] = modMisc.GetWebIndexStr(xIntVal)
-      res2["fldrepodate"] = Now()
-      res2["fldrepomac"] = CGI["REMOTE_ADDR"] & ":" & CGI["REMOTE_PORT"]
-      res2["fldhospcode"] = modBasic.$HospCode
-    Endif
-    res2.Update()
+    opType = modFixRadio.GetSubRadioOption(examName, xx)
+    InsertRadioSubTestUnit(encid, testId, examName, xx, opType, 0)
   Next
   'don't catch error
 

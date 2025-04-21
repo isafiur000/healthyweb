@@ -1,0 +1,164 @@
+' Gambas class file
+
+Private $sVar As Variant[]
+
+Public Sub _new()
+
+  cmbfield.List = ["fldpatientval", "fldencounterval"]
+
+End
+
+Public Sub btnload_Click()
+
+  Dim aVar As Variant[]
+  Dim hFile As File
+  Dim sLine As String
+
+  aVar = New Variant[]
+  If Exist(txtfile.Text) Then
+    hFile = Open txtfile.Text
+    For Each sLine In hFile.Lines
+      If Len(Trim(sLine)) Then
+        aVar.Add(Split(sLine, ";"))
+      Endif
+    Next
+    hFile.Close()
+  Endif
+
+  If aVar.Count Then
+    LoadToGrid(aVar)
+  Endif
+
+End
+
+Private Sub LoadToGrid(aVar As Variant[])
+
+  $sVar = aVar
+  WebTable1.Columns.Count = 3
+  WebTable1.Count = $sVar.Count
+
+End
+
+Public Sub WebTable1_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  Data.Text = $sVar[Row][Column]
+
+End
+
+Public Sub btnselect_Click()
+
+  txtold.Text = $sVar[WebTable1.Selection[0]][2]
+  txtnew.Text = $sVar[WebTable1.Selection[0]][1]
+
+End
+
+Public Sub btnexec_Click()
+
+  Dim tbList As String[]
+  Dim sTable As String
+  Dim res As Result
+
+  If txtold.Text And If txtnew.Text Then
+
+    If cmbfield.Text = "fldencounterval" Then
+      ''for fldencounterval
+      If MMain.$WebReport = "Multiple" Then
+        tbList = modDBApp.DBRegularTablesSelField(modDatabase.$myConn, ["fldencounterval", "fldhospcode"])
+      Else
+        tbList = modDBApp.DBRegularTablesSelField(modDatabase.$myConn, ["fldencounterval"])
+      Endif
+      For Each sTable In tbList
+        If MMain.$WebReport = "Multiple" Then
+          res = modDatabase.$myConn.Edit(sTable, "fldhospcode=&1", txtold.Text)
+          If res.Available Then
+            If res.Fields.Exist("fldencounterval") Then
+              For Each res
+                res["fldencounterval"] = Replace(res["fldencounterval"], txtold.Text, txtnew.Text)
+                If res.Fields.Exist("fldpatientval") Then
+                  res["fldpatientval"] = Replace(res["fldpatientval"], txtold.Text, txtnew.Text)
+                Endif
+                If res.Fields.Exist("flduserid") Then
+                  res["flduserid"] = Replace(res["flduserid"], txtold.Text, txtnew.Text)
+                Endif
+                res["fldhospcode"] = txtnew.Text
+                res.Update
+              Next
+            Endif
+          Endif
+
+        Else
+          res = modDatabase.$myConn.Edit(sTable)
+          If res.Available Then
+            If res.Fields.Exist("fldencounterval") Then
+              For Each res
+                res["fldencounterval"] = Replace(res["fldencounterval"], txtold.Text, txtnew.Text)
+                If res.Fields.Exist("fldpatientval") Then
+                  res["fldpatientval"] = Replace(res["fldpatientval"], txtold.Text, txtnew.Text)
+                Endif
+                If res.Fields.Exist("flduserid") Then
+                  res["flduserid"] = Replace(res["flduserid"], txtold.Text, txtnew.Text)
+                Endif
+                res.Update
+              Next
+            Endif
+          Endif
+
+        Endif
+        lblstate.Text = "Conversion completed for table " & sTable
+        Wait
+      Next
+
+    Else If cmbfield.Text = "fldpatientval" Then
+      ''for fldpatientval
+      If MMain.$WebReport = "Multiple" Then
+        tbList = modDBApp.DBRegularTablesSelField(modDatabase.$myConn, ["fldpatientval", "fldhospcode"])
+      Else
+        tbList = modDBApp.DBRegularTablesSelField(modDatabase.$myConn, ["fldpatientval"])
+      Endif
+      For Each sTable In tbList
+        If MMain.$WebReport = "Multiple" Then
+          res = modDatabase.$myConn.Edit(sTable, "fldhospcode=&1", txtold.Text)
+          If res.Available Then
+            If res.Fields.Exist("fldpatientval") And If res.Fields.Exist("fldencounterval") = False Then
+              For Each res
+                res["fldpatientval"] = Replace(res["fldpatientval"], txtold.Text, txtnew.Text)
+                If res.Fields.Exist("flduserid") Then
+                  res["flduserid"] = Replace(res["flduserid"], txtold.Text, txtnew.Text)
+                Endif
+                res["fldhospcode"] = txtnew.Text
+                res.Update
+              Next
+            Endif
+          Endif
+
+        Else
+          res = modDatabase.$myConn.Edit(sTable)
+          If res.Available Then
+            If res.Fields.Exist("fldpatientval") And If res.Fields.Exist("fldencounterval") = False Then
+              For Each res
+                res["fldpatientval"] = Replace(res["fldpatientval"], txtold.Text, txtnew.Text)
+                If res.Fields.Exist("flduserid") Then
+                  res["flduserid"] = Replace(res["flduserid"], txtold.Text, txtnew.Text)
+                Endif
+                res.Update
+              Next
+            Endif
+          Endif
+
+        Endif
+        lblstate.Text = "Conversion completed for table " & sTable
+        Wait
+      Next
+
+    Endif
+  Endif
+
+  Message.Info("complete")
+
+End
+
+Public Sub btnclose_Click()
+
+  Me.Close
+
+End

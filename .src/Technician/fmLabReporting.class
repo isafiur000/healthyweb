@@ -41,11 +41,11 @@ Private $xData As Variant[]
 Private $groupForm As Boolean
 
 Public Sub _new()
-  
+
   Dim xoption As String
   Dim xdefault As String
   Dim ht As String
-  
+
   cmbcategory.List = modMedicine.GetPathoCategoryList("Test")
   cmbcategory.Add("%")
   xdefault = modSettings.ShowSettingFromFIle("Laboratory/DefaultDepartment")
@@ -57,11 +57,11 @@ Public Sub _new()
   cmbspecimen.List = modBasic.$LabSpecimenList
   cmbspecimen.Add("%")
   cmbspecimen.Text = "%"
-  
+
   modLabSub.DisplayDefaultTestUnit(rbsi, rbmetric)
   modSettings.ShowCheckBox(chkfreeview, "TestUnit/MixedView")
   modSettings.ShowCheckBox(chkall, "TestReporting/ShowAll")
-  
+
   dtselected.Value = Now()
   dtlisted.Value = Now()
   xoption = modSettings.ShowSettingFromFIle("EntrySetting/Laboratory_DateSelect")
@@ -77,7 +77,7 @@ Public Sub _new()
   ShowInputForm()
   modAccount.PasInvoiceSetting(cmbfiscal, False)
   LoadTableNames()
-  
+
   ''----------- group controls ----
   ht = modSettings.ShowSettingFromFIle("MultipleTextBox/Height")
   If ht Then
@@ -85,13 +85,13 @@ Public Sub _new()
   Else
     Slider1.Value = 3
   Endif
-  
+
 End
 
 Public Sub WebForm_Open()
-  
+
   modGeneralMain.RecordFormUse(Me)
-  
+
 End
 
 ' Public Sub Form_KeyRelease()
@@ -116,9 +116,9 @@ End
 ' End
 
 Private Sub LoadTableNames()
-  
+
   Dim res As Result
-  
+
   If cmbfiscal.Text = "Current" Then
     $tblpatlabtest = "tblpatlabtest"
     $tblpatlabsubtest = "tblpatlabsubtest"
@@ -140,19 +140,19 @@ Private Sub LoadTableNames()
       $tblpatlabsubtest = "tblpatlabsubtest"
     Endif
   Endif
-  
+
 End
 
 Public Sub cmbfiscal_Click()
-  
+
   LoadTableNames()
-  
+
 End
 
 Private Sub ShowInputForm()
-  
+
   Dim xx As String
-  
+
   xx = modSettings.ShowSettingFromFIle("Laboratory/InputFormat")
   If xx = "Sample" Then
     rbsample.Value = True
@@ -161,74 +161,74 @@ Private Sub ShowInputForm()
   Else
     rbencounter.Value = True
   Endif
-  
+
 End
 
 Public Sub rbencounter_Click()
-  
+
   modSettings.SaveSettingsToFile("Laboratory/InputFormat", "Encounter")
-  
+
 End
 
 Public Sub rbsample_Click()
-  
+
   modSettings.SaveSettingsToFile("Laboratory/InputFormat", "Sample")
-  
+
 End
 
 Public Sub rbinvoice_Click()
-  
+
   modSettings.SaveSettingsToFile("Laboratory/InputFormat", "Invoice")
-  
+
 End
 
 Public Sub rbsi_Click()
-  
+
   modSettings.SaveSettingsToFile("TestUnit/Default", "SI")
-  
+
 End
 
 Public Sub rbmetric_Click()
-  
+
   modSettings.SaveSettingsToFile("TestUnit/Default", "Metric")
-  
+
 End
 
 Public Sub dtnepselect_Click()
-  
+
   Dim xx As String
-  
+
   xx = BSDateFormat(("Enter BS Date in yyyy/mm/dd format"), ("Date Converter"), modDate.ConvertToLocaldate(dtselected.Value))
   If xx Then
     dtselected.Value = modDate.ConvertToEnglishdate(xx)
   Endif
-  
+
 End
 
 Public Sub dtneplist_Click()
-  
+
   Dim xx As String
-  
+
   xx = BSDateFormat(("Enter BS Date in yyyy/mm/dd format"), ("Date Converter"), modDate.ConvertToLocaldate(dtlisted.Value))
   If xx Then
     dtlisted.Value = modDate.ConvertToEnglishdate(xx)
   Endif
-  
+
 End
 
 '''---------------------------------- Reporting List ----------------------------
 Public Sub btnrefresh_Click()
-  
+
   FillReportList()
-  
+
 End
 
 Private Sub FillReportList()
-  
+
   Dim str1 As String
   Dim xcomp As String
   Dim xstr As String
-  
+
   If modBasic.$LabReportingComp Then
     xcomp = modBasic.$LabReportingComp
   Else
@@ -239,7 +239,7 @@ Private Sub FillReportList()
   Else
     xstr = " and fldcomp_sample like &3"
   Endif
-  
+
   If chklist.Value = True Then
     If cmbcategory.Text = "%" Then
       If rbencounter.Value = True Then
@@ -260,7 +260,7 @@ Private Sub FillReportList()
       Endif
       $rData1 = modDatabase.$myConn.Exec(str1, "Sampled", True, xcomp, cmbcategory.Text, modDate.StartSqlDate(dtlisted.Value), modDate.EndSqlDate(DateAdd(dtlisted.Value, gb.Day, txtrange.Value)), cmbspecimen.Text)
     Endif
-    
+
   Else
     If cmbcategory.Text = "%" Then
       If rbencounter.Value = True Then
@@ -281,9 +281,9 @@ Private Sub FillReportList()
       Endif
       $rData1 = modDatabase.$myConn.Exec(str1, "Sampled", True, xcomp, cmbcategory.Text, cmbspecimen.Text)
     Endif
-    
+
   Endif
-  
+
   $aMyFields1 = New String[]
   modGridView.ReadSmallData(GridView1, $rData1, $aMyFields1)
   With GridView1
@@ -293,11 +293,11 @@ Private Sub FillReportList()
     .Columns[3].Width = CStr(175 * modBasic.$AppWidthRatio) & "px"
     .Columns[3].Text = "Name"
   End With
-  
+
 End
 
 Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableData)
-  
+
   $rData1.MoveTo(Row)
   modGridView.GridViewDecoration(Data, Row)
   If Column = 2 Then
@@ -308,19 +308,19 @@ Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableDat
   Else
     Data.Text = $rData1[$aMyFields1[Column]]
   Endif
-  
+
 End
 
 Public Sub GridView1_Select()
-  
+
   GridView1Click()
-  
+
 End
 
 Private Sub GridView1Click()
-  
+
   Dim xstatus As String
-  
+
   If GridView1.Selection.Count Then
     $rData1.MoveTo(GridView1.Selection[0])
     modRepository.$RepoDataStatus = False
@@ -330,7 +330,7 @@ Private Sub GridView1Click()
     txtpatientname.Text = modPatient.GetPatientNameByEnc($encid)
     txtgender.Text = modPatient.GetPatientAgeString($encid, Now()) & "/" & modPatient.GetPatientSex($encid)
     txtpatientaddress.Text = modPatient.GetPatientAddressByEnc($encid)
-    
+
     $patNo = modPatient.GetPatientNoByEnc($encid)
     xstatus = modPatient.CurrentAdmissionStatus($encid)
     txtlocation.Text = modPatient.GetLocationSetting($encid, xstatus)
@@ -350,20 +350,20 @@ Private Sub GridView1Click()
     OpenPopEntry()
     $groupForm = False
   Endif
-  
+
 End
 
 Public Sub btnexpotree_Click()
-  
+
   Dim $BillingReport As CReportHTML
   Dim asx As New String[0]
-  
+
   Dim sql As String
   Dim res As Result
-  
+
   Dim xcomp As String
   Dim xstr As String
-  
+
   If modBasic.$LabReportingComp Then
     xcomp = modBasic.$LabReportingComp
   Else
@@ -374,11 +374,11 @@ Public Sub btnexpotree_Click()
   Else
     xstr = "fldcomp_sample like &4"
   Endif
-  
+
   $BillingReport = New CReportHTML([("SNo"), ("SampleTime"), ("Encounter"), ("PatientName"), ("SampleNo"), ("TestName"), ("Observation")], " ", "")
   $BillingReport.UserData.Add("TESTS TO REPORT", "PARAM1")
   $BillingReport.UserData.Add("Category : " & cmbcategory.Text, "PARAM2")
-  
+
   sql = "select fldid,fldtime_sample,fldsampleid,fldtestid,fldencounterval from " & $tblpatlabtest & " where fldstatus=&1 and fldsave_sample=&2 and fldtestid in(select fldtestid from tbltest where fldcategory like &3) and " & xstr
   res = modDatabase.$myConn.Exec(sql, "Sampled", True, cmbcategory.Text, xcomp)
   For Each res
@@ -394,9 +394,9 @@ Public Sub btnexpotree_Click()
     $BillingReport.Add(asx)
     asx.Clear()
   Next
-  
+
   modControlSub.OpenHTMLPreview("", $BillingReport.NewHTMLPath(), "ReportSize")
-  
+
 End
 
 ''------------------------------------ individual patient tests ------------------------
@@ -409,30 +409,30 @@ End
 ' End
 
 Public Sub btnblankform_Click()
-  
+
   Me.Parent.DeleteChildren()
   modGeneralMain.LoadReportingForm()
-  
+
 End
 
 Public Sub btnsearchenc_Click()
-  
+
   If Not txtencid.Text Then
     txtencid.Text = QRScanValue("")
   Endif
-  
+
 End
 
 Public Sub txtencid_Activate()
-  
+
   btnshow_Click()
-  
+
 End
 
 Public Sub btnshow_Click()
-  
+
   Dim xstatus As String
-  
+
   If Not txtencid.Text Then Return
   If modBasic.$EncIdPrefix And If txtencid.Text = modBasic.$EncIdPrefix Then
     txtencid.SetFocus
@@ -451,7 +451,7 @@ Public Sub btnshow_Click()
     txtpatientname.Text = modPatient.GetPatientNameByEnc($encid)
     txtgender.Text = modPatient.GetPatientAgeString($encid, Now()) & "/" & modPatient.GetPatientSex($encid)
     txtpatientaddress.Text = modPatient.GetPatientAddressByEnc($encid)
-    
+
     $patNo = modPatient.GetPatientNoByEnc($encid)
     xstatus = modPatient.CurrentAdmissionStatus($encid)
     txtlocation.Text = modPatient.GetLocationSetting($encid, xstatus)
@@ -466,18 +466,18 @@ Public Sub btnshow_Click()
       Me.Enabled = False
     Endif
   Endif
-  
+
 End
 
 Private Sub OpenPopEntry()
-  
+
   Dim hForm As FmEnterGroupTest
   Dim xList As String[]
   Dim xFinal As String[]
   Dim xtest As String
   Dim categList As String[]
   Dim xcateg As String
-  
+
   If modBasic.$LabReportGroup = "Yes" Then
     If cmbcategory.Text = "%" Then
       xList = modControlSub.GetDirectFillresult(ExecuteQuery(["fldtestid as col"], False))
@@ -493,7 +493,7 @@ Private Sub OpenPopEntry()
         hForm = New FmEnterGroupTest($encid, modString.BinaryDistinctStringArray(categList), $tblpatlabtest)
         hForm.ShowModal
       Endif
-      
+
     Else
       categList = New String[]
       categList.Add(cmbcategory.Text)
@@ -501,7 +501,7 @@ Private Sub OpenPopEntry()
       hForm.ShowModal
     Endif
   Endif
-  
+
 End
 
 ' Public Sub txtencid_GotFocus()
@@ -511,55 +511,55 @@ End
 ' End
 
 Public Sub chkall_Click()
-  
+
   modSettings.EnterCheckSetting(chkall, "TestReporting/ShowAll")
-  
+
 End
 
 Private Sub DateSelectionSett()
-  
+
   If chkdate.Value = True Then
     Panel11.Enabled = True
   Else
     Panel11.Enabled = False
   Endif
-  
+
   If chklist.Value = True Then
     Panel13.Enabled = True
   Else
     Panel13.Enabled = False
   Endif
-  
+
 End
 
 Public Sub chklist_Click()
-  
+
   modSettings.EnterCheckSetting(chklist, "EntrySetting/Laboratory_DateSelect")
   DateSelectionSett()
-  
+
 End
 
 Public Sub chkdate_Click()
-  
+
   modSettings.EnterCheckSetting(chkdate, "EntrySetting/Laboratory_DateSelect")
   DateSelectionSett()
-  
+
 End
 
 Public Sub chkfreeview_Click()
-  
+
   modSettings.EnterCheckSetting(chkfreeview, "TestUnit/MixedView")
-  
+
 End
 
 Private Function ExecuteQuery(xFldList As String[], xShowAll As Boolean) As Result
-  
+
   Dim sql As String
   Dim xcomp As String
   Dim xstr As String
   Dim xload As String
   Dim res As Result
-  
+
   If Not cmbcategory.Text Then
     cmbcategory.Text = "%"
   Endif
@@ -581,7 +581,7 @@ Private Function ExecuteQuery(xFldList As String[], xShowAll As Boolean) As Resu
   If Not cmbspecimen.Text Then
     cmbspecimen.Text = "%"
   Endif
-  
+
   If chkdate.Value = True Then
     If cmbcategory.Text = "%" Then
       If rbencounter.Value = True Then
@@ -636,7 +636,7 @@ Private Function ExecuteQuery(xFldList As String[], xShowAll As Boolean) As Resu
         Endif
       Endif
     Endif
-    
+
   Else
     If cmbcategory.Text = "%" Then
       If rbencounter.Value = True Then
@@ -691,27 +691,27 @@ Private Function ExecuteQuery(xFldList As String[], xShowAll As Boolean) As Resu
         Endif
       Endif
     Endif
-    
+
   Endif
-  
+
   Return res
-  
+
 End
 
 Private Sub FillLabtable()
-  
+
   Dim xFldList As String[]
-  
+
   If chkfreeview.Value = True Then
     xFldList = ["fldid", "fldsampleid", "fldtestid", "fldstatus", "fldsave_report", "fldid", "fldreportquali", "fldtime_sample", "flvisible", "fldsampletype", "fldmethod", "fldtest_type", "fldcondition", "fldcomment", "fldtime_sample", "fldtime_report", "fldtime_start", "fldreportquali"]
   Else
     xFldList = ["fldid", "fldsampleid", "fldtestid", "fldstatus", "fldsave_report", "fldid", "fldid", "fldtime_sample", "flvisible", "fldsampletype", "fldmethod", "fldtest_type", "fldcondition", "fldcomment", "fldtime_sample", "fldtime_report", "fldtime_start", "fldreportquali"]
   Endif
-  
+
   $rData = ExecuteQuery(xFldList, chkall.Value)
   $aMyFields = New String[]
   modGridView.ReadSmallData(TableView1, $rData, $aMyFields)
-  
+
   With TableView1
     .Columns[0].Hidden = True
     .Columns[1].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
@@ -731,7 +731,7 @@ Private Sub FillLabtable()
     .Columns[15].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
     .Columns[16].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
     .Columns[17].Hidden = True
-    
+
     .Columns[1].Text = "Sample"
     .Columns[2].Text = "Test Name"
     .Columns[6].Text = "Observation"
@@ -743,11 +743,11 @@ Private Sub FillLabtable()
     .Columns[16].Text = "Load Time"
   End With
   ' modGridView.SetLabReportIconwithLoad(TableView1, 3, 5, 16, 5)
-  
+
 End
 
 Public Sub TableView1_Data(Row As Integer, Column As Integer, Data As WebTableData)
-  
+
   $rData.MoveTo(Row)
   modGridView.GridViewDecoration(Data, Row)
   If Column = 6 Then
@@ -768,14 +768,14 @@ Public Sub TableView1_Data(Row As Integer, Column As Integer, Data As WebTableDa
   Else
     Data.Text = $rData[$aMyFields[Column]]
   Endif
-  
+
 End
 
 Private Function SetLabReportIconwithLoad(sID As Long) As String
-  
+
   Dim res As Result
   Dim xx As String
-  
+
   res = modDatabase.$myConn.Exec("select fldstatus,fldabnormal,fldtime_start from " & $tblpatlabtest & " where fldid=&1", sID)
   If res.Available Then
     If res["fldstatus"] = "Reported" Or If res["fldstatus"] = "Verified" Then
@@ -792,22 +792,22 @@ Private Function SetLabReportIconwithLoad(sID As Long) As String
           xx = "icons/false.svg"
         Endif
       Endif
-      
+
     Else If res["fldstatus"] = "Sampled" Then
       If res["fldtime_start"] Then
         xx = "icons/coll6.png"
       Else
         xx = "icons/null.svg"
       Endif
-      
+
     Endif
   Endif
   Return xx
-  
+
 End
 
 Public Sub btncomponents_Click()
-  
+
   Dim yqualival As Variant[]
   Dim hForm2 As FmLabQuantiVal
   Dim hForm3 As FmEnterMultiple
@@ -819,18 +819,18 @@ Public Sub btncomponents_Click()
   Dim xType As String
   Dim xdate As Date
   Dim xquali As String
-  
+
   Dim defstr As String
   Dim defVal As Float
   Dim xdeflt As String
-  
+
   If TableView1.Selection.Count Then
     $rData.MoveTo(TableView1.Selection[0])
     If $rData["fldtest_type"] = "Qualitative" Then
       xType = modFixLab.GetLabTestOptionType($rData["fldtestid"])
-      sql = "select fldid,fldsubtest,fldtanswertype,fldreport,fldabnormal,fldindex from " & $tblpatlabsubtest & " where fldtestid=&1"
+      sql = "select fldid,fldsubtest,fldtanswertype,fldreport,fldabnormal,fldindex from " & $tblpatlabsubtest & " where fldtestid=&1" & modLabSub.GetLabRepoOrder("SubTest")
       res = modDatabase.$myConn.Exec(sql, $rData["fldid"])
-      If res.Available = False Then 
+      If res.Available = False Then
         If xType = "Clinical Scale" Then
           yqualival = modExamOption.GetClinScalePopUp("Test", $rData["fldtestid"])
           If yqualival Then
@@ -880,7 +880,7 @@ Public Sub btncomponents_Click()
             modLabSub.UpdateLabTestReportQuali($rData["fldid"], yqualival[0], yqualival[1], yqualival[2], $tblpatlabtest)
           Endif
         Endif
-        
+
       Else If res.Available = True Then
         xData = New Variant[]
         For Each res
@@ -893,9 +893,9 @@ Public Sub btncomponents_Click()
         Else
           hForm3 = New FmEnterMultiple($rData["fldid"], "Test", $rData["fldtestid"], xData, $rData["fldsampletype"], cmbfiscal.Text)
           hForm3.ShowModal
-        Endif 
+        Endif
       Endif
-      
+
     Else If $rData["fldtest_type"] = "Quantitative" Then
       xunit = modLabSub.GetTestUnitFromButton(rbsi, rbmetric)
       defVal = modLabTest.GetTestQuantiValueLabID($encid, $rData["fldid"], xunit, $tblpatlabtest)
@@ -910,25 +910,25 @@ Public Sub btncomponents_Click()
       Endif
       hForm2 = New FmLabQuantiVal($rData["fldid"], $rData["fldtestid"], defVal, xunit, $rData["fldsampletype"], "", $tblpatlabtest)
       hForm2.ShowModal
-      
+
     Endif
-    
+
     FillLabtable()
   Endif
-  
+
 End
 
 Public Sub btnflag_Click()
-  
+
   Dim xx As String
   Dim res As Result
-  
+
   If TableView1.Selection.Count Then
     $rData.MoveTo(TableView1.Selection[0])
     If $rData["fldstatus"] = "Reported" Then
       xx = InputCombo("Select Flag for the observation", "Change Flag", ["Normal", "Abnormal"], modMisc.GetWebIconPath(SetLabReportIconwithLoad($rData["fldid"])), True)
       If xx Then
-        
+
         res = modDatabase.$myConn.Edit($tblpatlabtest, "fldid=&1", $rData["fldid"])
         If xx = "Abnormal" Then
           res["fldabnormal"] = True
@@ -938,19 +938,19 @@ Public Sub btnflag_Click()
         res["xyz"] = False
         res.Update
         FillLabtable()
-        
+
       Endif
     Endif
   Endif
-  
+
 End
 
 Public Sub btnvisible_Click()
-  
+
   Dim xopt As String[] = ["Visible", "Hidden"]
   Dim xx As String
   Dim res As Result
-  
+
   If TableView1.Selection.Count Then
     $rData.MoveTo(TableView1.Selection[0])
     xx = InputCombo("Set Visibility", $rData["fldtestid"], xopt, $rData["flvisible"], True)
@@ -962,13 +962,13 @@ Public Sub btnvisible_Click()
       FillLabtable()
     Endif
   Endif
-  
+
 End
 
 Public Sub btnspecimen_Click()
-  
+
   Dim xx As String
-  
+
   If TableView1.Selection.Count Then
     $rData.MoveTo(TableView1.Selection[0])
     If modBasic.$LabLockSpecimen = "No" Then
@@ -981,13 +981,13 @@ Public Sub btnspecimen_Click()
       FillLabtable()
     Endif
   Endif
-  
+
 End
 
 Public Sub btnmethod_Click()
-  
+
   Dim xx As String
-  
+
   If TableView1.Selection.Count Then
     $rData.MoveTo(TableView1.Selection[0])
     xx = InputCombo(("Select Test Method"), $rData["fldtestid"], modFixLab.MethodsForLabTest($rData["fldtestid"]), $rData["fldmethod"], True)
@@ -996,14 +996,14 @@ Public Sub btnmethod_Click()
       FillLabtable()
     Endif
   Endif
-  
+
 End
 
 Public Sub btncomponent_Click()
-  
+
   Dim xxx As String[]
   Dim yyy As String[]
-  
+
   If TableView1.Selection.Count Then
     $rData.MoveTo(TableView1.Selection[0])
     If modFixLab.GetLabTestOptionType($rData["fldtestid"]) = "Custom Components" Then
@@ -1014,13 +1014,13 @@ Public Sub btncomponent_Click()
       Endif
     Endif
   Endif
-  
+
 End
 
 Public Sub btncondi_Click()
-  
+
   Dim xx As String
-  
+
   If TableView1.Selection.Count Then
     $rData.MoveTo(TableView1.Selection[0])
     xx = GetTextArea(("Condition"), $rData["fldcondition"])
@@ -1029,14 +1029,14 @@ Public Sub btncondi_Click()
       FillLabtable()
     Endif
   Endif
-  
+
 End
 
 Public Sub btncomment_Click()
-  
+
   Dim xx As String
   Dim res As Result
-  
+
   If TableView1.Selection.Count Then
     $rData.MoveTo(TableView1.Selection[0])
     xx = GetTextArea($rData["fldtestid"], $rData["fldcomment"])
@@ -1048,37 +1048,37 @@ Public Sub btncomment_Click()
       FillLabtable()
     Endif
   Endif
-  
+
 End
 
 Public Sub btnimage_Click()
-  
+
   Dim hForm As FmTestImage
-  
+
   If TableView1.Selection.Count Then
     $rData.MoveTo(TableView1.Selection[0])
     hForm = New FmTestImage("IMAGE", $encid, $rData["fldid"], $rData["fldtestid"], "Laboratory", "")
     hForm.ShowModal
   Endif
-  
+
 End
 
 Public Sub btndicom_Click()
-  
+
   Dim hForm As FmTestImage
-  
+
   If TableView1.Selection.Count Then
     $rData.MoveTo(TableView1.Selection[0])
     hForm = New FmTestImage("DICOM", $encid, $rData["fldid"], $rData["fldtestid"], "Laboratory", "")
     hForm.ShowModal
   Endif
-  
+
 End
 
 Public Sub btnsms_Click()
-  
+
   Dim xmsg As String
-  
+
   If TableView1.Selection.Count Then
     $rData.MoveTo(TableView1.Selection[0])
     xmsg = modDevice.SendSMSLabPatient($encid, $rData["fldtestid"], modLabTest.GetLabTestValueString($rData["fldid"], modLabSub.GetTestUnitFromButton(rbsi, rbmetric), False, $encid, $tblpatlabtest))
@@ -1086,38 +1086,38 @@ Public Sub btnsms_Click()
   If xmsg Then
     Message.Info(xmsg, ("OK"))
   Endif
-  
+
 End
 
 ''-------------------------------------- button report -------------------------------------
 Public Sub btnreport_Click()
-  
+
   Dim hCls As CReportCustom
   Dim unt As String
-  
+
   If rbsi.Value = True Then
     unt = "SI"
   Else
     unt = "Metric"
   Endif
-  
+
   If $encid Then
     If modSettings.ShowSettingFromFIle("Diagnostic Help/Name") Then
       hCls = New CReportCustom($encid, "Diagnostic Help", "ReportSize", unt)
       hCls.Preview()
     Endif
   Endif
-  
+
 End
 
 Public Sub btnchartall_Click()
-  
+
   Dim sql As String
   Dim res As Result
   Dim xvalList As Float[]
   Dim xtitList As String[]
   Dim unt As String
-  
+
   If rbsi.Value = True Then
     unt = "SI"
   Else
@@ -1136,48 +1136,48 @@ Public Sub btnchartall_Click()
           xtitList.Add(modReportVar.GetDateTimeReport(res["fldtime_sample"], gb.MediumDate))
         Next
       Endif
-      
+
       If xvalList.Count Then
         modControlSub.OpenChartView("line", $rData["fldtestid"], xtitList, xvalList)
       Endif
-      
+
     Endif
   Endif
-  
+
 End
 
 Public Sub btnfullrep_Click()
-  
+
   If $encid Then
     modCHTMLReport.ExportGridToHTML(TableView1, "", "TEST REPORTING",, $encid)
   Endif
-  
+
 End
 
 ''------------------------- menu procedures -----------------------------------
 Public Sub btnrepoprint_Click()
-  
+
   Dim hForm As FmLabRepSettings
-  
+
   If txtencid.Text Then
     modGeneralMain.$LastEncounterID = Trim(txtencid.Text)
     Try Me.Parent.DeleteChildren()
     hForm = New FmLabRepSettings(modGeneralMain.$LastEncounterID, fmTechnician.Workspace1)
   Endif
-  
+
 End
 
 Public Sub btnhistory_Menu()
-  
+
   mnuhistory.Popup(btnhistory)
-  
+
 End
 
 Public Sub mnulocal_Click()
-  
+
   Dim xPath As String
   Dim xpatno As String
-  
+
   If txtencid.Text Then
     xpatno = $patNo
     If modPatientSub.GetPatPassCheck(modDatabase.$myConn, xpatno) = True Then
@@ -1185,19 +1185,19 @@ Public Sub mnulocal_Click()
       modControlSub.OpenHTMLPreview($encid, xPath, "ReportSize")
     Endif
   Endif
-  
+
 End
 
 Public Sub mnuremote_Click()
-  
+
   Dim xPath As String
   Dim xpatno As String
   Dim sCon As Connection
   Dim xCon As Connection
-  
+
   If txtencid.Text Then
     xpatno = $patNo
-    
+
     If modPatientSub.GetPatPassCheck(modDatabase.$myConn, xpatno) = True Then
       sCon = modDatabase.$myConn
       xCon = modDatabase.$syConn
@@ -1209,63 +1209,65 @@ Public Sub mnuremote_Click()
       modDatabase.$syConn = xCon
       MMain.InitialAppMode()
     Endif
-    
+
   Endif
-  
+
 End
 
 Public Sub btnmachine_Click()
-  
+
   Dim xList As String[]
-  
+
   xList = New String[]
   For Each $rData
     If xList.Exist($rData["fldsampleid"]) = False Then
       xList.Add($rData["fldsampleid"])
     Endif
   Next
-  
+
   If xList.Count Then
     modInterface.SyncInterfacingSelectedData(xList)
     FillLabtable()
     Me.Exec("Toastify({text: 'Information saved', duration: 3000}).showToast()")
   Endif
-  
+
 End
 
 Public Sub mnupdatesub_Click()
-  
-  Dim xxx As String[]
+
   Dim xType As String
-  
+  Dim resx As Result
+
   If TableView1.Selection.Count Then
     modDatabase.$myConn.Begin
     modDatabase.$myConn.Delete($tblpatlabsubtest, "fldtestid=&1", $rData["fldid"])
     xType = modFixLab.GetLabTestOptionType($rData["fldtestid"])
     If xType = "Fixed Components" Or If xType = "Left/Right Components" Then
-      xxx = modFixLab.GetSubTestArray($rData["fldtestid"])     'modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldsubtest) as col from tbltestquali where fldtestid=&1", GridView1[Row, 3].Text))
-      If xxx.Count Then
-        modLabSub.InsertLabSubTest($encid, $rData["fldid"], $rData["fldtestid"], xxx, $tblpatlabsubtest)
+      resx = modDatabase.$myConn.Exec("select fldsubtest,fldtanswertype,fldindex from tbltestquali where fldtestid=&1 GROUP BY fldsubtest", $rData["fldtestid"])
+      If resx.Available Then
+        For Each resx
+          modLabSub.InsertLabSubTestUnit($encid, $rData["fldid"], $rData["fldtestid"], resx["fldsubtest"], resx["fldtanswertype"], resx["fldindex"], $tblpatlabsubtest)
+        Next
       Endif
     Endif
     modDatabase.$myConn.Commit
   Endif
-  
+
 Catch
   modDatabase.$myConn.Rollback
   modHelpVariable.CreateErrorReport()
-  
+
 End
 
 ''-------------------- Group Data --------------------------
 Private Function GroupExecuteQuery(xFldList As String[]) As Result
-  
+
   Dim sql As String
   Dim xcomp As String
   Dim xstr As String
   Dim xload As String
   Dim res As Result
-  
+
   If Not cmbcategory.Text Then
     cmbcategory.Text = "%"
   Endif
@@ -1287,7 +1289,7 @@ Private Function GroupExecuteQuery(xFldList As String[]) As Result
   If Not cmbspecimen.Text Then
     cmbspecimen.Text = "%"
   Endif
-  
+
   If chkdate.Value = True Then
     If cmbcategory.Text = "%" Then
       If rbencounter.Value = True Then
@@ -1312,7 +1314,7 @@ Private Function GroupExecuteQuery(xFldList As String[]) As Result
         res = modDatabase.$myConn.Exec(sql, txtencid.Text, "Sampled", cmbcategory.Text, $encid, xcomp, modDate.StartSqlDate(dtselected.Value), modDate.EndSqlDate(DateAdd(dtselected.Value, gb.Day, txtdtrange.Value)), cmbspecimen.Text)
       Endif
     Endif
-    
+
   Else
     If cmbcategory.Text = "%" Then
       If rbencounter.Value = True Then
@@ -1337,37 +1339,37 @@ Private Function GroupExecuteQuery(xFldList As String[]) As Result
         res = modDatabase.$myConn.Exec(sql, txtencid.Text, "Sampled", cmbcategory.Text, $encid, xcomp, cmbspecimen.Text)
       Endif
     Endif
-    
+
   Endif
-  
+
   Return res
-  
+
 End
 
 ''-------------------- Group controls ---------------------
 Public Sub WebTabPanel1_Click()
-  
+
   If WebTabPanel1.Index = 1 Then
     LoadGroupQuery()
     ShowGroupControls()
   Else
     $groupForm = False
   Endif
-  
+
 End
 
 Private Sub LoadGroupQuery()
-  
+
   Dim xFldList As String[]
   Dim res As Result
-  
+
   If chkfreeview.Value = True Then
     xFldList = ["fldid", "fldsampleid", "fldtestid", "fldstatus", "fldsave_report", "fldabnormal", "fldreportquali", "fldtime_sample", "flvisible", "fldsampletype", "fldmethod", "fldtest_type", "fldcondition", "fldcomment", "fldtime_sample", "fldtime_report", "fldtime_start", "fldreportquali"]
   Else
     xFldList = ["fldid", "fldsampleid", "fldtestid", "fldstatus", "fldsave_report", "fldabnormal", "fldid", "fldtime_sample", "flvisible", "fldsampletype", "fldmethod", "fldtest_type", "fldcondition", "fldcomment", "fldtime_sample", "fldtime_report", "fldtime_start", "fldreportquali"]
   Endif
   res = GroupExecuteQuery(xFldList)
-  
+
   $xData = New Variant[]
   If res.Available Then
     For Each res
@@ -1378,30 +1380,30 @@ Private Sub LoadGroupQuery()
       Endif
     Next
   Endif
-  
+
 End
 
 Private Sub ShowGroupControls()
-  
+
   Frame1.DeleteChildren()
   LoadFormData()
-  
+
 End
 
 Private Sub LoadFormData()
-  
+
   Dim i As Integer
-  
+
   For i = 0 To $xData.Count - 1
     If i < 49 Then
-      
+
       aMainFrame[i] = New WebContainer(Frame1)
       aWebFrame[i] = New WebHBox(aMainFrame[i])
       aIndexLabel[i] = New WebValueBox(aWebFrame[i]) As "IndexLabel"
       ' aSpecLabel[i] = New TextLabel(aWebFrame[i]) As "SpecimenLabel"
       aNameLabel[i] = New WebHtml(aWebFrame[i]) As "NameLabel"
       aAbnormCheck[i] = New WebCheckBox(aWebFrame[i]) As "CheckBoxgroup"
-      
+
       aWebPanel[i] = New WebHBox(aMainFrame[i])
       If $xData[i][3] = "Quantitative" Then
         aQuantiBox[i] = New WebValueBox(aWebPanel[i]) As "QuantiGroup"
@@ -1438,32 +1440,32 @@ Private Sub LoadFormData()
         End Select
         aQuantiUnit[i] = New WebLabel(aWebPanel[i])
       Endif
-      
+
     Endif
   Next
   DIsplayTextForm()
-  
+
 End
 
 Private Sub DIsplayTextForm()
-  
+
   Dim i As Integer
   Dim xlimit As Float[]
-  
+
   Dim xType As String
   Dim defstr As String
-  
+
   For i = 0 To $xData.Count - 1
     If i < 49 Then
-      
+
       With aMainFrame[i]
         .Arrangement = Arrange.Row
       End With
-      
+
       With aWebFrame[i]
         .Class = "size-tablet less-container-margin"
       End With
-      
+
       ''create index label
       With aIndexLabel[i]
         .Width = "2em"
@@ -1472,7 +1474,7 @@ Private Sub DIsplayTextForm()
         .Visible = False
         .Tag = i
       End With
-      
+
       ' ''create specimen
       ' With aSpecLabel[i]
       '   .X = (5 + 5) * AppFactor
@@ -1483,7 +1485,7 @@ Private Sub DIsplayTextForm()
       '   .Tag = i
       '   .Wrap = True
       ' End With
-      
+
       ''create Name Label
       With aNameLabel[i]
         .Expand = True
@@ -1491,11 +1493,11 @@ Private Sub DIsplayTextForm()
         .Text = "<p>" & $xData[i][1] & "</p>"
         .Tag = i
       End With
-      
+
       With aWebPanel[i]
         .Class = "size-tablet less-container-margin"
       End With
-      
+
       If $xData[i][3] = "Quantitative" Then
         xlimit = modLabTest.GetTestBothLimits($xData[i][0], modLabSub.GetTestUnitFromButton(rbsi, rbmetric))
         ''create abnormal checkbox
@@ -1506,7 +1508,7 @@ Private Sub DIsplayTextForm()
           .Enabled = False
           .Tag = i
         End With
-        
+
         ''create observation entry
         With aQuantiBox[i]
           .Expand = True
@@ -1552,7 +1554,7 @@ Private Sub DIsplayTextForm()
             End With
           Endif
         Endif
-        
+
       Else
         ''create abnormal checkbox
         With aAbnormCheck[i]
@@ -1561,7 +1563,7 @@ Private Sub DIsplayTextForm()
           .Text = "Abn"
           .Tag = i
         End With
-        
+
         ''create observation entry
         If $xData[i][4] = "Single Selection" Then
           With aComboBox[i]
@@ -1572,7 +1574,7 @@ Private Sub DIsplayTextForm()
             .Text = ""
             .Tag = i
           End With
-          
+
         Else If $xData[i][4] = "Dichotomous" Then
           With aDichoValue[i]
             .Expand = True
@@ -1580,14 +1582,14 @@ Private Sub DIsplayTextForm()
             .List = modAllExam.SelectExamOptionList("Test", $xData[i][1], $xData[i][4])
             .Tag = i
           End With
-          
+
         Else If $xData[i][4] = "Left and Right" Then
           With aLeftRight[i]
             .Expand = True
             .Height = CStr(2 * Slider1.Value) & "em"
             .Tag = i
           End With
-          
+
         Else If $xData[i][4] = "Date Time" Then
           With aDateBox[i]
             .Width = "12em"
@@ -1601,7 +1603,7 @@ Private Sub DIsplayTextForm()
             .Image = "icon:/small/calendar"
             .Tag = i
           End With
-          
+
         Else If $xData[i][4] = "BS Date" Then
           With aDateBox[i]
             .Width = "12em"
@@ -1615,7 +1617,7 @@ Private Sub DIsplayTextForm()
             .Image = "icon:/small/calendar"
             .Tag = i
           End With
-          
+
         Else If $xData[i][4] = "Quantitative" Then
           With aValueBox[i]
             .Expand = True
@@ -1627,7 +1629,7 @@ Private Sub DIsplayTextForm()
             .Height = "2em"
             .Tag = i
           End With
-          
+
         Else If $xData[i][4] = "ImageValue" Then
           With aButtonBox[i]
             .Expand = True
@@ -1635,14 +1637,14 @@ Private Sub DIsplayTextForm()
             .Text = ""
             .Tag = i
           End With
-          
+
         Else If $xData[i][4] = "Qualitative" Then
           With aLineText[i]
             .Expand = True
             .Height = "2em"
             .Tag = i
           End With
-          
+
         Else If $xData[i][4] = "RichText Area" Then
           With aHTMLText[i]
             .Expand = True
@@ -1650,7 +1652,7 @@ Private Sub DIsplayTextForm()
             ' .DictionaryPath = modBasic.$dictPathList
             .Tag = i
           End With
-          
+
         Else If $xData[i][4] = "Fixed Components" Then
           With aBlanTextBox[i]
             .Expand = True
@@ -1663,7 +1665,7 @@ Private Sub DIsplayTextForm()
             .Image = "icon:/small/attach"
             .Tag = i
           End With
-          
+
         Else If $xData[i][4] = "Left/Right Components" Then
           With aBlanTextBox[i]
             .Expand = True
@@ -1676,7 +1678,7 @@ Private Sub DIsplayTextForm()
             .Image = "icon:/small/attach"
             .Tag = i
           End With
-          
+
         Else If $xData[i][4] = "No Selection" Then
           With aGenTextArea[i]
             .Expand = True
@@ -1684,7 +1686,7 @@ Private Sub DIsplayTextForm()
             .Wrap = True
             .Tag = i
           End With
-          
+
         Endif
         With aQuantiUnit[i]
           .Width = "4em"
@@ -1692,18 +1694,18 @@ Private Sub DIsplayTextForm()
           .Border = True
           .Tag = i
         End With
-        
+
       Endif
-      
+
     Endif
   Next
-  
+
   $groupForm = True
-  
+
 End
 
 Public Sub FixButtonGroup_Click()
-  
+
   Dim j As Integer
   Dim sql As String
   Dim res As Result
@@ -1711,10 +1713,10 @@ Public Sub FixButtonGroup_Click()
   Dim hForm3 As FmEnterMultiple
   Dim hFormTwo As FmEnterMultipleTwo
   Dim xType As String
-  
-  If $groupForm = True Then 
+
+  If $groupForm = True Then
     j = Last.Tag
-    xType = modFixLab.GetLabTestOptionType($xData[j][1]) 
+    xType = modFixLab.GetLabTestOptionType($xData[j][1])
     sql = "select fldid,fldsubtest,fldtanswertype,fldreport,fldabnormal,fldindex from " & $tblpatlabsubtest & " where fldtestid=&1"
     res = modDatabase.$myConn.Exec(sql, $xData[j][0])
     If res.Available = True Then
@@ -1723,41 +1725,41 @@ Public Sub FixButtonGroup_Click()
         aData.Add([res["fldsubtest"], res["fldreport"], res["fldid"], res["fldtanswertype"], res["fldabnormal"], res["fldindex"]])
       Next
       aData.Add(["Final Impression", "", 0, "RichText Area", False, ""])
-      If xType = "Left/Right Components" Then 
+      If xType = "Left/Right Components" Then
         hFormTwo = New FmEnterMultipleTwo($xData[j][0], "Test", $xData[j][1], aData, "", cmbfiscal.Text)
         hFormTwo.ShowModal
       Else
         hForm3 = New FmEnterMultiple($xData[j][0], "Test", $xData[j][1], aData, "", cmbfiscal.Text)
         hForm3.ShowModal
-      Endif 
+      Endif
     Endif
   Endif
-  
+
 End
 
 Public Sub btncntrlrefresh_Click()
-  
+
   modSettings.SaveSettingsToFile("MultipleTextBox/Height", Slider1.Value)
   Frame1.DeleteChildren()
   If TableView1.Count Then
     LoadFormData()
   Endif
-  
+
 End
 
 Public Sub btnBrOK_Click()
-  
+
   If $xData And If $xData.Count Then
     FillGenExams()
     Me.Exec("Toastify({text: 'Information saved', duration: 3000}).showToast()")
   Endif
-  
+
 End
 
 Private Sub FillGenExams()
-  
+
   Dim i As Integer
-  
+
   For i = 0 To $xData.Count - 1
     If i < 49 Then
       If $xData[i][3] = "Quantitative" Then
@@ -1791,7 +1793,7 @@ Private Sub FillGenExams()
           Endif
         Else If $xData[i][4] = "ImageValue" Then
           If aButtonBox.Text Then
-            
+
           Endif
         Else If $xData[i][4] = "Qualitative" Then
           If aLineText[i].Text Then
@@ -1809,20 +1811,20 @@ Private Sub FillGenExams()
       Endif
     Endif
   Next
-  
+
 End
 
 Public Sub btnfill_Click()
-  
+
   Dim i As Integer
   Dim res As Result
-  
+
   If $xData And If $xData.Count Then
     For i = 0 To $xData.Count - 1
       If i < 49 Then
         res = modDatabase.$myConn.Exec("select flddetail from tbltest where fldtestid=&1", $xData[i][1])
         If res.Available Then
-          
+
           If $xData[i][4] = "Single Selection" Then
             If Not aComboBox[i].Text Then
               aComboBox[i].Text = res["flddetail"]
@@ -1844,19 +1846,19 @@ Public Sub btnfill_Click()
               aLineText[i].Text = res["flddetail"]
             Endif
           Endif
-          
+
         Endif
       Endif
     Next
-    
+
   Endif
-  
+
 End
 
 Public Sub QuantiGroup_Change()
-  
+
   Dim j As Integer
-  
+
   j = Last.Tag
   If aQuantiBox[j].Value Then
     If aQuantiMin[j].Value <> aQuantiMax[j].Value Then
@@ -1871,43 +1873,43 @@ Public Sub QuantiGroup_Change()
   Else
     aAbnormCheck[j].Value = False
   Endif
-  
+
   If aAbnormCheck[j].Value = True Then
     aAbnormCheck[j].Foreground = Color.Red
   Else
     aAbnormCheck[j].Foreground = Color.Default
   Endif
-  
+
 End
 
 Public Sub ComboGroup_Click()
-  
+
   Dim j As Integer
-  
+
   If $groupForm = True Then
     j = Last.Tag
     If aComboBox[j].Text Then
       SetQualitativeAbnormal(j)
     Endif
   Endif
-  
+
 End
 
 Public Sub DichoText_Click()
-  
+
   Dim j As Integer
-  
+
   j = Last.Tag
   SetQualitativeAbnormal(j)
-  
+
 End
 
 Public Sub CalcButton_Click()
-  
+
   Dim j As Integer
   Dim xsyscon As String
   Dim xval As Float
-  
+
   If $groupForm = True Then
     j = Last.Tag
     If rbmetric.Value = True Then
@@ -1920,11 +1922,11 @@ Public Sub CalcButton_Click()
       Endif
     Endif
   Endif
-  
+
 End
 
 Private Sub SetQualitativeAbnormal(i As Integer)
-  
+
   If $xData[i][4] = "Single Selection" Then
     If aComboBox[i].Text Then
       aAbnormCheck[i].Value = modAllExam.SelectExamAbnormal("Test", $xData[i][1], aComboBox[i].Text, $xData[i][4])
@@ -1946,5 +1948,5 @@ Private Sub SetQualitativeAbnormal(i As Integer)
       aAbnormCheck[i].Value = modAllExam.SelectExamAbnormal("Test", $xData[i][1], aGenTextArea[i].Text, $xData[i][4])
     Endif
   Endif
-  
+
 End
