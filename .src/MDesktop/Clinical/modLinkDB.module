@@ -29,6 +29,7 @@ Private $PatDiary As String
 Private $PatComment As String
 Private $PatAge As String
 Private $PatDOB As String
+Private $PatEncryption As String
 
 Private $EncTable As String
 Private $EncID As String
@@ -47,6 +48,8 @@ Private $EncConsult As String
 Private $EncVisitType As String
 Private $EncDiscLimit As String
 Private $EncValidity As String
+Private $EncAdmission As String
+Private $encDischarge As String
 
 'Load Variables
 Public Sub LoadExtraDBSettings()
@@ -95,6 +98,7 @@ Public Sub LoadExtraDBSettings()
   $PatComment = modSettings.ShowExtSettingFromFIle("PatientTable/Comment")
   $PatAge = modSettings.ShowExtSettingFromFIle("PatientTable/Age")
   $PatDOB = modSettings.ShowExtSettingFromFIle("PatientTable/DOB")
+  $PatEncryption = modSettings.ShowExtSettingFromFIle("PatientTable/Encryption")
 
   $EncTable = modSettings.ShowExtSettingFromFIle("EncounterTable/TableName")
   $EncID = modSettings.ShowExtSettingFromFIle("EncounterTable/EncounterID")
@@ -113,6 +117,8 @@ Public Sub LoadExtraDBSettings()
   $EncVisitType = modSettings.ShowExtSettingFromFIle("EncounterTable/VisitType")
   $EncDiscLimit = modSettings.ShowExtSettingFromFIle("EncounterTable/DiscLimit")
   $EncValidity = modSettings.ShowExtSettingFromFIle("EncounterTable/Validity")
+  $EncAdmission = modSettings.ShowExtSettingFromFIle("EncounterTable/AdmissionDate")
+  $encDischarge = modSettings.ShowExtSettingFromFIle("EncounterTable/DischargeDate")
 
 End
 
@@ -158,6 +164,7 @@ Public Sub CheckPatientDataRemote(ptno As String)
           AddPatientData(ptno)
         Endif
       Endif
+
     Endif
 
   Endif
@@ -258,8 +265,10 @@ Private Sub AddPatientData(patientno As String)
             Try res["fldptbirday"] = DateAdd(Now(), gb.Year, 0 - Val(xcoll[$PatAge]))
           Endif
         Endif
+        If $PatEncryption Then
+          res["fldencrypt"] = CBool(xcoll[$PatEncryption])
+        Endif
         res["fldptadmindate"] = Now()
-        res["fldencrypt"] = False
         res["xyz"] = False
         res.Update()
 
@@ -328,8 +337,10 @@ Private Sub AddPatientData(patientno As String)
           Try res["fldptbirday"] = DateAdd(Now(), gb.Year, 0 - Val(yColl[$PatAge]))
         Endif
       Endif
+      If $PatEncryption Then
+        res["fldencrypt"] = CBool(yColl[0][$PatEncryption])
+      Endif
       res["fldptadmindate"] = Now()
-      res["fldencrypt"] = False
       res["xyz"] = False
       res.Update()
 
@@ -396,8 +407,10 @@ Private Sub AddPatientData(patientno As String)
         Try res["fldptbirday"] = DateAdd(Now(), gb.Year, 0 - Val(GetRemoteFoeldPatient($PatAge, patientno)))
       Endif
     Endif
+    If $PatEncryption Then
+      res["fldencrypt"] = CBool(GetRemoteFoeldPatient($PatEncryption, patientno))
+    Endif
     res["fldptadmindate"] = Now()
-    res["fldencrypt"] = False
     res["xyz"] = False
     res.Update()
 
@@ -461,8 +474,10 @@ Private Sub AddPatientData(patientno As String)
           Try res["fldptbirday"] = DateAdd(Now(), gb.Year, 0 - Val(res1[$PatAge]))
         Endif
       Endif
+      If $PatEncryption Then
+        res["fldencrypt"] = CBool(res1[$PatEncryption])
+      Endif
       res["fldptadmindate"] = Now()
-      res["fldencrypt"] = False
       res["xyz"] = False
       res.Update()
 
@@ -585,9 +600,12 @@ Private Sub AddEncounterData(encounterid As String)
         If $EncLocation Then
           res["fldcurrlocat"] = Trim(xcoll[$EncLocation])
         Endif
-        res["flddoa"] = ""
-        res["flddod"] = ""
-        res["fldheight"] = ""
+        If $EncAdmission Then
+          res["flddoa"] = Val(xcoll[$EncAdmission])
+        Endif
+        If $encDischarge Then
+          res["flddod"] = Val(xcoll[$encDischarge])
+        Endif
         If $EncDeposit Then
           res["fldcashdeposit"] = CFloat(xcoll[$EncDeposit])
         Endif
@@ -647,9 +665,12 @@ Private Sub AddEncounterData(encounterid As String)
     If $EncLocation Then
       res["fldcurrlocat"] = Trim(GetRemoteFieldEncounter($EncLocation, encounterid))
     Endif
-    res["flddoa"] = ""
-    res["flddod"] = ""
-    res["fldheight"] = ""
+    If $EncAdmission Then
+      res["flddoa"] = Val(GetRemoteFieldEncounter($EncAdmission, encounterid))
+    Endif
+    If $encDischarge Then
+      res["flddod"] = Val(GetRemoteFieldEncounter($encDischarge, encounterid))
+    Endif
     If $EncDeposit Then
       res["fldcashdeposit"] = CFloat(GetRemoteFieldEncounter($EncDeposit, encounterid))
     Endif
@@ -711,9 +732,12 @@ Private Sub AddEncounterData(encounterid As String)
         If $EncLocation Then
           res["fldcurrlocat"] = Trim(res2[$EncLocation])
         Endif
-        res["flddoa"] = ""
-        res["flddod"] = ""
-        res["fldheight"] = ""
+        If $EncAdmission Then
+          res["flddoa"] = CDate(res2[$EncAdmission])
+        Endif
+        If $encDischarge Then
+          res["flddod"] = CDate(res2[$encDischarge])
+        Endif
         If $EncDeposit Then
           res["fldcashdeposit"] = CFloat(res2[$EncDeposit])
         Endif
@@ -813,7 +837,6 @@ Public Sub PatDataTransferMSSQL()
     AddEncounterData(Trim(sLine))
   Next
   hFile.Close()
-
   Message.Info(("Data Transfer completed"), ("OK"))
 
 End
@@ -831,7 +854,7 @@ Public Sub PatDataTransferSQL()
   res = $remoConn.Exec(sql)
   If res.Available Then
     For Each res
-      AddEncounterData(Trim(res!encid))
+      AddEncounterData(Trim(res["encid"]))
     Next
     Message.Info(("Data Transfer completed"), ("OK"))
   Endif

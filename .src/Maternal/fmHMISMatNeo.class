@@ -1,5 +1,7 @@
 ' Gambas class file
 
+Private $xPath As String
+
 Public Sub _new()
 
   Me.AddHeader("<meta name='viewport' content='width=device-width, initial-scale=1'>")
@@ -79,6 +81,8 @@ Public Sub WebForm_Open()
   modBasic.LoadLargeLists()
 
   If MMain.$WebReport = "Multiple" Then
+    mnupdates.Visible = True
+
     If modBasic.$SuperUser = True Then
       modBasic.$HospCode = ""
       lblocation.Visible = False
@@ -659,13 +663,104 @@ End
 Public Sub mnuchangecode_Click()
 
   Dim xPass As String
-  Dim hForm As FmTeleMedList
 
   xPass = InputPassword("Provide Root Password", "Verification", "")
   If modPassword.GetSuperVerification(modBasic.$lbluser, xPass) = True Then
     fmConvertCode.ShowModal
   Else
     Message.Info("Incorrect Root Password", ("OK"))
+  Endif
+
+End
+
+Public Sub mnulinkdb_Click()
+
+  Dim xPass As String
+
+  xPass = InputPassword("Provide Root Password", "Verification", "")
+  If modPassword.GetSuperVerification(modBasic.$lbluser, xPass) = True Then
+    fmExtraData.ShowModal
+  Else
+    Message.Info("Incorrect Root Password", ("OK"))
+  Endif
+
+End
+
+Public Sub mnutransfer_Click()
+
+  Dim $remoConn As Connection
+  Dim xservice As String
+  Dim xserver As String
+  Dim xdatabase As String
+  Dim xuser As String
+  Dim xpass As String
+
+  Dim hospLst As String[]
+  Dim xhosp As String
+  Dim tabLst As String[]
+  Dim sTable As String
+  Dim res As Result
+  Dim rex As Result
+  Dim resFld As ResultField
+
+  If Message.Question("Do you want to transfer data to Remote Server ?", ("No"), ("Yes")) = 2 Then
+    xservice = modSettings.ShowExtSettingFromFIle("Database/Service")
+    xserver = modSettings.ShowExtSettingFromFIle("Database/Server")
+    xdatabase = modSettings.ShowExtSettingFromFIle("Database/DB")
+    xuser = modSettings.ShowExtSettingFromFIle("Database/User")
+    xpass = modPassword.DecryptSimple(modSettings.ShowExtSettingFromFIle("Database/Password"))
+    If xservice = "mysql" Then
+      $remoConn = modDBApp.OpenConnection(xservice, xserver, xdatabase, xuser, xpass)
+      If $remoConn.Opened = True Then
+
+        hospLst = modControlSub.GetDirectFillresultNoNull(modDatabase.$myConn.Exec("select fldhospcode as col from tblhospitals where fldcategory=&1", "DMNR"))
+        tabLst = modDBApp.DBRegularTablesSelField(modDatabase.$myConn, ["fldencounterval", "fldhospcode", "xyz"])
+        tabLst.Add("tblpatientinfo")
+
+        For Each sTable In tabLst
+          For Each xhosp In hospLst
+            rex = modDatabase.$myConn.Edit(sTable, "fldhospcode=&1 and xyz=&2", xhosp, False)
+            If rex.Available Then
+              For Each rex
+
+                res = $remoConn.Create(sTable)
+                For Each resFld In rex.Fields
+                  res[resFld.Name] = rex[resFld.Name]
+                Next
+                Try res.Update
+
+                rex["xyz"] = True
+                rex.Update
+
+              Next
+            Endif
+          Next
+        Next
+
+        $remoConn.Close()
+      Endif
+    Endif
+  Endif
+
+End
+
+Public Sub mnubackup_Click()
+
+  Dim aPath As String
+
+  Message.Info(("Executing Request ...."), ("OK"))
+  aPath = modDatabase.BackUpCurrentDB()
+  If aPath Then
+    $xPath = modPrint.GetFileWebURL(aPath)
+    Me.Exec("window.open('" & $xPath & "'); ")
+  Endif
+
+End
+
+Public Sub mnusyncpatient_Click()
+
+  If Message.Question("Do you want to synchronize patient data ?", ("No"), ("Yes")) = 2 Then
+    modRepoSync.SyncPatientDemographicDB()
   Endif
 
 End

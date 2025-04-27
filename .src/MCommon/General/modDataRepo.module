@@ -245,37 +245,40 @@ Public Function GetHospitalTextLabel(sCode As String) As String
 
 End
 
-Public Function GetRepoValueListType(sType As String, Optional sLocaType As String, Optional sLocation As String) As String[]
+Public Function GetRepoValueListType(sType As String, Optional sCateg As String, Optional sLocaType As String, Optional sLocation As String) As String[]
 
   Dim xxx As String[]
   Dim astr As String
+  Dim xcateg As String
+
+  If sCateg Then
+    xcateg = sCateg
+  Else
+    xcateg = "Hospital"
+  Endif
 
   If sLocation Then
-    If sLocaType = "Category" Then
-      astr = db.Subst(" where fldcategory like &1", sLocation)
-    Else If sLocaType = "District" Then
-      astr = db.Subst(" where flddistrict like &1", sLocation)
+    If sLocaType = "District" Then
+      astr = db.Subst(" and flddistrict like &1", sLocation)
     Else If sLocaType = "Province" Then
-      astr = db.Subst(" where fldprovince like &1", sLocation)
+      astr = db.Subst(" and fldprovince like &1", sLocation)
     Else If sLocaType = "Municipality" Then
-      astr = db.Subst(" where fldpality like &1", sLocation)
+      astr = db.Subst(" and fldpality like &1", sLocation)
     Else
-      astr = db.Subst(" where fldhospcode like &1", sLocation)
+      astr = db.Subst(" and fldhospcode like &1", sLocation)
     Endif
   Else
     astr = ""
   Endif
 
-  If sType = "Category" Then
-    xxx = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec("select distinct(fldcategory) as col from tblhospitals" & astr))
-  Else If sType = "District" Then
-    xxx = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec("select distinct(flddistrict) as col from tblhospitals" & astr))
+  If sType = "District" Then
+    xxx = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec("select distinct(flddistrict) as col from tblhospitals where fldcategory like &1" & astr, xcateg))
   Else If sType = "Province" Then
-    xxx = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec("select distinct(fldprovince) as col from tblhospitals" & astr))
+    xxx = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec("select distinct(fldprovince) as col from tblhospitals where fldcategory like &1" & astr, xcateg))
   Else If sType = "Municipality" Then
-    xxx = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec("select distinct(fldpality) as col from tblhospitals" & astr))
+    xxx = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec("select distinct(fldpality) as col from tblhospitals where fldcategory like &1" & astr, xcateg))
   Else
-    xxx = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec("select fldhospcode as col from tblhospitals" & astr))
+    xxx = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec("select fldhospcode as col from tblhospitals where fldcategory like &1" & astr, xcateg))
   Endif
   Return xxx
 
@@ -315,17 +318,22 @@ Public Function GetRepoValueTableForCSV(sCategory As String, sValue As String) A
 
 End
 
-Public Function GetRepoValueListSelectedType(sType As String, sValue As String, Optional sLocaType As String, Optional sLocation As String) As String[]
+Public Function GetRepoValueListSelectedType(sType As String, sValue As String, sCateg As String, Optional sLocaType As String, Optional sLocation As String) As String[]
 
   Dim xxx As String[]
   Dim sql As String
   Dim xstr As String
   Dim astr As String
+  Dim xcateg As String
+
+  If sCateg Then
+    xcateg = sCateg
+  Else
+    xcateg = "Hospital"
+  Endif
 
   If sLocation Then
-    If sLocaType = "Category" Then
-      astr = db.Subst(" and fldcategory like &1", sLocation)
-    Else If sLocaType = "District" Then
+    If sLocaType = "District" Then
       astr = db.Subst(" and flddistrict like &1", sLocation)
     Else If sLocaType = "Province" Then
       astr = db.Subst(" and fldprovince like &1", sLocation)
@@ -338,33 +346,28 @@ Public Function GetRepoValueListSelectedType(sType As String, sValue As String, 
     astr = ""
   Endif
 
-  If modDataRepo.$RepositoryMode = "Category" Then
-    xstr = "fldcategory"
-  Else If modDataRepo.$RepositoryMode = "District" Then
-    xstr = "flddistrict"
+  If modDataRepo.$RepositoryMode = "District" Then
+    xstr = db.Subst(" and flddistrict like &1", sValue)
   Else If modDataRepo.$RepositoryMode = "Province" Then
-    xstr = "fldprovince"
+    xstr = db.Subst(" and fldprovince like &1", sValue)
   Else If modDataRepo.$RepositoryMode = "Municipality" Then
-    xstr = "fldpality"
+    xstr = db.Subst(" and fldpality like &1", sValue)
   Else
-    xstr = "fldhospcode"
+    xstr = db.Subst(" and fldhospcode like &1", sValue)
   Endif
 
-  If sType = "Category" Then
-    sql = Subst("select distinct(fldcategory) as col from tblhospitals where &1 like ", xstr) & "&1" & astr
-    xxx = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec(sql, sValue))
-  Else If sType = "District" Then
-    sql = Subst("select distinct(flddistrict) as col from tblhospitals where &1 like ", xstr) & "&1" & astr
-    xxx = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec(sql, sValue))
+  If sType = "District" Then
+    sql = "select distinct(flddistrict) as col from tblhospitals where fldcategory like &1" & xstr & astr
+    xxx = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec(sql, xcateg))
   Else If sType = "Province" Then
-    sql = Subst("select distinct(fldprovince) as col from tblhospitals where &1 like ", xstr) & "&1" & astr
-    xxx = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec(sql, sValue))
+    sql = "select distinct(fldprovince) as col from tblhospitals where fldcategory like &1" & xstr & astr
+    xxx = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec(sql, xcateg))
   Else If sType = "Municipality" Then
-    sql = Subst("select distinct(fldpality) as col from tblhospitals where &1 like ", xstr) & "&1" & astr
-    xxx = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec(sql, sValue))
+    sql = "select distinct(fldpality) as col from tblhospitals where fldcategory like &1" & xstr & astr
+    xxx = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec(sql, xcateg))
   Else
-    sql = Subst("select fldhospcode as col from tblhospitals where &1 like ", xstr) & "&1" & astr
-    xxx = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec(sql, sValue))
+    sql = "select fldhospcode as col from tblhospitals where fldcategory like &1" & xstr & astr
+    xxx = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec(sql, xcateg))
   Endif
   Return xxx
 
