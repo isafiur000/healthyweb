@@ -47,7 +47,7 @@ Public Function PurchaseEntryReport(ReferenceNo As String, txtcategory As String
   Dim RepoStr As String
 
   RepoStr = modDataRepo.GetRepoLastStr()
-  $BillingReport = New CReportHTML([("SNO"), ("PARTICULARS"), ("PACK"), ("BATCH"), ("EXPIRY"), ("RATE"), ("FREE"), ("QTY"), ("NETRATE"), ("TAX"), ("TOTAL")], "PurchaseReport", "")
+  $BillingReport = New CReportHTML([("SNO"), ("PARTICULARS"), ("PACK"), ("BATCH"), ("EXPIRY"), ("MRP"), ("RATE"), ("FREE"), ("QTY"), ("NETRATE"), ("TAX"), ("TOTAL")], "PurchaseReport", "")
 
   sql1 = "select fldsuppname,fldpurtype,fldbillno,flddebit,fldcredit,fldtotaltax,fldlastdisc,fldadjust,fldpurdate,fldreference,flduserid,fldtime,fldpurorder from tblpurchasebill where fldreference=&1 and fldcategory=&2" & RepoStr                           '''''''
   rs = modDatabase.$syConn.Exec(sql1, ReferenceNo, txtcategory)
@@ -86,7 +86,7 @@ Public Function PurchaseEntryReport(ReferenceNo As String, txtcategory As String
       xadjs = rs["fldadjust"]
     Endif
 
-    sql2 = "select fldid,fldpurtype,fldpurdate,fldbillno,fldsuppname,fldcategory,fldstockid,fldstockno,flsuppcost,fldtotalqty,fldnetcost,fldtaxamt,fldqtybonus,fldtotalcost,fldcomment,flduserid from tblpurchase where fldreference=&1" & RepoStr                                                      ''
+    sql2 = "select fldid,fldpurtype,fldpurdate,fldbillno,fldsuppname,fldcategory,fldstockid,fldstockno,fldmrp,flsuppcost,fldtotalqty,fldnetcost,fldtaxamt,fldqtybonus,fldtotalcost,fldcomment,flduserid from tblpurchase where fldreference=&1" & RepoStr                                                      ''
     res = modDatabase.$syConn.Exec(sql2, ReferenceNo)                                                                                       ''
 
     xtot = 0
@@ -112,6 +112,11 @@ Public Function PurchaseEntryReport(ReferenceNo As String, txtcategory As String
         Endif
         .Add(modStock.GetBatchFromStockNo(res["fldstockno"]))
         .Add(modReportVar.GetDateTimeReport(modStock.GetExpiryFromStockNo(res["fldstockno"]), gb.MediumDate))
+        If res["fldmrp"] Then
+          .Add(res["fldmrp"])
+        Else
+          .Add("")
+        Endif
         .Add(modReportVar.GetLocaleNumberFormat(res["flsuppcost"], gb.Currency))
         If res["fldqtybonus"] Then
           .Add(modReportVar.GetLocaleNumberFormat(res["fldqtybonus"], -2))
@@ -143,6 +148,7 @@ Public Function PurchaseEntryReport(ReferenceNo As String, txtcategory As String
       .Add("")
       .Add("")
       .Add("")
+      .Add("")
       .Add(modReportVar.GetLocaleNumberFormat(modNonMedical.GetRoundupAccToSetting(xtot), gb.Currency))
     End With
     $BillingReport.Add(asx)
@@ -151,6 +157,7 @@ Public Function PurchaseEntryReport(ReferenceNo As String, txtcategory As String
     With asx
       .Add("")
       .Add("EXTRA CHARGE/DISCOUNT")
+      .Add("")
       .Add("")
       .Add("")
       .Add("")
@@ -175,6 +182,7 @@ Public Function PurchaseEntryReport(ReferenceNo As String, txtcategory As String
       .Add("")
       .Add("")
       .Add("")
+      .Add("")
       .Add(modReportVar.GetLocaleNumberFormat(xtax, gb.Currency))
     End With
     $BillingReport.Add(asx)
@@ -183,6 +191,7 @@ Public Function PurchaseEntryReport(ReferenceNo As String, txtcategory As String
     With asx
       .Add("")
       .Add("ROUNDING")
+      .Add("")
       .Add("")
       .Add("")
       .Add("")
@@ -201,6 +210,7 @@ Public Function PurchaseEntryReport(ReferenceNo As String, txtcategory As String
     With asx
       .Add("")
       .Add("<b>GRAND TOTAL</b>")
+      .Add("")
       .Add("")
       .Add("")
       .Add("")
