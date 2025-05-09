@@ -675,8 +675,7 @@ End
 
 Public Sub btnblankform_Click()
 
-  Me.Parent.DeleteChildren()
-  modGeneralMain.LoadStructuredForm($Category, $sDepart)
+  Me.Close()
 
 End
 
@@ -699,7 +698,7 @@ End
 ' End
 
 ''--------------------Populate Tree View -------------------------------
-Private Sub FillClinicalTree(TreeView1 As WebTree, xSubClass As String, xCategory As String, sDepart As String)
+Private Sub FillClinicalTree(TreeView1 As WebTree, xSubClass As String, xCategory As String, sDepart As String, LeftRight As Boolean)
 
   Dim str3 As String
   Dim str4 As String
@@ -719,15 +718,23 @@ Private Sub FillClinicalTree(TreeView1 As WebTree, xSubClass As String, xCategor
   ref = $reference
   TreeView1.Clear
 
-  str3 = "select distinct(flditem) from tblstructexam where fldsubclass=&1 and fldcategory=&2 and fldreferencee=&3 and fldclass=&4 ORDER BY flditemid"
-  res3 = modDatabase.$myConn.Exec(str3, xSubClass, xCategory, ref, sDepart)
+  If LeftRight = True Then
+    str3 = "select distinct(flditem) from tblstructexam where fldsubclass=&1 and fldcategory=&2 and fldreferencee=&3 and fldclass=&4 and flditemoption=&5 ORDER BY flditemid"
+  Else
+    str3 = "select distinct(flditem) from tblstructexam where fldsubclass=&1 and fldcategory=&2 and fldreferencee=&3 and fldclass=&4 and flditemoption IS NULL ORDER BY flditemid"
+  Endif
+  res3 = modDatabase.$myConn.Exec(str3, xSubClass, xCategory, ref, sDepart, "Left/Right Components")
   If res3.Available Then
     res3.MoveFirst
     For k = 1 To res3.Count
       TreeView1.Add(CStr(k) & "@" & res3["flditem"], res3["flditem"], pic2)
 
-      str4 = "select fldheadcode,fldhead from tblstructexam where fldsubclass=&1 and fldcategory=&2 and flditem=&3 and fldreferencee=&4 and fldclass=&5 ORDER BY fldheadid"
-      res4 = modDatabase.$myConn.Exec(str4, xsubClass, xCategory, res3["flditem"], ref, sDepart)
+      If LeftRight = True Then
+        str4 = "select fldheadcode,fldhead from tblstructexam where fldsubclass=&1 and fldcategory=&2 and flditem=&3 and fldreferencee=&4 and fldclass=&5 and flditemoption=&6 ORDER BY fldheadid"
+      Else
+        str4 = "select fldheadcode,fldhead from tblstructexam where fldsubclass=&1 and fldcategory=&2 and flditem=&3 and fldreferencee=&4 and fldclass=&5 and flditemoption IS NULL ORDER BY fldheadid"
+      Endif
+      res4 = modDatabase.$myConn.Exec(str4, xsubClass, xCategory, res3["flditem"], ref, sDepart, "Left/Right Components")
       If res4.Available Then
         res4.MoveFirst
         For l = 1 To res4.Count
