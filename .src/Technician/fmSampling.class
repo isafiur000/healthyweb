@@ -1397,6 +1397,11 @@ Private Sub GetNormalSampling()
             End Select
           Endif
 
+          If modBasic.$AutoSampleLoad = "All" Then
+            LoadSpecimens($rData["fldid"])
+          Else If modBasic.$AutoSampleLoad = "Machine" Then
+            LoadSpecimensMachine($rData["fldid"], $rData["fldtestid"])
+          Endif
         Else
           Message.Warning(("Same Sample ID for different patients not possible"), ("OK"))
         Endif
@@ -1404,16 +1409,106 @@ Private Sub GetNormalSampling()
       Endif
     Next
 
-    If modBasic.$AutoSampleLoad = "All" Then
-      LoadSpecimens()
-    Else If modBasic.$AutoSampleLoad = "Machine" Then
-      LoadSpecimensMachine()
-    Endif
   Endif
 
 End
 
 Private Sub GetQUickSampling()
+
+  Dim Row As Integer
+  Dim res As Result
+  Dim xallow As Boolean
+
+  Dim xspec As String
+  Dim xsampid As String
+  Dim txtsampno As String
+  Dim xorder As Integer
+  Dim resx As Result
+
+  For Row = 0 To GridView1.Rows.Count - 1
+    $rData.MoveTo(Row)
+    If Not $rData["fldsampletype"] Then
+
+      If xspec And If xsampid Then
+        If modBasic.$LabAutoSampleSuffix = "Yes" Then
+          txtsampno = xsampid & modFixLab.GetTestSampleSuffix($rData["fldtestid"])
+        Else
+          txtsampno = xsampid
+        Endif
+        xallow = modLabTest.AllowSampleID($encid, txtsampno)
+        If xallow = True Then
+          If modFixLab.GetTestSpecimen($rData["fldtestid"]) = xspec Then
+            GridView1.Select(Row)
+            xorder = modFixLab.GetLabTestOrder($rData["fldtestid"])
+            modLabSub.UpdateLabTestSample($rData["fldid"], txtsampno, xspec, "", "", "", "", xorder,, $tblpatlabtest)
+
+            ''subtest
+            res = modDatabase.$myConn.Exec("select fldsubtest from " & $tblpatlabsubtest & " where fldtestid=&1", $rData["fldid"])
+            If res.Available = False Then
+              Select modFixLab.GetLabTestOptionType($rData["fldtestid"])
+                Case "Fixed Components", "Left/Right Components"
+                  resx = modDatabase.$myConn.Exec("select fldsubtest,fldtanswertype,fldindex from tbltestquali where fldtestid=&1 GROUP BY fldsubtest", $rData["fldtestid"])
+                  If resx.Available Then
+                    For Each resx
+                      modLabSub.InsertLabSubTestUnit($rData["fldencounterval"], $rData["fldid"], $rData["fldtestid"], resx["fldsubtest"], resx["fldtanswertype"], resx["fldindex"], $tblpatlabsubtest)
+                    Next
+                  Endif
+              End Select
+            Endif
+
+            If modBasic.$AutoSampleLoad = "All" Then
+              LoadSpecimens($rData["fldid"])
+            Else If modBasic.$AutoSampleLoad = "Machine" Then
+              LoadSpecimensMachine($rData["fldid"], $rData["fldtestid"])
+            Endif
+          Endif
+        Endif
+
+      Else
+        xspec = modFixLab.GetTestSpecimen($rData["fldtestid"])
+        If xspec Then
+          xsampid = modLabSub.GetAutoIncreasingNo()
+          If modBasic.$LabAutoSampleSuffix = "Yes" Then
+            txtsampno = xsampid & modFixLab.GetTestSampleSuffix($rData["fldtestid"])
+          Else
+            txtsampno = xsampid
+          Endif
+          xallow = modLabTest.AllowSampleID($encid, txtsampno)
+          If xallow = True Then
+            GridView1.Select(Row)
+            xorder = modFixLab.GetLabTestOrder($rData["fldtestid"])
+            modLabSub.UpdateLabTestSample($rData["fldid"], txtsampno, xspec, "", "", "", "", xorder,, $tblpatlabtest)
+
+            ''subtest
+            res = modDatabase.$myConn.Exec("select fldsubtest from " & $tblpatlabsubtest & " where fldtestid=&1", $rData["fldid"])
+            If res.Available = False Then
+              Select modFixLab.GetLabTestOptionType($rData["fldtestid"])
+                Case "Fixed Components", "Left/Right Components"
+                  resx = modDatabase.$myConn.Exec("select fldsubtest,fldtanswertype,fldindex from tbltestquali where fldtestid=&1 GROUP BY fldsubtest", $rData["fldtestid"])
+                  If resx.Available Then
+                    For Each resx
+                      modLabSub.InsertLabSubTestUnit($rData["fldencounterval"], $rData["fldid"], $rData["fldtestid"], resx["fldsubtest"], resx["fldtanswertype"], resx["fldindex"], $tblpatlabsubtest)
+                    Next
+                  Endif
+              End Select
+            Endif
+
+            If modBasic.$AutoSampleLoad = "All" Then
+              LoadSpecimens($rData["fldid"])
+            Else If modBasic.$AutoSampleLoad = "Machine" Then
+              LoadSpecimensMachine($rData["fldid"], $rData["fldtestid"])
+            Endif
+          Endif
+        Endif
+
+      Endif
+
+    Endif
+  Next
+
+  If rbbar.Value = True Then
+    PrintBarCodeSampling(txtsampno, xspec)
+  Endif
 
 End
 
@@ -1423,14 +1518,12 @@ Public Sub btnupdate_Click()
     GetQUickSampling()
   Else
     GetNormalSampling()
-  Endif
-
-  If rbbar.Value = True Then
-    btnbarcode_Click()
+    PrintBarCodeSampling(Trim(txtsamid.Text), cmbsamtype.Text)
   Endif
   If rbwork.Value = True Then
     btnwork_Click()
   Endif
+
   If rbinvoice.Value = True Then
     ShowSampledBill($encid, txtlabbill.Text)
   Else If rbencounter.Value = True Then
@@ -1661,7 +1754,7 @@ Public Sub rbbar_Click()
 
 End
 
-Public Sub btnbarcode_Click()
+Private Sub PrintBarCodeSampling(xSampleID As String, xSpecimen As String)
 
   Dim i As Integer
   Dim xval As String[]
@@ -1669,7 +1762,7 @@ Public Sub btnbarcode_Click()
 
   Dim xx As String
 
-  If txtsamid.Text And If $encid Then
+  If xSampleID And If $encid Then
     If GridView1.Count Then
 
       xval = New String[]
@@ -1702,18 +1795,24 @@ Public Sub btnbarcode_Click()
 
       If xval.Count Then
         If modBasic.$LabBarPrint = "Section/BillItem" Then
-          modLabSub.PrintBarLabDeptSampling($encid, Trim(txtsamid.Text), xval, txtencid.Text)
+          modLabSub.PrintBarLabDeptSampling($encid, xSampleID, xval, txtencid.Text)
         Else
           For Each xx In xval
-            modLabSub.PrintBarCodeSampling($encid, Trim(txtsamid.Text), cmbsamtype.Text, xx, txtencid.Text)
+            modLabSub.PrintBarCodeSampling($encid, xSampleID, xSpecimen, xx, txtencid.Text)
           Next
         Endif
       Else
-        modLabSub.PrintBarCodeSampling($encid, Trim(txtsamid.Text), cmbsamtype.Text, "", txtencid.Text)
+        modLabSub.PrintBarCodeSampling($encid, xSampleID, xSpecimen, "", txtencid.Text)
       Endif
 
     Endif
   Endif
+
+End
+
+Public Sub btnbarcode_Click()
+
+  PrintBarCodeSampling(Trim(txtsamid.Text), cmbsamtype.Text)
 
 End
 
@@ -1778,77 +1877,68 @@ Public Sub btnrefer_Click()
 
 End
 
-Private Sub LoadSpecimensMachine()
+Private Sub LoadSpecimensMachine(sIndex As Long, TestName As String)
 
   Dim res As Result
-  Dim Row As Integer
 
-  For Row = 0 To GridView1.Count - 1
-    If GridView1.IsSelected(Row) = True Then
-      $rData.MoveTo(Row)
-      If modInterface.$IntfaceTestList And If modInterface.$IntfaceTestList.Exist($rData["fldtestid"]) Then
+  If modInterface.$IntfaceTestList And If modInterface.$IntfaceTestList.Exist(TestName) Then
 
-        res = modDatabase.$myConn.Edit($tblpatlabtest, "fldid=&1 and fldstatus=&2 and fldsampleid like &3", $rData["fldid"], "Sampled", "%")
-        If res.Available Then
-          If res["flduserid_start"] Then
-          Else
-            modInterface.InsertSampleForInterface(res["fldencounterval"], res["fldtestid"], res["fldsampleid"], res["fldsampletype"])
-          Endif
-          res["flduserid_start"] = modBasic.$lbluser
-          If res["fldtime_start"] Then
-            res["flduptime_start"] = Now()
-          Else
-            res["fldtime_start"] = Now()
-          Endif
-          res["fldcomp_start"] = modBasic.$compID
-          res["fldsave_start"] = True
-          res["xyz"] = True
-          res.Update
-        Endif
-
+    res = modDatabase.$myConn.Edit($tblpatlabtest, "fldid=&1 and fldstatus=&2 and fldsampleid like &3", sIndex, "Sampled", "%")
+    If res.Available Then
+      If res["flduserid_start"] Then
+      Else
+        modInterface.InsertSampleForInterface(res["fldencounterval"], res["fldtestid"], res["fldsampleid"], res["fldsampletype"])
       Endif
+      res["flduserid_start"] = modBasic.$lbluser
+      If res["fldtime_start"] Then
+        res["flduptime_start"] = Now()
+      Else
+        res["fldtime_start"] = Now()
+      Endif
+      res["fldcomp_start"] = modBasic.$compID
+      res["fldsave_start"] = True
+      res["xyz"] = True
+      res.Update
     Endif
-  Next
+
+  Endif
 
 End
 
-Private Sub LoadSpecimens()
+Private Sub LoadSpecimens(sIndex As Long)
 
   Dim res As Result
-  Dim Row As Integer
 
-  For Row = 0 To GridView1.Count - 1
-    If GridView1.IsSelected(Row) = True Then
-      $rData.MoveTo(Row)
-      res = modDatabase.$myConn.Edit($tblpatlabtest, "fldid=&1 and fldstatus=&2 and fldsampleid like &3", $rData["fldid"], "Sampled", "%")
-      If res.Available Then
-        If res["flduserid_start"] Then
-        Else
-          modInterface.InsertSampleForInterface(res["fldencounterval"], res["fldtestid"], res["fldsampleid"], res["fldsampletype"])
-        Endif
-        res["flduserid_start"] = modBasic.$lbluser
-        If res["fldtime_start"] Then
-          res["flduptime_start"] = Now()
-        Else
-          res["fldtime_start"] = Now()
-        Endif
-        res["fldcomp_start"] = modBasic.$compID
-        res["fldsave_start"] = True
-        res["xyz"] = True
-        res.Update
-      Endif
+  res = modDatabase.$myConn.Edit($tblpatlabtest, "fldid=&1 and fldstatus=&2 and fldsampleid like &3", sIndex, "Sampled", "%")
+  If res.Available Then
+    If res["flduserid_start"] Then
+    Else
+      modInterface.InsertSampleForInterface(res["fldencounterval"], res["fldtestid"], res["fldsampleid"], res["fldsampletype"])
     Endif
-  Next
+    res["flduserid_start"] = modBasic.$lbluser
+    If res["fldtime_start"] Then
+      res["flduptime_start"] = Now()
+    Else
+      res["fldtime_start"] = Now()
+    Endif
+    res["fldcomp_start"] = modBasic.$compID
+    res["fldsave_start"] = True
+    res["xyz"] = True
+    res.Update
+  Endif
 
 End
 
 Public Sub btnprocedure_Click()
 
-  LoadSpecimens()
-  If $InvoiceFormat = True Then
-    ShowSampledBill(Trim(txtencid.Text), txtlabbill.Text)
-  Else
-    ShowSampled(Trim(txtencid.Text))
+  If GridView1.Selection.Count Then
+    $rData.MoveTo(GridView1.Selection[0])
+    LoadSpecimens($rData["fldid"])
+    If $InvoiceFormat = True Then
+      ShowSampledBill(Trim(txtencid.Text), txtlabbill.Text)
+    Else
+      ShowSampled(Trim(txtencid.Text))
+    Endif
   Endif
 
 End

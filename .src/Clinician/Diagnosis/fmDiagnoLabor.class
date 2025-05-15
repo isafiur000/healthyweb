@@ -4,6 +4,8 @@ Private $encid As String
 Private $Present As Boolean
 Private $sValue As String[]
 Private $patNo As String
+
+Private $xclose As Boolean
 ' Private $NumForm As FmQuantiEntry
 
 Public Sub Run(encid As String, sPresent As Boolean) As String[]
@@ -231,10 +233,9 @@ Public Sub btnsave_Click()
   Dim xx As String[]
   Dim res As Result
   Dim xrefNo As String
-  Dim xclose As Boolean
   Dim xIntVal As String
 
-  xclose = False
+  $xclose = False
   If txtgesweek.Value Then
     xx = New String[]
     xx.Add(Trim(txtdiagno.Text))
@@ -261,7 +262,8 @@ Public Sub btnsave_Click()
       res["xyz"] = False
       res["flduptime"] = Now()
       res.Update
-      xclose = True
+      $xclose = True
+      Me.Exec("Toastify({text: 'Information updated', duration: 3000}).showToast()")
 
     Else
       modDatabase.$myConn.Begin
@@ -298,16 +300,13 @@ Public Sub btnsave_Click()
         modClinSub.AddGeneralParametersQuali($encid, "Pregnancy Status", GetTrimesterLabel(xday))
         modDatabase.$myConn.Commit
         txtreference.Text = xrefNo
-        xclose = True
+        $xclose = True
+        Me.Exec("Toastify({text: 'Information saved', duration: 3000}).showToast()")
       Else
         modDatabase.$myConn.Rollback
       Endif
 
     Endif
-  Endif
-
-  If xclose = True Then
-    Me.Close(True)
   Endif
 
 Catch
@@ -368,7 +367,11 @@ End
 
 Public Sub btnclose_Click()
 
-  Me.Close()
+  If $xclose = True Then
+    Me.Close(True)
+  Else
+    Me.Close()
+  Endif
 
 End
 

@@ -980,20 +980,52 @@ Public Function GetRichTextMode(sText As String) As Boolean
 
 End
 
+' Public Function ConvertRichTextToPlain(stInput As String) As String
+'
+'   Dim arcmd As String
+'   Dim stOutput As String
+'
+'   If GetRichTextMode(stInput) = True Then
+'     If System.Exist("html2text") = True Then
+'       arcmd = "echo " & Quote(stInput) & " | html2text"
+'       modBasic.DebugString("Execute " & arcmd)
+'       Shell arcmd To stOutput
+'       stOutput = Trim(stOutput)
+'     Else
+'       modApplSub.InstallSelectedApplication(["html2text"])
+'     Endif
+'   Else
+'     stOutput = stInput
+'   Endif
+'   Return stOutput
+'
+' End
+
 Public Function ConvertRichTextToPlain(stInput As String) As String
 
   Dim arcmd As String
   Dim stOutput As String
+  Dim xrepl As String
 
   If GetRichTextMode(stInput) = True Then
-    If System.Exist("html2text") = True Then
-      arcmd = "echo " & Quote(stInput) & " | html2text"
-      modBasic.DebugString("Execute " & arcmd)
-      Shell arcmd To stOutput
-      stOutput = Trim(stOutput)
-    Else
-      modApplSub.InstallSelectedApplication(["html2text"])
+    xrepl = Trim(GetSelectedTextBetween(stInput, "<span>", "</span>"))
+    If Not xrepl Then
+      xrepl = stInput
     Endif
+
+    If GetRichTextMode(xrepl) = True Then
+      If System.Exist("html2text") = True Then
+        arcmd = "echo " & Quote(xrepl) & " | html2text"
+        modBasic.DebugString("Execute " & arcmd)
+        Shell arcmd To stOutput
+        stOutput = Trim(stOutput)
+      Else
+        modApplSub.InstallSelectedApplication(["html2text"])
+      Endif
+    Else
+      stOutput = xrepl
+    Endif
+
   Else
     stOutput = stInput
   Endif

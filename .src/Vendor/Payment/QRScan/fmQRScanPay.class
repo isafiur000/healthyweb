@@ -2,6 +2,7 @@
 
 Private $encid As String
 Private $sIndex As String
+Private $qrString As String
 Private $QRProvider As String
 Private $sTart As Date
 Private $sValue As String
@@ -13,16 +14,18 @@ Public Sub Run(encid As String, sIndex As String, sText As String, sProvider As 
 
   $encid = encid
   $sIndex = sIndex
+  $qrString = sText
   $QRProvider = sProvider
 
   $sTart = Now()
-  ShowQRImage(sText)
+
   Me.Title = Application.Title
   $TotAmt = GetScanAMount()
   $patName = modPatient.GetPatientNameByEnc($encid)
   lblname.Text = "NAME : " & $patName
   lbltransid.Text = "CODE : " & $sIndex & Space(5) & "TOTAL : " & CStr($TotAmt)
   lblstatus.Text = "Please Wait . . ."
+  ShowQRImage($qrString)
   ResizeImages()
 
   If Me.ShowModal() Then Return $sValue
@@ -69,16 +72,19 @@ End
 Private Sub ShowQRImage(sText As String)
 
   Dim sPath As String
+  Dim arcmd As String[]
 
   sPath = modDevAll.MakeQRCode(sText)
   WebImage1.Image = modPrint.GetFileWebURL(sPath)
 
   If Exist(modBasic.$QRPaymentScript) Then
     If modBasic.$QRPaymentShell Then
-      Exec [modBasic.$QRPaymentShell, modBasic.$QRPaymentScript, $TotAmt, sText, $patName, $sIndex]
+      arcmd = [modBasic.$QRPaymentShell, modBasic.$QRPaymentScript, $TotAmt, Quote(sText), Quote($patName), Quote($sIndex)]
     Else
-      Exec [modBasic.$QRPaymentScript, $TotAmt, sText, $patName, $sIndex]
+      arcmd = [modBasic.$QRPaymentScript, $TotAmt, Quote(sText), Quote($patName), Quote($sIndex)]
     Endif
+    modBasic.DebugAPIString("Execute " & arcmd.Join(Space(1)))
+    Shell arcmd.Join(Space(1)) Wait
   Endif
 
 End
