@@ -1,0 +1,97 @@
+' Gambas class file
+
+Private $TraceId As String
+Private $ResponseStr As String
+
+Private $QRQueryURL As String
+Private $QRScanUser As String
+Private $QRScanPass As String
+Private $QRHashKey As String
+
+Public Sub _new(sIndex As String)
+
+  $TraceId = sIndex
+
+  modQRFonePay.GetQRParameters()
+  $QRScanUser = modQRFonePay.QRScanUser
+  $QRScanPass = modQRFonePay.QRScanPass
+  $QRQueryURL = modQRFonePay.QRQueryURL
+  $QRHashKey = modQRFonePay.QRScanKeyPass
+  ExecuteAPI()
+
+End
+
+Private Sub ExecuteAPI()
+
+  Dim xcmd As String
+  Dim xurl As String
+  Dim xcontent As String
+  Dim xcoll As Collection
+  Dim xoutput As String
+  Dim aColl As Collection
+
+  xurl = Trim($QRQueryURL)
+  xcontent = "Content-Type: application/json"
+  xcoll = GetQRScanJson()
+
+  xcmd = "curl" & " -H " & Quote(xcontent) & " -d '" & JSON.Encode(xcoll) & "' -L " & xurl
+  ' modBasic.DebugAPIString("Execute " & xcmd)
+  modBasic.DebugAPIString("Execute " & Replace(xcmd, $QRScanPass, "***"))
+  Shell xcmd To xoutput
+  modBasic.DebugAPIString("Response: " & xoutput)
+
+  $ResponseStr = ""
+  If xoutput Then
+    Try aColl = JSON.Decode(xoutput)
+    If aColl Then
+      If aColl["paymentStatus"] = "success" Then
+        $ResponseStr = xoutput
+      Endif
+    Endif
+  Endif
+
+End
+
+Private Function GetQRScanJson() As Collection
+
+  Dim aColl As Collection
+  Dim sToken As String
+
+  sToken = GetTokenHash()
+
+  aColl = New JSONCollection
+  aColl.Add($TraceId, "prn")
+  aColl.Add(modQRFonePay.$MerchantCode, "merchantCode")
+  aColl.Add(sToken, "dataValidation")
+  aColl.Add($QRScanUser, "username")
+  aColl.Add($QRScanPass, "password")
+
+  Return aColl
+
+End
+
+Private Function GetTokenHash() As String
+
+  Dim asx As String[]
+  Dim arcmd As String[]
+  Dim sval As String
+
+  asx = New String[]
+  asx.Add($TraceId)
+  asx.Add(modQRFonePay.$MerchantCode)
+
+  arcmd = ["python", modHelpVariable.$scriptDirectory &/ "fonepay.py", $QRHashKey, Quote(asx.Join(","))]
+  modBasic.DebugAPIString("Execute " & arcmd.Join(Space(1)))
+  Shell arcmd.Join(Space(1)) To sval
+  modBasic.DebugAPIString("Response: " & sval)
+
+  sval = Trim(sval)
+  Return sval
+
+End
+
+Public Function GetResponseText() As String
+
+  Return $ResponseStr
+
+End

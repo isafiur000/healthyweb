@@ -1,0 +1,122 @@
+' Gambas class file
+
+Private $encid As String
+Private $sReceipt As String
+Private $sTotal As Float
+Private $xbillType As String
+Private $xLedgerCode As String
+
+Private $xUserID As String
+Private $xCompId As String
+
+Private $QRScanURL As String
+Private $QRScanUser As String
+Private $QRScanPass As String
+Private $QRHashKey As String
+Private $QRScanStr As String
+Private $QRScanID As String
+
+Public Sub _new(encid As String, sReceipt As String, sTotal As Float, sBillType As String, LedgerCode As String)
+
+  $encid = encid
+  $sReceipt = sReceipt
+  $sTotal = sTotal
+  $xbillType = sBillType
+  $xLedgerCode = LedgerCode
+
+  $xUserID = modBasic.$lbluser
+  $xCompId = modBasic.$compID
+
+  modQRFonePay.GetQRParameters()
+  $QRScanUser = modQRFonePay.QRScanUser
+  $QRScanPass = modQRFonePay.QRScanPass
+  $QRScanURL = modQRFonePay.QRScanURL
+  $QRHashKey = modQRFonePay.QRScanKeyPass
+  modQRFonePay.GetMerchantParameters($xLedgerCode)
+  ExecuteAPI()
+
+End
+
+Private Sub ExecuteAPI()
+
+  Dim xcmd As String
+  Dim xcontent As String
+  Dim xurl As String
+  Dim xcoll As Collection
+  Dim xoutput As String
+  Dim aColl As Collection
+
+  xurl = Trim($QRScanURL)
+  xcontent = "Content-Type: application/json"
+  xcoll = GetQRScanJson()
+
+  xcmd = "curl" & " -H " & Quote(xcontent) & " -d '" & JSON.Encode(xcoll) & "' -L " & xurl
+  modBasic.DebugAPIString("Execute " & Replace(xcmd, $QRScanPass, "***"))
+  Shell xcmd To xoutput
+  modBasic.DebugAPIString("Response: " & xoutput)
+
+  If xoutput Then
+    Try aColl = JSON.Decode(xoutput)
+    If aColl Then
+      $QRScanStr = aColl["qrMessage"]
+      $QRScanID = aColl["deviceId"]
+    Endif
+  Endif
+
+End
+
+Public Function QRScanOutput() As String
+
+  Return $QRScanStr
+
+End
+
+Public Function QRScanOutID() As String
+
+  Return $QRScanID
+
+End
+
+Private Function GetQRScanJson() As Collection
+
+  Dim aColl As Collection
+  Dim sToken As String
+
+  sToken = GetTokenHash()
+
+  aColl = New JSONCollection
+  aColl.Add(Format($sTotal, gb.Fixed), "amount")
+  aColl.Add($xUserID, "remarks1")
+  aColl.Add($xCompId, "remarks2")
+  aColl.Add($sReceipt, "prn")
+  aColl.Add(modQRFonePay.$MerchantCode, "merchantCode")
+  aColl.Add(sToken, "dataValidation")
+  aColl.Add($QRScanUser, "username")
+  aColl.Add($QRScanPass, "password")
+
+  Return aColl
+
+End
+
+Private Function GetTokenHash() As String
+
+  Dim asx As String[]
+  Dim arcmd As String[]
+  Dim sval As String
+
+  asx = New String[]
+  asx.Add(Format($sTotal, gb.Fixed))
+  asx.Add($sReceipt)
+  asx.Add(modQRFonePay.$MerchantCode)
+  asx.Add($xUserID)
+  asx.Add($xCompId)
+
+  arcmd = ["python", modHelpVariable.$scriptDirectory &/ "fonepay.py", $QRHashKey, Quote(asx.Join(","))]
+  modBasic.DebugAPIString("Execute " & arcmd.Join(Space(1)))
+  Shell arcmd.Join(Space(1)) To sval
+  modBasic.DebugAPIString("Response: " & sval)
+
+  sval = Trim(sval)
+  Return sval
+
+End

@@ -66,28 +66,31 @@ Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableDat
   Else If Column = 3 Then
     Data.Text = modPatient.GetPatientAddressByEnc($rData[$aMyFields[Column]])
   Else If Column = 7 Then
-    Data.Control = btnattach
+    Data.Control = mnupatdemog
   Else If Column = 8 Then
-    Data.Control = btnedit
+    Data.Control = mnuprescnote
   Else
     Data.Text = $rData[$aMyFields[Column]]
   Endif
 
 End
 
-Public Sub btnfullrep_Click()
+Public Sub GridView1_Select()
 
-  modCHTMLReport.ExportGridToHTML(GridView1, "REGISTRATION REPORT", modReportVar.GetDateTimeReport(btnsearchdate.Tag, gb.MediumDate))
+  If GridView1.Selection.Count Then
+    $rData.MoveTo(GridView1.Selection[0])
+    txtencid.Text = $rData["fldencounterval"]
+  Endif
 
 End
 
-Public Sub btnsearchdate_Click()
+Public Sub btnsearchpat_Click()
 
-  Dim sDate As Date
+  Dim encid As String
 
-  sDate = GetDateValue("Select Date", "Registration", Date())
-  If sDate Then
-    FillRegistrationGrid(sDate)
+  encid = PatSearch("Encounter")
+  If encid Then
+    txtencid.Text = encid
   Endif
 
 End
@@ -96,11 +99,16 @@ Public Sub btnindex_Click()
 
   Dim hForm As FmIndexForm
 
-  If GridView1.Selection.Count Then
-    $rData.MoveTo(GridView1.Selection[0])
-    hForm = New FmIndexForm($rData["fldencounterval"], True, True)
+  If txtencid.Text Then
+    hForm = New FmIndexForm(txtencid.Text, True, True)
     hForm.ShowModal
   Endif
+
+End
+
+Public Sub mnuexport_Click()
+
+  modCHTMLReport.ExportGridToHTML(GridView1, "REGISTRATION REPORT", modReportVar.GetDateTimeReport(lbldate.Tag, gb.MediumDate))
 
 End
 
@@ -122,15 +130,14 @@ Public Sub mnupatdemog_Click()
   Dim hForm1 As FmPatdemograph
   Dim hForm As FmPatAccEdit
 
-  If GridView1.Selection.Count Then
+  If txtencid.Text Then
     If modBasic.$RegistAutoDemograph Then
-      $rData.MoveTo(GridView1.Selection[0])
       Select modBasic.$RegistAutoDemograph
         Case "Acount", "Clinical"
-          hForm1 = New FmPatdemograph($rData["fldencounterval"], modBasic.$RegistAutoDemograph)
+          hForm1 = New FmPatdemograph(txtencid.Text, modBasic.$RegistAutoDemograph)
           hForm1.ShowModal
         Case "Essential"
-          hForm = New FmPatAccEdit($rData["fldencounterval"])
+          hForm = New FmPatAccEdit(txtencid.Text)
           hForm.ShowModal
       End Select
     Endif
@@ -172,17 +179,9 @@ End
 
 Public Sub mnuptno_Click()
 
-  If GridView1.Selection.Count Then
-    $rData.MoveTo(GridView1.Selection[0])
-    Message.Info("Patient No: " & modPatient.GetPatientNoByEnc($rData["fldencounterval"]), ("OK"))
+  If txtencid.Text Then
+    Message.Info("Patient No: " & modPatient.GetPatientNoByEnc(txtencid.Text), ("OK"))
   Endif
-
-End
-
-Public Sub mnugeneral_Click()
-
-  modPatientSub.RegistBlankPatient()
-  modPatientSub.RegistBlankEncounter()
 
 End
 

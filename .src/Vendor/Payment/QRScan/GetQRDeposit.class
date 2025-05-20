@@ -46,6 +46,7 @@ Private Sub SaveAdvanceDeposit()
 
   Dim hForm As CQRscanPay
   Dim hForm1 As CQRNepalPay
+  Dim hForm2 As CQRFonePay
   Dim idLock As Boolean
 
   txttitle = "CASH DEPOSIT (ONLINE)"
@@ -54,7 +55,11 @@ Private Sub SaveAdvanceDeposit()
   If idLock = True Then
     modDatabase.$myConn.Begin
 
-    $billno = modBillLock.GetWebReceiptValue("QR")
+    If $QRProvider = "fonepay" Then
+      $billno = modBillLock.GetWebReceiptValue("QR") & "-" & modString.GetNowString()
+    Else
+      $billno = modBillLock.GetWebReceiptValue("QR")
+    Endif
     If $billno Then
       billed = False
 
@@ -67,6 +72,10 @@ Private Sub SaveAdvanceDeposit()
           $QRString = hForm1.QRScanOutput()
           $QRCodeID = hForm1.QRScanOutID()
         Else If $QRProvider = "fonepay" Then
+          hForm2 = New CQRFonePay($encid, $billno, $DepoAmt, "CashDeposit", "")
+          Wait
+          $QRString = hForm2.QRScanOutput()
+          $QRCodeID = hForm2.QRScanOutID()
         Else
           hForm = New CQRscanPay($encid, $billno, $DepoAmt, "CashDeposit")
           Wait
@@ -116,7 +125,11 @@ Private Sub UploadForQRScan()
     res["fldreference"] = $QRCodeID
     res.Update
 
-    $TransDone = FQRScanPay($encid, $QRCodeID, $QRString, $QRProvider)
+    If $QRProvider = "fonepay" Then
+      $TransDone = FQRScanPay($encid, $AdvReceiptNo, $QRString, $QRProvider)
+    Else
+      $TransDone = FQRScanPay($encid, $QRCodeID, $QRString, $QRProvider)
+    Endif
   Else
     Message.Warning("Unable to get QR String", "OK")
   Endif

@@ -1,0 +1,82 @@
+' Gambas module file
+
+Public QRScanURL As String
+Public QRQueryURL As String
+Public QRScanUser As String
+Public QRScanPass As String
+Public QRScanQuote As String
+Public QRScanKeyPath As String
+Public QRScanKeyPass As String
+
+Public $MerchantCode As String
+
+Public Sub GetQRParameters()
+
+  QRScanUser = Trim(UnBase64(modSettings.ShowSettingFromFIle("QRScan/UserName")))
+  QRScanPass = Trim(UnBase64(modSettings.ShowSettingFromFIle("QRScan/Password")))
+  QRScanURL = Trim(modSettings.ShowSettingFromFIle("QRScan/ImageURL"))
+  QRQueryURL = Trim(modSettings.ShowSettingFromFIle("QRScan/QueryURL"))
+  QRScanQuote = Trim(modSettings.ShowSettingFromFIle("QRScan/QuotePass"))
+  QRScanKeyPath = Trim(modSettings.ShowSettingFromFIle("QRScan/EncryptionKey"))
+  QRScanKeyPass = Trim(UnBase64(modSettings.ShowSettingFromFIle("QRScan/EncryptionPass")))
+
+End
+
+Public Sub GetMerchantParameters(sLedCode As String)
+
+  Dim xfile As String
+
+  ' ' [Merchant]
+  ' ' MerchantCode = "25015TFRNCH"
+
+  If sLedCode And If Exist(modHelpVariable.$appetcFolder &/ sLedCode & ".conf") Then
+    xfile = modHelpVariable.$appetcFolder &/ sLedCode & ".conf"
+  Else
+    xfile = modHelpVariable.$appetcFolder &/ "fonepay.conf"
+  Endif
+  $MerchantCode = modControlSub.ShowSettingValue(xfile, "Merchant/MerchantCode")
+
+End
+
+Public Sub AddFonePayTransResponse(encid As String, sBillNo As String, sColl As Collection)
+
+  Dim res As Result
+  Dim xColl As Collection
+
+  xColl = sColl["responseBody"][0]
+  res = modDatabase.$myConn.Create("tblwebpayment")
+  res["fldbillno"] = sBillNo
+  res["fldencounterval"] = encid
+  res["flditemid"] = xColl["fonepayTraceId"]
+  res["fldlink"] = ""
+
+  res["fldvendor"] = "fonepay"
+  res["fldvendormode"] = ""
+  res["fldstate"] = "Successful"
+
+  res["fldtransid"] = xColl["fonepayTraceId"]
+  res["fldtransamt"] = xColl["totalTransactionAmount"]
+  res["fldtranstoken"] = ""
+  res["fldfeeamt"] = ""
+  ' res["fldrefund"] = xitemVar["refunded"]
+  ' res["fldtransdate"] = xitemVar["created_on"]
+
+  res["fldpayerid"] = ""
+  res["fldpayername"] = ""
+  res["fldpayermobile"] = ""
+  res["fldpayeremail"] = ""
+
+  res["fldmerchid"] = xColl["merchantCode"]
+  res["fldmerchname"] = ""
+  res["fldmerchmobile"] = ""
+  res["fldmerchemail"] = ""
+
+  res["flduserid"] = modBasic.$lbluser
+  res["fldtime"] = Now()
+  res["fldcomp"] = modBasic.$compID
+  res["fldsave"] = True
+  res["fldhostmac"] = modHelpVariable.$MACAddress
+  res["xyz"] = False
+  res.Update
+
+End

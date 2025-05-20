@@ -23,7 +23,7 @@ Public Sub Run(encid As String, sIndex As String, sText As String, sProvider As 
   $TotAmt = GetScanAMount()
   $patName = modPatient.GetPatientNameByEnc($encid)
   lblname.Text = "NAME : " & $patName
-  lbltransid.Text = "CODE : " & $sIndex & Space(5) & "TOTAL : " & CStr($TotAmt)
+  lbltransid.Text = "TOTAL : " & CStr($TotAmt) & Space(5) & "CODE : " & $sIndex
   lblstatus.Text = "Please Wait . . ."
   ShowQRImage($qrString)
   ResizeImages()
@@ -94,6 +94,7 @@ Public Sub Timer1_Timer()
   Dim xx As String
   Dim res As Result
   Dim hForm As CQrNepalCheck
+  Dim hForm1 As CQrFoneCheck
   Dim xColl As Collection
 
   If DateDiff($sTart, Now(), gb.Second) > 30 Then
@@ -116,6 +117,24 @@ Public Sub Timer1_Timer()
       Endif
 
     Else If $QRProvider = "fonepay" Then
+      hForm1 = New CQrFoneCheck($sIndex)
+      xx = hForm1.GetResponseText()
+      If Len(Trim(xx)) Then
+        xColl = JSON.Decode(xx)
+        res = modDatabase.$myConn.Edit("tbladvreceiptdetail", "fldencounterval=&1 and fldbillno=&2", $encid, $sIndex)
+        If res.Available Then
+          res["fldreference"] = xColl["fonepayTraceId"]
+          res["fldverify"] = xColl["prn"]
+          res["fldstatus"] = "Completed"
+          res.Update
+          modQRNepalPay.AddNepalPayTransResponse($encid, $sIndex, xColl)
+          $sValue = xColl["fonepayTraceId"]
+          Timer1.Enabled = False
+          btnclose.Visible = True
+          lblstatus.Text = "Verified"
+        Endif
+      Endif
+
     Else
       xx = modQRDbase.GetProcedureValue($sIndex)
       If Len(xx) Then
@@ -148,7 +167,11 @@ Private Function GetScanAMount() As Float
   Dim res As Result
   Dim xval As Float
 
-  res = modDatabase.$myConn.Exec("select fldreceivedamt from tbladvreceiptdetail where fldreference=&1 and fldencounterval=&2", $sIndex, $encid)
+  If $QRProvider = "fonepay" Then
+    res = modDatabase.$myConn.Exec("select fldreceivedamt from tbladvreceiptdetail where fldbillno=&1 and fldencounterval=&2", $sIndex, $encid)
+  Else
+    res = modDatabase.$myConn.Exec("select fldreceivedamt from tbladvreceiptdetail where fldreference=&1 and fldencounterval=&2", $sIndex, $encid)
+  Endif
   If res.Available Then
     If res["fldreceivedamt"] Then
       xval = res["fldreceivedamt"]
