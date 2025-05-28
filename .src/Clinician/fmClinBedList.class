@@ -187,7 +187,7 @@ Private Function GetFieldsList()
   If cmbdept.Text = "Unallocated" Then
     $SSQLFields = ["fldencounterval", "fldcurrlocat", "fldcurrlocat", "fldcurrlocat", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval"]
   Else If cmbdept.Text = "Free Beds" Then
-    $SSQLFields = ["fldencounterval", "fldoxyport", "fldventilator", "fldbed", "fldencounterval", "fldencounterval", "flddept", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldstatus"]
+    $SSQLFields = ["fldfreedate", "fldoxyport", "fldventilator", "fldbed", "fldencounterval", "fldencounterval", "flddept", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldstatus"]
   Else
     $SSQLFields = ["fldencounterval", "fldoxyport", "fldventilator", "fldbed", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldstatus"]
   Endif
@@ -458,7 +458,11 @@ Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableDat
   modGridView.GridViewDecoration(Data, Row)
   If Column = 0 Then
     Data.Text = ""
-    Data.Background = modPatient.GetPatientColor($rData[$aMyFields[Column]])
+    If cmbdept.Text = "Free Beds" Then
+      Data.Background = ShowFreeColor($rData[$aMyFields[Column]])
+    Else
+      Data.Background = modPatient.GetPatientColor($rData[$aMyFields[Column]])
+    Endif
   Else If Column = 1 Then
     Data.Html = modString.GetImageForHTMLGrid(GetOxygenIcon($rData[$aMyFields[Column]]), CStr(25 * modBasic.$AppWidthRatio) & "px", "auto")
     Data.Text = ""
@@ -482,6 +486,27 @@ Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableDat
       Data.Text = GetGridViewValue(Column, $rData[$aMyFields[Column]])
     Endif
   Endif
+
+End
+
+Private Function ShowFreeColor(sDischarge As Variant) As Integer
+
+  Dim xx As String
+
+  If modBasic.$ClinBedHoldTime Then
+    If sDischarge And If TypeOf(sDischarge) = gb.Date Then
+      If DateDiff(sDischarge, Now(), gb.Hour) <= modBasic.$ClinBedHoldTime Then
+        xx = Color.Red
+      Else
+        xx = Color.White
+      Endif
+    Else
+      xx = Color.White
+    Endif
+  Else
+    xx = Color.White
+  Endif
+  Return xx
 
 End
 

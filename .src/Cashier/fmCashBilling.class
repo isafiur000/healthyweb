@@ -1147,6 +1147,51 @@ Public Sub cmbitem_Activate()
 
 End
 
+Private Function GetServiceItemList() As String[]
+
+  Dim res As Result
+  Dim xdata As String[]
+
+  If cmbtype.Text Then
+    If cmbtype.Text = "Group" Then
+      xdata = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldgroup) as col from tblservicegroup where flditemname in(select flditemname from tblservicecost where fldstatus=&1 and (fldgroup=&2 or fldgroup=&3))", "Active", cmbmode.Text, "%"))
+
+    Else If cmbtype.Text = "Package" Then
+      xdata = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldbillitem) as col from tblservicecost where fldbillitem IS NOT NULL and fldstatus=&1 and (fldgroup=&2 or fldgroup=&3)", "Active", cmbmode.Text, "%"))
+
+    Else
+      If modBasic.$AppCacheGridViewData = "No" Then
+        xdata = New String[]
+        If cmbtype.Text = "All" Then
+          res = modDatabase.$myConn.Exec("select flditemname as col from tblservicecost where (fldgroup=&1 or fldgroup=&3) and fldstatus=&2" & GetCashSectionQuery(cmbtype.Text) & " ORDER BY flditemname ASC", cmbmode.Text, "Active", "%", "", GetCashSectionValue(cmbtype.Text))                                                           ''
+        Else
+          res = modDatabase.$myConn.Exec("select flditemname as col from tblservicecost where flditemtype=&1 and (fldgroup=&2 or fldgroup=&4) and fldstatus=&3" & GetCashSectionQuery(cmbtype.Text) & " ORDER BY flditemname ASC", modNonMedical.GetBillItemCategoryFromCombo(cmbtype.Text), cmbmode.Text, "Active", "%", GetCashSectionValue(cmbtype.Text))                                                           ''
+        Endif
+        xdata = modControlSub.GetDirectFillresultNoNull(res)
+      Else
+        xdata = GetCategoryArray(cmbtype.Text)
+      Endif
+
+    Endif
+  Endif
+
+  Return xdata
+
+End
+
+Public Sub cmbitem_Completion(Text As String)
+
+  Dim xallLst As String[]
+  Dim xList As String[]
+
+  xallLst = GetServiceItemList()
+  If xallLst And If xallLst.Count Then
+    xList = modString.SelectStringArrayToText(Text, xallLst, False)
+    cmbitem.CompleteWith(xList)
+  Endif
+
+End
+
 Public Sub btncompList_Click()
 
   Dim res As Result
@@ -1154,45 +1199,17 @@ Public Sub btncompList_Click()
   Dim xcode As String
 
   If cmbtype.Text Then
-    If cmbtype.Text = "Group" Then
-      xdata = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldgroup) as col from tblservicegroup where flditemname in(select flditemname from tblservicecost where fldstatus=&1 and (fldgroup=&2 or fldgroup=&3))", "Active", cmbmode.Text, "%"))
-      If xdata Then
-        cmbitem.Text = GridViewNew("Select Cashier Pack", xdata, False)
-      Endif
-      txtdisc.SetFocus
-
-    Else If cmbtype.Text = "Package" Then
-      xdata = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldbillitem) as col from tblservicecost where fldbillitem IS NOT NULL and fldstatus=&1 and (fldgroup=&2 or fldgroup=&3)", "Active", cmbmode.Text, "%"))
-      If xdata Then
-        cmbitem.Text = GridViewNew("Select Cashier Pack", xdata, False)
-      Endif
-      txtdisc.SetFocus
-
-    Else
-      If modBasic.$AppCacheGridViewData = "No" Then
-        xdata = New String[]
-        If cmbtype.Text = "All" Then
-          res = modDatabase.$myConn.Exec("select flditemname,fldcode,flditemcost,flditemunit from tblservicecost where (fldgroup=&1 or fldgroup=&3) and fldstatus=&2" & GetCashSectionQuery(cmbtype.Text) & " ORDER BY flditemname ASC", cmbmode.Text, "Active", "%", "", GetCashSectionValue(cmbtype.Text))                                                           ''
-        Else
-          res = modDatabase.$myConn.Exec("select flditemname,fldcode,flditemcost,flditemunit from tblservicecost where flditemtype=&1 and (fldgroup=&2 or fldgroup=&4) and fldstatus=&3" & GetCashSectionQuery(cmbtype.Text) & " ORDER BY flditemname ASC", modNonMedical.GetBillItemCategoryFromCombo(cmbtype.Text), cmbmode.Text, "Active", "%", GetCashSectionValue(cmbtype.Text))                                                           ''
+    xdata = GetServiceItemList()
+    Select cmbtype.Text
+      Case "Group", "Package"
+        If xdata Then
+          cmbitem.Text = GridViewNew("Select Cashier Pack", xdata, False)
         Endif
-        If res.Available Then
-          For Each res
-            If res["fldcode"] Then
-              xcode = res["fldcode"]
-            Else
-              xcode = ""
-            Endif
-            xdata.Add(res["flditemname"])
-          Next
-          cmbitem.Text = GridViewNew("Select Particular", xdata, False)
-        Endif
-      Else
-        cmbitem.Text = GridViewNew("Select Particular", GetCategoryArray(cmbtype.Text), False)
-      Endif
-      ControlServiceName()
-
-    Endif
+        txtdisc.SetFocus
+      Case Else
+        cmbitem.Text = GridViewNew("Select Particular", xdata, False)
+        ControlServiceName()
+    End Select
   Endif
 
 End
@@ -1334,14 +1351,14 @@ Private Sub AllowLockCheckPunching() As Boolean
           xallow = True
         Case "Discharged", "LAMA", "Death", "Refer", "Absconder"
           dtlast = modPatient.GetDischargeDate(Trim(txtencid.Text))
-          If DateDiff(dtlast, Now(), gb.Day) > modBasic.$BillPunchingLock Then
+          If DateDiff(dtlast, Now(), gb.Hour) > modBasic.$BillPunchingLock Then
             xallow = False
           Else
             xallow = True
           Endif
         Case Else
           dtlast = modPatient.GetRecordDate(Trim(txtencid.Text))
-          If DateDiff(dtlast, Now(), gb.Day) > modBasic.$BillPunchingLock Then
+          If DateDiff(dtlast, Now(), gb.Hour) > modBasic.$BillPunchingLock Then
             xallow = False
           Else
             xallow = True

@@ -417,9 +417,7 @@ Private Sub BasicInfoPatient()
     Timer1.Enabled = True
     GetConsultParam()
     txthistory.RichText = modPatPatho.ShowSelectedHistoryValue(Trim(txtencid.Text), "History of Illness")
-    lsticdisease.List = modPathoSub.GetProvisionalDiagnosisList(Trim(txtencid.Text))
-    lstallergy.List = modPathoSub.GetAllergyMedicineList(Trim(txtencid.Text), chkallergy.Value)
-    SHowFinalDiagnosis()
+    modPatientGeneral.SetPatientFindingTree(Trim(txtencid.Text), lsticdisease)
     ShowSymptomData()
     ShowEssentialExam()
     FillExamtable()
@@ -666,8 +664,7 @@ Public Sub Timer1_Timer()
   If modBasic.$AutoRefreshEnable = "Yes" Then
     If txtencid.Text Then
       UpdateTriage()
-      lsticdisease.List = modPathoSub.GetProvisionalDiagnosisList(Trim(txtencid.Text))
-      lstallergy.List = modPathoSub.GetAllergyMedicineList(Trim(txtencid.Text), chkallergy.Value)
+      modPatientGeneral.SetPatientFindingTree(Trim(txtencid.Text), lsticdisease)
       ShowEssentialExam()
       If TabPanel2.Index = 0 Then
         ShowSymptomData()
@@ -753,15 +750,17 @@ Public Sub tlbtndeldises_Click()
   Dim res As Result
 
   If txtencid.Text Then
-    If lsticdisease.Text Then
+    If lsticdisease.Current.Text Then
       If Message.Question(("Are you sure?"), ("No"), ("Yes")) = 2 Then
-        res = modDatabase.$myConn.Edit("tblpatfindings", "fldcode=&1 and fldencounterval=&2 and fldtype=&3 and fldsave=&4", lsticdisease.Text, Trim(txtencid.Text), "Provisional Diagnosis", True)
-        res["fldsave"] = False
-        res["xyz"] = False
-        res.Update
-        lsticdisease.List = modPathoSub.GetProvisionalDiagnosisList(Trim(txtencid.Text))
-        ' Message.Warning(("Information deleted"), ("OK"))
-        ' Balloon.Delay = modBasic.$BalloonDelay
+        res = modDatabase.$myConn.Edit("tblpatfindings", "fldcode=&1 and fldencounterval=&2 and fldtype=&3 and fldsave=&4", lsticdisease.Current.Text, Trim(txtencid.Text), "Provisional Diagnosis", True)
+        If res.Available Then
+          res["fldsave"] = False
+          res["xyz"] = False
+          res.Update
+          modPatientGeneral.SetPatientFindingTree(Trim(txtencid.Text), lsticdisease)
+          ' Message.Warning(("Information deleted"), ("OK"))
+          ' Balloon.Delay = modBasic.$BalloonDelay
+        Endif
       Endif
     Endif
   Endif
@@ -785,7 +784,7 @@ Public Sub tbndisease_Click()
     If sName Then
       If sName[1] And If sName[0] Then
         modPatientGeneral.AddPatientFindings("Provisional Diagnosis", Trim(txtencid.Text), sName[0], sName[1], sName[2])
-        lsticdisease.List = modPathoSub.GetProvisionalDiagnosisList(Trim(txtencid.Text))
+        modPatientGeneral.SetPatientFindingTree(Trim(txtencid.Text), lsticdisease)
       Endif
     Endif
   Endif
@@ -815,7 +814,7 @@ Public Sub tbnsyndro_Click()
           Endif
         Endif
 
-        lsticdisease.List = modPathoSub.GetProvisionalDiagnosisList(Trim(txtencid.Text))
+        modPatientGeneral.SetPatientFindingTree(Trim(txtencid.Text), lsticdisease)
       Endif
     Endif
   Endif
@@ -830,7 +829,7 @@ Public Sub btndismanual_Click()
     xx = InputBox(("Enter custom Provisional Diagnosis"), ("Provisional Diagnosis"), "")
     If xx Then
       modPatientGeneral.AddPatientFindings("Provisional Diagnosis", Trim(txtencid.Text), xx, "Other", "Other")
-      lsticdisease.List = modPathoSub.GetProvisionalDiagnosisList(Trim(txtencid.Text))
+      modPatientGeneral.SetPatientFindingTree(Trim(txtencid.Text), lsticdisease)
     Endif
   Endif
 
@@ -840,8 +839,8 @@ Public Sub btnregimen_Click()
 
   Dim hForm As FmDrugDose
 
-  If lsticdisease.Text Then
-    hForm = New FmDrugDose(Trim(txtencid.Text), lsticdisease.Text)
+  If lsticdisease.Current.Text Then
+    hForm = New FmDrugDose(Trim(txtencid.Text), lsticdisease.Current.Text)
     hForm.ShowModal
   Endif
 
@@ -851,9 +850,11 @@ End
 Public Sub tnfinaldiagno_Click()
 
   Dim sName As String[]
+  Dim xList As String[]
 
   If txtencid.Text Then
-    If lsticdisease.List.Count Then
+    xList = modPathoSub.GetProvisionalDiagnosisList(Trim(txtencid.Text))
+    If xList.Count Then
       If MMain.$Ayurveda = "Yes" Then
         sName = AyurvedicDiagnosis(modAyurv.$AyurvedicDiagnosis)
       Else
@@ -866,23 +867,9 @@ Public Sub tnfinaldiagno_Click()
       If sName Then
         If sName[1] And If sName[0] Then
           modPatientGeneral.AddPatientFindings("Final Diagnosis", Trim(txtencid.Text), sName[0], sName[1], sName[2])
-          SHowFinalDiagnosis()
+          modPatientGeneral.SetPatientFindingTree(Trim(txtencid.Text), lsticdisease)
         Endif
       Endif
-    Endif
-  Endif
-
-End
-
-Private Sub SHowFinalDiagnosis()
-
-  Dim res As Result
-
-  If txtencid.Text Then
-    res = modDatabase.$syConn.Exec("select fldcode,fldcodeid,fldcodenew from tblpatfindings where fldencounterval=&1 and fldtype=&2 and fldsave=&3", Trim(txtencid.Text), "Final Diagnosis", True)
-    If res.Available Then
-      res.MoveLast
-      txtfinaldiagno.Text = res["fldcode"]
     Endif
   Endif
 
@@ -894,24 +881,20 @@ Public Sub tlbtndelallergy_Click()
   Dim res As Result
 
   If txtencid.Text Then
-    If lstallergy.Text Then
+    If lsticdisease.Current.Text Then
       If Message.Question(("Are you sure?"), ("No"), ("Yes")) = 2 Then
-        res = modDatabase.$myConn.Edit("tblpatfindings", "fldcode=&1 and fldencounterval=&2 and fldtype=&3 and fldsave=&4", lstallergy.Text, Trim(txtencid.Text), "Allergic Drugs", True)
-        res["fldsave"] = False
-        res["xyz"] = False
-        res.Update
-        lstallergy.List = modPathoSub.GetAllergyMedicineList(Trim(txtencid.Text), chkallergy.Value)
-        ' Message.Warning(("Information deleted"), ("OK"))
-        ' Balloon.Delay = modBasic.$BalloonDelay
+        res = modDatabase.$myConn.Edit("tblpatfindings", "fldcode=&1 and fldencounterval=&2 and fldtype=&3 and fldsave=&4", lsticdisease.Current.Text, Trim(txtencid.Text), "Allergic Drugs", True)
+        If res.Available Then
+          res["fldsave"] = False
+          res["xyz"] = False
+          res.Update
+          modPatientGeneral.SetPatientFindingTree(Trim(txtencid.Text), lsticdisease)
+          ' Message.Warning(("Information deleted"), ("OK"))
+          ' Balloon.Delay = modBasic.$BalloonDelay
+        Endif
       Endif
     Endif
   Endif
-
-End
-
-Public Sub chkallergy_Click()
-
-  lstallergy.List = modPathoSub.GetAllergyMedicineList(Trim(txtencid.Text), chkallergy.Value)
 
 End
 
@@ -923,7 +906,7 @@ Public Sub btnallergymanual_Click()
     xx = InputBox(("Enter custom Drug Allergy"), ("Drug Allergy"), "")
     If xx Then
       modPatientGeneral.AddPatientFindings("Allergic Drugs", Trim(txtencid.Text), xx, "", "")
-      lstallergy.List = modPathoSub.GetAllergyMedicineList(Trim(txtencid.Text), chkallergy.Value)
+      modPatientGeneral.SetPatientFindingTree(Trim(txtencid.Text), lsticdisease)
     Endif
   Endif
 
@@ -931,19 +914,21 @@ End
 
 Public Sub btnallergy_Click()
 
+  Dim curLst As String[]
   Dim sName As String[]
   Dim sText As String
   Dim druglist As String[]
 
   If txtencid.Text Then
-    druglist = modString.GetRemainingArray(modBasic.$GenericMedName, lstallergy.List)
+    curLst = modPathoSub.GetAllergyMedicineList(Trim(txtencid.Text), True)
+    druglist = modString.GetRemainingArray(modBasic.$GenericMedName, curLst)
     sName = GridListView(("Select Drugs"), druglist)
     If sName And If sName.Count Then
       For Each sText In sName
         modPatientGeneral.AddPatientFindings("Allergic Drugs", Trim(txtencid.Text), sText, "", "")
       Next
     Endif
-    lstallergy.List = modPathoSub.GetAllergyMedicineList(Trim(txtencid.Text), chkallergy.Value)
+    modPatientGeneral.SetPatientFindingTree(Trim(txtencid.Text), lsticdisease)
   Endif
 
 End
@@ -955,6 +940,19 @@ Public Sub cmbfinding_Activate()  ''from got focus
     GetSelectedFindingControl()
   Else
     btnfindList_Click()
+  Endif
+
+End
+
+Public Sub cmbfinding_Completion(Text As String)
+
+  Dim xallLst As String[]
+  Dim xList As String[]
+
+  xallLst = modBasic.$ClinFindingComp
+  If xallLst And If xallLst.Count Then
+    xList = modString.SelectStringArrayToText(Text, xallLst, False)
+    cmbfinding.CompleteWith(xList)
   Endif
 
 End
@@ -1389,6 +1387,19 @@ Public Sub cmbsymptom_Activate() '''from got focus
     txtsympval.SetFocus(True)
   Else
     btncompList_Click()
+  Endif
+
+End
+
+Public Sub cmbsymptom_Completion(Text As String)
+
+  Dim xallLst As String[]
+  Dim xList As String[]
+
+  xallLst = modBasic.$ClinComplaintComp
+  If xallLst And If xallLst.Count Then
+    xList = modString.SelectStringArrayToText(Text, xallLst, False)
+    cmbsymptom.CompleteWith(xList)
   Endif
 
 End

@@ -28,7 +28,7 @@ Private $xBillType As String
 Private $sBillMode As String
 Private $LabelType As String
 Private xYear As Integer
-Private $pharmLock As Boolean
+
 Private $ClinicianLst As String[]
 
 Public Sub _new(encid As String, sStatus As String, DiscPackage As String)
@@ -271,6 +271,45 @@ Public Sub cmbroute_Click()
 
 End
 
+Private Function GetMedicineList() As String[]
+
+  Dim res As Result
+  Dim xlist As String[]
+  Dim xlist1 As String[]
+
+  If cmbroute.Text = "suture" Or If cmbroute.Text = "msurg" Or If cmbroute.Text = "ortho" Or If cmbroute.Text = "extra" Then
+    If chkout.Value = True Then
+      res = modStock.ItemListForPurchaseBillMode(cmbroute.Text, GetBrandGenerricType(), $sBillMode)
+    Else
+      res = modStock.FillMedicinesPrescribingComboResult(cmbroute.Text, GetBrandGenerricType(), $sBillMode)
+    Endif
+    xlist = modControlSub.GetDirectFillresult(res)
+  Else
+    If chkout.Value = True Then
+      res = modStock.ItemListForPurchaseBillMode(cmbroute.Text, GetBrandGenerricType(), $sBillMode)
+    Else
+      res = modStock.FillMedicinesPrescribingComboResult(cmbroute.Text, GetBrandGenerricType(), $sBillMode)
+    Endif
+    xlist = modControlSub.GetDirectFillresult(res)
+  Endif
+
+  Return xlist
+
+End
+
+Public Sub cmbmedicine_Completion(Text As String)
+
+  Dim xallLst As String[]
+  Dim xList As String[]
+
+  xallLst = GetMedicineList()
+  If xallLst And If xallLst.Count Then
+    xList = modString.SelectStringArrayToText(Text, xallLst, False)
+    cmbmedicine.CompleteWith(xList)
+  Endif
+
+End
+
 Public Sub btnmedlist_Click()
 
   Dim res As Result
@@ -278,44 +317,22 @@ Public Sub btnmedlist_Click()
   Dim xlist1 As String[]
 
   $HideErr = False
-  If cmbroute.Text = "suture" Or If cmbroute.Text = "msurg" Or If cmbroute.Text = "ortho" Or If cmbroute.Text = "extra" Then
-    If chkout.Value = True Then
-      res = modStock.ItemListForPurchaseBillMode(cmbroute.Text, GetBrandGenerricType(), $sBillMode)
+  xlist = GetMedicineList()
+  If xlist Then
+    If cmbroute.Text = "suture" Or If cmbroute.Text = "msurg" Or If cmbroute.Text = "ortho" Or If cmbroute.Text = "extra" Then
+      cmbmedicine.Text = GridViewNew("Select Particulars", xlist, False)
     Else
-      res = modStock.FillMedicinesPrescribingComboResult(cmbroute.Text, GetBrandGenerricType(), $sBillMode)
-    Endif
-    cmbmedicine.Text = GridViewNew("Select Particulars", modControlSub.GetDirectFillresult(res), False)
-  Else
-    If chkout.Value = True Then
-      res = modStock.ItemListForPurchaseBillMode(cmbroute.Text, GetBrandGenerricType(), $sBillMode)
-    Else
-      res = modStock.FillMedicinesPrescribingComboResult(cmbroute.Text, GetBrandGenerricType(), $sBillMode)
-    Endif
-    If modBasic.$ClinCategoryGrid = "Yes" Then
-      xlist1 = modControlSub.GetDirectFillresult(res)
-      If xlist1 Then
-        xlist = modMedConstant.GetStockIDWithCategory(xlist1)
-        If xlist Then
-          cmbmedicine.Text = GridViewGroup("Select Medicine", xlist, False)
+      If modBasic.$ClinCategoryGrid = "Yes" Then
+        xlist1 = modMedConstant.GetStockIDWithCategory(xlist)
+        If xlist1 Then
+          cmbmedicine.Text = GridViewGroup("Select Medicine", xlist1, False)
         Endif
-      Endif
-    Else
-      xlist = modControlSub.GetDirectFillresult(res)
-      If xlist Then
+      Else
         cmbmedicine.Text = GridViewNew("Select Particulars", xlist, False)
       Endif
     Endif
   Endif
-  $pharmLock = False
   CheckMedicineName()
-
-End
-
-Public Sub cmbmedicine_Change()
-
-  If $pharmLock = True Then
-    cmbmedicine.Text = ""
-  Endif
 
 End
 
@@ -323,7 +340,6 @@ Private Sub CheckMedicineName()
   ' ' Dim hForm As FmDiseaseDose
 
   If cmbmedicine.Text Then
-    $pharmLock = True
     If cmbroute.Text = "suture" Or If cmbroute.Text = "msurg" Or If cmbroute.Text = "ortho" Or If cmbroute.Text = "extra" Then
       RegimenBoxSetting(False)
       txtqty.SetFocus
@@ -398,6 +414,8 @@ Public Sub cmbmedicine_Activate()
   Else If cmbroute.Text Then
     If Not cmbmedicine.Text Then
       btnmedlist_Click()
+    Else
+      CheckMedicineName()
     Endif
   Endif
 

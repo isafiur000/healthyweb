@@ -9,6 +9,7 @@ Private $SSQLFields As String[]
 Private $ColCount As Integer
 Private $newColumn As String[]
 Private $RepoStr As String
+Private $showList As String
 
 Private $sTable As String
 
@@ -25,8 +26,10 @@ Public Sub _new(sTable As String)
       btnconsult.Text = modGeneral.GetUserFullName(btnconsult.Tag)
       btnselectuser.Visible = False
     Endif
+    $showList = modGlobalSetting.ShowSettingFromDB("ClinicForms/ConsultationList")
   Else If $sTable = "tblopvisit" Then
     Me.Title = "OPD Visit List"
+    $showList = modGlobalSetting.ShowSettingFromDB("ClinicForms/OPVisitList")
   Endif
 
   If MMain.$WebReport = "Multiple" Then
@@ -260,12 +263,18 @@ Public Sub mnusearchconsult_Click()
   Dim xname As String
   Dim sql As String
   Dim xFldList As String[]
+  Dim xpaid As String
 
   xname = InputBox(("Search Consultant UserID"), "Search", "")
   If xname Then
     cmbdept.Text = "%"
     xFldList = GetSQLColumns()
-    sql = Subst("select " & xFldList.Join(",") & " from &1", $sTable) & " where fldstatus=&1 and flduserid=&2"                       ''
+    If $showList = "Paid" Then
+      xpaid = " and fldencounterval in(select fldencounterval from tblpatbilldetail)"
+    Else
+      xpaid = ""
+    Endif
+    sql = Subst("select " & xFldList.Join(",") & " from &1", $sTable) & " where fldstatus=&1 and flduserid=&2" & xpaid                       ''
     $rData = modDatabase.$myConn.Exec(sql, "Planned", xname)
     ResizeGrid()
   Endif
@@ -277,12 +286,18 @@ Public Sub mnusearchname_Click()
   Dim xname As String[]
   Dim sql As String
   Dim xFldList As String[]
+  Dim xpaid As String
 
   xname = InputDoubleText(("Search Patient Name"), ["First Name", "SurName"], ["%", "%"], modBasic.$SurNameList)
   If xname Then
     cmbdept.Text = "%"
     xFldList = GetSQLColumns()
-    sql = Subst("select " & xFldList.Join(",") & " from &1", $sTable) & " where fldstatus=&1 and fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where lower(fldptnamefir) like &2 and lower(fldptnamelast) like &3))"                       ''
+    If $showList = "Paid" Then
+      xpaid = " and fldencounterval in(select fldencounterval from tblpatbilldetail)"
+    Else
+      xpaid = ""
+    Endif
+    sql = Subst("select " & xFldList.Join(",") & " from &1", $sTable) & " where fldstatus=&1 and fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where lower(fldptnamefir) like &2 and lower(fldptnamelast) like &3))" & xpaid                      ''
     $rData = modDatabase.$myConn.Exec(sql, "Planned", LCase(xname[0]), LCase(xname[1]))
     ResizeGrid()
   Endif
@@ -325,6 +340,7 @@ Private Function ExecuteQuery(xFldList As String[]) As Result
   Dim xconsult As String
   Dim xunion As String
   Dim xpreun As String
+  Dim xpaid As String
 
   If ToolButton1.Background = Color.White Then
     xcolor = ""
@@ -348,6 +364,12 @@ Private Function ExecuteQuery(xFldList As String[]) As Result
     xconsult = ""
   Endif
 
+  If $showList = "Paid" Then
+    xpaid = " and fldencounterval in(select fldencounterval from tblpatbilldetail)"
+  Else
+    xpaid = ""
+  Endif
+
   If rbname.Value = True Then
     xpreun = "("
     xunion = " inner join tblencounter on " & $sTable & "." & "fldencounterval=tblencounter.fldencounterval) inner join tblpatientinfo on tblencounter.fldpatientval=tblpatientinfo.fldpatientval"
@@ -360,26 +382,26 @@ Private Function ExecuteQuery(xFldList As String[]) As Result
   $RepoStr = modDataRepo.GetWhereStringRepo(cmblocation.Text, cmbvalue.Text, $sTable)
   If chkdate.Value = True Then
     If modBasic.$FixedDepartment Then
-      sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & "  where " & $sTable & "." & "fldconsulttime>=&1 and " & $sTable & "." & "fldconsulttime<=&2 and " & $sTable & "." & "fldstatus=&3 and " & $sTable & "." & "fldconsultname=&4" & xencid & xconsult & xcolor & $RepoStr & xorder                                           ''
+      sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & "  where " & $sTable & "." & "fldconsulttime>=&1 and " & $sTable & "." & "fldconsulttime<=&2 and " & $sTable & "." & "fldstatus=&3 and " & $sTable & "." & "fldconsultname=&4" & xencid & xconsult & xpaid & xcolor & $RepoStr & xorder                                           ''
       res = modDatabase.$myConn.Exec(sql, modDate.StartSqlDate(dtsort.Value), modDate.EndSqlDate(dtsort.Value), "Planned", modBasic.$FixedDepartment)
     Else
       If cmbdept.Text = "%" Then
-        sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldconsulttime>=&1 and " & $sTable & "." & "fldconsulttime<=&2 and " & $sTable & "." & "fldstatus=&3" & xencid & xconsult & xcolor & $RepoStr & xorder                                             ''
+        sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldconsulttime>=&1 and " & $sTable & "." & "fldconsulttime<=&2 and " & $sTable & "." & "fldstatus=&3" & xencid & xconsult & xpaid & xcolor & $RepoStr & xorder                                             ''
       Else
-        sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldconsulttime>=&1 and " & $sTable & "." & "fldconsulttime<=&2 and " & $sTable & "." & "fldstatus=&3 and " & $sTable & "." & "fldconsultname=&4" & xencid & xconsult & xcolor & $RepoStr & xorder
+        sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldconsulttime>=&1 and " & $sTable & "." & "fldconsulttime<=&2 and " & $sTable & "." & "fldstatus=&3 and " & $sTable & "." & "fldconsultname=&4" & xencid & xconsult & xpaid & xcolor & $RepoStr & xorder
       Endif
       res = modDatabase.$myConn.Exec(sql, modDate.StartSqlDate(dtsort.Value), modDate.EndSqlDate(dtsort.Value), "Planned", cmbdept.Text)
     Endif
 
   Else
     If modBasic.$FixedDepartment Then
-      sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldstatus=&1 and " & $sTable & "." & "fldconsultname=&2" & xencid & xconsult & xcolor & $RepoStr & xorder                                            ''
+      sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldstatus=&1 and " & $sTable & "." & "fldconsultname=&2" & xencid & xconsult & xpaid & xcolor & $RepoStr & xorder                                            ''
       res = modDatabase.$myConn.Exec(sql, "Planned", modBasic.$FixedDepartment)
     Else
       If cmbdept.Text = "%" Then
-        sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldstatus=&1" & xencid & xconsult & xcolor & $RepoStr & xorder                                              ''
+        sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldstatus=&1" & xencid & xconsult & xpaid & xcolor & $RepoStr & xorder                                              ''
       Else
-        sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldstatus=&1 and " & $sTable & "." & "fldconsultname=&2" & xencid & xconsult & xcolor & $RepoStr & xorder
+        sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldstatus=&1 and " & $sTable & "." & "fldconsultname=&2" & xencid & xconsult & xpaid & xcolor & $RepoStr & xorder
       Endif
       res = modDatabase.$myConn.Exec(sql, "Planned", cmbdept.Text)
     Endif

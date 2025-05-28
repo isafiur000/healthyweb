@@ -31,6 +31,15 @@ Public Sub Run(sFollow As Boolean) As String
     chkfollow.Value = True
     chkfollow.Enabled = False
   Endif
+  ''--------- for police -------------
+  If MMain.$IsPolice = True Then
+    cmbcategory.Visible = True
+    pnlpolice.Visible = True
+    cmbcategory.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select fldcategory as col from tblcategorylist"))
+    cmbrank.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tblranks"))
+    cmbunit.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tblunits"))
+  Endif
+  ''---------end ------------------------
 
   cmbsex.List = ["Female", "Male", "Other"]
   chknull.Value = False
@@ -566,6 +575,14 @@ Private Sub RegisterFirstTime()
       res["fldencrypt"] = modBasic.$PatInfoEncrypt
       res["fldpassword"] = ""
 
+      ''--------- for police -------------
+      If MMain.$IsPolice = True Then
+        res["fldcategory"] = cmbcategory.Text
+        res["fldrank"] = cmbrank.Text
+        res["fldunit"] = cmbunit.Text
+      Endif
+      ''----------end -------------------
+
       res["flduserid"] = modBasic.$lbluser
       res["fldtime"] = Now()
       res["fldupuser"] = ""
@@ -889,6 +906,15 @@ Public Sub btnChange_Click()
         If chknull.Value = False Then
           res["fldptbirday"] = $DOBirth
         Endif
+
+        ''--------- for police -------------
+        If MMain.$IsPolice = True Then
+          res["fldcategory"] = cmbcategory.Text
+          res["fldrank"] = cmbrank.Text
+          res["fldunit"] = cmbunit.Text
+        Endif
+        ''----------end -------------------
+
         res["fldptcode"] = txtpatcode.Text
         res["fldupuser"] = modBasic.$lbluser
         res["flduptime"] = Now()
@@ -966,7 +992,11 @@ Private Sub GetPatientInfoAll()
       xallow = modPatient.GetRegistrationAllow(Trim(txtpatno.Text))
     Endif
     If xallow = True Then
-      sql = "select fldptnamefir,fldptnamelast,fldethniccode,fldptaddvill,fldptaddward,fldptadddist,fldptsex,fldptcontact,fldptguardian,fldptbirday,fldptadmindate,fldemail,fldptcode,fldrelation,fldencrypt from tblpatientinfo where fldpatientval=&1"
+      If MMain.$IsPolice = True Then
+        sql = "select fldptnamefir,fldptnamelast,fldethniccode,fldptaddvill,fldptaddward,fldptadddist,fldptsex,fldptcontact,fldptguardian,fldptbirday,fldptadmindate,fldemail,fldptcode,fldrelation,fldencrypt,fldcategory,fldrank,fldunit from tblpatientinfo where fldpatientval=&1"
+      Else
+        sql = "select fldptnamefir,fldptnamelast,fldethniccode,fldptaddvill,fldptaddward,fldptadddist,fldptsex,fldptcontact,fldptguardian,fldptbirday,fldptadmindate,fldemail,fldptcode,fldrelation,fldencrypt from tblpatientinfo where fldpatientval=&1"
+      Endif
       res = modDatabase.$myConn.Exec(sql, Trim(txtpatno.Text))
       If res.Available = False Then
         modLinkDB.CheckPatientDataRemote(Trim(txtpatno.Text))
@@ -1019,6 +1049,15 @@ Private Sub GetPatientInfoAll()
           dtdobmain.Tag = ""
           chknull.Value = True
         Endif
+
+        ''--------- for police -------------
+        If MMain.$IsPolice = True Then
+          cmbcategory.Text = res["fldcategory"]
+          cmbrank.Text = res["fldrank"]
+          cmbunit.Text = res["fldunit"]
+        Endif
+        ''----------end -------------------
+
         lblstatus.Text = "REGISTERED PATIENT"
         lstdat = modPatient.GetRecordDate(modPatient.GetLastEncoutnerFromPatNo(Trim(txtpatno.Text)))
         $lstencDate = modPatient.GetLastPaidConsultDate(Trim(txtpatno.Text))
@@ -1085,6 +1124,11 @@ Private Sub GetPatientInfoAll()
     $selectList.Add("Municipality")
     $selectList.Add("Relation")
     $selectList.Add("Department")
+    If MMain.$IsPolice = True Then
+      $selectList.Add("Category")
+      $selectList.Add("Rank")
+      $selectList.Add("Unit")
+    Endif
     SetSelect2Format(cmbsex)
     SetSelect2Format(cmbdistrict)
     SetSelect2Format(cmbrelation)
@@ -1166,9 +1210,27 @@ End
 Public Sub cmbsex_Click()
 
   If cmbsex.Text Then
-    txtyears.SetFocus
-    Me.Exec("$_(" & JS(txtyears.Name & ":entry") & ").select()")
+    If MMain.$IsPolice = True Then
+      If cmbcategory.List.Count Then
+        If $selectList.Exist("Category") Then
+          SetSelect2Format(cmbcategory)
+          modJavaScript.PopUpSelect2Combo(cmbcategory)
+          cmbcategory.SetFocus
+        Endif
+      Endif
+
+    Else
+      txtyears.SetFocus
+      Me.Exec("$_(" & JS(txtyears.Name & ":entry") & ").select()")
+    Endif
   Endif
+
+End
+
+Public Sub cmbcategory_Click()
+
+  txtyears.SetFocus
+  Me.Exec("$_(" & JS(txtyears.Name & ":entry") & ").select()")
 
 End
 
@@ -1269,6 +1331,37 @@ End
 ' End
 
 Public Sub cmbrelation_Click()
+
+  If MMain.$IsPolice = True Then
+    If cmbrank.List.Count Then
+      If $selectList.Exist("Rank") Then
+        SetSelect2Format(cmbrank)
+        modJavaScript.PopUpSelect2Combo(cmbrank)
+        cmbrank.SetFocus
+      Endif
+    Endif
+
+  Else
+    txtpatcode.SetFocus
+  Endif
+
+End
+
+Public Sub cmbrank_Click()
+
+  If MMain.$IsPolice = True Then
+    If cmbunit.List.Count Then
+      If $selectList.Exist("Unit") Then
+        SetSelect2Format(cmbunit)
+        modJavaScript.PopUpSelect2Combo(cmbunit)
+        cmbunit.SetFocus
+      Endif
+    Endif
+  Endif
+
+End
+
+Public Sub cmbunit_Click()
 
   txtpatcode.SetFocus
 
@@ -1794,6 +1887,26 @@ Public Sub btnrelation_Click()
   hForm.ShowModal
   modBasic.FillRelationList()
   cmbrelation.List = modBasic.$RelationList
+
+End
+
+Public Sub btnrank_Click()
+
+  Dim hForm As FmAddVariableGrid
+
+  hForm = New FmAddVariableGrid("flditem", "tblranks")
+  hForm.ShowModal()
+  cmbrank.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tblranks"))
+
+End
+
+Public Sub btnunit_Click()
+
+  Dim hForm As FmAddVariableGrid
+
+  hForm = New FmAddVariableGrid("flditem", "tblunits")
+  hForm.ShowModal()
+  cmbunit.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tblunits"))
 
 End
 
