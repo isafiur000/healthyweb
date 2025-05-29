@@ -173,6 +173,7 @@ Public Sub TabPanel1_Click()
     cmbcategory.Add("All Sections")
     ShowGridTree()
   Else If TabPanel1.Index = 3 Then
+    rbdaterepo.Value = True
     FillLabtable()
   Endif
 
@@ -951,7 +952,7 @@ End
 ''------------------------------------------- Reported -----------------------------------
 Public Sub FillLabtable()
 
-  Dim xdate As Date
+  Dim xdate As Variant
   Dim sql As String
   Dim res As Result
   Dim rsx As Result
@@ -975,7 +976,11 @@ Public Sub FillLabtable()
     .Columns[4].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
     .Columns[5].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
 
-    .Columns[0].Text = "Examination"
+    If rbdaterepo.Value = True Then
+      .Columns[0].Text = "Examination"
+    Else If rbnamerepo.Value = True
+      .Columns[0].Text = "Date"
+    Endif
     .Columns[1].Text = "Time"
     .Columns[2].Text = "Specimen"
     .Columns[3].Text = "Observation"
@@ -985,13 +990,26 @@ Public Sub FillLabtable()
   End With
 
   $sColl = New Collection
-  rsx = modDatabase.$myConn.Exec("select DISTINCT DATE(fldtime_sample) as col from " & $tblpatlabtest & " where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3) and flvisible=&4 ORDER BY fldtime_sample DESC", $encid, "Reported", "Verified", "Visible")
+  If rbdaterepo.Value = True Then
+    rsx = modDatabase.$myConn.Exec("select DISTINCT DATE(fldtime_sample) as col from " & $tblpatlabtest & " where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3) and flvisible=&4 ORDER BY fldtime_sample DESC", $encid, "Reported", "Verified", "Visible")
+  Else If rbnamerepo.Value = True
+    rsx = modDatabase.$myConn.Exec("select DISTINCT (fldtestid) as col from " & $tblpatlabtest & " where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3) and flvisible=&4 ORDER BY fldtime_sample DESC", $encid, "Reported", "Verified", "Visible")
+  Endif
   For Each rsx
     xdate = rsx["col"]
-    sql = "select fldid,fldtestid,fldsampletype,fldmethod,fldabnormal,fldid,fldstatus,fldtime_sample,fldtime_report,fldtest_type,fldcomp_sample,fldcomp_report from " & $tblpatlabtest & " where fldencounterval=&1 and fldtime_sample>=&2 and fldtime_sample<=&3 and (fldstatus=&4 or fldstatus=&5) and flvisible=&6"
-    res = modDatabase.$myConn.Exec(sql, $encid, modDate.StartSqlDate(xdate), modDate.EndSqlDate(xdate), "Reported", "Verified", "Visible")
+    If rbdaterepo.Value = True Then
+      sql = "select fldid,fldtestid,fldtestid as xparticular,fldsampletype,fldmethod,fldabnormal,fldid,fldstatus,fldtime_sample,fldtime_report,fldtest_type,fldcomp_sample,fldcomp_report from " & $tblpatlabtest & " where fldencounterval=&1 and fldtime_sample>=&2 and fldtime_sample<=&3 and (fldstatus=&4 or fldstatus=&5) and flvisible=&6"
+      res = modDatabase.$myConn.Exec(sql, $encid, modDate.StartSqlDate(xdate), modDate.EndSqlDate(xdate), "Reported", "Verified", "Visible")
+    Else If rbnamerepo.Value = True
+      sql = "select fldid,fldtestid,DATE(fldtime_sample) as xparticular,fldsampletype,fldmethod,fldabnormal,fldid,fldstatus,fldtime_sample,fldtime_report,fldtest_type,fldcomp_sample,fldcomp_report from " & $tblpatlabtest & " where fldencounterval=&1 and fldtestid=&2 and (fldstatus=&3 or fldstatus=&4) and flvisible=&5"
+      res = modDatabase.$myConn.Exec(sql, $encid, xdate, "Reported", "Verified", "Visible")
+    Endif
     If res.Available Then
-      TableView1.Add(CStr(xdate), modReportVar.GetDateTimeReport(xdate, gb.MediumDate), pic2)
+      If rbdaterepo.Value = True Then
+        TableView1.Add(CStr(xdate), modReportVar.GetDateTimeReport(xdate, gb.MediumDate), pic2)
+      Else If rbnamerepo.Value = True
+        TableView1.Add(CStr(xdate), xdate, pic2)
+      Endif
 
       Column = 0
       For Each res
@@ -1013,7 +1031,11 @@ Public Sub FillLabtable()
           pic3 = "icons/false.svg"
         Endif
         $sColl.Add(xdata, CStr(xdate) & ":" & CStr(Column))
-        TableView1.Add(CStr(xdate) & ":" & CStr(Column), res["fldtestid"], pic3, CStr(xdate))
+        If rbdaterepo.Value = True Then
+          TableView1.Add(CStr(xdate) & ":" & CStr(Column), res["xparticular"], pic3, CStr(xdate))
+        Else If rbnamerepo.Value = True
+          TableView1.Add(CStr(xdate) & ":" & CStr(Column), modReportVar.GetDateTimeReport(res["xparticular"], gb.MediumDate), pic3, CStr(xdate))
+        Endif
 
         TableView1[CStr(xdate) & ":" & CStr(Column)][1] = modReportVar.GetDateTimeReport(res["fldtime_sample"], gb.ShortTime)
         TableView1[CStr(xdate) & ":" & CStr(Column)][2] = res["fldsampletype"] & gb.NewLine & "[" & res["fldstatus"] & "]"

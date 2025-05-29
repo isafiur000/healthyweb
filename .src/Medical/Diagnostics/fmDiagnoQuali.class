@@ -7,16 +7,16 @@ Private $opType As String
 Private $sTable As String
 
 Public Sub _new(sItemName As String, sType As String, optionType As String)
-  
+
   lbltestname.Text = sItemName
   $sType = sType
   $opType = optionType
-  
-  If $opType = "Left/Right Components" Then 
+
+  If $opType = "Left/Right Components" Then
     cmboption.List = modMedicine.FillLeftRightOptionCombo()
-  Else 
+  Else
     cmboption.List = modMedicine.FillCLinicalOptionCombo()
-  Endif 
+  Endif
   If $sType = "Exam" Then
     $sTable = "tblexamquali"
   Else If $sType = "Radio" Then
@@ -25,13 +25,13 @@ Public Sub _new(sItemName As String, sType As String, optionType As String)
     $sTable = "tbltestquali"
   Endif
   FillGridSubTest()
-  
+
 End
 
 Private Sub FillGridSubTest()
-  
+
   Dim sql As String
-  
+
   If $sType = "Exam" Then
     sql = "select fldid,fldsubexam,fldtanswertype,flddetail,fldreference,fldindex from tblexamquali where fldexamid=&1 ORDER BY fldindex"
   Else If $sType = "Radio" Then
@@ -42,7 +42,7 @@ Private Sub FillGridSubTest()
   $rData = modDatabase.$medConn.Exec(sql, lbltestname.Text)
   $aMyFields = New String[]
   modGridView.ReadSmallData(GridView1, $rData, $aMyFields)
-  
+
   With GridView1
     .Columns[0].Hidden = True
     .Columns[1].Width = CStr(250 * modBasic.$AppWidthRatio) & "px"
@@ -50,23 +50,23 @@ Private Sub FillGridSubTest()
     .Columns[3].Hidden = True
     .Columns[4].Hidden = True
     .Columns[5].Hidden = True
-    
+
     .Columns[1].Text = "SubExam"
     .Columns[2].Text = "Option"
   End With
-  
+
 End
 
 Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableData)
-  
+
   $rData.MoveTo(Row)
   modGridView.GridViewDecoration(Data, Row)
   Data.Text = $rData[$aMyFields[Column]]
-  
+
 End
 
 Public Sub GridView1_Select()
-  
+
   If GridView1.Selection.Count Then
     $rData.MoveTo(GridView1.Selection[0])
     If $sType = "Exam" Then
@@ -86,13 +86,13 @@ Public Sub GridView1_Select()
       txtreference.Text = $rData["fldreference"]
     Endif
   Endif
-  
+
 End
 
 Public Sub btnBrOK_Click()
-  
+
   Dim res As Result
-  
+
   If txtsubtest.Text Then
     If $sType = "Exam" Then
       res = modDatabase.$medConn.Create("tblexamquali")
@@ -139,14 +139,14 @@ Public Sub btnBrOK_Click()
     ' Balloon.Delay = modBasic.$BalloonDelay
   Endif
   txtsubtest.SetFocus
-  
+
 End
 
 Private Function GetIndexIDForCurr(sTable As String, sField As String, sItem As String, Optional subField As String, Optional subItem As String) As Integer
-  
+
   Dim res As Result
   Dim xval As Integer
-  
+
   If subItem Then
     res = modDatabase.$medConn.Exec(Subst("select MAX(fldindex) as col from &1 where &2", sTable, sField) & "=&1 and " & subField & "=&2", sItem, subItem)
   Else
@@ -162,7 +162,7 @@ Private Function GetIndexIDForCurr(sTable As String, sField As String, sItem As 
     xval = 1
   Endif
   Return xval
-  
+
 End
 
 ' Public Sub cmboption_KeyRelease()
@@ -173,12 +173,12 @@ End
 ' End
 
 Public Sub btnoption_Click()
-  
+
   Dim hForm As FmSubQuali
   Dim hForm1 As FmVisualInput
   Dim hForm2 As FmSubScale
   Dim xtitle As String
-  
+
   If $sType = "Exam" Then
     xtitle = "Qualitative Exam Components"
   Else If $sType = "Radio" Then
@@ -186,7 +186,7 @@ Public Sub btnoption_Click()
   Else If $sType = "Test" Then
     xtitle = "Qualitative Test Components"
   Endif
-  
+
   If cmboption.Text Then
     Select cmboption.Text
       Case "No Selection"
@@ -201,13 +201,13 @@ Public Sub btnoption_Click()
         hForm.ShowModal
     End Select
   Endif
-  
+
 End
 
 Public Sub btnBrChange_Click()
-  
+
   Dim res As Result
-  
+
   If GridView1.Selection.Count Then
     $rData.MoveTo(GridView1.Selection[0])
     If $sType = "Exam" Then
@@ -244,22 +244,22 @@ Public Sub btnBrChange_Click()
       res["fldreference"] = Trim(txtreference.Text)
       res.Update()
     Endif
-    
+
     FillGridSubTest()
     Me.Exec("Toastify({text: 'Information updated', duration: 3000}).showToast()")
     ' Balloon.Delay = modBasic.$BalloonDelay
     txtsubtest.SetFocus
   Endif
-  
+
 End
 
 Public Sub btnBrCancel_Click()
-  
+
   Dim res As Result
-  
+
   If GridView1.Selection.Count Then
     $rData.MoveTo(GridView1.Selection[0])
-    
+
     If $sType = "Exam" Then
       modDatabase.$medConn.Delete("tblexamquali", "fldid=&1", $rData["fldid"])
       res = modDatabase.$medConn.Exec("select fldid from tblsubexamquali where fldexamid=&1 and fldsubexam=&2", lbltestname.Text, $rData["fldsubexam"])                       ''
@@ -285,7 +285,7 @@ Public Sub btnBrCancel_Click()
         Next
       Endif
     Endif
-    
+
     FillGridSubTest()
     txtdetail.RichText = ""
     txtsubtest.Text = ""
@@ -293,20 +293,20 @@ Public Sub btnBrCancel_Click()
     Me.Exec("Toastify({text: 'Information deleted', duration: 3000}).showToast()")
     ' Balloon.Delay = modBasic.$BalloonDelay
   Endif
-  
+
 End
 
 Public Sub btnclose_Click()
-  
+
   Me.Close()
-  
+
 End
 
 Public Sub btnqueall_Click()
-  
+
   Dim res As Result
   Dim Row As Integer
-  
+
   For Row = 0 To GridView1.Count - 1
     res = modDatabase.$medConn.Edit($sTable, "fldid=&1", $rData["fldid"])
     res["fldindex"] = Row
@@ -315,5 +315,5 @@ Public Sub btnqueall_Click()
   FillGridSubTest()
   Me.Exec("Toastify({text: 'Row Order Corrected', duration: 3000}).showToast()")
   ' Balloon.Delay = modBasic.$BalloonDelay
-  
+
 End

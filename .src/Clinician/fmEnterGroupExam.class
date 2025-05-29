@@ -54,14 +54,14 @@ Private $viewSlider As Boolean
 
 ''----------------------------------------- create controls -----------------------------------------
 Public Sub _new(encid As String, sTable As String, sType As String)
-  
+
   Dim xoption As String
-  
+
   $encid = encid
   $sTable = sTable
   $sType = sType
   modGeneralMain.GetOpenModalForm(Me)
-  
+
   If $sType = "Group" Then
     cmbcategory.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldgroupname) as col from tblgroupexam where fldcomp=&1 or fldcomp=&2", modBasic.$compID, "%"))                           ''
   Else If $sType = "Scales" Then
@@ -71,7 +71,7 @@ Public Sub _new(encid As String, sTable As String, sType As String)
     $ItemListFlag = modBasic.$ClinFindingCompFlag
     GetItemListData()
   Endif
-  
+
   xoption = modSettings.ShowSettingFromFIle("EntrySetting/AutoDisplayOptions")
   If xoption = "Yes" Then
     chkautoption.Value = True
@@ -85,36 +85,36 @@ Public Sub _new(encid As String, sTable As String, sType As String)
       cmbcategory.Text = cmbcategory.List[0]
     Endif
   Endif
-  
+
   AppFactor = 1.25
   If modBasic.$ClinSliderValue = "Enable" Then
     $viewSlider = True
   Else
     $viewSlider = False
   Endif
-  
+
 End
 
 Private Sub LoadFormData()
-  
+
   Dim idx As String
   Dim i As Integer
   Dim res As Result
-  
+
   Dim xType As String
   Dim xOption As String
   Dim xitem As String
   Dim xopList As String[]
   Dim xSysCons As String
   Dim xcritval As Float
-  
+
   $xType = New String[]
   $xOption = New String[]
   $xitem = New String[]
   $xOpList = New String[]
   $xSysCons = New String[]
   $xCritVal = New Float[]
-  
+
   For Each idx In $idList
     res = modDatabase.$myConn.Exec("select fldexamid,fldtype,fldoption,fldsysconst,fldcritical from tblexam where fldexamid=&1", idx)
     If res.Available Then
@@ -131,7 +131,7 @@ Private Sub LoadFormData()
         xcritval = res["fldcritical"]
       Endif
     Endif
-    
+
     $xitem.Add(xitem)
     If xType Then
       $xType.Add(xType)
@@ -159,17 +159,17 @@ Private Sub LoadFormData()
       $xCritVal.Add(0)
     Endif
   Next
-  
+
   For i = 0 To $xitem.Count - 1
     If i < 49 Then
-      
+
       aWebRowAll[i] = New WebContainer(Frame1)
-      
+
       ''Create controls
       aWebFrame[i] = New WebContainer(aWebRowAll[i])
       aIndexLabel[i] = New WebLabel(aWebFrame[i])
       aNameLabel[i] = New WebHtml(aWebFrame[i])
-      
+
       aWebPanel[i] = New WebContainer(aWebRowAll[i])
       aAbnormCheck[i] = New WebCheckBox(aWebPanel[i])
       If $xType[i] = "Quantitative" Then
@@ -219,30 +219,30 @@ Private Sub LoadFormData()
   $enableControl = False
   DIsplayTextForm()
   $enableControl = True
-  
+
 End
 
 Private Sub DIsplayTextForm()
-  
+
   Dim i As Integer
   Dim xlimit As Float[]
-  
+
   Dim xcrit As Float
   Dim aCrlower As Float
   Dim aCrupper As Float
-  
+
   For i = 0 To $xitem.Count - 1
     If i < 49 Then
-      
+
       With aWebRowAll[i]
         .Arrangement = Arrange.Row
       End With
-      
+
       With aWebFrame[i]
         .Arrangement = Arrange.Horizontal
         .Class = "size-tablet less-container-margin"
       End With
-      
+
       ''create index label
       With aIndexLabel[i]
         .Width = "10%"
@@ -258,12 +258,12 @@ Private Sub DIsplayTextForm()
         .Text = "<p>" & $xitem[i] & "</p>"
         .Tag = i
       End With
-      
+
       With aWebPanel[i]
         .Arrangement = Arrange.Horizontal
         .Class = "size-tablet less-container-margin"
       End With
-      
+
       If $xType[i] = "Quantitative" Then
         xlimit = modClinic.GetBothQuantiExamVal($xitem[i], $encid)
         xcrit = $xCritVal[i]
@@ -284,14 +284,14 @@ Private Sub DIsplayTextForm()
           .Text = "Flag"
           .Enabled = False
           .Tag = i
-          
+
           If modBasic.$ClinFlagAbnormExam = "Disable" Then
             .Visible = False
           Else
             .Visible = True
           Endif
         End With
-        
+
         ''create observation entry
         With aQuantiBox[i]
           .Width = "5em"
@@ -335,13 +335,13 @@ Private Sub DIsplayTextForm()
           .Value = xlimit[1]
           .Tag = i
         End With
-        
+
         With aWebBottom[i]
           .Arrangement = Arrange.Horizontal
           .Class = "less-container-margin"
           .Visible = $viewSlider
         End With
-        
+
         With aValSlider[i]
           .Expand = True
           .Height = "1em"
@@ -349,7 +349,7 @@ Private Sub DIsplayTextForm()
         End With
         aValSlider[i].MinValue = aCrlower
         aValSlider[i].MaxValue = aCrupper
-        
+
       Else
         ''create abnormal checkbox
         With aAbnormCheck[i]
@@ -357,14 +357,14 @@ Private Sub DIsplayTextForm()
           .Height = "2em"
           .Text = "Flag"
           .Tag = i
-          
+
           If modBasic.$ClinFlagAbnormExam = "Disable" Then
             .Visible = False
           Else
             .Visible = True
           Endif
         End With
-        
+
         ''create observation entry
         If $xOption[i] = "Multiple Selection" Then
           With aListBox[i]
@@ -374,7 +374,7 @@ Private Sub DIsplayTextForm()
             ' .ScrollBar = Scroll.Both
             .Tag = i
           End With
-          
+
         Else If $xOption[i] = "Text Table" Then
           ' DisplayAgegrid(Split($xOpList[i], ";"), "", aGridView[i])
           With aGridView[i]
@@ -383,7 +383,7 @@ Private Sub DIsplayTextForm()
             .Mode = Select.Multiple
             .Tag = i
           End With
-          
+
         Else If $xOption[i] = "Single Selection" Then
           With aComboBox[i]
             .Width = "75%"
@@ -392,7 +392,7 @@ Private Sub DIsplayTextForm()
             .List = Split($xOpList[i], ";")
             .Tag = i
           End With
-          
+
         Else If $xOption[i] = "Dichotomous" Then
           With aDichoValue[i]
             .Width = "75%"
@@ -400,14 +400,14 @@ Private Sub DIsplayTextForm()
             .List = Split($xOpList[i], ";")
             .Tag = i
           End With
-          
+
         Else If $xOption[i] = "Left and Right" Then
           With aLeftRight[i]
             .Width = "75%"
             .Height = CStr(2 * Slider1.Value) & "em"
             .Tag = i
           End With
-          
+
         Else If $xOption[i] = "Date Time" Then
           With aDateBox[i]
             .Width = "65%"
@@ -421,7 +421,7 @@ Private Sub DIsplayTextForm()
             .Image = "icon:/small/calendar"
             .Tag = i
           End With
-          
+
         Else If $xOption[i] = "BS Date" Then
           With aDateBox[i]
             .Width = "65%"
@@ -435,7 +435,7 @@ Private Sub DIsplayTextForm()
             .Image = "icon:/small/calendar"
             .Tag = i
           End With
-          
+
         Else If $xOption[i] = "Clinical Scale" Then
           With aTextArea[i]
             .Width = "55%"
@@ -448,7 +448,7 @@ Private Sub DIsplayTextForm()
             .Height = "2em"
             .Tag = i
           End With
-          
+
         Else If $xOption[i] = "Quantitative" Then
           With aValueBox[i]
             .Width = "40%"
@@ -460,14 +460,14 @@ Private Sub DIsplayTextForm()
             .Height = "2em"
             .Tag = i
           End With
-          
+
         Else If $xOption[i] = "Qualitative" Then
           With aLineText[i]
             .Width = "75%"
             .Height = "2em"
             .Tag = i
           End With
-          
+
         Else If $xOption[i] = "RichText Area" Then
           With aHTMLText[i]
             .Width = "75%"
@@ -475,7 +475,7 @@ Private Sub DIsplayTextForm()
             ' .DictionaryPath = modBasic.$dictPathList
             .Tag = i
           End With
-          
+
         Else
           With aGenTextArea[i]
             .Width = "75%"
@@ -483,10 +483,10 @@ Private Sub DIsplayTextForm()
             .Wrap = True
             .Tag = i
           End With
-          
+
         Endif
       Endif
-      
+
       ''create help button
       With aHelpButton[i]
         .Class = "toolButton"
@@ -497,23 +497,23 @@ Private Sub DIsplayTextForm()
         .Tag = i
         .Tooltip = "[Ctrl+O] to display Options"
       End With
-      
+
       With aWebSpace[i]
         .Height = "1em"
       End With
-      
+
     Endif
   Next
-  
+
 End
 
 Private Sub GetSelectedRow()
-  
+
   ' ' lblitem.Text = ListBox1.Text
   If cmbcategory.Text Then
     Try $idList.Clear()
     Frame1.DeleteChildren()
-    
+
     If $sType = "Group" Then
       $idList = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select fldexamid from tblgroupexam where fldgroupname=&1", cmbcategory.Text))
     Else If $sType = "Scales" Then
@@ -521,100 +521,100 @@ Private Sub GetSelectedRow()
     Else If $sType = "All" Then
       $idList = GetListExams()
     Endif
-    
+
     If $idList.Count Then
       LoadFormData()
     Endif
-    
+
   Endif
-  
+
 End
 
 Public Sub btnshowall_Click()
-  
+
   GetSelectedRow()
-  
+
 End
 
 Public Sub PlusGroup_Click()
-  
+
   Dim i As Integer
-  
+
   i = Last.Tag
   aQuantiBox[i].Value = aQuantiBox[i].Value + 1
-  
+
 End
 
 Public Sub MinusGroup_Click()
-  
+
   Dim i As Integer
-  
+
   i = Last.Tag
   aQuantiBox[i].Value = aQuantiBox[i].Value - 1
-  
+
 End
 
 Public Sub BSButton_Click()
-  
+
   Dim j As Integer
   Dim xx As String
-  
+
   j = Last.Tag
   xx = BSDateFormat(("Enter BS Date in yyyy/mm/dd format"), ("Date Converter"), modDate.ConvertToLocaldate(aDateBox[j].Value))
   If xx Then
     aDateBox[j].Value = modDate.ConvertToEnglishdate(xx)
   Endif
-  
+
 End
 
 Public Sub chkautoption_Click()
-  
+
   modSettings.EnterCheckSetting(chkautoption, "EntrySetting/AutoDisplayOptions")
-  
+
 End
 
 Public Sub btnrefresh_Click()
-  
+
   modSettings.SaveSettingsToFile("MultipleTextBox/Height", Slider1.Value)
   Frame1.DeleteChildren()
   LoadFormData()
-  
+
 End
 
 Public Sub btnBrChange_Click()
-  
+
   Me.Close()
-  
+
 End
 
 Public Sub btnBrOK_Click()
-  
+
   FillGenExams($sTable)
   btnBrOK.Enabled = False
   Me.Exec("Toastify({text: 'Information saved', duration: 3000}).showToast()")
   ' Balloon.Delay = modBasic.$BalloonDelay
-  
+
 End
 
 Public Sub SliderGroup_Change()
-  
+
   Dim j As Integer
-  
+
   j = Last.Tag
   If aQuantiBox[j] Then
     If $enableControl = True Then
       aQuantiBox[j].Value = aValSlider[j].Value
     Endif
   Endif
-  
+
 End
 
 Public Sub QuantiGroup_Change()
-  
+
   Dim j As Integer
-  
+
   j = Last.Tag
-  
+
   If aQuantiBox[j].Value Then
     If aQuantiMin[j].Value <> aQuantiMax[j].Value Then
       If aQuantiBox[j].Value < aQuantiMin[j].Value Or If aQuantiBox[j].Value > aQuantiMax[j].Value Then
@@ -628,20 +628,20 @@ Public Sub QuantiGroup_Change()
   Else
     aAbnormCheck[j].Value = False
   Endif
-  
+
   If aAbnormCheck[j].Value = True Then
     aAbnormCheck[j].Foreground = Color.Red
   Else
     aAbnormCheck[j].Foreground = Color.Default
   Endif
-  
+
 End
 
 Private Sub FillGenExams(sTable As String)
-  
+
   Dim i As Integer
   ' Dim xval As String
-  
+
   For i = 0 To $xitem.Count - 1
     If i < 49 Then
       If $xType[i] = "Quantitative" Then
@@ -702,11 +702,11 @@ Private Sub FillGenExams(sTable As String)
       Endif
     Endif
   Next
-  
+
 End
 
 Private Sub SetQualitativeAbnormal(i As Integer)
-  
+
   If $xOption[i] = "Single Selection" Then
     If aComboBox[i].Text Then
       aAbnormCheck[i].Value = modAllExam.SelectExamAbnormal("Exam", $xitem[i], aComboBox[i].Text, $xOption[i])
@@ -728,71 +728,71 @@ Private Sub SetQualitativeAbnormal(i As Integer)
       aAbnormCheck[i].Value = modAllExam.SelectExamAbnormal("Exam", $xitem[i], aGenTextArea[i].Text, $xOption[i])
     Endif
   Endif
-  
+
 End
 
 ''-----------------------------help options  --------------------------------------
 Public Sub ButtonBoxgroup_Click()
-  
+
   Dim j As Integer
-  
+
   j = Last.Tag
   OpenOption(j)
   SetQualitativeAbnormal(j)
-  
+
 End
 
 Private Sub OpenOption(j As Integer)
-  
+
   Dim sVal As String[]
   Dim sPath As String
   Dim xval As String
   Dim xopt As String[]
   Dim xflot As Variant[]
-  
+
   If $xType[j] = "Quantitative" Then
     xflot = GetQuantiValues("Exam", $encid, $xitem[j], 0, 0, aQuantiBox[j].Value)
     If xflot Then
       aQuantiBox[j].Value = xflot[0]
     Endif
-    
+
   Else
     If $xOpList[j] Then
       xopt = Split($xOpList[j], ";")
-      
+
       If $xOption[j] = "Single Selection" Then
         sVal = SubChoose(xopt, "Single Selection", $xitem[j])
         If sVal Then
           aComboBox[j].Text = sVal.Join(";")
         Endif
-        
+
       Else If $xOption[j] = "Dichotomous" Then
-        
+
       Else If $xOption[j] = "Multiple Selection" Then
         sVal = SubChoose(xopt, "Multiple Selection", $xitem[j])
         If sVal Then
           aListBox[j].List = sVal
         Endif
-        
+
       Else If $xOption[j] = "Text Table" Then
         ' xval = TableEntry(xopt, $xitem[j], "")
         ' If xval Then
         '   DisplayAgegrid(Split($xOpList[j], ";"), xval, aGridView[j])
         ' Endif
-        
+
       Else If $xOption[j] = "Clinical Scale" Then
         sVal = SubChoose(xopt, "Clinical Scale", $xitem[j])
         If sVal Then
           aClinBox[j].Value = sVal[0]
           aTextArea[j].Text = sVal[1]
         Endif
-        
+
       Else If $xOption[j] = "Date Time" Then
         aDateBox[j].Value = Now()
-        
+
       Else If $xOption[j] = "BS Date" Then
         aDateBox[j].Value = Now()
-        
+
       Else If $xOption[j] = "Visual Input" Then
         sPath = modImage.DisplayVisualData(cmbcategory.Text, "", $xitem[j], $xOption[j])
         If sPath Then
@@ -801,30 +801,30 @@ Private Sub OpenOption(j As Integer)
             aGenTextArea[j].Text = xval
           Endif
         Endif
-        
+
       Endif
     Endif
-    
+
   Endif
-  
+
 End
 
 Public Sub ComboGroup_Click()
-  
+
   Dim j As Integer
-  
+
   j = Last.Tag
   SetQualitativeAbnormal(j)
-  
+
 End
 
 Public Sub DichoText_Click()
-  
+
   Dim j As Integer
-  
+
   j = Last.Tag
   SetQualitativeAbnormal(j)
-  
+
 End
 
 ' Public Sub ComboGroup_GotFocus()
@@ -914,33 +914,33 @@ End
 ' End
 
 Public Sub WebForm_Open()
-  
+
   Dim xoption As String
-  
+
   xoption = modSettings.ShowSettingFromFIle("EntrySetting/AutoDisplayOptions")
   If xoption = "Yes" Then
     chkautoption.Value = True
   Else If xoption = "No" Then
     chkautoption.Value = False
   Endif
-  
+
 End
 
 ''======================= For All Exams ==============
 Private Function GetItemListData()
-  
+
   Dim xcategory As String[]
   Dim xx As String
   Dim asx As String[]
   Dim xval As String[]
-  
+
   xcategory = New String[]
   xcategory.Add("Flagged")
   xval = New String[]
   For Each xx In $ItemList
     If xx Then
       asx = Split(xx, "@")
-      
+
       If asx[0] Then
         If xcategory.Count = 0 Then
           xcategory.Add(asx[0])
@@ -950,19 +950,19 @@ Private Function GetItemListData()
           Endif
         Endif
       Endif
-      
+
     Endif
   Next
   cmbcategory.List = xcategory
-  
+
 End
 
 Private Function GetListExams() As String[]
-  
+
   Dim xval As String[]
   Dim xx As String
   Dim asx As String[]
-  
+
   xval = New String[]
   If cmbcategory.Text = "Flagged" Then
     For Each xx In $ItemListFlag
@@ -977,7 +977,7 @@ Private Function GetListExams() As String[]
         Endif
       Endif
     Next
-    
+
   Else
     For Each xx In $ItemList
       If xx Then
@@ -993,29 +993,29 @@ Private Function GetListExams() As String[]
         Endif
       Endif
     Next
-    
+
   Endif
-  
+
   Return xval
-  
+
 End
 
 ' Public Sub cmbcategory_Render()
-'   
+'
 '   modJavaScript.SetSelect2Combo(cmbcategory)
-'   
+'
 ' End
 
 Public Sub btnfill_Click()
-  
+
   Dim j As Integer
   Dim res As Result
-  
+
   For j = 0 To $xitem.Count - 1
     If j < 49 Then
       res = modDatabase.$myConn.Exec("select flddetail from tblexam where fldexamid=&1", $xitem[j])
       If res.Available Then
-        
+
         For Each res
           If aHTMLText[j] Then
             If Not aHTMLText[j].Text Then
@@ -1039,22 +1039,22 @@ Public Sub btnfill_Click()
             Endif
           Endif
         Next
-        
+
       Endif
     Endif
   Next
-  
+
 End
 
 ''-------------- icons
 Public Sub btnpanexam_Click()
-  
+
 End
 
 Public Sub btnexecexam_Click()
-  
+
 End
 
 Public Sub btnattexam_Click()
-  
+
 End

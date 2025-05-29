@@ -572,8 +572,11 @@ End
 Private Sub BasicInfoPatient()
 
   Dim hPtForm As FmClinHistory
+  Dim hDigForm As FmDiagnosticTab
 
   If txtencid.Text Then
+    cmbsympunit.ReadOnly = True
+    modJavaScript.SetSelect2Combo(cmbsympunit)
     GetDefaultBillingmodes()
     txthistorylabel.List = GetHistoryList()
     cmbnote.List = NoteTakingTypeList()
@@ -593,6 +596,8 @@ Private Sub BasicInfoPatient()
     ShowChiefSymptomData()
     ShowAllTabs()
     $EBMDiagnosis = ""
+    pnldiagnostic.Visible = True
+    hDigForm = New FmDiagnosticTab(Trim(txtencid.Text), "height-tablet", pnldiagnostic)
     pnlhistory.Visible = True
     hPtForm = New FmClinHistory($PatientNum, "PatientID", "height-tablet", pnlhistory)
     ' TabStrip1.Index = 0
@@ -2661,7 +2666,8 @@ End
 Public Sub cmbsymptom_Activate() '''from got focus
 
   If cmbsymptom.Text Then
-    txtsympval.SetFocus(True)
+    txtsympval.SetFocus()
+    Me.Exec("$_(" & JS(txtsympval.Name & ":entry") & ").select()")
   Else
     btncompList_Click()
   Endif
@@ -2710,12 +2716,13 @@ End
 Public Sub txtsympval_Activate()
 
   If txtsympval.Value Then
+    modJavaScript.PopUpSelect2Combo(cmbsympunit)
     cmbsympunit.SetFocus
   Endif
 
 End
 
-Public Sub cmbsympunit_Activate()
+Public Sub cmbsympunit_Click()
 
   If cmbsympunit.Text Then
     cmbsymdura.SetFocus
@@ -2752,6 +2759,7 @@ Public Sub btnsympadd_Click()
       ShowChiefSymptomData()
       cmbsymptom.Text = ""
       cmbsymdura.Text = ""
+      modJavaScript.TriggerSelect2Combo(cmbsympunit)
       cmbsympunit.Text = ""
       txtsympval.Value = 0
       txtsympval.Tag = ""
@@ -3122,6 +3130,7 @@ Private Sub GetSelectedFindingControl()
       If modBasic.$TabletModeEnable = "Yes" Then
       Else
         txtfinval.SetFocus
+        Me.Exec("$_(" & JS(txtfinval.Name & ":entry") & ").select()")
       Endif
 
     Else    ''is it good to allow items not in list?

@@ -163,6 +163,8 @@ Public Sub TabPanel1_Click()
   If TabPanel1.Index = 0 Then
     ShowRunningMedicine()
   Else If TabPanel1.Index = 1 Then
+    cmbfreq.ReadOnly = True
+    modJavaScript.SetSelect2Combo(cmbfreq)
     BlankDosingBox()
     FillDosingGrid()
   Else If TabPanel1.Index = 2 Then
@@ -177,8 +179,9 @@ Private Sub BlankDosingBox()
 
   cmbroute.Text = ""
   cmbmedicine.Text = ""
-  cmbfreq.Text = ""
   txtdose.Value = 0
+  modJavaScript.TriggerSelect2Combo(cmbfreq)
+  cmbfreq.Text = ""
   txtday.Tag = ""
   txtday.Value = 0
   txtqty.Tag = ""
@@ -275,7 +278,6 @@ Private Function GetMedicineList() As String[]
 
   Dim res As Result
   Dim xlist As String[]
-  Dim xlist1 As String[]
 
   If cmbroute.Text = "suture" Or If cmbroute.Text = "msurg" Or If cmbroute.Text = "ortho" Or If cmbroute.Text = "extra" Then
     If chkout.Value = True Then
@@ -312,7 +314,6 @@ End
 
 Public Sub btnmedlist_Click()
 
-  Dim res As Result
   Dim xlist As String[]
   Dim xlist1 As String[]
 
@@ -423,7 +424,7 @@ End
 
 Public Sub txtdose_Activate()
 
-  ' modJavaScript.PopUpSelect2Combo(cmbfreq)
+  modJavaScript.PopUpSelect2Combo(cmbfreq)
   cmbfreq.SetFocus
 
 End
@@ -437,13 +438,13 @@ Public Sub cmbfreq_Click()
 
 End
 
-Public Sub cmbfreq_Activate()
-
-  If cmbfreq.Text Then
-    txtday.SetFocus
-  Endif
-
-End
+' Public Sub cmbfreq_Activate()
+'
+'   If cmbfreq.Text Then
+'     txtday.SetFocus
+'   Endif
+'
+' End
 
 Public Sub txtday_Activate()
 
@@ -506,19 +507,21 @@ End
 
 Public Sub chksave_Click()
 
-  If cmbroute.Text And If cmbmedicine.Text And If txtqty.Value Then
-    If modStockSub.GetComboStockControl(cmbroute.Text, cmbmedicine.Text, rbgeneric, rbrand, modDatabase.$medConn) = False Then
-      cmbmedicine.Text = ""
-      Message.Warning(("Item not listed"), "OK")
-      cmbroute.SetFocus
-    Else
-      EnterDosingRecord()
-      If modBasic.$TabletModeEnable = "Yes" Then
-      Else
-        ' modJavaScript.TriggerSelect2Combo(cmbfreq)
+  If chksave.Visible = True Then
+    If cmbroute.Text And If cmbmedicine.Text And If txtqty.Value Then
+      If modStockSub.GetComboStockControl(cmbroute.Text, cmbmedicine.Text, rbgeneric, rbrand, modDatabase.$medConn) = False Then
+        cmbmedicine.Text = ""
+        Message.Warning(("Item not listed"), "OK")
         cmbroute.SetFocus
-      Endif
-    Endif '
+      Else
+        EnterDosingRecord()
+        If modBasic.$TabletModeEnable = "Yes" Then
+        Else
+          ' modJavaScript.TriggerSelect2Combo(cmbfreq)
+          cmbroute.SetFocus
+        Endif
+      Endif '
+    Endif
   Endif
 
 End
@@ -593,8 +596,8 @@ Private Sub EnterDosingRecord()
       modPharmSub.InsertDosingEntry($encid, $xBillType, $sBillMode, cmbdisctype.Text, $LedgerAC, cmbroute.Text, cmbmedicine.Text, txtdose.Value, cmbfreq.Text, txtday.Value, txtqty.Value, $status, txprescriber, txpresno, 0, xtax, xdisc, xfixname, xfixrate, "Request", $Dept, Trim(txtdirection.Text), 0, xcurVal)                     '
     Endif
 
-    BlankDosingBox()
     FillDosingGrid()
+    BlankDosingBox()
   Endif
 
 End
@@ -756,7 +759,7 @@ Public Sub btnsetregimen_Click()
       cmbroute.Text = res["fldroute"]
       cmbmedicine.Text = res["fldbrandid"]
       txtdose.Value = res["flddose"]
-      ' modJavaScript.UpdateSelect2Combo(cmbfreq, res["fldfreq"])
+      modJavaScript.UpdateSelect2Combo(cmbfreq, res["fldfreq"])
       cmbfreq.Text = res["fldfreq"]
       txtday.Value = res["fldday"]
       txtqty.Value = res["fldqty"]
@@ -782,7 +785,7 @@ Public Sub btnrepeat_Click()
       cmbroute.Text = res["fldroute"]
       cmbmedicine.Text = res["flditem"]
       txtdose.Value = res["flddose"]
-      ' modJavaScript.UpdateSelect2Combo(cmbfreq, res["fldfreq"])
+      modJavaScript.UpdateSelect2Combo(cmbfreq, res["fldfreq"])
       cmbfreq.Text = res["fldfreq"]
       txtday.Value = res["flddays"]
       txtqty.Value = res["fldqtydisp"]
