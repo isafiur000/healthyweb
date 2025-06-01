@@ -1,0 +1,225 @@
+' Gambas class file
+
+Private $rData As Result
+Private $aMyFields As String[]
+Private $showList As String
+Private $HideFormList As String[]
+
+Private $sTable As String
+
+Public Sub _new(sTable As String)
+
+  Dim xdepList As String[]
+  Dim aList As String[]
+  Dim formLst As String[]
+
+  $sTable = sTable
+  If $sTable = "tblconsult" Then
+    Me.Title = "Consultation List"
+    If modBasic.$LockToOwnConsultant = "Yes" Then
+      btnconsult.Tag = modBasic.$lbluser
+      btnconsult.Text = modGeneral.GetUserFullName(btnconsult.Tag)
+      btnselectuser.Visible = False
+    Endif
+    $showList = modGlobalSetting.ShowSettingFromDB("ClinicForms/ConsultationList")
+  Else If $sTable = "tblopvisit" Then
+    Me.Title = "OPD Visit List"
+    $showList = modGlobalSetting.ShowSettingFromDB("ClinicForms/OPVisitList")
+  Endif
+
+  If modBasic.$FixedDepartment Then
+    cmbdept.Text = modBasic.$FixedDepartment
+    If modBasic.$LockToOwnDepart = "Yes" Then
+      cmbdept.Enabled = False
+    Endif
+  Else
+    xdepList = New String[]
+    If $sTable = "tblconsult" Then
+      aList = modGeneral.GetDepartForConsultOnly()
+      pnlconsult.Visible = True
+    Else If $sTable = "tblopvisit" Then
+      aList = modGeneral.GetDepartForOPVisitOnly()
+      pnlconsult.Visible = False
+    Endif
+    If aList Then
+      xdepList.Insert(aList)
+    Endif
+    xdepList.Add("%")
+    cmbdept.List = xdepList
+    cmbdept.Text = modSettings.ShowSettingFromFIle("Clinic/DefaultOPD")
+  Endif
+
+  $HideFormList = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select fldformname from tbluserformaccess where flduserid=&1 and fldcategory=&2 and fldstatus=&3", modBasic.$lbluser, modHelpVariable.$LogInCategory, "Inactive"))
+  formLst = ["Clinician Form", "Nursing Form", "InPatient Form", "Delivery Form", "Examinations"]
+  If $HideFormList And If $HideFormList.Count Then
+    cmbforms.List = modString.GetRemainingArray(formLst, $HideFormList)
+  Else
+    cmbforms.List = formLst
+  Endif
+  If cmbforms.List.Count Then
+    cmbforms.Text = cmbforms.List[0]
+  Endif
+
+End
+
+Public Sub btnselectuser_Click()
+
+  Dim xMedUser As String[]
+
+  xMedUser = MedicalSelectedValue(("Select Consultant"), modBasic.$OPConsulUserList)
+  If xMedUser And If xMedUser.Count Then
+    btnconsult.Tag = xMedUser[0]
+    btnconsult.Text = xMedUser[1]
+  Else
+    btnconsult.Tag = ""
+    btnconsult.Text = ""
+  Endif
+
+End
+
+Public Sub btnconsult_Change()
+
+  If btnconsult.Text = "" Then
+    btnconsult.Tag = ""
+  Endif
+
+End
+
+Public Sub chkdate_Click()
+
+  If chkdate.Value = True Then
+    Panel11.Enabled = True
+  Else
+    Panel11.Enabled = False
+  Endif
+  modSettings.EnterCheckSetting(chkdate, "OPDPatientList/SelectDate")
+
+End
+
+Public Sub btnrefresh_Click()
+
+  If cmbdept.Text Then
+    $rData = ExecuteQuery()
+    $aMyFields = New String[]
+    modGridView.ReadSmallData(GridView1, $rData, $aMyFields)
+
+    With GridView1
+      .Columns[0].Hidden = True
+      .Columns[1].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
+      .Columns[2].Expand = True
+      .Columns[1].Text = "EncID"
+      .Columns[2].Text = "Name"
+    End With
+  Endif
+
+End
+
+Private Function ExecuteQuery() As Result
+
+  Dim res As Result
+  Dim sql As String
+  Dim xencid As String
+  Dim xorder As String
+  Dim xconsult As String
+  Dim xpaid As String
+
+  If Len(txtencid.Text) Then
+    xencid = db.Subst(" and lower(" & $sTable & "." & "fldencounterval) like &1", LCase(Trim(txtencid.Text)) & "%")
+  Else
+    xencid = ""
+  Endif
+
+  If btnconsult.Tag Then
+    xconsult = db.Subst(" and " & $sTable & "." & "flduserid like &1", btnconsult.Tag)
+  Else
+    xconsult = ""
+  Endif
+
+  If $showList = "Paid" Then
+    xpaid = " and fldencounterval in(select fldencounterval from tblpatbilldetail)"
+  Else
+    xpaid = ""
+  Endif
+
+  xorder = " ORDER BY " & $sTable & "." & "fldconsulttime"
+
+  If chkdate.Value = True Then
+    If modBasic.$FixedDepartment Then
+      sql = Subst("select fldid,fldencounterval,fldencounterval from &1", $sTable) & "  where fldconsulttime>=&1 and fldconsulttime<=&2 and fldstatus=&3 and fldconsultname=&4" & xencid & xconsult & xpaid & xorder                                           ''
+      res = modDatabase.$myConn.Exec(sql, modDate.StartSqlDate(dtsort.Value), modDate.EndSqlDate(dtsort.Value), "Planned", modBasic.$FixedDepartment)
+    Else
+      If cmbdept.Text = "%" Then
+        sql = Subst("select fldid,fldencounterval,fldencounterval from &1", $sTable) & " where fldconsulttime>=&1 and fldconsulttime<=&2 and fldstatus=&3" & xencid & xconsult & xpaid & xorder                                             ''
+      Else
+        sql = Subst("select fldid,fldencounterval,fldencounterval from &1", $sTable) & " where fldconsulttime>=&1 and fldconsulttime<=&2 and fldstatus=&3 and fldconsultname=&4" & xencid & xconsult & xpaid & xorder
+      Endif
+      res = modDatabase.$myConn.Exec(sql, modDate.StartSqlDate(dtsort.Value), modDate.EndSqlDate(dtsort.Value), "Planned", cmbdept.Text)
+    Endif
+
+  Else
+    If modBasic.$FixedDepartment Then
+      sql = Subst("select fldid,fldencounterval,fldencounterval from &1", $sTable) & " where fldstatus=&1 and fldconsultname=&2" & xencid & xconsult & xpaid & xorder                                            ''
+      res = modDatabase.$myConn.Exec(sql, "Planned", modBasic.$FixedDepartment)
+    Else
+      If cmbdept.Text = "%" Then
+        sql = Subst("select fldid,fldencounterval,fldencounterval from &1", $sTable) & " where fldstatus=&1" & xencid & xconsult & xpaid & xorder                                              ''
+      Else
+        sql = Subst("select fldid,fldencounterval,fldencounterval from &1", $sTable) & " where fldstatus=&1 and fldconsultname=&2" & xencid & xconsult & xpaid & xorder
+      Endif
+      res = modDatabase.$myConn.Exec(sql, "Planned", cmbdept.Text)
+    Endif
+  Endif
+  Return res
+
+End
+
+Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  $rData.MoveTo(Row)
+  modGridView.GridViewDecoration(Data, Row)
+  If Column = 2 Then
+    Data.Text = modPatient.GetPatientNameByEnc($rData[$aMyFields[Column]], modDatabase.$syConn)
+  Else
+    Data.Text = $rData[$aMyFields[Column]]
+  Endif
+
+End
+
+Public Sub GridView1_Select()
+
+  Dim hForm1 As FmPatCliNew
+  Dim hForm2 As FmNursingForm
+  Dim hForm3 As FmPatientMain
+  Dim hForm4 As FmDeliveryNew
+  Dim hForm5 As FmExamReporting
+
+  If GridView1.Selection.Count Then
+    $rData.MoveTo(GridView1.Selection[0])
+    If pnlmain.Children.Count Then
+      pnlmain.DeleteChildren()
+    Endif
+
+    Select cmbforms.Text
+      Case "Clinician Form"
+        If $sTable = "tblconsult" Then
+          hForm1 = New FmPatCliNew($rData["fldencounterval"], $rData["fldid"], "Consultation", pnlmain)
+        Else If $sTable = "tblopvisit" Then
+          hForm1 = New FmPatCliNew($rData["fldencounterval"], $rData["fldid"], "OP Visit", pnlmain)
+        Endif
+
+      Case "Nursing Form"
+        hForm2 = New FmNursingForm($rData["fldencounterval"], pnlmain)
+
+      Case "InPatient Form"
+        hForm3 = New FmPatientMain($rData["fldencounterval"], pnlmain)
+
+      Case "Delivery Form"
+        hForm4 = New FmDeliveryNew($rData["fldencounterval"], pnlmain)
+
+      Case "Examinations"
+        hForm5 = New FmExamReporting($rData["fldencounterval"], pnlmain)
+
+    End Select
+  Endif
+
+End

@@ -1,0 +1,118 @@
+' Gambas class file
+
+Private $rData As Result
+Private $aMyFields As String[]
+Private $encid As String
+
+Public Sub _new()
+
+  dtcurr.Value = Now()
+  rbcashier.Value = True
+
+End
+
+Public Sub btnrefresh_Click()
+
+  FillRegistrationGrid(dtcurr.Value)
+
+End
+
+Private Sub FillRegistrationGrid(sDate As Date)
+
+  Dim sql As String
+
+  sql = "select fldencounterval,fldencounterval,fldadmitlocat,fldregdate,fldpatientval from tblencounter where fldregdate>=&1 and fldregdate<=&2 and fldcomp=&3"                                      ''
+  $rData = modDatabase.$myConn.Exec(sql, modDate.StartSqlDate(sDate), modDate.EndSqlDate(sDate), modBasic.$compID)
+  $aMyFields = New String[]
+  modGridView.ReadSmallData(GridView1, $rData, $aMyFields)
+  With GridView1
+    .Columns[0].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
+    .Columns[1].Width = True
+    .Columns[2].Hidden = True
+    .Columns[3].Hidden = True
+    .Columns[4].Hidden = True
+
+    .Columns[0].Text = "Encounter"
+    .Columns[1].Text = "Name"
+  End With
+
+End
+
+Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  $rData.MoveTo(Row)
+  modGridView.GridViewDecoration(Data, Row)
+  If Column = 1 Then
+    Data.Text = modPatient.GetPatientNameByEnc($rData[$aMyFields[Column]])
+  Else
+    Data.Text = $rData[$aMyFields[Column]]
+  Endif
+
+End
+
+Public Sub GridView1_Select()
+
+  Dim encid As String
+  Dim hForm As FmCashBilling
+  Dim hForm1 As FmDeposit
+
+  If GridView1.Selection.Count Then
+    $rData.MoveTo(GridView1.Selection[0])
+    encid = $rData["fldencounterval"]
+
+    If rbcashier.Value = True Then
+      If pnlmain.Children.Count Then
+        pnlmain.DeleteChildren()
+      Endif
+      hForm = New FmCashBilling(pnlmain)
+
+    Else If rbdeposit.Value = True Then
+      If pnlmain.Children.Count Then
+        pnlmain.DeleteChildren()
+      Endif
+      hForm1 = New FmDeposit(pnlmain)
+
+    Endif
+  Endif
+
+End
+
+Public Sub btnnewregist_Click()
+
+  If modBasic.$regF1Cashier = "No" Then
+  Else
+    If modBasic.$RegStartTime And If modBasic.$ResEndTime Then
+      If Time() > modBasic.$RegStartTime And If Time() < modBasic.$ResEndTime Then
+        $encid = RegistrationMin(False)
+        FillRegistrationGrid(dtcurr.Value)
+      Endif
+    Else
+      $encid = RegistrationMin(False)
+      FillRegistrationGrid(dtcurr.Value)
+    Endif
+  Endif
+
+End
+
+Public Sub btnfollowregist_Click()
+
+  If modBasic.$regF1Cashier = "No" Then
+  Else
+    If modBasic.$RegStartTime And If modBasic.$ResEndTime Then
+      If Time() > modBasic.$RegStartTime And If Time() < modBasic.$ResEndTime Then
+        $encid = RegistrationMin(True)
+        FillRegistrationGrid(dtcurr.Value)
+      Endif
+    Else
+      $encid = RegistrationMin(True)
+      FillRegistrationGrid(dtcurr.Value)
+    Endif
+  Endif
+
+End
+
+Public Sub btnbooking_Click()
+
+  $encid = BookingForm()
+
+End
