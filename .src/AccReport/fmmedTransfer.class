@@ -99,6 +99,7 @@ End
 
 Public Sub btnload_Click()
 
+  Dim xlist As String[]
   Dim sql As String
   Dim res As Result
 
@@ -106,7 +107,31 @@ Public Sub btnload_Click()
   If cmbcategory.Text Then
     sql = "select distinct(fldstockid) as col from tbltransfer where fldcategory like &1" & $RepoStr                                                                                                 ''
     res = modDatabase.$syConn.Exec(sql, cmbcategory.Text)
-    lstitem.List = modControlSub.GetDirectFillresult(res)
+    xlist = modControlSub.GetDirectFillresult(res)
+    If xlist.Count Then
+      xlist.Sort()
+    Endif
+    lstitem.List = xlist
+    rball.Value = True
+  Endif
+
+End
+
+Public Sub txtsearch_Change()
+
+  Dim xlist As String[]
+  Dim sql As String
+  Dim res As Result
+
+  $RepoStr = modDataRepo.GetWhereStringRepo(cmblocation.Text, cmbvalue.Text)
+  If cmbcategory.Text Then
+    sql = "select distinct(fldstockid) as col from tbltransfer where fldcategory like &1 and lower(fldstockid) like &2" & $RepoStr                                                                                                 ''
+    res = modDatabase.$syConn.Exec(sql, cmbcategory.Text, LCase(txtsearch.Text) & "%")
+    xlist = modControlSub.GetDirectFillresult(res)
+    If xlist.Count Then
+      xlist.Sort()
+    Endif
+    lstitem.List = xlist
     rball.Value = True
   Endif
 
@@ -171,6 +196,7 @@ End
 
 Private Sub FillTransferGrid()
 
+  Dim totqty As Float
   Dim totamt As Float
 
   $aMyFields = New String[]
@@ -196,10 +222,13 @@ Private Sub FillTransferGrid()
     .Columns[7].Text = "RecvDate"
   End With
 
+  totqty = 0
   totamt = 0
   For Each $rData
+    totqty = totqty + $rData["fldqty"]
     totamt = totamt + ($rData["fldqty"] * $rData["fldnetcost"])
   Next
+  txtqty.Value = Round(totqty, -2)
   txtamt.Value = Round(totamt, -2)
 
 End

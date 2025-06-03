@@ -84,6 +84,12 @@ Public Sub _new(encid As String, sIndex As Long, sMode As String)
     RestrictUserAccess()
   Endif
 
+  If modBasic.$CliniDiagnosticReport = "Disable" Then
+    pnldiagnostic.Visible = False
+  Else
+    pnldiagnostic.Visible = True
+  Endif
+
   SetHtmlTextOption(txtgencomplaint)
   SetHtmlTextOption(txthistory)
   SetHtmlTextOption(txtplan)
@@ -294,8 +300,7 @@ Public Sub tlbtnaddheight_Click()
       If cmbpatheightunit.Text Then
         modClinSub.UpdatePatientHeight(Trim(txtencid.Text), txtpatheight.Value, cmbpatheightunit.Text)
         tlbtnaddheight.Enabled = False
-        Me.Exec("Toastify({text: 'Information updated', duration: 3000}).showToast()")
-        ' Balloon.Delay = modBasic.$BalloonDelay
+        Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information updated", modBasic.$BalloonDelay))
       Endif
     Endif
   Endif
@@ -308,8 +313,7 @@ Public Sub tlbtnadwt_Click()
     If txtpatweight.Value Then
       modClinSub.AddGeneralParametersQuanti(Trim(txtencid.Text), "Body Weight", txtpatweight.Value)
       tlbtnadwt.Enabled = False
-      Me.Exec("Toastify({text: 'Information saved', duration: 3000}).showToast()")
-      ' Balloon.Delay = modBasic.$BalloonDelay
+      Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
     Endif
   Endif
 
@@ -325,8 +329,7 @@ Public Sub dtdob_Click()
       modPatientSub.UpdatePatDOB(Trim(txtencid.Text), dtdate)
       modDateSub.GetAgeControlFromDate(dtdate, txtpatage, cmbpatageunit)
       dtdob.Tag = dtdate
-      Me.Exec("Toastify({text: 'Information updated', duration: 3000}).showToast()")
-      ' Balloon.Delay = modBasic.$BalloonDelay
+      Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information updated", modBasic.$BalloonDelay))
     Endif
   Endif
 
@@ -348,8 +351,7 @@ Public Sub btnselectuser_Click()
     Endif
     If btnconsult.Tag Then
       modPatientSub.UpdateAttendingConsultant(Trim(txtencid.Text), btnconsult.Tag)
-      Me.Exec("Toastify({text: 'Information saved', duration: 3000}).showToast()")
-      ' Balloon.Delay = modBasic.$BalloonDelay
+      Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
     Endif
   Endif
 
@@ -421,10 +423,9 @@ Private Sub BasicInfoPatient()
     GetDefaultBillingmodes()
     ButtonControl()
     $dateReg = modPatient.GetRecordDate(Trim(txtencid.Text))
-    Timer1.Enabled = True
     GetConsultParam()
     txthistory.RichText = modPatPatho.ShowSelectedHistoryValue(Trim(txtencid.Text), "History of Illness")
-    modPatientGeneral.SetPatientFindingTree(Trim(txtencid.Text), lsticdisease)
+    modPatientGeneral.SetPatientFindingTree(Trim(txtencid.Text), lsticdisease, chkalldiagno.Value)
     ShowSymptomData()
     ShowEssentialExam()
     FillExamtable()
@@ -432,7 +433,6 @@ Private Sub BasicInfoPatient()
     ShowTelemedSaved()
     dtfollow.Value = modPatient.GetFollowUpDate(Trim(txtencid.Text))
     cmbrefer.Text = modPatient.GetReferLocation(Trim(txtencid.Text))
-    pnldiagnostic.Visible = True
     hDigForm = New FmDiagnosticTab(Trim(txtencid.Text), "height-tablet", pnldiagnostic)
     pnlhistory.Visible = True
     hPtForm = New FmClinHistory($PatientNum, "PatientID", "height-tablet", pnlhistory)
@@ -661,34 +661,6 @@ Public Sub TabPanel2_Click()
 
 End
 
-Public Sub Timer1_Timer()
-
-  Dim xdely As Integer
-
-  If $dateReg Then
-    xdely = DateDiff($dateReg, Now(), gb.Second)
-    LCDLabel1.Text = modDate.GetSecondToTimeForm(xdely)
-  Endif
-
-  If modBasic.$AutoRefreshEnable = "Yes" Then
-    If txtencid.Text Then
-      UpdateTriage()
-      modPatientGeneral.SetPatientFindingTree(Trim(txtencid.Text), lsticdisease)
-      ShowEssentialExam()
-      If TabPanel2.Index = 0 Then
-        ShowSymptomData()
-      Else If TabPanel2.Index = 1 Then
-        txtgencomplaint.RichText = modPatPatho.ShowSelectedHistoryValue(Trim(txtencid.Text), "General Complaints")
-      Endif
-      FillExamtable()
-      txthistory.RichText = modPatPatho.ShowSelectedHistoryValue(Trim(txtencid.Text), "History of Illness")
-      ShowPlanningsBoth()
-      ShowTelemedSaved()
-    Endif
-  Endif
-
-End
-
 Public Sub rbsi_Click()
 
   modSettings.SaveSettingsToFile("TestUnit/Default", "SI")
@@ -766,7 +738,7 @@ Public Sub tlbtndeldises_Click()
           res["fldsave"] = False
           res["xyz"] = False
           res.Update
-          modPatientGeneral.SetPatientFindingTree(Trim(txtencid.Text), lsticdisease)
+          modPatientGeneral.SetPatientFindingTree(Trim(txtencid.Text), lsticdisease, chkalldiagno.Value)
           ' Message.Warning(("Information deleted"), ("OK"))
           ' Balloon.Delay = modBasic.$BalloonDelay
         Endif
@@ -793,7 +765,8 @@ Public Sub tbndisease_Click()
     If sName Then
       If sName[1] And If sName[0] Then
         modPatientGeneral.AddPatientFindings("Provisional Diagnosis", Trim(txtencid.Text), sName[0], sName[1], sName[2])
-        modPatientGeneral.SetPatientFindingTree(Trim(txtencid.Text), lsticdisease)
+        Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+        modPatientGeneral.SetPatientFindingTree(Trim(txtencid.Text), lsticdisease, chkalldiagno.Value)
       Endif
     Endif
   Endif
@@ -814,6 +787,7 @@ Public Sub tbnsyndro_Click()
     If sName Then
       If sName[1] And If sName[0] Then
         modPatientGeneral.AddPatientFindings("Provisional Diagnosis", Trim(txtencid.Text), sName[0], sName[1], sName[1])
+        Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
 
         If sName.Count > 2 And If sName[2] Then
           If modBasic.$ProvDiagnosisRule = "Obstetrics" Then
@@ -823,7 +797,7 @@ Public Sub tbnsyndro_Click()
           Endif
         Endif
 
-        modPatientGeneral.SetPatientFindingTree(Trim(txtencid.Text), lsticdisease)
+        modPatientGeneral.SetPatientFindingTree(Trim(txtencid.Text), lsticdisease, chkalldiagno.Value)
       Endif
     Endif
   Endif
@@ -838,7 +812,8 @@ Public Sub btndismanual_Click()
     xx = InputBox(("Enter custom Provisional Diagnosis"), ("Provisional Diagnosis"), "")
     If xx Then
       modPatientGeneral.AddPatientFindings("Provisional Diagnosis", Trim(txtencid.Text), xx, "Other", "Other")
-      modPatientGeneral.SetPatientFindingTree(Trim(txtencid.Text), lsticdisease)
+      Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+      modPatientGeneral.SetPatientFindingTree(Trim(txtencid.Text), lsticdisease, chkalldiagno.Value)
     Endif
   Endif
 
@@ -876,11 +851,18 @@ Public Sub tnfinaldiagno_Click()
       If sName Then
         If sName[1] And If sName[0] Then
           modPatientGeneral.AddPatientFindings("Final Diagnosis", Trim(txtencid.Text), sName[0], sName[1], sName[2])
-          modPatientGeneral.SetPatientFindingTree(Trim(txtencid.Text), lsticdisease)
+          Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+          modPatientGeneral.SetPatientFindingTree(Trim(txtencid.Text), lsticdisease, chkalldiagno.Value)
         Endif
       Endif
     Endif
   Endif
+
+End
+
+Public Sub chkalldiagno_Click()
+
+  modPatientGeneral.SetPatientFindingTree(Trim(txtencid.Text), lsticdisease, chkalldiagno.Value)
 
 End
 
@@ -897,7 +879,7 @@ Public Sub tlbtndelallergy_Click()
           res["fldsave"] = False
           res["xyz"] = False
           res.Update
-          modPatientGeneral.SetPatientFindingTree(Trim(txtencid.Text), lsticdisease)
+          modPatientGeneral.SetPatientFindingTree(Trim(txtencid.Text), lsticdisease, chkalldiagno.Value)
           ' Message.Warning(("Information deleted"), ("OK"))
           ' Balloon.Delay = modBasic.$BalloonDelay
         Endif
@@ -915,7 +897,8 @@ Public Sub btnallergymanual_Click()
     xx = InputBox(("Enter custom Drug Allergy"), ("Drug Allergy"), "")
     If xx Then
       modPatientGeneral.AddPatientFindings("Allergic Drugs", Trim(txtencid.Text), xx, "", "")
-      modPatientGeneral.SetPatientFindingTree(Trim(txtencid.Text), lsticdisease)
+      Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+      modPatientGeneral.SetPatientFindingTree(Trim(txtencid.Text), lsticdisease, chkalldiagno.Value)
     Endif
   Endif
 
@@ -937,7 +920,8 @@ Public Sub btnallergy_Click()
         modPatientGeneral.AddPatientFindings("Allergic Drugs", Trim(txtencid.Text), sText, "", "")
       Next
     Endif
-    modPatientGeneral.SetPatientFindingTree(Trim(txtencid.Text), lsticdisease)
+    Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+    modPatientGeneral.SetPatientFindingTree(Trim(txtencid.Text), lsticdisease, chkalldiagno.Value)
   Endif
 
 End
@@ -1739,7 +1723,7 @@ Public Sub btnsavevitals_Click()
       Endif
     Endif
 
-    Me.Exec("Toastify({text: 'Information saved', duration: 3000}).showToast()")
+    Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
   Endif
 
 End
@@ -1793,8 +1777,7 @@ Public Sub btnhistory_Click()
 
   If txthistory.Text Then
     modPatientGeneral.AddExamGeneralQualiData(Trim(txtencid.Text), "History", "History of Illness", txthistory.KeyList.Join(";"), txthistory.RichText, xboolean)
-    Me.Exec("Toastify({text: 'Information saved', duration: 3000}).showToast()")
-    ' Balloon.Delay = modBasic.$BalloonDelay
+    Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
   Endif
 
 End
@@ -1811,8 +1794,7 @@ Public Sub btnplan_Click()
 
   If txtplan.Text Then
     modPatientGeneral.AddExamGeneralQualiData(Trim(txtencid.Text), "Notes", "Initial Planning", txtplan.KeyList.Join(";"), txtplan.RichText, xboolean)
-    Me.Exec("Toastify({text: 'Information saved', duration: 3000}).showToast()")
-    ' Balloon.Delay = modBasic.$BalloonDelay
+    Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
   Endif
 
 End
@@ -1829,8 +1811,7 @@ Public Sub btnplanfinal_Click()
 
   If txtplanfinal.Text Then
     modPatientGeneral.AddExamGeneralQualiData(Trim(txtencid.Text), "Notes", "Final Planning", txtplanfinal.KeyList.Join(";"), txtplanfinal.RichText, xboolean)
-    Me.Exec("Toastify({text: 'Information saved', duration: 3000}).showToast()")
-    ' Balloon.Delay = modBasic.$BalloonDelay
+    Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
   Endif
 
 End
@@ -1847,8 +1828,7 @@ Public Sub btngencompln_Click()
 
   If txtgencomplaint.Text Then
     modPatientGeneral.AddExamGeneralQualiData(Trim(txtencid.Text), "History", "General Complaints", txtgencomplaint.KeyList.Join(";"), txtgencomplaint.RichText, xboolean)
-    Me.Exec("Toastify({text: 'Information saved', duration: 3000}).showToast()")
-    ' Balloon.Delay = modBasic.$BalloonDelay
+    Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
   Endif
   modSettings.SaveSettingsToFile("OPDForm/Complaints", "General")
 
@@ -3709,7 +3689,7 @@ Public Sub btnquery_Click()
         Endif
       Endif
       res.Update
-      Me.Exec("Toastify({text: 'Information saved', duration: 3000}).showToast()")
+      Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
 
       If chkquerysms.Value = True Then
         btnsendsms_Click()
@@ -3872,7 +3852,7 @@ Public Sub btngetfeed_Click()
   If txtfeedback.Text Then
     modPatientGeneral.AddExamGeneralQualiData(Trim(txtencid.Text), "Notes", "Final Planning", txtfeedback.KeyList.Join(";"), txtfeedback.RichText, xboolean)
     ShowPlanningsBoth()
-    Me.Exec("Toastify({text: 'Information saved', duration: 3000}).showToast()")
+    Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
   Endif
 
 End

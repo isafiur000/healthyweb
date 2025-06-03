@@ -3,10 +3,10 @@
 Private $doa As Date
 
 Public Sub _new(encid As String)
-  
+
   txtencid.Text = encid
   modGeneralMain.GetOpenModalForm(Me)
-  
+
   modHMISRep.LoadHMISLists()
   cmbperpsex.List = ["Male", "Female", "Other"]
   cmbviotype.List = modHMISRep.$HMISViolTypeOCMC
@@ -14,35 +14,35 @@ Public Sub _new(encid As String)
   cmbdisability.List = modHMISRep.$HMISDisabilityOCMC
   cmbservice.List = modHMISRep.$HMISServiceOCMC
   cmbperprelation.List = ["Within relatives", "Outside of relatives"]
-  
+
   If txtencid.Text Then
     btnshow_Click()
   Else
     pnlfirst.Visible = True
   Endif
-  
+
 End
 
 Public Sub txtencid_Activate()
-  
+
   btnshow_Click()
-  
+
 End
 
 Public Sub btnwebcam_Click()
-  
+
   txtencid.Text = QRScanValue("")
   If txtencid.Text Then
     btnshow_Click()
   Endif
-  
+
 End
 
 Public Sub btnshow_Click()
-  
+
   Dim xx As Boolean
   Dim xgenvio As String
-  
+
   If txtencid.Text Then
     txtname.Text = modPatient.GetPatientNameByEnc(Trim(txtencid.Text))
     $doa = modPatient.GetRecordDate(Trim(txtencid.Text))
@@ -57,23 +57,23 @@ Public Sub btnshow_Click()
     Endif
     ShowPreviosData()
   Endif
-  
+
 End
 
 Public Sub btnpatcode_Click()
-  
+
   If chkgenviol.Value = True Then
     modPatientSub.AddAccGeneralQualiData(Trim(txtencid.Text), "Demographics", "Gender Based Violence", "Yes", "", Now(), True)
     Frame1.Enabled = True
-    Me.Exec("Toastify({text: 'Information updated', duration: 3000}).showToast()")
+    Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information updated", modBasic.$BalloonDelay))
   Endif
-  
+
 End
 
 Private Sub ShowPreviosData()
-  
+
   Dim res As Result
-  
+
   res = modDatabase.$myConn.Exec("select fldviotype,fldviocause,flddisability,fldservice,fldperpname,fldrelation,fldperpsex,fldperpage,fldcommtype,fldcommcause,fldcommability,fldcommservice,fldcomment from tblgenviolence where fldencounterval=&1", Trim(txtencid.Text))
   If res.Available Then
     ' modJavaScript.UpdateSelect2Combo(cmbviotype, res["fldviotype"])
@@ -95,15 +95,15 @@ Private Sub ShowPreviosData()
       txtperpage.Value = res["fldperpage"] / 365
     Endif
   Endif
-  
+
 End
 
 Public Sub btnupdate_Click()
-  
+
   Dim res1 As Result
   Dim res As Result
   Dim xIntVal As String
-  
+
   If Trim(txtencid.Text) Then
     res1 = modDatabase.$myConn.Exec("select fldid from tblgenviolence where fldencounterval=&1", Trim(txtencid.Text))
     If res1.Available Then
@@ -122,18 +122,18 @@ Public Sub btnupdate_Click()
     res["fldrelation"] = cmbperprelation.Text
     res["fldperpsex"] = cmbperpsex.Text
     res["fldperpage"] = txtperpage.Value * 365
-    
+
     res["fldcommtype"] = Trim(txtviotype.Text)
     res["fldcommcause"] = Trim(txtviocause.Text)
     res["fldcommability"] = Trim(txtdisability.Text)
     res["fldcommservice"] = Trim(txtservice.Text)
     res["fldcomment"] = ""
-    
+
     res["flduserid"] = modBasic.$lbluser
-    
+
     res["fldcomp"] = modBasic.$compID
     res["fldsave"] = True
-    
+
     res["fldviolref"] = ""
     res["xyz"] = False
     If MMain.$WebEntry = True Then
@@ -145,38 +145,38 @@ Public Sub btnupdate_Click()
       res["fldhospcode"] = modBasic.$HospCode
     Endif
     res.Update
-    
-    Me.Exec("Toastify({text: 'Information updated', duration: 3000}).showToast()")
+
+    Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information updated", modBasic.$BalloonDelay))
   Endif
-  
+
 End
 
 Public Sub btnclose_Click()
-  
+
   Me.Close()
-  
+
 End
 
 ' Public Sub cmbviotype_Render()
-'   
+'
 '   modJavaScript.SetSelect2Combo(cmbviotype)
-'   
+'
 ' End
-' 
+'
 ' Public Sub cmbviocause_Render()
-'   
+'
 '   modJavaScript.SetSelect2Combo(cmbviocause)
-'   
+'
 ' End
-' 
+'
 ' Public Sub cmbdisability_Render()
-'   
+'
 '   modJavaScript.SetSelect2Combo(cmbdisability)
-'   
+'
 ' End
-' 
+'
 ' Public Sub cmbservice_Render()
-'   
+'
 '   modJavaScript.SetSelect2Combo(cmbservice)
-'   
+'
 ' End

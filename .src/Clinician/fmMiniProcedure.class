@@ -10,14 +10,14 @@ Private $rData2 As Result
 Private $aMyFields2 As String[]
 
 Public Sub _new(encid As String, DiscType As String)
-  
+
   Dim xstatus As String
   Dim accLst As String[]
-  
+
   $encid = encid
   $sPackage = DiscType
   modGeneralMain.GetOpenModalForm(Me)
-  
+
   accLst = modBasic.$BillDiscountCash
   If accLst.Count = 0 Then
     accLst.Add($sPackage)
@@ -29,12 +29,12 @@ Public Sub _new(encid As String, DiscType As String)
   If Not $BillMode Then
     $BillMode = modpatient.GetPatBillingMode($encid)
   Endif
-  
+
   xstatus = modPatient.CurrentAdmissionStatus($encid)
   txtlocation.Text = modPatient.GetLocationSetting($encid, xstatus)
   $xFinClear = modNonMedical.GetFinanceClearance($encid)
   cmbtype.List = ["Minor", "Intermediate", "Plaster"]
-  
+
   btnrefer.Tag = modBillings.GetReferralUserSetting("Procedure", $encid)
   If btnrefer.Tag Then
     btnrefer.Text = modGeneral.GetUserFullName(btnrefer.Tag)
@@ -50,11 +50,11 @@ Public Sub _new(encid As String, DiscType As String)
   Else
     cmbprocedure.SetFocus
   Endif
-  
+
 End
 
 Public Sub btnscheme_Click()
-  
+
   If cmbdisctype.Text Then
     $BillMode = modNonMedical.GetDiscBindBillMode(cmbdisctype.Text)
     If Not $BillMode Then
@@ -63,35 +63,35 @@ Public Sub btnscheme_Click()
     cmbprocedure.Clear()
     cmbtype.Text = ""
   Endif
-  
+
 End
 
 Public Sub TabPanel1_Click()
-  
+
   If TabPanel1.Index = 0 Then
     FillLabtable()
   Else If TabPanel1.Index = 1 Then
     CompleteGrid()
   Endif
-  
+
 End
 
 Public Sub cmbtype_Click()
-  
+
   If cmbtype.Text Then
     cmbprocedure.List = modNonMedical.NonStockBillActiveItemArray("Procedures", $BillMode, cmbtype.Text)
   Endif
-  
+
 End
 
 Public Sub btnsubOK_Click()
-  
+
   If cmbprocedure.Text Then
     If modNonMedical.GetControlServCombo(cmbprocedure.Text) = False Then
       cmbprocedure.Text = ""
       Message.Warning(("Item not listed"), ("OK"))
       ' Balloon.Delay = modBasic.$BalloonDelay
-      
+
     Else
       If modMisc.AllowDiagnoBilling($encid) = True Then
         If modNonMedical.AllowEntryWithDeposit($encid, "Procedure") = True Then
@@ -101,21 +101,21 @@ Public Sub btnsubOK_Click()
       Else
         Message.Warning("Diagnosis not provided", ("OK"))
       Endif
-      
+
     Endif
   Endif
-  
+
 End
 
 Public Sub FillLabtable()
-  
+
   Dim sql As String
-  
+
   sql = "select fldid,fldtime,fldencounterval,flditem,fldreportquali,fldid from tblpatgeneral where fldencounterval=&1 and fldinput=&2 and fldsave=&3 and fldreportquali=&4 and fldstatus=&5"                                             ''
   $rData = modDatabase.$myConn.Exec(sql, $encid, "Minor Procedures", False, "Done", "Waiting")
   $aMyFields = New String[]
   modGridView.ReadSmallData(GridView1, $rData, $aMyFields)
-  
+
   With GridView1
     .Columns[0].Hidden = True
     .Columns[1].Width = CStr(175 * modBasic.$AppWidthRatio) & "px"
@@ -123,16 +123,16 @@ Public Sub FillLabtable()
     .Columns[3].Width = CStr(300 * modBasic.$AppWidthRatio) & "px"
     .Columns[4].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
     .Columns[5].Hidden = True
-    
+
     .Columns[1].Text = "Time"
     .Columns[3].Text = "Procedure"
     .Columns[4].Text = "Status"
   End With
-  
+
 End
 
 Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableData)
-  
+
   $rData.MoveTo(Row)
   modGridView.GridViewDecoration(Data, Row)
   If Column = 1 Then
@@ -140,11 +140,11 @@ Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableDat
   Else
     Data.Text = $rData[$aMyFields[Column]]
   Endif
-  
+
 End
 
 Public Sub btndelete_Click()
-  
+
   If GridView1.Selection.Count Then
     $rData.MoveTo(GridView1.Selection[0])
     If Message.Question(("Are you sure?"), ("No"), ("Yes")) = 2 Then
@@ -152,29 +152,29 @@ Public Sub btndelete_Click()
       FillLabtable()
     Endif
   Endif
-  
+
 End
 
 Public Sub btnsave_Click()
-  
+
   Dim res As Result
   Dim res1 As Result
   Dim xauto As String
-  
+
   Dim xrefer As String
   Dim xpayble As String
-  
+
   If btnrefer.Tag Then
     xrefer = btnrefer.Tag
   Else
     xrefer = modBillings.GetReferralUserSetting("Procedure", $encid)
   Endif
   xpayble = modBillings.GetPayableUserSetting("Procedure", $encid)
-  
+
   res = modDatabase.$myConn.Exec("select fldid,fldencounterval,fldnewdate,flditem,fldreportquali,flddetail,fldtime from tblpatgeneral where fldencounterval=&1 and fldinput=&2 and fldsave=&3 and fldcomp=&4 and fldreportquali=&5 and fldstatus=&6", $encid, "Minor Procedures", False, modBasic.$compID, "Done", "Waiting")                                      ''
   If res.Available = True Then
     xauto = modBasic.$AutoBillProcedure
-    
+
     modDatabase.$myConn.Begin
     For Each res
       If xauto Then
@@ -196,21 +196,20 @@ Public Sub btnsave_Click()
     modDatabase.$myConn.Commit
     FillLabtable()
     CompleteGrid()
-    
-    Me.Exec("Toastify({text: 'Information saved', duration: 3000}).showToast()")
-    ' Balloon.Delay = modBasic.$BalloonDelay
+
+    Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
   Endif
-  
+
 Catch
   modDatabase.$myConn.Rollback
   modHelpVariable.CreateErrorReport()
-  
+
 End
 
 Public Sub btnselectuser_Click()
-  
+
   Dim xMedUser As String[]
-  
+
   xMedUser = MedicalSelectedValue(("Select Payable User"), modBasic.$PayUserList)
   If xMedUser And If xMedUser.Count Then
     btnrefer.Tag = xMedUser[0]
@@ -219,43 +218,43 @@ Public Sub btnselectuser_Click()
     btnrefer.Tag = ""
     btnrefer.Text = ""
   Endif
-  
+
 End
 
 Public Sub btnrefer_Change()
-  
+
   If btnrefer.Text = "" Then
     btnrefer.Tag = ""
   Endif
-  
+
 End
 
 '''=================== completed  =====================
 Private Sub CompleteGrid()
-  
+
   Dim sql As String
-  
+
   sql = "select fldid,fldtime,fldencounterval,flditem,fldreportquali from tblpatgeneral where fldencounterval=&1 and fldinput=&2 and fldsave=&3 and fldreportquali=&4 and fldstatus=&5"                                             ''
   $rData2 = modDatabase.$myConn.Exec(sql, $encid, "Minor Procedures", True, "Done", "Cleared")
   $aMyFields2 = New String[]
   modGridView.ReadSmallData(GridView2, $rData2, $aMyFields2)
-  
+
   With GridView2
     .Columns[0].Hidden = True
     .Columns[1].Width = CStr(175 * modBasic.$AppWidthRatio) & "px"
     .Columns[2].Hidden = True
     .Columns[3].Width = CStr(325 * modBasic.$AppWidthRatio) & "px"
     .Columns[4].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
-    
+
     .Columns[1].Text = "Time"
     .Columns[3].Text = "Procedure"
     .Columns[4].Text = "Status"
   End With
-  
+
 End
 
 Public Sub GridView2_Data(Row As Integer, Column As Integer, Data As WebTableData)
-  
+
   $rData2.MoveTo(Row)
   modGridView.GridViewDecoration(Data, Row)
   If Column = 1 Then
@@ -263,17 +262,17 @@ Public Sub GridView2_Data(Row As Integer, Column As Integer, Data As WebTableDat
   Else
     Data.Text = $rData2[$aMyFields2[Column]]
   Endif
-  
+
 End
 
 Public Sub btnclose_Click()
-  
+
   Me.Close()
-  
+
 End
 
 ' Public Sub cmbprocedure_Render()
-'   
+'
 '   modJavaScript.SetSelect2Combo(cmbprocedure)
-'   
+'
 ' End

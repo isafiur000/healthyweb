@@ -6,7 +6,7 @@ Private $rData As Result
 Private $aMyFields As String[]
 
 Public Sub _new(sType As String)
-  
+
   $sType = sType
   If $sType = "Surveillance" Then
     $tbl = "tblsurveillance"
@@ -15,21 +15,21 @@ Public Sub _new(sType As String)
     $tbl = "tblbilldisease"
     cmbgroup.List = ["HI Chronic Disease", "SSF Critical Disease"]
   Endif
-  
+
 End
 
 Public Sub btnrefresh_Click()
-  
+
   If cmbgroup.Text Then
     ShowGridData()
   Endif
-  
+
 End
 
 Public Sub btnadd_Click()
-  
+
   Dim res As Result
-  
+
   If Not txtcode.Text Then
     txtcode.Text = "Other"
   Endif
@@ -44,15 +44,15 @@ Public Sub btnadd_Click()
     txtcode.Text = ""
     txtsearch.Text = ""
     txtnewcode.Text = ""
-    Me.Exec("Toastify({text: 'Information saved', duration: 3000}).showToast()")
+    Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
   Endif
-  
+
 End
 
 Public Sub btnedit_Click()
-  
+
   Dim res As Result
-  
+
   If GridView1.Selection.Count Then
     $rData.MoveTo(GridView1.Selection[0])
     res = modDatabase.$medConn.Edit($tbl, "fldid=&1", $rData["fldid"])
@@ -61,14 +61,14 @@ Public Sub btnedit_Click()
     res["fldcodeid"] = Trim(txtcode.Text)
     res["fldcodenew"] = Trim(txtnewcode.Text)
     res.Update
-    Me.Exec("Toastify({text: 'Information updated', duration: 3000}).showToast()")
+    Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information updated", modBasic.$BalloonDelay))
     ShowGridData()
   Endif
-  
+
 End
 
 Public Sub mnudelete_Click()
-  
+
   If GridView1.Selection.Count Then
     $rData.MoveTo(GridView1.Selection[0])
     If Message.Question(("Are you sure?"), ("No"), ("Yes")) = 2 Then
@@ -76,14 +76,14 @@ Public Sub mnudelete_Click()
       ShowGridData()
       txtcode.Text = ""
       txtsearch.Text = ""
-      Me.Exec("Toastify({text: 'Information deleted', duration: 3000}).showToast()")
+      Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information deleted", modBasic.$BalloonDelay))
     Endif
   Endif
-  
+
 End
 
 Private Sub ShowGridData()
-  
+
   $rData = modDatabase.$medConn.Exec(Subst("select fldid,flddisease,fldcodeid,fldcodenew from &1", $tbl) & " where fldgroup=&1", Trim(cmbgroup.Text))
   $aMyFields = New String[]
   modGridView.ReadSmallData(GridView1, $rData, $aMyFields)
@@ -97,32 +97,32 @@ Private Sub ShowGridData()
     .Columns[2].Text = "Code"
     .Columns[3].Text = "Code"
   End With
-  
+
 End
 
 Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableData)
-  
+
   $rData.MoveTo(Row)
   modGridView.GridViewDecoration(Data, Row)
   Data.Text = $rData[$aMyFields[Column]]
-  
+
 End
 
 Public Sub btnaddicd_Click()
-  
+
   Dim xx As String[]
-  
+
   xx = ICDGridView("Select Disease")
   If xx Then
     txtsearch.Text = xx[0]
     txtnewcode.Text = xx[1]
     txtcode.Text = xx[2]
   Endif
-  
+
 End
 
 Public Sub btnclose_Click()
-  
+
   Me.Close
-  
+
 End

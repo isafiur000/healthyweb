@@ -9,18 +9,18 @@ Private $aMyFields2 As String[]
 Private $encid As String
 
 Public Sub _new(xStatus As String)
-  
+
   Dim xoption As String
   Dim xregimen As String
-  
+
   $xStatus = xStatus
-  
+
   ShowInputForm()
   modSettings.ShowCheckBox(chkprintlabel, "DispensingList/PrintLabel")
   ShowDepartList()
   cmbdepart.Text = ""
   dtselected.Value = Now()
-  
+
   xregimen = modSettings.ShowSettingFromFIle("ShowRegimen/DispensingList")
   If xregimen = "Yes" Then
     chkregimen.Value = True
@@ -35,7 +35,7 @@ Public Sub _new(xStatus As String)
   Endif
   rbencid.Value = True
   chkselall.Value = True
-  
+
   DateSelectionSett()
   If $xStatus = "Requested" Then
     rbencid.Value = True
@@ -46,66 +46,66 @@ Public Sub _new(xStatus As String)
     mnuremove.Visible = False
   Endif
   cmbdepart.SetFocus
-  
+
 End
 
 Public Sub chkdate_Click()
-  
+
   modSettings.EnterCheckSetting(chkdate, "EntrySetting/Pharmacy_DateSelect")
   DateSelectionSett()
-  
+
 End
 
 Private Sub DateSelectionSett()
-  
+
   If chkdate.Value = True Then
     Panel13.Enabled = True
   Else
     Panel13.Enabled = False
   Endif
-  
+
 End
 
 Private Sub ShowInputForm()
-  
+
   Dim xx As String
-  
+
   xx = modSettings.ShowSettingFromFIle("DispensingList/Department")
   If xx = "InPatient" Then
     rbinpat.Value = True
   Else
     rboutpat.Value = True
   Endif
-  
+
 End
 
 Private Sub ShowDepartList()
-  
+
   If rboutpat.Value = True Then
     cmbdepart.List = modGeneral.GetDepartmentsForOPDBoth()
     cmbdepart.Text = ""
   Else If rbinpat.Value = True Then
     cmbdepart.List = modGeneral.GetDepartmentAllList("Patient Ward")
   Endif
-  
+
 End
 
 Public Sub rboutpat_Click()
-  
+
   modSettings.SaveSettingsToFile("DispensingList/Department", "OutPatient")
   ShowDepartList()
-  
+
 End
 
 Public Sub rbinpat_Click()
-  
+
   modSettings.SaveSettingsToFile("DispensingList/Department", "InPatient")
   ShowDepartList()
-  
+
 End
 
 Public Sub form_KeyRelease()
-  
+
   If Key.Code = Key["R"] And If Key.Control Then
     btnrefresh_Click()
   Else If Key.Code = Key.F1 Then
@@ -113,11 +113,11 @@ Public Sub form_KeyRelease()
   Else If Key.Code = Key.F12 Then
     btnclaerall_Click()
   Endif
-  
+
 End
 
 Public Sub btnrefresh_Click()
-  
+
   GridView2.Clear()
   GridView1.Clear()
   If rbencid.Value = True Then
@@ -125,14 +125,14 @@ Public Sub btnrefresh_Click()
   Else If rbinvoice.Value = True Then
     FillInvoiceList("")
   Endif
-  
+
 End
 
 Public Sub btnseartext_Click()
-  
+
   Dim enc As String
   Dim xinv As String
-  
+
   txtindex.Text = ""
   If rbencid.Value = True Then
     If modBasic.$AutoEncPrefix Then
@@ -157,13 +157,13 @@ Public Sub btnseartext_Click()
       FillDispenstable(txtindex.Text)
     Endif
   Endif
-  
+
 End
 
 Private Sub FillEncList(xencid As String)
-  
+
   Dim xstate As Boolean
-  
+
   If $xStatus = "Dispensed" Then
     xstate = True
   Else If $xStatus = "Requested" Then
@@ -172,7 +172,7 @@ Private Sub FillEncList(xencid As String)
   If Not cmbdepart.Text Then
     cmbdepart.Text = "%"
   Endif
-  
+
   If chkdate.Value = True Then
     If Not xencid Then
       If rboutpat.Value = True Then
@@ -194,33 +194,33 @@ Private Sub FillEncList(xencid As String)
       $rData1 = modDatabase.$myConn.Exec("select fldencounterval,fldencounterval,fldencounterval,fldencounterval from tblpatdosing where flditemtype like &1 and fldlevel=&2 and fldencounterval like &3 and fldcurval=&4 and fldqtydisp>&5 and fldsave_order=&6 GROUP BY fldencounterval", "%", "Requested", xencid, "Continue", 0, xstate)                                          ''
     Endif
   Endif
-  
+
   $aMyFields1 = New String[]
   modGridView.ReadSmallData(GridView1, $rData1, $aMyFields1)
-  
+
   With GridView1
     .Columns[0].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
     .Columns[1].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
     .Columns[2].Width = CStr(175 * modBasic.$AppWidthRatio) & "px"
     .Columns[3].Hidden = True
-    
+
     .Columns[0].Text = "Location"
     .Columns[1].Text = "Encounter"
     .Columns[2].Text = "Patient Name"
   End With
-  
+
 End
 
 Private Sub FillInvoiceList(invno As String)
-  
+
   Dim xstate As Boolean
-  
+
   If $xStatus = "Dispensed" Then
     xstate = True
   Else If $xStatus = "Requested" Then
     xstate = False
   Endif
-  
+
   If chkdate.Value = True Then
     If Not invno Then
       If rboutpat.Value = True Then
@@ -244,22 +244,22 @@ Private Sub FillInvoiceList(invno As String)
   Endif
   $aMyFields1 = New String[]
   modGridView.ReadSmallData(GridView1, $rData1, $aMyFields1)
-  
+
   With GridView1
     .Columns[0].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
     .Columns[1].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
     .Columns[2].Width = CStr(175 * modBasic.$AppWidthRatio) & "px"
     .Columns[3].Hidden = True
-    
+
     .Columns[0].Text = "Location"
     .Columns[1].Text = "Invoice"
     .Columns[2].Text = "Patient Name"
   End With
-  
+
 End
 
 Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableData)
-  
+
   $rData1.MoveTo(Row)
   modGridView.GridViewDecoration(Data, Row)
   If Column = 0 Then
@@ -269,11 +269,11 @@ Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableDat
   Else
     Data.Text = $rData1[$aMyFields1[Column]]
   Endif
-  
+
 End
 
 Public Sub GridView1_Select()
-  
+
   txtindex.Text = ""
   If GridView1.Selection.Count Then
     $rData1.MoveTo(GridView1.Selection[0])
@@ -283,29 +283,29 @@ Public Sub GridView1_Select()
     GetPatientProfile($encid)
     FillDispenstable(txtindex.Text)
   Endif
-  
+
 End
 
 Private Sub GetPatientProfile(encid As String)
-  
+
   txtpatientname.Text = modPatient.GetPatientNameByEnc(encid)
   txtgender.Text = modPatient.GetPatientSex(encid)
   txtpatientaddress.Text = modPatient.GetPatientAddressByEnc(encid)
   txtpatientcontact.Text = modPatient.GetPatientLocation(encid)
-  
+
 End
 
 Private Function ExecuteQuery(encid As String) As Result
-  
+
   Dim xstate As Boolean
   Dim res As Result
-  
+
   If $xStatus = "Dispensed" Then
     xstate = True
   Else If $xStatus = "Requested" Then
     xstate = False
   Endif
-  
+
   If rbencid.Value = True Then
     If cmbdepart.Text Then
       If chkdate.Value = True Then
@@ -328,10 +328,10 @@ Private Function ExecuteQuery(encid As String) As Result
             res = modDatabase.$myConn.Exec("select fldid,fldtime_order,fldroute,flditem,fldqtydisp,flddose,fldfreq,flddays,fldlabel,flddirection,fldcomp_order,fldencounterval,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit from tblpatdosing where fldencounterval=&1 and fldlevel=&2 and flditemtype like &3 and fldcurval=&4 and fldqtydisp>&5 and fldencounterval in(select fldencounterval from tblencounter where fldcurrlocat in(select fldbed from tbldepartmentbed where flddept like &6)) and fldsave_order=&7", encid, "Requested", "%", "Continue", 0, cmbdepart.Text, xstate)
           Endif
         Endif
-        
+
       Endif
     Endif
-    
+
   Else If rbinvoice.Value = True Then
     If cmbdepart.Text Then
       If chkdate.Value = True Then
@@ -354,21 +354,21 @@ Private Function ExecuteQuery(encid As String) As Result
             res = modDatabase.$myConn.Exec("select fldid,fldtime_order,fldroute,flditem,fldqtydisp,flddose,fldfreq,flddays,fldlabel,flddirection,fldcomp_order,fldencounterval,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit from tblpatdosing where fldid in(select fldparent from tblpatbilling where fldbillno=&1) and fldlevel=&2 and flditemtype like &3 and fldcurval=&4 and fldqtydisp>&5 and fldencounterval in(select fldencounterval from tblencounter where fldcurrlocat in(select fldbed from tbldepartmentbed where flddept like &6)) and fldsave_order=&7", encid, "Requested", "%", "Continue", 0, cmbdepart.Text, xstate)
           Endif
         Endif
-        
+
       Endif
     Endif
   Endif
-  
+
   Return res
-  
+
 End
 
 Private Sub FillDispenstable(encid As String)
-  
+
   $rData2 = ExecuteQuery(encid)
   $aMyFields2 = New String[]
   modGridView.ReadSmallData(GridView2, $rData2, $aMyFields2)
-  
+
   With GridView2
     .Columns[0].Hidden = True
     .Columns[1].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
@@ -386,12 +386,12 @@ Private Sub FillDispenstable(encid As String)
       .Columns[7].Hidden = True
       .Columns[8].Hidden = True
     Endif
-    
+
     .Columns[9].Width = CStr(200 * modBasic.$AppWidthRatio) & "px"
     .Columns[10].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
     .Columns[11].Hidden = True
     .Columns[12].Hidden = True
-    
+
     .Columns[13].Hidden = True
     .Columns[14].Hidden = True
     .Columns[15].Hidden = True
@@ -401,7 +401,7 @@ Private Sub FillDispenstable(encid As String)
     .Columns[19].Hidden = True
     .Columns[20].Hidden = True
     .Columns[21].Hidden = True
-    
+
     .Columns[1].Text = "DateTime"
     .Columns[2].Text = "Route"
     .Columns[3].Text = "Particulars"
@@ -414,11 +414,11 @@ Private Sub FillDispenstable(encid As String)
     .Columns[9].Text = "Direction"
     .Columns[10].Text = "Sender"
   End With
-  
+
 End
 
 Public Sub GridView2_Data(Row As Integer, Column As Integer, Data As WebTableData)
-  
+
   $rData2.MoveTo(Row)
   modGridView.GridViewDecoration(Data, Row)
   If Column = 1 Then
@@ -435,13 +435,13 @@ Public Sub GridView2_Data(Row As Integer, Column As Integer, Data As WebTableDat
   Else
     Data.Text = $rData2[$aMyFields2[Column]]
   Endif
-  
+
 End
 
 Public Sub mnuselall_Click()
-  
+
   Dim res As Result
-  
+
   If GridView2.Selection.Count Then
     $rData2.MoveTo(GridView2.Selection[0])
     If $rData2["flditemtype"] = "Medicines" Then
@@ -453,13 +453,13 @@ Public Sub mnuselall_Click()
       Endif
     Endif
   Endif
-  
+
 End
 
 Public Sub mnudselal_Click()
-  
+
   Dim res As Result
-  
+
   If GridView2.Selection.Count Then
     $rData2.MoveTo(GridView2.Selection[0])
     If $rData2["flditemtype"] = "Medicines" Then
@@ -471,17 +471,17 @@ Public Sub mnudselal_Click()
       Endif
     Endif
   Endif
-  
+
 End
 
 Public Sub txtmeddose_Click()
-  
+
   Dim xval As Float
   Dim anum As Float
-  
+
   If GridView2.Selection.Count Then
     $rData2.MoveTo(GridView2.Selection[0])
-    
+
     If $rData2["flditemtype"] = "Medicines" Then
       If $rData2["flddose"] Then
         anum = $rData2["flddose"]
@@ -492,36 +492,36 @@ Public Sub txtmeddose_Click()
       modPharmSub.UpdateDoseBefDispensing($rData2["fldid"], xval)
       FillDispenstable(txtindex.Text)
     Endif
-    
+
   Endif
-  
+
 End
 
 Public Sub btnmedfreq_Click()
-  
+
   Dim yval As String
-  
+
   If GridView2.Selection.Count Then
     $rData2.MoveTo(GridView2.Selection[0])
-    
+
     If $rData2["flditemtype"] = "Medicines" Then
       yval = InputCombo($rData2["flditem"], ("Alter Frequency"), modMedicine.FrequencyCombo(), $rData2["fldfreq"], True)
       modPharmSub.UpdateFreqBefDispensing($rData2["fldid"], yval)
       FillDispenstable(txtindex.Text)
     Endif
-    
+
   Endif
-  
+
 End
 
 Public Sub btnmeddays_Click()
-  
+
   Dim xval As Float
   Dim anum As Float
-  
+
   If GridView2.Selection.Count Then
     $rData2.MoveTo(GridView2.Selection[0])
-    
+
     If $rData2["flditemtype"] = "Medicines" Then
       If $rData2["flddays"] Then
         anum = $rData2["flddays"]
@@ -532,18 +532,18 @@ Public Sub btnmeddays_Click()
       modPharmSub.UpdateDaysBefDispensing($rData2["fldid"], xval)
       FillDispenstable(txtindex.Text)
     Endif
-    
+
   Endif
-  
+
 End
 
 Public Sub btndispqty_Click()
-  
+
   Dim xval As Float
-  
+
   If GridView2.Selection.Count Then
     $rData2.MoveTo(GridView2.Selection[0])
-    
+
     If $xStatus = "Requested" Then
       xval = InputValue($rData2["flditem"], ("Alter Quantity"), $rData2["fldqtydisp"])
       If xval > 0 Then
@@ -552,47 +552,47 @@ Public Sub btndispqty_Click()
       Endif
     Endif
   Endif
-  
+
 End
 
 Public Sub btnadvice_Click()
-  
+
   Dim yval As String
-  
+
   If GridView2.Selection.Count Then
     $rData2.MoveTo(GridView2.Selection[0])
-    
+
     yval = InputBox($rData2["flditem"], ("Alter Direction"), $rData2["flddirection"])
     If yval Then
       modPharmSub.UpdateAdviceBefDispensing($rData2["fldid"], yval)
       FillDispenstable(txtindex.Text)
     Endif
-    
+
   Endif
-  
+
 End
 
 Public Sub chkprintlabel_Click()
-  
+
   modSettings.EnterCheckSetting(chkprintlabel, "DispensingList/PrintLabel")
-  
+
 End
 
 Public Sub mnuremove_Click()
-  
+
   If GridView2.Selection.Count Then
     $rData2.MoveTo(GridView2.Selection[0])
     modDatabase.$myConn.Delete("tblpatdosing", "fldid=&1 and fldsave_order=&2", $rData2["fldid"], False)
     FillDispenstable(txtindex.Text)
   Endif
-  
+
 End
 
 Public Sub mnulabel_Click()
-  
+
   Dim res As Result
   Dim hClabel As CLabelSize
-  
+
   If GridView2.Selection.Count Then
     $rData2.MoveTo(GridView2.Selection[0])
     If $rData2["flditemtype"] = "Medicines" Then
@@ -600,7 +600,7 @@ Public Sub mnulabel_Click()
       res["fldlevel"] = "Dispensed"
       res["xyz"] = False
       res.Update()
-      
+
       If chkprintlabel.Value = True Then
         hClabel = New CLabelSize($rData2["fldid"], "Outpatient")
         ' modPrint.PrintPopUp(CStr($rData2["fldid"], hClabel.LabelPath(), "LabelSize")
@@ -608,25 +608,25 @@ Public Sub mnulabel_Click()
       FillDispenstable(txtindex.Text)
     Endif
   Endif
-  
+
 End
 
 Public Sub btnclaerall_Click()
-  
+
   If $xStatus = "Dispensed" Then
     COnfirmDispensing()
   Else If $xStatus = "Requested" Then
     PharmacySave()
     FillDispenstable(txtindex.Text)
   Endif
-  
+
 End
 
 Private Sub COnfirmDispensing()
-  
+
   Dim res As Result
   Dim xgo As Boolean
-  
+
   If $rData2.Count Then
     For Each $rData2
       xgo = False
@@ -648,15 +648,15 @@ Private Sub COnfirmDispensing()
       Endif
     Next
     FillDispenstable(txtindex.Text)
-    Me.Exec("Toastify({text: 'Information saved', duration: 3000}).showToast()")
+    Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
   Endif
-  
+
 End
 
 Public Sub btnlabelall_Click()
-  
+
   Dim hClabel As CLabelSize
-  
+
   If $rData2.Count Then
     For Each $rData2
       If $rData2["flditemtype"] = "Medicines" Then
@@ -665,14 +665,14 @@ Public Sub btnlabelall_Click()
       Endif
     Next
   Endif
-  
+
 End
 
 Public Sub btncounsel_Click()
-  
+
   Dim doslst As Long[]
   Dim xPath As String
-  
+
   If $rData2.Count Then
     doslst = New Long[]
     For Each $rData2
@@ -680,17 +680,17 @@ Public Sub btncounsel_Click()
         doslst.Add($rData2["fldid"])
       Endif
     Next
-    
+
     xPath = modCHTMLPatient.ShowCounselingReport($encid, doslst)
     modControlSub.OpenHTMLPreview($encid, xPath, "ReportSize")
   Endif
-  
+
 End
 
 Public Sub btnreview_Click()
-  
+
   Dim opt As Long[]
-  
+
   If $rData2.Count Then
     opt = New Long[]
     For Each $rData2
@@ -700,48 +700,48 @@ Public Sub btnreview_Click()
     Next
     modMedError.ShowMedicationReviewMultipleDosID($encid, opt, "Report")
   Endif
-  
+
 End
 
 Public Sub btnpatinfo_Click()
-  
+
   Dim hCls As CReportCustom
-  
+
   If $encid Then
     If modSettings.ShowSettingFromFIle("Diagnostic Help/Name") Then
       hCls = New CReportCustom($encid, "Diagnostic Help", "ReportSize", MMain.$defUnit)
       hCls.Preview()
     Endif
   Endif
-  
+
 End
 
 ''-------- Save Request --------------------
 Private Sub PharmacySave()
-  
+
   Dim res1 As Result
   Dim xgo As Boolean
   Dim tax As Float
   Dim disc As Float
   Dim xrate As Float
   Dim xitem As String
-  
+
   Dim res2 As Result
   Dim sql2 As String
-  
+
   Dim qtynew As Float
   Dim sList As Long[]
   Dim xerr As String
   Dim xallow As Boolean
   Dim xCshCrd As Float
-  
+
   xerr = ""
   If $encid Then
     sList = New Long[]
-    
+
     res1 = $rData2
     If res1.Available = True Then
-      
+
       For Each res1
         xgo = False
         If chkselall.Value = True Then
@@ -768,7 +768,7 @@ Private Sub PharmacySave()
           Else
             xCshCrd = 0
           Endif
-          
+
           If res1["fldfixrate"] Then
             xrate = res1["fldfixrate"]
           Else
@@ -776,7 +776,7 @@ Private Sub PharmacySave()
           Endif
           xallow = modNonMedical.AllowPharmProceedPreBill($encid, res1["flddisctype"], res1["fldqtydisp"], xrate, res1["flddiscper"], res1["fldbilltype"], xCshCrd, res1["fldroute"], res1["flditem"])
           If xallow = True Then
-            
+
             qtynew = res1["fldqtydisp"]
             modDatabase.$myConn.Begin
             While qtynew > 0
@@ -793,7 +793,7 @@ Private Sub PharmacySave()
               Endif
               If res2.Available Then
                 res2.MoveFirst
-                
+
                 xitem = res1["flditem"]
                 If res1["fldfixname"] Then
                   xitem = res1["fldfixname"]
@@ -805,7 +805,7 @@ Private Sub PharmacySave()
                 Else
                   xrate = modStock.GetSellingPriceByStockNo(res2["fldstockno"], res1["fldbillingmode"])
                 Endif
-                
+
                 If qtynew <= res2["fldqty"] Then
                   modBillings.InsertBlankBillItemNewApp($encid, res1["fldbilltype"], res1["fldbillingmode"], res1["flddisctype"], res1["fldacledger"], res1["flditemtype"], res2["fldstockno"], xitem, xrate, qtynew, tax, disc, xCshCrd, "Done", res1["fldid"], True, False, modBasic.$compID)
                   modStockSub.AddToExistEntry(res2["fldstockno"], (0 - qtynew), modBasic.$compID)
@@ -834,34 +834,34 @@ Private Sub PharmacySave()
               modPharmSub.UpdateDispensing(res1["fldid"], True)
             Endif
             modDatabase.$myConn.Commit
-            
+
           Else
             xerr = xerr & res1["fldfixname"] & gb.NewLine
           Endif
         Endif
       Next
-      
+
       If xerr Then
         Message.Warning("<b>Over Set Discount/Credit Limit:</b>" & gb.NewLine & xerr, "OK")
       Endif
-      
+
     Endif
-    
+
     modPharmSub.PrintLabelSelList(sList, "Inpatient")
   Endif
-  
+
 Catch
   modDatabase.$myConn.Rollback
   modHelpVariable.CreateErrorReport()
-  
+
 End
 
 Private Sub BlinkOnSave(stockno As Integer)
-  
+
   If modBasic.$ShowStorage = "OnSave" Then
     modDevice.SendDataToSerialPort(modStock.GetStorageCodeFromStockNo(stockno))
   Endif
-  
+
 End
 
 ' Public Sub btnlist_Click()
@@ -903,10 +903,10 @@ End
 ' End
 
 Private Function GetMedicineListEncid(encid As String) As String[]
-  
+
   Dim res As Result
   Dim xxx As String[]
-  
+
   xxx = New String[]
   res = ExecuteQuery(encid)
   If res.Available Then
@@ -918,9 +918,9 @@ Private Function GetMedicineListEncid(encid As String) As String[]
       Endif
     Next
   Endif
-  
+
   Return xxx
-  
+
 End
 
 ' Public Sub btnsumall_Click()
@@ -958,9 +958,9 @@ End
 ' End
 
 Private Function GetMedicineSummaryEncid(encid As String, sColl As Collection) As Collection
-  
+
   Dim res As Result
-  
+
   res = ExecuteQuery(encid)
   If res.Available Then
     For Each res
@@ -973,28 +973,28 @@ Private Function GetMedicineSummaryEncid(encid As String, sColl As Collection) A
       Endif
     Next
   Endif
-  
+
   Return sColl
-  
+
 End
 
 Public Sub btnexpogrid_Click()
-  
+
   Dim xPath As String
-  
+
   If $encid Then
     xPath = modCHTMLPatient.ShowMedicationOrder($encid)
     modControlSub.OpenHTMLPreview($encid, xPath, "ReportSize")
   Endif
-  
+
 End
 
 Public Sub chkregimen_Click()
-  
+
   If chkregimen.Value = True Then
     modSettings.SaveSettingsToFile("ShowRegimen/DispensingList", "Yes")
   Else If chkregimen.Value = False Then
     modSettings.SaveSettingsToFile("ShowRegimen/DispensingList", "No")
   Endif
-  
+
 End
