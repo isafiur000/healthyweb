@@ -102,6 +102,7 @@ Public Function RecommendedDoseDrug(encid As String, xYear As Integer, stockid A
 
   Dim sql As String
   Dim recdose As Float
+  Dim creatclr As Float
 
   recdose = 0
   If xYear <= 12 Then
@@ -112,8 +113,11 @@ Public Function RecommendedDoseDrug(encid As String, xYear As Integer, stockid A
   recdose = GetDoseValue(sql, encid, stockid)
 
   If modSettings.ShowSettingFromFIle("RenalDoseAdjustment/Activate") = "Yes" Then
-    If modMedConstant.GetDrugRenalEliminFraction(stockid) * 100 > CFloat(modSettings.ShowSettingFromFIle("RenalDoseAdjustment/MinRenPer")) And If modSysCons.GetCreatinineClearance(encid) < CFloat(modSettings.ShowSettingFromFIle("RenalDoseAdjustment/MaxCrCl")) Then                                             ''
-      recdose = recdose * modMedDosing.GetDoseAdjustmentFactor(encid, stockid)
+    creatclr = modSysCons.GetCreatinineClearance(encid)
+    If creatclr Then
+      If modMedConstant.GetDrugRenalEliminFraction(stockid) * 100 > CFloat(modSettings.ShowSettingFromFIle("RenalDoseAdjustment/MinRenPer")) And If creatclr < CFloat(modSettings.ShowSettingFromFIle("RenalDoseAdjustment/MaxCrCl")) Then                                             ''
+        recdose = recdose * modMedDosing.GetDoseAdjustmentFactor(encid, stockid)
+      Endif
     Endif
   Endif
 

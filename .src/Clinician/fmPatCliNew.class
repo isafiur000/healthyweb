@@ -85,9 +85,17 @@ Public Sub _new(encid As String, sIndex As Long, sMode As String)
   Endif
 
   If modBasic.$CliniDiagnosticReport = "Disable" Then
-    pnldiagnostic.Visible = False
+    pnlabexams.Visible = False
   Else
-    pnldiagnostic.Visible = True
+    pnlabexams.Visible = True
+  Endif
+  If modBasic.$ClinPastDiagnosis Then
+    Select modBasic.$ClinPastDiagnosis
+      Case "Final Diagnosis", "Provisional Diagnosis", "Nursing Diagnosis"
+        pnldiagnosis.Visible = True
+      Case Else
+        pnldiagnosis.Visible = False
+    End Select
   Endif
 
   SetHtmlTextOption(txtgencomplaint)
@@ -301,6 +309,7 @@ Public Sub tlbtnaddheight_Click()
         modClinSub.UpdatePatientHeight(Trim(txtencid.Text), txtpatheight.Value, cmbpatheightunit.Text)
         tlbtnaddheight.Enabled = False
         Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information updated", modBasic.$BalloonDelay))
+        GetBasicCalulations()
       Endif
     Endif
   Endif
@@ -314,6 +323,7 @@ Public Sub tlbtnadwt_Click()
       modClinSub.AddGeneralParametersQuanti(Trim(txtencid.Text), "Body Weight", txtpatweight.Value)
       tlbtnadwt.Enabled = False
       Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+      GetBasicCalulations()
     Endif
   Endif
 
@@ -330,6 +340,7 @@ Public Sub dtdob_Click()
       modDateSub.GetAgeControlFromDate(dtdate, txtpatage, cmbpatageunit)
       dtdob.Tag = dtdate
       Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information updated", modBasic.$BalloonDelay))
+      GetBasicCalulations()
     Endif
   Endif
 
@@ -424,6 +435,12 @@ Private Sub BasicInfoPatient()
     ButtonControl()
     $dateReg = modPatient.GetRecordDate(Trim(txtencid.Text))
     GetConsultParam()
+    If modBasic.$ClinPastDiagnosis Then
+      Select modBasic.$ClinPastDiagnosis
+        Case "Final Diagnosis", "Provisional Diagnosis", "Nursing Diagnosis"
+          txtpastdiagnosis.Text = "<p>" & "<b>" & modBasic.$ClinPastDiagnosis & "</b><br>" & modPathoSub.GetSelectedPastDiagnosisList(modBasic.$ClinPastDiagnosis, $PatientNum).Join(", ") & "</p>"
+      End Select
+    Endif
     txthistory.RichText = modPatPatho.ShowSelectedHistoryValue(Trim(txtencid.Text), "History of Illness")
     modPatientGeneral.SetPatientFindingTree(Trim(txtencid.Text), lsticdisease, chkalldiagno.Value)
     ShowSymptomData()
@@ -433,7 +450,8 @@ Private Sub BasicInfoPatient()
     ShowTelemedSaved()
     dtfollow.Value = modPatient.GetFollowUpDate(Trim(txtencid.Text))
     cmbrefer.Text = modPatient.GetReferLocation(Trim(txtencid.Text))
-    hDigForm = New FmDiagnosticTab(Trim(txtencid.Text), "height-tablet", pnldiagnostic)
+    GetBasicCalulations()
+    hDigForm = New FmDiagnosticTab(Trim(txtencid.Text), "height-tablet", pnlabexams)
     pnlhistory.Visible = True
     hPtForm = New FmClinHistory($PatientNum, "PatientID", "height-tablet", pnlhistory)
     modPatientSub.PopUpPatientForm(Trim(txtencid.Text), Me.Tag)
@@ -467,6 +485,17 @@ Private Sub GetDefaultBillingmodes()
       $billModeService = xpackage
       $billModeOthers = xpackage
   End Select
+
+End
+
+Private Sub GetBasicCalulations()
+
+  If txtencid.Text Then
+    txtibw.Value = modSysCons.GetCalculationAValue("Ideal_Body_Weight", Trim(txtencid.Text))
+    txtbsa.Value = modSysCons.GetCalculationAValue("Body_Surface_Area", Trim(txtencid.Text))
+    txtcrclr.Value = modSysCons.GetCreatinineClearance(Trim(txtencid.Text))
+    txtbmi.Value = modSysCons.GetCalculationAValue("Body_Mass_Index", Trim(txtencid.Text))
+  Endif
 
 End
 
@@ -837,7 +866,7 @@ Public Sub tnfinaldiagno_Click()
   Dim xList As String[]
 
   If txtencid.Text Then
-    xList = modPathoSub.GetProvisionalDiagnosisList(Trim(txtencid.Text))
+    xList = modPathoSub.GetSelectedDiagnosisList("Provisional Diagnosis", Trim(txtencid.Text))
     If xList.Count Then
       If MMain.$Ayurveda = "Yes" Then
         sName = AyurvedicDiagnosis(modAyurv.$AyurvedicDiagnosis)

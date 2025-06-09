@@ -14,6 +14,11 @@ Private $MapColl As Collection
 Private $tblpatlabtest As String
 Private $tblpatlabsubtest As String
 
+Private $rDatav As Result
+Private $aMyFieldsv As String[]
+Private $varList As String[]
+Private $dataVar As Collection
+
 Public Sub _new()
 
   If MMain.$WebReport = "Multiple" Then
@@ -296,7 +301,7 @@ Public Sub mnusearname_Click()
 
 End
 
-Private Function ExecuteQuery(xFldList As String[]) As Result
+Private Function ExecuteQuery(xFldList As String[], Optional sExtra As String) As Result
 
   Dim sql As String
   Dim sStr As String
@@ -310,6 +315,10 @@ Private Function ExecuteQuery(xFldList As String[]) As Result
   Dim xfldtime As String
   Dim xtestname As String
   Dim xitem As String
+  Dim xextra As String
+  Dim asx As String[]
+  Dim i As Integer
+  Dim xList As String[]
 
   If rball.Value = True Then
     xtestname = "%"
@@ -317,78 +326,101 @@ Private Function ExecuteQuery(xFldList As String[]) As Result
   Else If rbsel.Value = True Then
     If chkcustom.Value = True Then
       xtestname = Trim(txtcustom.Text) & "%"
+      If $MapColl And If $MapColl.Count Then
+        xitem = " and fldtestid in(select fldvalue from tblrepomapping where flditem=&3)"
+      Else
+        xitem = " and fldtestid like &3"
+      Endif
     Else
-      xtestname = cmbtest.Text
-    Endif
-    If $MapColl And If $MapColl.Count Then
-      xitem = " and fldtestid in(select fldvalue from tblrepomapping where flditem=&3)"
-    Else
-      xitem = " and fldtestid like &3"
+      xList = modFillContainer.GetSelectedItemsListBox(cmbtest)
+      If $MapColl And If $MapColl.Count Then
+        xtestname = xList[0]
+        xitem = " and fldtestid in(select fldvalue from tblrepomapping where flditem=&3)"
+      Else
+        For i = 0 To xList.Count - 1
+          xList[i] = "'" & xList[i] & "'"
+        Next
+        xitem = " and fldtestid in(" & xList.Join(",") & ")"
+      Endif
     Endif
   Endif
 
-  If xtestname Then
-    xfldtime = GetLabTimeStr()
-    If cmbsection.Text = "%" Then
-      xrefer = ""
+  If sExtra Then
+    If sExtra = "GROUP BY" Then
+      xextra = " GROUP BY fldencounterval"
     Else
-      xrefer = " and fldtestid in(select fldtestid from tbltest where fldcategory like &{10})"
-    Endif
-    If cmbcondition.Text = "%" Then
-      xcondi = ""
-    Else
-      xcondi = " and lower(fldcondition) like &{11}"
-    Endif
-    If cmblimit.Text = "%" Then
-      xabn = ""
-    Else
-      xabn = " and fldabnormal=&{12}"
-    Endif
-    sStr = xrefer & xcondi & xabn
-
-    If Not txtfromage.Value And If Not txttoage.Value And If cmbgender.Text = "%" Then
-      xsql = ""
-
-    Else
-      If Not txtfromage.Value And If Not txttoage.Value Then
-        xsql = " and fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &6))"
-      Else
-        xstr = modMedReports.GetAgeStringByTable($tblpatlabtest, modDatabase.$syConn)
-        xsql = " and fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &6 and fldptbirday like &7 and " & xstr & ">=&8 and " & xstr & "<&9))"
+      asx = Split(sExtra, "|")
+      If asx.Count = 2 Then
+        xextra = db.Subst(" and " & asx[0] & "=&1", asx[1])
+      Else If asx.Count = 3 Then
+        xextra = db.Subst(" and " & asx[0] & "=&1", asx[1]) & " " & asx[2]
       Endif
     Endif
+  Else
+    xextra = ""
+  Endif
 
-    $RepoStr = modDataRepo.GetWhereStringRepo(cmblocation.Text, cmbvalue.Text)
-    If txtsearch.Text Or If chknull.Value Then
-      If cmbsubtest.Text Then
-        If cmbsublimit.Text = "%" Then
-          If chknull.Value Then
-            sql = "select " & xFldList.Join(",") & " from " & $tblpatlabtest & " where " & xfldtime & ">=&1 and " & xfldtime & "<=&2" & xitem & " and lower(fldsampletype) like &4 and fldmethod like &5" & xsql & sStr & " and fldid in(select fldtestid from " & $tblpatlabsubtest & " where fldsubtest like &{13} and fldreport IS NULL)" & $RepoStr
-          Else
-            sql = "select " & xFldList.Join(",") & " from " & $tblpatlabtest & " where " & xfldtime & ">=&1 and " & xfldtime & "<=&2" & xitem & " and lower(fldsampletype) like &4 and fldmethod like &5" & xsql & sStr & " and fldid in(select fldtestid from " & $tblpatlabsubtest & " where fldsubtest like &{13} and lower(fldreport) like &{14})" & $RepoStr                              ''
-          Endif
-          res = modDatabase.$syConn.Exec(sql, modDate.StartSqlDate(dtfir.value), modDate.EndSqlDate(dtlast.value), xtestname, LCase(cmbsample.Text), cmbmethod.Text, cmbgender.Text, "%", 365 * txtfromage.Value, 365 * txttoage.Value, cmbsection.Text, LCase(cmbcondition.Text), FlagValue(cmblimit.Text), cmbsubtest.Text, LCase(txtsearch.Text))
+  xfldtime = GetLabTimeStr()
+  If cmbsection.Text = "%" Then
+    xrefer = ""
+  Else
+    xrefer = " and fldtestid in(select fldtestid from tbltest where fldcategory like &{10})"
+  Endif
+  If cmbcondition.Text = "%" Then
+    xcondi = ""
+  Else
+    xcondi = " and lower(fldcondition) like &{11}"
+  Endif
+  If cmblimit.Text = "%" Then
+    xabn = ""
+  Else
+    xabn = " and fldabnormal=&{12}"
+  Endif
+  sStr = xrefer & xcondi & xabn
+
+  If Not txtfromage.Value And If Not txttoage.Value And If cmbgender.Text = "%" Then
+    xsql = ""
+
+  Else
+    If Not txtfromage.Value And If Not txttoage.Value Then
+      xsql = " and fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &6))"
+    Else
+      xstr = modMedReports.GetAgeStringByTable($tblpatlabtest, modDatabase.$syConn)
+      xsql = " and fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &6 and fldptbirday like &7 and " & xstr & ">=&8 and " & xstr & "<&9))"
+    Endif
+  Endif
+
+  $RepoStr = modDataRepo.GetWhereStringRepo(cmblocation.Text, cmbvalue.Text)
+  If txtsearch.Text Or If chknull.Value Then
+    If cmbsubtest.Text Then
+      If cmbsublimit.Text = "%" Then
+        If chknull.Value Then
+          sql = "select " & xFldList.Join(",") & " from " & $tblpatlabtest & " where " & xfldtime & ">=&1 and " & xfldtime & "<=&2" & xitem & " and lower(fldsampletype) like &4 and fldmethod like &5" & xsql & sStr & " and fldid in(select fldtestid from " & $tblpatlabsubtest & " where fldsubtest like &{13} and fldreport IS NULL)" & $RepoStr & xextra
         Else
-          If chknull.Value Then
-            sql = "select " & xFldList.Join(",") & " from " & $tblpatlabtest & " where " & xfldtime & ">=&1 and " & xfldtime & "<=&2" & xitem & " and lower(fldsampletype) like &4 and fldmethod like &5" & xsql & sStr & " and fldid in(select fldtestid from " & $tblpatlabsubtest & " where fldsubtest like &{13} and fldreport IS NULL and fldabnormal=&{15})" & $RepoStr
-          Else
-            sql = "select " & xFldList.Join(",") & " from " & $tblpatlabtest & " where " & xfldtime & ">=&1 and " & xfldtime & "<=&2" & xitem & " and lower(fldsampletype) like &4 and fldmethod like &5" & xsql & sStr & " and fldid in(select fldtestid from " & $tblpatlabsubtest & " where fldsubtest like &{13} and lower(fldreport) like &{14} and fldabnormal=&{15})" & $RepoStr                              ''
-          Endif
-          res = modDatabase.$syConn.Exec(sql, modDate.StartSqlDate(dtfir.value), modDate.EndSqlDate(dtlast.value), xtestname, LCase(cmbsample.Text), cmbmethod.Text, cmbgender.Text, "%", 365 * txtfromage.Value, 365 * txttoage.Value, cmbsection.Text, LCase(cmbcondition.Text), FlagValue(cmblimit.Text), cmbsubtest.Text, LCase(txtsearch.Text), FlagValue(cmbsublimit.Text))
+          sql = "select " & xFldList.Join(",") & " from " & $tblpatlabtest & " where " & xfldtime & ">=&1 and " & xfldtime & "<=&2" & xitem & " and lower(fldsampletype) like &4 and fldmethod like &5" & xsql & sStr & " and fldid in(select fldtestid from " & $tblpatlabsubtest & " where fldsubtest like &{13} and lower(fldreport) like &{14})" & $RepoStr & xextra                            ''
         Endif
+        res = modDatabase.$syConn.Exec(sql, modDate.StartSqlDate(dtfir.value), modDate.EndSqlDate(dtlast.value), xtestname, LCase(cmbsample.Text), cmbmethod.Text, cmbgender.Text, "%", 365 * txtfromage.Value, 365 * txttoage.Value, cmbsection.Text, LCase(cmbcondition.Text), FlagValue(cmblimit.Text), cmbsubtest.Text, LCase(txtsearch.Text))
       Else
         If chknull.Value Then
-          sql = "select " & xFldList.Join(",") & " from " & $tblpatlabtest & " where " & xfldtime & ">=&1 and " & xfldtime & "<=&2" & xitem & " and lower(fldsampletype) like &4 and fldmethod like &5" & xsql & sStr & " and fldreportquali IS NULL" & $RepoStr
+          sql = "select " & xFldList.Join(",") & " from " & $tblpatlabtest & " where " & xfldtime & ">=&1 and " & xfldtime & "<=&2" & xitem & " and lower(fldsampletype) like &4 and fldmethod like &5" & xsql & sStr & " and fldid in(select fldtestid from " & $tblpatlabsubtest & " where fldsubtest like &{13} and fldreport IS NULL and fldabnormal=&{15})" & $RepoStr & xextra
         Else
-          sql = "select " & xFldList.Join(",") & " from " & $tblpatlabtest & " where " & xfldtime & ">=&1 and " & xfldtime & "<=&2" & xitem & " and lower(fldsampletype) like &4 and fldmethod like &5" & xsql & sStr & " and lower(fldreportquali) like &{13}" & $RepoStr                              ''
+          sql = "select " & xFldList.Join(",") & " from " & $tblpatlabtest & " where " & xfldtime & ">=&1 and " & xfldtime & "<=&2" & xitem & " and lower(fldsampletype) like &4 and fldmethod like &5" & xsql & sStr & " and fldid in(select fldtestid from " & $tblpatlabsubtest & " where fldsubtest like &{13} and lower(fldreport) like &{14} and fldabnormal=&{15})" & $RepoStr & xextra                            ''
         Endif
-        res = modDatabase.$syConn.Exec(sql, modDate.StartSqlDate(dtfir.value), modDate.EndSqlDate(dtlast.value), xtestname, LCase(cmbsample.Text), cmbmethod.Text, cmbgender.Text, "%", 365 * txtfromage.Value, 365 * txttoage.Value, cmbsection.Text, LCase(cmbcondition.Text), FlagValue(cmblimit.Text), LCase(txtsearch.Text))
+        res = modDatabase.$syConn.Exec(sql, modDate.StartSqlDate(dtfir.value), modDate.EndSqlDate(dtlast.value), xtestname, LCase(cmbsample.Text), cmbmethod.Text, cmbgender.Text, "%", 365 * txtfromage.Value, 365 * txttoage.Value, cmbsection.Text, LCase(cmbcondition.Text), FlagValue(cmblimit.Text), cmbsubtest.Text, LCase(txtsearch.Text), FlagValue(cmbsublimit.Text))
       Endif
     Else
-      sql = "select " & xFldList.Join(",") & " from " & $tblpatlabtest & " where " & xfldtime & ">=&1 and " & xfldtime & "<=&2" & xitem & " and lower(fldsampletype) like &4 and fldmethod like &5" & xsql & sStr & $RepoStr                             ''
-      res = modDatabase.$syConn.Exec(sql, modDate.StartSqlDate(dtfir.value), modDate.EndSqlDate(dtlast.value), xtestname, LCase(cmbsample.Text), cmbmethod.Text, cmbgender.Text, "%", 365 * txtfromage.Value, 365 * txttoage.Value, cmbsection.Text, LCase(cmbcondition.Text), FlagValue(cmblimit.Text))
+      If chknull.Value Then
+        sql = "select " & xFldList.Join(",") & " from " & $tblpatlabtest & " where " & xfldtime & ">=&1 and " & xfldtime & "<=&2" & xitem & " and lower(fldsampletype) like &4 and fldmethod like &5" & xsql & sStr & " and fldreportquali IS NULL" & $RepoStr & xextra
+      Else
+        sql = "select " & xFldList.Join(",") & " from " & $tblpatlabtest & " where " & xfldtime & ">=&1 and " & xfldtime & "<=&2" & xitem & " and lower(fldsampletype) like &4 and fldmethod like &5" & xsql & sStr & " and lower(fldreportquali) like &{13}" & $RepoStr & xextra                             ''
+      Endif
+      res = modDatabase.$syConn.Exec(sql, modDate.StartSqlDate(dtfir.value), modDate.EndSqlDate(dtlast.value), xtestname, LCase(cmbsample.Text), cmbmethod.Text, cmbgender.Text, "%", 365 * txtfromage.Value, 365 * txttoage.Value, cmbsection.Text, LCase(cmbcondition.Text), FlagValue(cmblimit.Text), LCase(txtsearch.Text))
     Endif
+  Else
+    sql = "select " & xFldList.Join(",") & " from " & $tblpatlabtest & " where " & xfldtime & ">=&1 and " & xfldtime & "<=&2" & xitem & " and lower(fldsampletype) like &4 and fldmethod like &5" & xsql & sStr & $RepoStr & xextra                          ''
+    res = modDatabase.$syConn.Exec(sql, modDate.StartSqlDate(dtfir.value), modDate.EndSqlDate(dtlast.value), xtestname, LCase(cmbsample.Text), cmbmethod.Text, cmbgender.Text, "%", 365 * txtfromage.Value, 365 * txttoage.Value, cmbsection.Text, LCase(cmbcondition.Text), FlagValue(cmblimit.Text))
   Endif
+
   Return res
 
 End
@@ -478,24 +510,28 @@ Public Sub btnrefresh_Click()
     $chartLimit = InputDoubleVal(("Select Limits for Frequency Chart"), ["Lower Value", "Upper Value"], [0, 0])
   Endif
 
-  xFldList = GetSQLColumns()
-  $rData = ExecuteQuery(xFldList)
-  If $rData.Available Then
-    lblrecordcount.Text = "Count: " & $rData.Count
-  Else
-    lblrecordcount.Text = "Count: 0"
+  If chkgrid.Value = True Or If chkchart.Value = True Or If chkchfreq.Value = True Then
+    xFldList = GetSQLColumns()
+    $rData = ExecuteQuery(xFldList)
+    If $rData.Available Then
+      lblrecordcount.Text = "Count: " & $rData.Count
+    Else
+      lblrecordcount.Text = "Count: 0"
+    Endif
+
+    If chkgrid.Value = True Then
+      FillPatientGrid()
+    Endif
+    If chkchart.Value = True Then
+      FillItemChartQTY()
+    Endif
+    If chkchfreq.Value = True Then
+      FillItemFreqChart()
+    Endif
   Endif
 
-  If chkgrid.Value = True Then
-    FillPatientGrid()
-  Endif
-
-  If chkchart.Value = True Then
-    FillItemChartQTY()
-  Endif
-
-  If chkchfreq.Value = True Then
-    FillItemFreqChart()
+  If chkdataview.Value = True Then
+    MakeDataViewGrid()
   Endif
 
 End
@@ -1731,3 +1767,205 @@ Public Sub mnugetdicom_Click()
   Endif
 
 End
+
+''========================= Data View ========================
+Private Function GetDataViewColumns() As String[]
+
+  Dim xFldList As String[]
+  Dim i As Integer
+  Dim xcol As String
+
+  $varList = modControlSub.GetDirectFillresultNoNull(ExecuteQuery(["distinct(fldtestid)"]))
+
+  xFldList = New String[]
+  xFldList.Add("fldencounterval")
+  xFldList.Add("fldencounterval")
+  xFldList.Add("fldencounterval")
+  xFldList.Add("fldencounterval")
+  For Each xcol In $varList
+    xFldList.Add("fldencounterval")
+  Next
+
+  modCustPatient.FillNewCOlumnCollection(Me.Tag)
+  $newColumn = modCustPatient.CustomNewColumnsTitle(Me.Tag)
+  If $newColumn.Count Then
+    For i = 0 To $newColumn.Count - 1
+      xFldList.Add("fldencounterval")
+    Next
+  Endif
+
+  Return xFldList
+
+End
+
+Private Sub MakeDataViewGrid()
+
+  Dim xFldList As String[]
+
+  xFldList = GetDataViewColumns()
+  $rDatav = ExecuteQuery(xFldList, "GROUP BY")
+  If $rDatav.Available Then
+    lblrecordcount.Text = "Count: " & $rDatav.Count
+  Else
+    lblrecordcount.Text = "Count: 0"
+  Endif
+
+  $dataVar = New Collection
+  FillDataViewGrid()
+
+End
+
+Private Sub FillDataViewGrid()
+
+  Dim i As Integer
+  Dim Column As Integer
+
+  $aMyFieldsv = New String[]
+  modGridView.ReadSmallData(GridView2, $rDatav, $aMyFieldsv)
+  With GridView2
+    .Columns[0].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
+    .Columns[1].Width = CStr(175 * modBasic.$AppWidthRatio) & "px"
+    .Columns[2].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
+    .Columns[3].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
+    .Columns[0].Text = "EncID"
+    .Columns[1].Text = "Name"
+    .Columns[2].Text = "Age"
+    .Columns[3].Text = "Gender"
+
+    For Column = 0 To $varList.Count - 1
+      .Columns[Column + 4].Width = CStr(50 * modBasic.$AppWidthRatio) & "px"
+      .Columns[Column + 4].Text = $varList[Column]
+    Next
+
+    If $newColumn.Count Then
+      For i = 0 To $newColumn.Count - 1
+        .Columns[$varList.Count + 4 + i].Text = $newColumn[i]
+        .Columns[$varList.Count + 4 + i].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+      Next
+    Endif
+  End With
+
+End
+
+Public Sub GridView2_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  $rDatav.MoveTo(Row)
+  modGridView.GridViewDecoration(Data, Row)
+  If Column > ($varList.Count + 4) - 1 Then
+    Data.Html = modString.TextToHTML(GetDataViewValue(Column, $rDatav[$aMyFieldsv[Column]]))
+  Else
+    Data.Text = GetDataViewValue(Column, $rDatav[$aMyFieldsv[Column]])
+  Endif
+
+End
+
+Private Function GetDataViewValue(Column As Integer, xVariable As Variant) As Variant
+
+  Dim xxx As Variant
+  Dim i As Integer
+  Dim aColl As Collection
+
+  If $dataVar.Exist(xVariable) = False Then
+    $dataVar.Add(GetLabCollection(xVariable), xVariable)
+  Endif
+  If Column = 0 Then
+    xxx = xVariable
+  Else If Column = 1 Then
+    xxx = modPatient.GetPatientNameByEnc(xVariable, modDatabase.$syConn)
+  Else If Column = 2 Then
+    xxx = modMedReports.GetPatientPastAgeString("tblencounter", xVariable)
+  Else If Column = 3 Then
+    xxx = modPatient.GetPatientSex(xVariable, modDatabase.$syConn)
+  Else
+    If Column < $varList.Count + 4 Then
+      aColl = $dataVar[xVariable]
+      If $varList[Column - 4] And If aColl.Exist($varList[Column - 4]) Then
+        xxx = aColl[$varList[Column - 4]]
+      Else
+        xxx = ""
+      Endif
+    Endif
+  Endif
+
+  If $newColumn.Count Then
+    For i = 0 To $newColumn.Count - 1
+      If Column = $varList.Count + 4 + i Then
+        xxx = modCustPatient.NewColValue(Me.Tag, $newColumn[i], xVariable)
+      Endif
+    Next
+  Endif
+  Return xxx
+
+End
+
+Private Function GetLabCollection(encid As String) As Collection
+
+  Dim res As Result
+  Dim aColl As Collection
+
+  aColl = New Collection
+  res = ExecuteQuery(["fldtestid", "fldreportquali"], "fldencounterval|" & encid & "|ORDER BY fldtime_sample")
+  If res.Available Then
+    For Each res
+      If aColl.Exist(res["fldtestid"]) = False Then
+        aColl.Add(res["fldreportquali"], res["fldtestid"])
+      Endif
+    Next
+  Endif
+
+  Return aColl
+
+End
+
+' Public Sub mnumultivariate_Click()
+'
+'   Dim CForm As CMultivariate
+'   Dim sArry As String[]
+'   Dim Row As Integer
+'   Dim Column As Integer
+'   Dim sPath As String
+'   Dim xHeader As String[]
+'   Dim hPython As FmPythonTerminal
+'
+'   If MMain.$IsGUIApp = True Then
+'     $ProgressBar1 = modAppSupport.FindWorkProgressBar(modHelpVariable.$LogInCategory)
+'     $ProgressBar1.Visible = True
+'     $ProgressBar1.Value = 0
+'   Endif
+'
+'   If GridView2.Rows.Count Then
+'     xHeader = New String[]
+'     For Column = 0 To GridView2.Columns.Count - 1
+'       xHeader.Add(GridView2.Columns[Column].Text)
+'     Next
+'
+'     Inc Application.Busy
+'     CForm = New CMultivariate
+'     For Row = 0 To GridView2.Rows.Count - 1
+'       sArry = New String[]
+'       For Column = 0 To xHeader.Count - 1
+'         If Column < $varList.Count + 4 Then
+'           sArry.Add(GridView2[Row, Column].Text)
+'         Else
+'           sArry.Add(modString.ConvertRichTextToPlain(GridView2[Row, Column].RichText))
+'         Endif
+'       Next
+'       CForm.Add(sArry)
+'       If MMain.$IsGUIApp = True Then
+'         $ProgressBar1.Value = (Row + 1) / GridView2.Rows.Count
+'         Wait
+'       Endif
+'     Next
+'     sPath = CForm.GetCSVFile()
+'     Dec Application.Busy
+'     If MMain.$IsGUIApp = True Then
+'       $ProgressBar1.Visible = False
+'     Endif
+'
+'     If Exist(sPath) Then
+'       hPython = New FmPythonTerminal("Multivariate", xHeader, sPath)
+'       modWorkSpace.Add(hPython)
+'     Endif
+'   Endif
+'
+' End
