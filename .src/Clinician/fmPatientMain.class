@@ -125,6 +125,14 @@ Public Sub _new(encid As String)
   If $UserRestrict Then
     RestrictUserAccess()
   Endif
+  If modBasic.$ClinPastDiagnosis Then
+    Select modBasic.$ClinPastDiagnosis
+      Case "Final Diagnosis", "Provisional Diagnosis", "Nursing Diagnosis"
+        pnlolddiagnosis.Visible = True
+      Case Else
+        pnlolddiagnosis.Visible = False
+    End Select
+  Endif
 
   If modBasic.$CliniDiagnosticReport = "Disable" Then
     pnldiagnostic.Visible = False
@@ -580,8 +588,10 @@ Private Sub BasicInfoPatient()
   Dim hDigForm As FmDiagnosticTab
 
   If txtencid.Text Then
-    cmbsympunit.ReadOnly = True
-    modJavaScript.SetSelect2Combo(cmbsympunit)
+    If modBasic.$AppSelect2JS = "Enable" Then
+      cmbsympunit.ReadOnly = True
+      modJavaScript.SetSelect2Combo(cmbsympunit)
+    Endif
     GetDefaultBillingmodes()
     txthistorylabel.List = GetHistoryList()
     cmbnote.List = NoteTakingTypeList()
@@ -593,6 +603,12 @@ Private Sub BasicInfoPatient()
       cmbnotetype.Enabled = False
     Endif
     ButtonControl()
+    If modBasic.$ClinPastDiagnosis Then
+      Select modBasic.$ClinPastDiagnosis
+        Case "Final Diagnosis", "Provisional Diagnosis", "Nursing Diagnosis"
+          txtpastdiagnosis.Text = "<p>" & "<b>Past " & modBasic.$ClinPastDiagnosis & "</b><br>" & modPathoSub.GetSelectedPastDiagnosisList(modBasic.$ClinPastDiagnosis, $PatientNum, Trim(txtencid.Text)).Join(", ") & "</p>"
+      End Select
+    Endif
     lstallergy.List = modPathoSub.GetAllergyMedicineList(Trim(txtencid.Text), chkallergy.Value)
     lsticdisease.List = modPathoSub.GetSelectedDiagnosisList("Final Diagnosis", Trim(txtencid.Text))
     lstsyndrome.List = modPathoSub.GetSelectedDiagnosisList("Provisional Diagnosis", Trim(txtencid.Text))
@@ -2709,7 +2725,9 @@ End
 Public Sub txtsympval_Activate()
 
   If txtsympval.Value Then
-    modJavaScript.PopUpSelect2Combo(cmbsympunit)
+    If modBasic.$AppSelect2JS = "Enable" Then
+      modJavaScript.PopUpSelect2Combo(cmbsympunit)
+    Endif
     cmbsympunit.SetFocus
   Endif
 
@@ -2752,7 +2770,9 @@ Public Sub btnsympadd_Click()
       ShowChiefSymptomData()
       cmbsymptom.Text = ""
       cmbsymdura.Text = ""
-      modJavaScript.TriggerSelect2Combo(cmbsympunit)
+      If modBasic.$AppSelect2JS = "Enable" Then
+        modJavaScript.TriggerSelect2Combo(cmbsympunit)
+      Endif
       cmbsympunit.Text = ""
       txtsympval.Value = 0
       txtsympval.Tag = ""
@@ -3880,7 +3900,6 @@ Public Sub ColumnView1_Select()
       xindex = ColumnView1[ColumnView1.Current.Key][3]
       res = modDatabase.$myConn.Exec("select fldid,flditem,fldreportquali,flddetail from tblexamgeneral where fldid=&1", xindex)
       If res.Available Then
-        ' modJavaScript.UpdateSelect2Combo(cmbnote, res["flditem"])
         cmbnote.Text = res["flditem"]
         txtnoteid.Value = res["fldid"]
         txtimpression.Text = res["fldreportquali"]
@@ -6155,18 +6174,6 @@ Public Sub btngetfeed_Click()
   Endif
 
 End
-
-' Public Sub txthistorylabel_Render()
-'
-'   modJavaScript.SetSelect2Combo(txthistorylabel)
-'
-' End
-'
-' Public Sub cmbnote_Render()
-'
-'   modJavaScript.SetSelect2Combo(cmbnote)
-'
-' End
 
 ''-----------------database
 Public Sub btndatahistory_Click()

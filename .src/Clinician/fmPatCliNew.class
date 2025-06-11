@@ -92,9 +92,9 @@ Public Sub _new(encid As String, sIndex As Long, sMode As String)
   If modBasic.$ClinPastDiagnosis Then
     Select modBasic.$ClinPastDiagnosis
       Case "Final Diagnosis", "Provisional Diagnosis", "Nursing Diagnosis"
-        pnldiagnosis.Visible = True
+        pnlolddiagnosis.Visible = True
       Case Else
-        pnldiagnosis.Visible = False
+        pnlolddiagnosis.Visible = False
     End Select
   Endif
 
@@ -428,8 +428,10 @@ Private Sub BasicInfoPatient()
 
   If txtencid.Text Then
     modRepository.$RepoDataStatus = False
-    cmbsympunit.ReadOnly = True
-    modJavaScript.SetSelect2Combo(cmbsympunit)
+    If modBasic.$AppSelect2JS = "Enable" Then
+      cmbsympunit.ReadOnly = True
+      modJavaScript.SetSelect2Combo(cmbsympunit)
+    Endif
     modAppSupport.RecordPatientActivity("Patient Data", Me.Name, "EncounterID", Trim(txtencid.Text))
     GetDefaultBillingmodes()
     ButtonControl()
@@ -438,7 +440,7 @@ Private Sub BasicInfoPatient()
     If modBasic.$ClinPastDiagnosis Then
       Select modBasic.$ClinPastDiagnosis
         Case "Final Diagnosis", "Provisional Diagnosis", "Nursing Diagnosis"
-          txtpastdiagnosis.Text = "<p>" & "<b>" & modBasic.$ClinPastDiagnosis & "</b><br>" & modPathoSub.GetSelectedPastDiagnosisList(modBasic.$ClinPastDiagnosis, $PatientNum).Join(", ") & "</p>"
+          txtpastdiagnosis.Text = "<p>" & "<b>Past " & modBasic.$ClinPastDiagnosis & "</b><br>" & modPathoSub.GetSelectedPastDiagnosisList(modBasic.$ClinPastDiagnosis, $PatientNum, Trim(txtencid.Text)).Join(", ") & "</p>"
       End Select
     Endif
     txthistory.RichText = modPatPatho.ShowSelectedHistoryValue(Trim(txtencid.Text), "History of Illness")
@@ -1457,7 +1459,9 @@ End
 Public Sub txtsympval_Activate()
 
   If txtsympval.Value Then
-    modJavaScript.PopUpSelect2Combo(cmbsympunit)
+    If modBasic.$AppSelect2JS = "Enable" Then
+      modJavaScript.PopUpSelect2Combo(cmbsympunit)
+    Endif
     cmbsympunit.SetFocus
   Endif
 
@@ -1499,7 +1503,9 @@ Public Sub btnsympadd_Click()
       ShowSymptomData()
       cmbsymptom.Text = ""
       cmbsymdura.Text = ""
-      modJavaScript.TriggerSelect2Combo(cmbsympunit)
+      If modBasic.$AppSelect2JS = "Enable" Then
+        modJavaScript.TriggerSelect2Combo(cmbsympunit)
+      Endif
       cmbsympunit.Text = ""
       txtsympval.Value = 0
       txtsympval.Tag = ""

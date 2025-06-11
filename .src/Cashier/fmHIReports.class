@@ -145,7 +145,7 @@ Public Sub mnucamera_Click()
 
   sPath = modImage.GetWebCamValue()
   If sPath Then
-    sLongID = modImage.SavePatientFileGeneral($encid, "Scanned Images", "Scanned Images:" & modString.GetDateString(Now()), sPath)
+    sLongID = modImage.SavePatientFileGeneral($encid, "Scanned Images", "Scanned Images:" & modString.GetDateString(Now()), sPath, modNonMedical.GetReportReference($encid, True))
     If sLongID Then
       Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "File saved", modBasic.$BalloonDelay))
     Endif
@@ -162,10 +162,18 @@ End
 
 Private Sub ShowDocuments()
 
+  Dim xstr As String
+
+  If chkclaim.Value = True Then
+    xstr = " and fldhashcode=&5"
+  Else
+    xstr = ""
+  Endif
+
   If rbpending.Value = True Then
-    $rData = modDatabase.$syConn.Exec("select fldid,fldtime,fldcateg,fldtitle,flddetail,fldsave,fldlink,fldencounterval from " & $tblpatreport & " where fldencounterval like &1 and fldcateg like &2 and (fldflag=&3 or fldflag IS NULL) and (flvisible=&4 or flvisible IS NULL)", $encid, cmbsource.Text, False, "Visible")
+    $rData = modDatabase.$syConn.Exec("select fldid,fldtime,fldcateg,fldtitle,flddetail,fldsave,fldlink,fldencounterval,flvisible from " & $tblpatreport & " where fldencounterval like &1 and fldcateg like &2 and (fldflag=&3 or fldflag IS NULL) and (flvisible=&4 or flvisible IS NULL)" & xstr, $encid, cmbsource.Text, False, "Visible", $sAccount & "|" & $sClaim)
   Else If rbdone.Value = True Then
-    $rData = modDatabase.$syConn.Exec("select fldid,fldtime,fldcateg,fldtitle,flddetail,fldsave,fldlink,fldencounterval from " & $tblpatreport & " where fldencounterval like &1 and fldcateg like &2 and fldflag=&3 and (flvisible=&4 or flvisible IS NULL)", $encid, cmbsource.Text, True, "Visible")
+    $rData = modDatabase.$syConn.Exec("select fldid,fldtime,fldcateg,fldtitle,flddetail,fldsave,fldlink,fldencounterval,flvisible from " & $tblpatreport & " where fldencounterval like &1 and fldcateg like &2 and fldflag=&3 and (flvisible=&4 or flvisible IS NULL)" & xstr, $encid, cmbsource.Text, True, "Visible", $sAccount & "|" & $sClaim)
   Endif
   ResizeGridView()
 
@@ -185,6 +193,7 @@ Private Sub ResizeGridView()
     .Columns[5].Hidden = True
     .Columns[6].Hidden = True
     .Columns[7].Hidden = True
+    .Columns[8].Hidden = True
 
     .Columns[1].Text = "DateTime"
     .Columns[2].Text = "Category"
@@ -263,6 +272,27 @@ Public Sub mnuemail_Click()
       hForm.ShowModal()
     Endif
 
+  Endif
+
+End
+
+Public Sub mnuhide_Click()
+
+  Dim xx As String
+  Dim xopt As String[] = ["Visible", "Hidden"]
+  Dim res As Result
+
+  If GridView1.Selection.Count Then
+    $rData.MoveTo(GridView1.Selection[0])
+    xx = InputCombo("Set Visibility", $rData["fldtitle"], xopt, $rData["flvisible"], True)
+    If xx Then
+      res = modDatabase.$myConn.Edit($tblpatreport, "fldid=&1", $rData["fldid"])
+      If modGeneral.AllowClinicalEdit(res["flduserid"]) = True Then
+        res["flvisible"] = xx
+        res.Update
+        ShowDocuments()
+      Endif
+    Endif
   Endif
 
 End

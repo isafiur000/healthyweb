@@ -3882,6 +3882,37 @@ Public Function GetClaimWiseTotalAmt(sType As String, xClaim As String, xBankNam
 
 End
 
+Public Function GetReportReference(encid As String, Optional xScheme As Boolean) As String
+
+  Dim xdiscPack As String
+  Dim resx As Result
+  Dim xrefNo As String
+
+  xdiscPack = modPatient.ShowDiscountCategEnc(encid)
+  If xdiscPack Then
+    resx = modDatabase.$myConn.Exec("select fldreference,fldacledger from tbldiscount where fldtype=&1", xdiscPack)
+    If resx.Available Then
+
+      Select resx["fldreference"]
+        Case "Claim Code"
+          xrefNo = modClaim.GetCurrentClaimCodePrint(encid)
+        Case "Accident SSF", "Critical SSF", "MedExtra SSF", "Medical SSF"
+          xrefNo = modSSF.GetSSFClaimVIewMedical(encid, resx["fldreference"])
+      End Select
+
+      If xrefNo Then
+        If xScheme = True Then
+          xrefNo = resx["fldacledger"] & "|" & xrefNo
+        Endif
+      Endif
+
+    Endif
+  Endif
+
+  Return xrefNo
+
+End
+
 ''======================= QR Scan ============================
 Public Function GetQRSCanPayCode(sInvoice As String) As String
 

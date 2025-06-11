@@ -84,15 +84,18 @@ Public Function GetSelectedDiagnosisList(sType As String, encid As String) As St
 
 End
 
-Public Function GetSelectedPastDiagnosisList(sType As String, patNumber As String) As String[]
+Public Function GetSelectedPastDiagnosisList(sType As String, patNumber As String, Optional encid As String) As String[]
 
-  Dim sql As String
   Dim res As Result
   Dim xx As String[]
 
-  sql = "select fldcode as col from tblpatfindings where fldencounterval in(select fldencounterval from tblencounter where fldpatientval=&1) and fldtype=&2 and fldsave=&3"
-  res = modDatabase.$myConn.Exec(sql, patNumber, sType, True)
+  If encid Then
+    res = modDatabase.$myConn.Exec("select distinct(fldcode) as col from tblpatfindings where fldencounterval in(select fldencounterval from tblencounter where fldpatientval=&1) and fldtype=&2 and fldsave=&3 and fldtime<&4", patNumber, sType, True, modPatient.GetRecordDate(encid))
+  Else
+    res = modDatabase.$myConn.Exec("select distinct(fldcode) as col from tblpatfindings where fldencounterval in(select fldencounterval from tblencounter where fldpatientval=&1) and fldtype=&2 and fldsave=&3", patNumber, sType, True)
+  Endif
   xx = modControlSub.GetDirectFillresult(res)
+
   Return xx
 
 End

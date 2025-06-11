@@ -21,16 +21,16 @@ Private aObj4 As New Object[50]
 Private aWebBlank As New Object[50]
 
 Public Sub _new(encid As String, sType As String)
-  
+
   Dim xstatus As String
-  
+
   $encid = encid
   $sType = sType
   modGeneralMain.GetOpenModalForm(Me)
-  
+
   txtpatientname.Text = modPatient.GetPatientNameByEnc($encid)
   txtgender.Text = modPatient.GetPatientAgeString($encid, Now()) & "/" & modPatient.GetPatientSex($encid)
-  
+
   xstatus = modPatient.CurrentAdmissionStatus($encid)
   txtlocation.Text = modPatient.GetLocationSetting($encid, xstatus)
   GetAllRoutes()
@@ -40,54 +40,54 @@ Public Sub _new(encid As String, sType As String)
   ItemList()
   $tot = 0
   FillFrame()
-  
+
 End
 
 Public Sub TabPanel1_Click()
-  
+
   If TabPanel1.Index = 0 Then
   Else If TabPanel1.Index = 1 Then
     FillEventGrid()
   Endif
-  
+
 End
 
 Private Sub GetAllRoutes()
-  
+
   $AllLines = modControlSub.GetDirectFillresultNoNull(modDatabase.$myConn.Exec("select fldlocat as col from tbldevices where flditem=&1", "%"))
-  
+
 End
 
 Private Sub ItemList()
-  
+
   Dim res As Result
-  
+
   res = modDatabase.$myConn.Exec("select flditem as col from tblevents where fldtype=&1", $sType)
   cmbitem.List = modControlSub.GetDirectFillresult(res)
-  
+
 End
 
 Public Sub btnadditem_Click()
-  
+
   Dim hForm As FmAddVarTwoCombo
   Dim xPass As String
-  
+
   xPass = InputPassword("Provide Root Password", "Verification", "")
   If modPassword.GetSuperVerification(modBasic.$lbluser, xPass) = True Then
     hform = New FmAddVarTwoCombo("fldtype", "fldcategory", "flditem", "tblevents", $sType, modHIReport.$DeviceCategory)
     hform.ShowModal
     ItemList()
   Endif
-  
+
 End
 
 Public Sub btnaddlocat_Click()
-  
+
   Dim hForm As FmAddVarTwo
   Dim aList As String[]
   Dim bList As String[]
   Dim xPass As String
-  
+
   xPass = InputPassword("Provide Root Password", "Verification", "")
   If modPassword.GetSuperVerification(modBasic.$lbluser, xPass) = True Then
     aList = modControlSub.GetDirectFillresultNoNull(modDatabase.$myConn.Exec("select flditem as col from tblevents where fldtype=&1", $sType))
@@ -96,14 +96,14 @@ Public Sub btnaddlocat_Click()
     hform.ShowModal
     GetAllRoutes()
   Endif
-  
+
 End
 
 Private Sub FillFrame()
-  
+
   Dim i As Integer
   Dim res As Result
-  
+
   res = modDatabase.$myConn.Exec("select fldid,flditem,fldfirsttime,flddetail from tblpatevents where fldencounterval=&1 and fldtype=&2 and fldfirstsave=&3 and fldsecondsave=&4", $encid, $sType, True, False)                                                                   ''
   $totRecord = res.Count
   If res.Available = True Then
@@ -114,44 +114,44 @@ Private Sub FillFrame()
     Next
     $tot = i - 1
   Endif
-  
+
 End
 
 Public Sub btnadd_Click()
-  
+
   If cmbitem.Text Then
     $tot = $tot + 1
     FillObjectInFrame($tot, cmbitem.Text, "", True, "", "", 0)
   Endif
-  
+
 End
 
 Private Sub FillObjectInFrame(i As Integer, txtitem As String, txtlocat As String, optnew As Boolean, txt1 As Date, txt2 As Date, id As Long)
-  
+
   Dim AppFactor As Float
   Dim xList As String[]
-  
+
   AppFactor = modBasic.$AppScaleFactor
   aObjP[i] = New WebContainer(Frame1)
-  
+
   xList = New String[]
   aWebFrame[i] = New WebContainer(aObjP[i])
   aObj1[i] = New WebLabel(aWebFrame[i])
   aObj1a[i] = New WebComboBox(aWebFrame[i])
-  
+
   aWebPanel[i] = New WebContainer(aObjP[i])
   aObj2[i] = New WebTextBox(aWebPanel[i])
   aObj22[i] = New WebButton(aWebPanel[i]) As "StartButton"
   aObj3[i] = New WebTextBox(aWebPanel[i])
   aObj33[i] = New WebButton(aWebPanel[i]) As "StopButton"
   aObj4[i] = New WebValueBox(aWebPanel[i]) As "ValueGroup"
-  
+
   aWebBlank[i] = New WebContainer(Frame1)
-  
+
   With aObjP[i]
     .Arrangement = Arrange.Row
   End With
-  
+
   With aWebFrame[i]
     .Arrangement = Arrange.Horizontal
     .Class = "size-tablet less-container-margin"
@@ -177,12 +177,12 @@ Private Sub FillObjectInFrame(i As Integer, txtitem As String, txtlocat As Strin
     .Tag = i
     .Border = True
   End With
-  
+
   With aWebPanel[i]
     .Arrangement = Arrange.Horizontal
     .Class = "size-tablet less-container-margin"
   End With
-  
+
   With aObj2[i]
     .Expand = True
     .Height = "2em"
@@ -200,7 +200,7 @@ Private Sub FillObjectInFrame(i As Integer, txtitem As String, txtlocat As Strin
       .Enabled = False
     Endif
   End With
-  
+
   With aObj3[i]
     .Expand = True
     .Height = "2em"
@@ -228,14 +228,14 @@ Private Sub FillObjectInFrame(i As Integer, txtitem As String, txtlocat As Strin
   With aWebBlank[i]
     .Height = "1em"
   End With
-  
+
 End
 
 Public Sub StartButton_Click()
-  
+
   Dim j As Integer
   Dim xindex As Long
-  
+
   j = Last.Tag
   If aObj1a[j].Text Then
     aObj2[j].Text = modReportVar.GetDateTimeReport(Now(), gb.GeneralDate)
@@ -244,29 +244,29 @@ Public Sub StartButton_Click()
     aObj22[j].Enabled = False
     aObj33[j].Enabled = True
   Endif
-  
+
 End
 
 Public Sub StopButton_Click()
-  
+
   Dim j As Integer
-  
+
   j = Last.Tag
-  
+
   If aObj4[j].Value > 0 Then
     aObj3[j].Text = modReportVar.GetDateTimeReport(Now(), gb.GeneralDate)
     modPatientGeneral.UpdatePatientEventSecondTime(aObj4[j].Value)
     aObj33[j].Enabled = False
     aObj22[j].Enabled = True
-    
+
     FillEventGrid()
   Endif
-  
+
 End
 
 ''================= completed =====================
 Private Sub FillEventGrid()
-  
+
   $rData = modDatabase.$myConn.Exec("select fldid,flditem,flddetail,fldfirsttime,fldsecondtime,fldid,fldfirsttime,fldsecondtime from tblpatevents where fldencounterval=&1 and fldtype=&2 and fldfirstsave=&3 and fldsecondsave=&4", $encid, $sType, True, True)
   $aMyFields = New String[]
   modGridView.ReadSmallData(GridView1, $rData, $aMyFields)
@@ -279,18 +279,18 @@ Private Sub FillEventGrid()
     .Columns[5].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
     .Columns[6].Hidden = True
     .Columns[7].Hidden = True
-    
+
     .Columns[1].Text = "Particulars"
     .Columns[2].Text = "Location"
     .Columns[3].Text = "Start"
     .Columns[4].Text = "Stop"
     .Columns[5].Text = "Hours"
   End With
-  
+
 End
 
 Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableData)
-  
+
   $rData.MoveTo(Row)
   modGridView.GridViewDecoration(Data, Row)
   If Column = 3 Then
@@ -302,26 +302,20 @@ Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableDat
   Else
     Data.Text = $rData[$aMyFields[Column]]
   Endif
-  
+
 End
 
 Public Sub btnclose_Click()
-  
+
   Me.Close()
-  
+
 End
 
-' Public Sub cmbitem_Render()
-'   
-'   modJavaScript.SetSelect2Combo(cmbitem)
-'   
-' End
-
 Public Sub mnueditfir_Click()
-  
+
   Dim res As Result
   Dim xdate As Date
-  
+
   If GridView1.Selection.Count Then
     $rData.MoveTo(GridView1.Selection[0])
     xdate = GetDateValue($rData["flditem"], "Starting DateTime", $rData["fldfirsttime"])
@@ -336,11 +330,11 @@ Public Sub mnueditfir_Click()
       Endif
     Endif
   Endif
-  
+
 End
 
 Public Sub btndelete_Click()
-  
+
   If GridView1.Selection.Count Then
     $rData.MoveTo(GridView1.Selection[0])
     If Message.Question("Are you sure?", ("No"), ("Yes")) = 2 Then
@@ -348,14 +342,14 @@ Public Sub btndelete_Click()
       FillEventGrid()
     Endif
   Endif
-  
+
 End
 
 Public Sub mnueditlocat_Click()
-  
+
   Dim res As Result
   Dim xval As String
-  
+
   If GridView1.Selection.Count Then
     $rData.MoveTo(GridView1.Selection[0])
     xval = InputBox($rData["flditem"], "Device Location", $rData["flddetail"])
@@ -366,5 +360,5 @@ Public Sub mnueditlocat_Click()
       FillEventGrid()
     Endif
   Endif
-  
+
 End
