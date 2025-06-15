@@ -2343,7 +2343,11 @@ Private Sub GetSSFBookingLock(sInvoice As String)
       xmsg = aForm.GetAPIErrorOutput()
       If xmsg Then
         $MiniCalc = ""
-        Message.Warning(xmsg, "OK")
+        If xmsg = "Success" Then
+          modBillings.AddInvoiceBooking(sInvoice)
+        Else
+          Message.Warning(xmsg, "OK")
+        Endif
       Endif
 
     Endif
@@ -2357,17 +2361,7 @@ Public Sub mnussfBooking_Click()
   Dim xinvlst As String[]
   Dim xinvno As String
 
-  ' Dim xdata As String[]
-  '
-  ' xdata = New String[]
-  ' res = modDatabase.$myConn.Exec("select fldbillno,flduserid,(flditemamt+fldtaxamt-flddiscountamt) as totamt from tblpatbilldetail where fldencounterval=&1 and fldbankname in(select fldacledger from tbldiscount where (fldreference=&2 or fldreference=&3)) UNION ALL select fldbillno,flduserid,(flditemamt+fldtaxamt-flddiscountamt) as totamt from tbltempbilldetail where fldencounterval=&1 and fldbankname in(select fldacledger from tbldiscount where (fldreference=&2 or fldreference=&3))", Trim(txtencid.Text), "Accident SSF", "Medical SSF","Critical SSF")
-  ' If res.Available Then
-  '   For Each res
-  '     xdata.Add(res["fldbillno"] & "@" & res["flduserid"] & "@" & CStr(res["totamt"]))
-  '   Next
-  ' Endif
-  ' xinvlst = GridTriColumn("SSF Booking", xdata)
-  res = modDatabase.$myConn.Exec("select fldbillno from tblpatbilldetail where fldencounterval=&1 and fldbankname in(select fldacledger from tbldiscount where (fldreference=&2 or fldreference=&3)) UNION ALL select fldbillno from tbltempbilldetail where fldencounterval=&1 and fldbankname in(select fldacledger from tbldiscount where (fldreference=&2 or fldreference=&3 or fldreference=&4 or fldreference=&5))", Trim(txtencid.Text), "Accident SSF", "Medical SSF", "MedExtra SSF", "Critical SSF")
+  res = modDatabase.$myConn.Exec("select fldbillno,flduserid,flditemamt from tblpatbilldetail where fldencounterval=&1 and fldbankname in(select fldacledger from tbldiscount where (fldreference=&2 or fldreference=&3 or fldreference=&4 or fldreference=&5)) and fldbillno not in(select fldbillno from tblpatbillbooking) UNION ALL select fldbillno,flduserid,flditemamt from tbltempbilldetail where fldencounterval=&1 and fldbankname in(select fldacledger from tbldiscount where (fldreference=&2 or fldreference=&3 or fldreference=&4 or fldreference=&5)) and fldbillno not in(select fldbillno from tblpatbillbooking)", Trim(txtencid.Text), "Accident SSF", "Medical SSF", "MedExtra SSF", "Critical SSF")
   xinvlst = SelectListView("Select Invoices for SSF Booking", modControlSub.GetDirectFillresultNoNull(res), False)
   If xinvlst And If xinvlst.Count Then
     For Each xinvno In xinvlst

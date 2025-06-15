@@ -752,6 +752,8 @@ Public Function ShowTransectionReport($con As Connection, sType As String, dt1 A
   Dim res As Result
   Dim xitem As String
   Dim i As Integer
+  Dim sFormat As String
+  Dim xavrg As Float
 
   'for last stock calculation
   Dim rsx1 As Result
@@ -828,12 +830,13 @@ Public Function ShowTransectionReport($con As Connection, sType As String, dt1 A
   '   $ProgressBar1.Tag = "Const"
   ' Endif
 
-  $BillingReport = New CReportHTML([("CODE"), ("PARTICULARS"), ("BATCH"), ("OPEN(QTY)"), ("PUR(QTY)"), ("PUR(AMT)"), ("RECV(QTY)"), ("RECV(AMT)"), ("SALE(QTY)"), ("SALE(AMT)"), ("USE(QTY)"), ("USE(AMT)"), ("SENT(QTY)"), ("SENT(AMT)"), ("ADJ(QTY)"), ("ADJ(AMT)"), ("END(QTY)"), ("EST-Cost")], "", "")
+  $BillingReport = New CReportHTML([("CODE"), ("PARTICULARS"), ("BATCH"), ("OPEN(QTY)"), ("OPEN(AMT)"), ("PUR(QTY)"), ("PUR(AMT)"), ("RECV(QTY)"), ("RECV(AMT)"), ("SALE(QTY)"), ("SALE(AMT)"), ("USE(QTY)"), ("USE(AMT)"), ("SENT(QTY)"), ("SENT(AMT)"), ("ADJ(QTY)"), ("ADJ(AMT)"), ("END(QTY)"), ("EST-Cost")], "", "")
   $BillingReport.UserData.Add("CATEGORY: " & sType, "PARAM1")
   $BillingReport.UserData.Add("Date: " & modReportVar.GetDateTimeReport(dt1, gb.MediumDate) & " TO " & modReportVar.GetDateTimeReport(dt2, gb.MediumDate) & "   Comp: " & sComp, "PARAM2")
 
   RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
   dtx = Now()
+  sFormat = modSettings.ShowSettingFromFIle("HealthReport/InventoryAmount")
 
   ''one variables
   aCollEntryAll = New Collection
@@ -907,6 +910,7 @@ Public Function ShowTransectionReport($con As Connection, sType As String, dt1 A
       sentqx = 0
       recvqx = 0
       adjqtx = 0
+      xavrg = 0
 
       'calculate current stock
       If aCollEntryAll[res["col"] & "|" & res["fldstockid"]] Then
@@ -954,14 +958,19 @@ Public Function ShowTransectionReport($con As Connection, sType As String, dt1 A
       Endif
 
       'for transection during interval ------------------------------------------
+      xavrg = modStock.GetAverageCostPriceByStockNo(res["col"])
       purqty = 0
       puramt = 0
       If bCollPurchDura[res["col"] & "|" & res["fldstockid"]] Then
         If bCollPurchDura[res["col"] & "|" & res["fldstockid"]][0] Then
           purqty = bCollPurchDura[res["col"] & "|" & res["fldstockid"]][0]
         Endif
-        If bCollPurchDura[res["col"] & "|" & res["fldstockid"]][1] Then
-          puramt = bCollPurchDura[res["col"] & "|" & res["fldstockid"]][1]
+        If sFormat = "Average" Then
+          puramt = purqty * xavrg
+        Else
+          If bCollPurchDura[res["col"] & "|" & res["fldstockid"]][1] Then
+            puramt = bCollPurchDura[res["col"] & "|" & res["fldstockid"]][1]
+          Endif
         Endif
       Endif
 
@@ -971,8 +980,12 @@ Public Function ShowTransectionReport($con As Connection, sType As String, dt1 A
         If bCollBulkhDura[res["col"] & "|" & res["fldstockid"]][0] Then
           bulqty = bCollBulkhDura[res["col"] & "|" & res["fldstockid"]][0]
         Endif
-        If bCollBulkhDura[res["col"] & "|" & res["fldstockid"]][1] Then
-          bulamt = bCollBulkhDura[res["col"] & "|" & res["fldstockid"]][1]
+        If sFormat = "Average" Then
+          bulamt = bulqty * xavrg
+        Else
+          If bCollBulkhDura[res["col"] & "|" & res["fldstockid"]][1] Then
+            bulamt = bCollBulkhDura[res["col"] & "|" & res["fldstockid"]][1]
+          Endif
         Endif
       Endif
 
@@ -982,8 +995,12 @@ Public Function ShowTransectionReport($con As Connection, sType As String, dt1 A
         If bCollSalehDura[res["col"] & "|" & res["fldstockid"]][0] Then
           salqty = bCollSalehDura[res["col"] & "|" & res["fldstockid"]][0]
         Endif
-        If bCollSalehDura[res["col"] & "|" & res["fldstockid"]][1] Then
-          salamt = bCollSalehDura[res["col"] & "|" & res["fldstockid"]][1]
+        If sFormat = "Average" Then
+          salamt = salqty * xavrg
+        Else
+          If bCollSalehDura[res["col"] & "|" & res["fldstockid"]][1] Then
+            salamt = bCollSalehDura[res["col"] & "|" & res["fldstockid"]][1]
+          Endif
         Endif
       Endif
 
@@ -997,8 +1014,12 @@ Public Function ShowTransectionReport($con As Connection, sType As String, dt1 A
               If rss3["qty"] Then
                 salqty = salqty + rss3["qty"]
               Endif
-              If rss3["col"] Then
-                salamt = salamt + rss3["col"]
+              If sFormat = "Average" Then
+                salamt = salqty * xavrg
+              Else
+                If rss3["col"] Then
+                  salamt = salamt + rss3["col"]
+                Endif
               Endif
             Endif
           Endif
@@ -1011,8 +1032,12 @@ Public Function ShowTransectionReport($con As Connection, sType As String, dt1 A
         If bCollSenthDura[res["col"] & "|" & res["fldstockid"]][0] Then
           sentqty = bCollSenthDura[res["col"] & "|" & res["fldstockid"]][0]
         Endif
-        If bCollSenthDura[res["col"] & "|" & res["fldstockid"]][1] Then
-          sentamt = bCollSenthDura[res["col"] & "|" & res["fldstockid"]][1]
+        If sFormat = "Average" Then
+          sentamt = sentqty * xavrg
+        Else
+          If bCollSenthDura[res["col"] & "|" & res["fldstockid"]][1] Then
+            sentamt = bCollSenthDura[res["col"] & "|" & res["fldstockid"]][1]
+          Endif
         Endif
       Endif
 
@@ -1022,8 +1047,12 @@ Public Function ShowTransectionReport($con As Connection, sType As String, dt1 A
         If bCollRecvhDura[res["col"] & "|" & res["fldstockid"]][0] Then
           recvqty = bCollRecvhDura[res["col"] & "|" & res["fldstockid"]][0]
         Endif
-        If bCollRecvhDura[res["col"] & "|" & res["fldstockid"]][1] Then
-          recvamt = bCollRecvhDura[res["col"] & "|" & res["fldstockid"]][1]
+        If sFormat = "Average" Then
+          recvamt = recvqty * xavrg
+        Else
+          If bCollRecvhDura[res["col"] & "|" & res["fldstockid"]][1] Then
+            recvamt = bCollRecvhDura[res["col"] & "|" & res["fldstockid"]][1]
+          Endif
         Endif
       Endif
 
@@ -1033,8 +1062,12 @@ Public Function ShowTransectionReport($con As Connection, sType As String, dt1 A
         If bCollAdjushDura[res["col"] & "|" & res["fldstockid"]][0] Then
           adjqty = bCollAdjushDura[res["col"] & "|" & res["fldstockid"]][0]
         Endif
-        If bCollAdjushDura[res["col"] & "|" & res["fldstockid"]][1] Then
-          adjamt = bCollAdjushDura[res["col"] & "|" & res["fldstockid"]][1]
+        If sFormat = "Average" Then
+          adjamt = adjqty * xavrg
+        Else
+          If bCollAdjushDura[res["col"] & "|" & res["fldstockid"]][1] Then
+            adjamt = bCollAdjushDura[res["col"] & "|" & res["fldstockid"]][1]
+          Endif
         Endif
       Endif
 
@@ -1063,6 +1096,7 @@ Public Function ShowTransectionReport($con As Connection, sType As String, dt1 A
           .Add(res["fldstockid"])
           .Add(res["fldbatch"])
           .Add(modReportVar.GetLocaleNumberFormat(openqty, -2))
+          .Add(modReportVar.GetLocaleNumberFormat(openqty * xavrg, gb.Currency))
           .Add(modReportVar.GetLocaleNumberFormat(purqty, -2))
           .Add(modReportVar.GetLocaleNumberFormat(puramt, gb.Currency))
           .Add(modReportVar.GetLocaleNumberFormat(recvqty, -2))
@@ -1076,7 +1110,7 @@ Public Function ShowTransectionReport($con As Connection, sType As String, dt1 A
           .Add(modReportVar.GetLocaleNumberFormat(adjqty, -2))
           .Add(modReportVar.GetLocaleNumberFormat(adjamt, gb.Currency))
           .Add(modReportVar.GetLocaleNumberFormat(xvax, -2))
-          .Add(modReportVar.GetLocaleNumberFormat(xvax * modStock.GetAverageCostPriceByStockNo(res["col"]), gb.Currency))
+          .Add(modReportVar.GetLocaleNumberFormat(xvax * xavrg, gb.Currency))
         End With
         $BillingReport.Add(asx)
         asx.Clear()
@@ -1109,6 +1143,7 @@ Public Function ShowTransectionReport($con As Connection, sType As String, dt1 A
     .Add("")
     .Add("")
     .Add("")
+    .Add("")
   End With
   $BillingReport.Add(asx)
   asx.Clear()
@@ -1116,6 +1151,7 @@ Public Function ShowTransectionReport($con As Connection, sType As String, dt1 A
   With asx
     .Add("")
     .Add("GRAND TOTAL")
+    .Add("")
     .Add("")
     .Add("")
     .Add("")

@@ -39,17 +39,17 @@ Public Sub _new()
       Case "Cashier", "Dispensar"
         mnulocked.Visible = False
         If modBasic.$ViewLockInvoice = "User" Then
-          cmbsearch.List = ["Encounter", "Invoice", "Package", "Reference", "PatientCode", "RatePlan", "Doc Upload", "CBMS Upload"]
+          cmbsearch.List = ["Encounter", "Invoice", "Package", "Reference", "PatientCode", "RatePlan", "Doc Upload", "CBMS Upload", "Booking"]
         Else If modBasic.$ViewLockInvoice = "Location" Then
-          cmbsearch.List = ["Encounter", "Cashier", "Invoice", "Package", "Reference", "PatientCode", "RatePlan", "Doc Upload", "CBMS Upload"]
+          cmbsearch.List = ["Encounter", "Cashier", "Invoice", "Package", "Reference", "PatientCode", "RatePlan", "Doc Upload", "CBMS Upload", "Booking"]
           cmbcomp.Text = modBasic.$compID
           cmbcomp.Enabled = False
           lblcomp.Text = "Lock"
         Else
-          cmbsearch.List = ["Encounter", "Cashier", "Invoice", "Package", "Reference", "PatientCode", "RatePlan", "Doc Upload", "CBMS Upload"]
+          cmbsearch.List = ["Encounter", "Cashier", "Invoice", "Package", "Reference", "PatientCode", "RatePlan", "Doc Upload", "CBMS Upload", "Booking"]
         Endif
       Case Else
-        cmbsearch.List = ["Encounter", "Cashier", "Invoice", "Package", "Reference", "PatientCode", "RatePlan", "Doc Upload", "CBMS Upload"]
+        cmbsearch.List = ["Encounter", "Cashier", "Invoice", "Package", "Reference", "PatientCode", "RatePlan", "Doc Upload", "CBMS Upload", "Booking"]
     End Select
 
   Endif
@@ -146,6 +146,8 @@ Public Sub cmbsearch_Click()
   Else If cmbsearch.Text = "Doc Upload" Then
     txtselect.List = ["Pending", "Completed"]
   Else If cmbsearch.Text = "CBMS Upload" Then
+    txtselect.List = ["Pending", "Completed"]
+  Else If cmbsearch.Text = "Booking" Then
     txtselect.List = ["Pending", "Completed"]
   Endif
 
@@ -536,6 +538,12 @@ Private Function ExecuteQuery(xFldList As String[]) As Result
         xsear = Subst(" and fldbillno in(select fldbillno from tblfiscal where (fldsync IS NULL or fldsync<>&1))", 200)
       Else
         xsear = Subst(" and fldbillno in(select fldbillno from tblfiscal where fldsync=&1)", 200)
+      Endif
+    Else If cmbsearch.Text = "Booking" Then
+      If txtselect.Text = "Pending" Then
+        xsear = " and fldbillno not in(select fldbillno from tblpatbillbooking)"
+      Else
+        xsear = " and fldbillno in(select fldbillno from tblpatbillbooking)"
       Endif
     Else
       xsear = "" 'modDataRepo.GetWhereStringRepo(cmbsearch.Text, txtselect.Text)
