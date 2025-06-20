@@ -28,10 +28,11 @@ Public Sub _new()
   cmbsex.Text = "%"
   cmbtype.List = ComboCategory()
 
+  $RepoStr = modDataRepo.GetWhereStringRepo(cmblocation.Text, cmbvalue.Text)
   dtfir.Value = Now()
   dtlast.Value = Now()
   chkgrid.Value = True
-  $RepoStr = modDataRepo.GetWhereStringRepo(cmblocation.Text, cmbvalue.Text)
+  txtsearch.Text = "%"
 
 End
 
@@ -59,6 +60,42 @@ Private Function ComboCategory() As String[]
   xx.Add("Clinician Plan")
 
   Return xx
+
+End
+
+Public Sub cmbtype_Click()
+
+  Dim xList As String[]
+
+  If cmbtype.Text = "Diagnosis" Then
+    xList = ["Provisional Diagnosis", "Final Diagnosis", "Nursing Diagnosis"]
+  Else If cmbtype.Text = "History" Then
+    xList = New String[]
+    xList.Add("General Complaints")
+    xList.Insert(modMedicine.GetPatHistoryVar())
+  Else If cmbtype.Text = "Notes" Then
+    xList = New String[]
+    xList.Insert(["OPD Advice", "Progress Note", "Clinicians Note", "Nurses Note", "Transfer Note"])
+    xList.Insert(modMedicine.GetDischargeVar())
+  Else If cmbtype.Text = "Examination" Then
+    xList = New String[]
+  Else If cmbtype.Text = "Laboratory" Then
+    xList = New String[]
+  Else If cmbtype.Text = "Radiology" Then
+    xList = New String[]
+  Else If cmbtype.Text = "Procedure Summary" Then
+    xList = New String[]
+  Else If cmbtype.Text = "Procedure Notes" Then
+    xList = ["Pre-Operative Note", "Anaesthesia Note", "Operation Note", "Post-Operative Note"]
+  Else If cmbtype.Text = "Delivery Note" Then
+    xList = ["Live Baby", "Fresh Still Birth", "Macerated Still Birth"]
+  Else If cmbtype.Text = "IP Monitoring" Then
+    xList = ["Problems", "Treatment", "Input/Output", "Planning"]
+  Else If cmbtype.Text = "Clinician Plan" Then
+    xList = ["Subjective", "Objective", "Assessment", "Planning"]
+  Endif
+
+  cmbclass.List = xList
 
 End
 
@@ -98,95 +135,179 @@ Private Sub GetDistinctEncounters()
     Case "Diagnosis"
       $tbl = "tblpatfindings"
       $fld = "fldcode"
-      If cmbsex.Text = "%" Then
-        res1 = modDatabase.$syConn.Exec("select fldencounterval from tblpatfindings where (fldtype=&1 or fldtype=&2) and fldtime>=&3 and fldtime<=&4 and lower(fldcode) like &5" & $RepoStr, "Provisional Diagnosis", "Final Diagnosis", modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(txtsearch.Text))
+      If cmbclass.Text Then
+        If cmbsex.Text = "%" Then
+          res1 = modDatabase.$syConn.Exec("select fldencounterval from tblpatfindings where fldtype like &1 and fldtime>=&2 and fldtime<=&3 and lower(fldcode) like &4" & $RepoStr, cmbclass.Text, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(txtsearch.Text))
+        Else
+          res1 = modDatabase.$syConn.Exec("select fldencounterval from tblpatfindings where fldtype like &1 and fldtime>=&2 and fldtime<=&3 and lower(fldcode) like &4 and fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &5))" & $RepoStr, cmbclass.Text, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(txtsearch.Text), cmbsex.Text)
+        Endif
       Else
-        res1 = modDatabase.$syConn.Exec("select fldencounterval from tblpatfindings where (fldtype=&1 or fldtype=&2) and fldtime>=&3 and fldtime<=&4 and lower(fldcode) like &5 and fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &6))" & $RepoStr, "Provisional Diagnosis", "Final Diagnosis", modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(txtsearch.Text), cmbsex.Text)
+        If cmbsex.Text = "%" Then
+          res1 = modDatabase.$syConn.Exec("select fldencounterval from tblpatfindings where (fldtype=&1 or fldtype=&2 or fldtype=&3) and fldtime>=&4 and fldtime<=&5 and lower(fldcode) like &6" & $RepoStr, "Provisional Diagnosis", "Final Diagnosis", "Nursing Diagnosis", modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(txtsearch.Text))
+        Else
+          res1 = modDatabase.$syConn.Exec("select fldencounterval from tblpatfindings where (fldtype=&1 or fldtype=&2 or fldtype=&3) and fldtime>=&4 and fldtime<=&5 and lower(fldcode) like &6 and fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &7))" & $RepoStr, "Provisional Diagnosis", "Final Diagnosis", "Nursing Diagnosis", modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(txtsearch.Text), cmbsex.Text)
+        Endif
       Endif
       xxx = modControlSub.GetDirectFillresult(res1)
 
     Case "History", "Notes"
       $tbl = "tblexamgeneral"
       $fld = "flddetail"
-      If cmbsex.Text = "%" Then
-        res1 = modDatabase.$syConn.Exec("select fldencounterval from tblexamgeneral where fldinput=&1 and fldtime>=&2 and fldtime<=&3 and lower(flddetail) like &4" & $RepoStr, cmbtype.Text, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(txtsearch.Text))
+      If cmbclass.Text Then
+        If cmbsex.Text = "%" Then
+          res1 = modDatabase.$syConn.Exec("select fldencounterval from tblexamgeneral where fldinput=&1 and fldtime>=&2 and fldtime<=&3 and lower(flddetail) like &4 and flditem like &5" & $RepoStr, cmbtype.Text, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(txtsearch.Text), cmbclass.Text)
+        Else
+          res1 = modDatabase.$syConn.Exec("select fldencounterval from tblexamgeneral where fldinput=&1 and fldtime>=&2 and fldtime<=&3 and lower(flddetail) like &4 and flditem like &5 and fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &6))" & $RepoStr, cmbtype.Text, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(txtsearch.Text), cmbclass.Text, cmbsex.Text)                                                    ''
+        Endif
       Else
-        res1 = modDatabase.$syConn.Exec("select fldencounterval from tblexamgeneral where fldinput=&1 and fldtime>=&2 and fldtime<=&3 and lower(flddetail) like &4 and fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &5))" & $RepoStr, cmbtype.Text, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(txtsearch.Text), cmbsex.Text)                                                    ''
+        If cmbsex.Text = "%" Then
+          res1 = modDatabase.$syConn.Exec("select fldencounterval from tblexamgeneral where fldinput=&1 and fldtime>=&2 and fldtime<=&3 and lower(flddetail) like &4" & $RepoStr, cmbtype.Text, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(txtsearch.Text))
+        Else
+          res1 = modDatabase.$syConn.Exec("select fldencounterval from tblexamgeneral where fldinput=&1 and fldtime>=&2 and fldtime<=&3 and lower(flddetail) like &4 and fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &5))" & $RepoStr, cmbtype.Text, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(txtsearch.Text), cmbsex.Text)                                                    ''
+        Endif
       Endif
       xxx = modControlSub.GetDirectFillresult(res1)
 
     Case "Delivery Note"
       $tbl = "tblconfinement"
       $fld = "fldcomment"
-      If cmbsex.Text = "%" Then
-        res1 = modDatabase.$syConn.Exec("select fldencounterval from tblconfinement where fldtime>=&1 and fldtime<=&2 and lower(fldcomment) like &3" & $RepoStr, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(txtsearch.Text))                                                                                                                 ''
+      If cmbclass.Text Then
+        If cmbsex.Text = "%" Then
+          res1 = modDatabase.$syConn.Exec("select fldencounterval from tblconfinement where fldtime>=&1 and fldtime<=&2 and lower(fldcomment) like &3 and flddelresult like &4" & $RepoStr, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(txtsearch.Text), cmbclass.Text)                                                                                                                 ''
+        Else
+          res1 = modDatabase.$syConn.Exec("select fldencounterval from tblconfinement where fldtime>=&1 and fldtime<=&2 and lower(fldcomment) like &3 and flddelresult like &4 and fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &5))" & $RepoStr, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(txtsearch.Text), cmbclass.Text, cmbsex.Text)
+        Endif
       Else
-        res1 = modDatabase.$syConn.Exec("select fldencounterval from tblconfinement where fldtime>=&1 and fldtime<=&2 and lower(fldcomment) like &3 and fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &4))" & $RepoStr, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(txtsearch.Text), cmbsex.Text)
+        If cmbsex.Text = "%" Then
+          res1 = modDatabase.$syConn.Exec("select fldencounterval from tblconfinement where fldtime>=&1 and fldtime<=&2 and lower(fldcomment) like &3" & $RepoStr, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(txtsearch.Text))                                                                                                                 ''
+        Else
+          res1 = modDatabase.$syConn.Exec("select fldencounterval from tblconfinement where fldtime>=&1 and fldtime<=&2 and lower(fldcomment) like &3 and fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &4))" & $RepoStr, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(txtsearch.Text), cmbsex.Text)
+        Endif
       Endif
       xxx = modControlSub.GetDirectFillresult(res1)
 
     Case "Procedure Summary"
       $tbl = "tblpatgeneral"
       $fld = "flddetail"
-      If cmbsex.Text = "%" Then
-        res1 = modDatabase.$syConn.Exec("select fldencounterval from tblpatgeneral where fldtime>=&1 and fldtime<=&2 and (fldinput=&3 or fldinput=&4) and lower(flddetail) like &5" & $RepoStr, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), "Procedures", "Extra Procedures", LCase(txtsearch.Text))                                                                                                                 ''
+      If cmbclass.Text Then
+        If cmbsex.Text = "%" Then
+          res1 = modDatabase.$syConn.Exec("select fldencounterval from tblpatgeneral where fldtime>=&1 and fldtime<=&2 and (fldinput=&3 or fldinput=&4) and lower(flddetail) like &5 and flditem like &6" & $RepoStr, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), "Procedures", "Extra Procedures", LCase(txtsearch.Text), cmbclass.Text)                                                                                                                 ''
+        Else
+          res1 = modDatabase.$syConn.Exec("select fldencounterval from tblpatgeneral where fldtime>=&1 and fldtime<=&2 and (fldinput=&3 or fldinput=&4) and lower(flddetail) like &5 and flditem like &6 and fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &7))" & $RepoStr, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), "Procedures", "Extra Procedures", LCase(txtsearch.Text), cmbclass.Text, cmbsex.Text)
+        Endif
       Else
-        res1 = modDatabase.$syConn.Exec("select fldencounterval from tblpatgeneral where fldtime>=&1 and fldtime<=&2 and (fldinput=&3 or fldinput=&4) and lower(flddetail) like &5 and fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &6))" & $RepoStr, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), "Procedures", "Extra Procedures", LCase(txtsearch.Text), cmbsex.Text)
+        If cmbsex.Text = "%" Then
+          res1 = modDatabase.$syConn.Exec("select fldencounterval from tblpatgeneral where fldtime>=&1 and fldtime<=&2 and (fldinput=&3 or fldinput=&4) and lower(flddetail) like &5" & $RepoStr, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), "Procedures", "Extra Procedures", LCase(txtsearch.Text))                                                                                                                 ''
+        Else
+          res1 = modDatabase.$syConn.Exec("select fldencounterval from tblpatgeneral where fldtime>=&1 and fldtime<=&2 and (fldinput=&3 or fldinput=&4) and lower(flddetail) like &5 and fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &6))" & $RepoStr, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), "Procedures", "Extra Procedures", LCase(txtsearch.Text), cmbsex.Text)
+        Endif
       Endif
       xxx = modControlSub.GetDirectFillresult(res1)
 
     Case "Procedure Notes"
       $tbl = "tblpatsubgeneral"
       $fld = "fldreport"
-      If cmbsex.Text = "%" Then
-        res1 = modDatabase.$syConn.Exec("select fldencounterval from tblpatsubgeneral where fldtime>=&1 and fldtime<=&2 and (fldchapter=&3 or fldchapter=&4 or fldchapter=&5 or fldchapter=&6) and lower(fldreport) like &7" & $RepoStr, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), "Pre-Operative Note", "Anaesthesia Note", "Operation Note", "Post-Operative Note", LCase(txtsearch.Text))                                                                                                                 ''
+      If cmbclass.Text Then
+        If cmbsex.Text = "%" Then
+          res1 = modDatabase.$syConn.Exec("select fldencounterval from tblpatsubgeneral where fldtime>=&1 and fldtime<=&2 and fldchapter like &3 and lower(fldreport) like &4" & $RepoStr, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), cmbclass.Text, LCase(txtsearch.Text))                                                                                                                 ''
+        Else
+          res1 = modDatabase.$syConn.Exec("select fldencounterval from tblpatsubgeneral where fldtime>=&1 and fldtime<=&2 and fldchapter like &3 and lower(fldreport) like &4 and fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &5))" & $RepoStr, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), cmbclass.Text, LCase(txtsearch.Text), cmbsex.Text)
+        Endif
       Else
-        res1 = modDatabase.$syConn.Exec("select fldencounterval from tblpatsubgeneral where fldtime>=&1 and fldtime<=&2 and (fldchapter=&3 or fldchapter=&4 or fldchapter=&5 or fldchapter=&6) and lower(fldreport) like &7 and fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &8))" & $RepoStr, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), "Pre-Operative Note", "Anaesthesia Note", "Operation Note", "Post-Operative Note", LCase(txtsearch.Text), cmbsex.Text)
+        If cmbsex.Text = "%" Then
+          res1 = modDatabase.$syConn.Exec("select fldencounterval from tblpatsubgeneral where fldtime>=&1 and fldtime<=&2 and (fldchapter=&3 or fldchapter=&4 or fldchapter=&5 or fldchapter=&6) and lower(fldreport) like &7" & $RepoStr, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), "Pre-Operative Note", "Anaesthesia Note", "Operation Note", "Post-Operative Note", LCase(txtsearch.Text))                                                                                                                 ''
+        Else
+          res1 = modDatabase.$syConn.Exec("select fldencounterval from tblpatsubgeneral where fldtime>=&1 and fldtime<=&2 and (fldchapter=&3 or fldchapter=&4 or fldchapter=&5 or fldchapter=&6) and lower(fldreport) like &7 and fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &8))" & $RepoStr, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), "Pre-Operative Note", "Anaesthesia Note", "Operation Note", "Post-Operative Note", LCase(txtsearch.Text), cmbsex.Text)
+        Endif
       Endif
       xxx = modControlSub.GetDirectFillresult(res1)
 
     Case "Examination"
       $tbl = "tblpatientexam"
       $fld = "fldrepquali"
-      If cmbsex.Text = "%" Then
-        res1 = modDatabase.$syConn.Exec("select tblpatientexam.fldencounterval as fldencounterval from tblpatientexam inner join tblpatientsubexam on tblpatientexam.fldid=tblpatientsubexam.fldheadid where tblpatientexam.fldtime>=&1 and tblpatientexam.fldtime<=&2 and tblpatientexam.fldsave=&3 and (lower(tblpatientexam.fldrepquali) like &4 or lower(tblpatientsubexam.fldreport) like &4)" & $RepoStr, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), True, LCase(txtsearch.Text))                                                                                                                 ''
+      If cmbclass.Text Then
+        If cmbsex.Text = "%" Then
+          res1 = modDatabase.$syConn.Exec("select tblpatientexam.fldencounterval as fldencounterval from tblpatientexam inner join tblpatientsubexam on tblpatientexam.fldid=tblpatientsubexam.fldheadid where tblpatientexam.fldtime>=&1 and tblpatientexam.fldtime<=&2 and tblpatientexam.fldsave=&3 and (lower(tblpatientexam.fldrepquali) like &4 or lower(tblpatientsubexam.fldreport) like &4) and tblpatientexam.fldhead like &5" & $RepoStr, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), True, LCase(txtsearch.Text), cmbclass.Text)                                                                                                                 ''
+        Else
+          res1 = modDatabase.$syConn.Exec("select tblpatientexam.fldencounterval as fldencounterval from tblpatientexam inner join tblpatientsubexam on tblpatientexam.fldid=tblpatientsubexam.fldheadid where tblpatientexam.fldtime>=&1 and tblpatientexam.fldtime<=&2 and tblpatientexam.fldsave=&3 and (lower(tblpatientexam.fldrepquali) like &4 or lower(tblpatientsubexam.fldreport) like &4) and tblpatientexam.fldhead like &5 and tblpatientexam.fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &6))" & $RepoStr, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), True, LCase(txtsearch.Text), cmbclass.Text, cmbsex.Text)
+        Endif
       Else
-        res1 = modDatabase.$syConn.Exec("select tblpatientexam.fldencounterval as fldencounterval from tblpatientexam inner join tblpatientsubexam on tblpatientexam.fldid=tblpatientsubexam.fldheadid where tblpatientexam.fldtime>=&1 and tblpatientexam.fldtime<=&2 and tblpatientexam.fldsave=&3 and (lower(tblpatientexam.fldrepquali) like &4 or lower(tblpatientsubexam.fldreport) like &4) and tblpatientexam.fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &5))" & $RepoStr, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), True, LCase(txtsearch.Text), cmbsex.Text)
+        If cmbsex.Text = "%" Then
+          res1 = modDatabase.$syConn.Exec("select tblpatientexam.fldencounterval as fldencounterval from tblpatientexam inner join tblpatientsubexam on tblpatientexam.fldid=tblpatientsubexam.fldheadid where tblpatientexam.fldtime>=&1 and tblpatientexam.fldtime<=&2 and tblpatientexam.fldsave=&3 and (lower(tblpatientexam.fldrepquali) like &4 or lower(tblpatientsubexam.fldreport) like &4)" & $RepoStr, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), True, LCase(txtsearch.Text))                                                                                                                 ''
+        Else
+          res1 = modDatabase.$syConn.Exec("select tblpatientexam.fldencounterval as fldencounterval from tblpatientexam inner join tblpatientsubexam on tblpatientexam.fldid=tblpatientsubexam.fldheadid where tblpatientexam.fldtime>=&1 and tblpatientexam.fldtime<=&2 and tblpatientexam.fldsave=&3 and (lower(tblpatientexam.fldrepquali) like &4 or lower(tblpatientsubexam.fldreport) like &4) and tblpatientexam.fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &5))" & $RepoStr, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), True, LCase(txtsearch.Text), cmbsex.Text)
+        Endif
       Endif
       xxx = modControlSub.GetDirectFillresult(res1)
 
     Case "Laboratory"
       $tbl = "tblpatlabtest"
       $fld = "fldreportquali"
-      If cmbsex.Text = "%" Then
-        res1 = modDatabase.$syConn.Exec("select tblpatlabtest.fldencounterval as fldencounterval from tblpatlabtest inner join tblpatlabsubtest on tblpatlabtest.fldid=tblpatlabsubtest.fldtestid where tblpatlabtest.fldtime_sample>=&1 and tblpatlabtest.fldtime_sample<=&2 and (lower(tblpatlabtest.fldreportquali) like &3 or lower(tblpatlabsubtest.fldreport) like &3)" & $RepoStr, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(txtsearch.Text))                                                                                                                 ''
+      If cmbclass.Text Then
+        If cmbsex.Text = "%" Then
+          res1 = modDatabase.$syConn.Exec("select tblpatlabtest.fldencounterval as fldencounterval from tblpatlabtest inner join tblpatlabsubtest on tblpatlabtest.fldid=tblpatlabsubtest.fldtestid where tblpatlabtest.fldtime_sample>=&1 and tblpatlabtest.fldtime_sample<=&2 and (lower(tblpatlabtest.fldreportquali) like &3 or lower(tblpatlabsubtest.fldreport) like &3) and tblpatlabtest.fldtestid like &4" & $RepoStr, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(txtsearch.Text), cmbclass.Text)                                                                                                                 ''
+        Else
+          res1 = modDatabase.$syConn.Exec("select tblpatlabtest.fldencounterval as fldencounterval from tblpatlabtest inner join tblpatlabsubtest on tblpatlabtest.fldid=tblpatlabsubtest.fldtestid where tblpatlabtest.fldtime_sample>=&1 and tblpatlabtest.fldtime_sample<=&2 and (lower(tblpatlabtest.fldreportquali) like &3 or lower(tblpatlabsubtest.fldreport) like &3) and tblpatlabtest.fldtestid like &4 and tblpatlabtest.fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &5))" & $RepoStr, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(txtsearch.Text), cmbclass.Text, cmbsex.Text)
+        Endif
       Else
-        res1 = modDatabase.$syConn.Exec("select tblpatlabtest.fldencounterval as fldencounterval from tblpatlabtest inner join tblpatlabsubtest on tblpatlabtest.fldid=tblpatlabsubtest.fldtestid where tblpatlabtest.fldtime_sample>=&1 and tblpatlabtest.fldtime_sample<=&2 and (lower(tblpatlabtest.fldreportquali) like &3 or lower(tblpatlabsubtest.fldreport) like &3) and tblpatlabtest.fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &4))" & $RepoStr, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(txtsearch.Text), cmbsex.Text)
+        If cmbsex.Text = "%" Then
+          res1 = modDatabase.$syConn.Exec("select tblpatlabtest.fldencounterval as fldencounterval from tblpatlabtest inner join tblpatlabsubtest on tblpatlabtest.fldid=tblpatlabsubtest.fldtestid where tblpatlabtest.fldtime_sample>=&1 and tblpatlabtest.fldtime_sample<=&2 and (lower(tblpatlabtest.fldreportquali) like &3 or lower(tblpatlabsubtest.fldreport) like &3)" & $RepoStr, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(txtsearch.Text))                                                                                                                 ''
+        Else
+          res1 = modDatabase.$syConn.Exec("select tblpatlabtest.fldencounterval as fldencounterval from tblpatlabtest inner join tblpatlabsubtest on tblpatlabtest.fldid=tblpatlabsubtest.fldtestid where tblpatlabtest.fldtime_sample>=&1 and tblpatlabtest.fldtime_sample<=&2 and (lower(tblpatlabtest.fldreportquali) like &3 or lower(tblpatlabsubtest.fldreport) like &3) and tblpatlabtest.fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &4))" & $RepoStr, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(txtsearch.Text), cmbsex.Text)
+        Endif
       Endif
       xxx = modControlSub.GetDirectFillresult(res1)
 
     Case "Radiology"
       $tbl = "tblpatradiotest"
       $fld = "fldreportquali"
-      If cmbsex.Text = "%" Then
-        res1 = modDatabase.$syConn.Exec("select tblpatradiotest.fldencounterval as fldencounterval from tblpatradiotest inner join tblpatradiosubtest on tblpatradiotest.fldid=tblpatradiosubtest.fldtestid where tblpatradiotest.fldtime_report>=&1 and tblpatradiotest.fldtime_report<=&2 and (lower(tblpatradiotest.fldreportquali) like &3 or lower(tblpatradiosubtest.fldreport) like &3)" & $RepoStr, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(txtsearch.Text))                                                                                                                 ''
+      If cmbclass.Text Then
+        If cmbsex.Text = "%" Then
+          res1 = modDatabase.$syConn.Exec("select tblpatradiotest.fldencounterval as fldencounterval from tblpatradiotest inner join tblpatradiosubtest on tblpatradiotest.fldid=tblpatradiosubtest.fldtestid where tblpatradiotest.fldtime_report>=&1 and tblpatradiotest.fldtime_report<=&2 and (lower(tblpatradiotest.fldreportquali) like &3 or lower(tblpatradiosubtest.fldreport) like &3) and tblpatradiotest.fldtestid like &4" & $RepoStr, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(txtsearch.Text), cmbclass.Text)                                                                                                                 ''
+        Else
+          res1 = modDatabase.$syConn.Exec("select tblpatradiotest.fldencounterval as fldencounterval from tblpatradiotest inner join tblpatradiosubtest on tblpatradiotest.fldid=tblpatradiosubtest.fldtestid where tblpatradiotest.fldtime_report>=&1 and tblpatradiotest.fldtime_report<=&2 and (lower(tblpatradiotest.fldreportquali) like &3 or lower(tblpatradiosubtest.fldreport) like &3) and tblpatradiotest.fldtestid like &4 and tblpatradiotest.fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &4))" & $RepoStr, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(txtsearch.Text), cmbclass.Text, cmbsex.Text)
+        Endif
       Else
-        res1 = modDatabase.$syConn.Exec("select tblpatradiotest.fldencounterval as fldencounterval from tblpatradiotest inner join tblpatradiosubtest on tblpatradiotest.fldid=tblpatradiosubtest.fldtestid where tblpatradiotest.fldtime_report>=&1 and tblpatradiotest.fldtime_report<=&2 and (lower(tblpatradiotest.fldreportquali) like &3 or lower(tblpatradiosubtest.fldreport) like &3) and tblpatradiotest.fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &4))" & $RepoStr, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(txtsearch.Text), cmbsex.Text)
+        If cmbsex.Text = "%" Then
+          res1 = modDatabase.$syConn.Exec("select tblpatradiotest.fldencounterval as fldencounterval from tblpatradiotest inner join tblpatradiosubtest on tblpatradiotest.fldid=tblpatradiosubtest.fldtestid where tblpatradiotest.fldtime_report>=&1 and tblpatradiotest.fldtime_report<=&2 and (lower(tblpatradiotest.fldreportquali) like &3 or lower(tblpatradiosubtest.fldreport) like &3)" & $RepoStr, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(txtsearch.Text))                                                                                                                 ''
+        Else
+          res1 = modDatabase.$syConn.Exec("select tblpatradiotest.fldencounterval as fldencounterval from tblpatradiotest inner join tblpatradiosubtest on tblpatradiotest.fldid=tblpatradiosubtest.fldtestid where tblpatradiotest.fldtime_report>=&1 and tblpatradiotest.fldtime_report<=&2 and (lower(tblpatradiotest.fldreportquali) like &3 or lower(tblpatradiosubtest.fldreport) like &3) and tblpatradiotest.fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &4))" & $RepoStr, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(txtsearch.Text), cmbsex.Text)
+        Endif
       Endif
       xxx = modControlSub.GetDirectFillresult(res1)
 
     Case "IP Monitoring", "Clinician Plan"
       $tbl = "tblpatplanning"
-      sql1 = "select fldencounterval from tblpatplanning where fldtime>=&1 and fldtime<=&2 and fldplancategory=&3 and lower(fldsubjective) like &4"
-      sql2 = "select fldencounterval from tblpatplanning where fldtime>=&1 and fldtime<=&2 and fldplancategory=&3 and lower(fldobjective) like &4"
-      sql3 = "select fldencounterval from tblpatplanning where fldtime>=&1 and fldtime<=&2 and fldplancategory=&3 and lower(fldassess) like &4"
-      sql4 = "select fldencounterval from tblpatplanning where fldtime>=&1 and fldtime<=&2 and fldplancategory=&3 and lower(fldplan) like &4"
-      xstr = "and fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &5))"
+      If cmbclass.Text Then
+        Select cmbclass.Text
+          Case "Subjective", "Problems"
+            sql1 = "select fldencounterval from tblpatplanning where fldtime>=&1 and fldtime<=&2 and fldplancategory=&3 and lower(fldsubjective) like &4"
+          Case "Objective", "Treatment"
+            sql1 = "select fldencounterval from tblpatplanning where fldtime>=&1 and fldtime<=&2 and fldplancategory=&3 and lower(fldobjective) like &4"
+          Case "Assessment", "Input/Output"
+            sql1 = "select fldencounterval from tblpatplanning where fldtime>=&1 and fldtime<=&2 and fldplancategory=&3 and lower(fldassess) like &4"
+          Case "Planning"
+            sql1 = "select fldencounterval from tblpatplanning where fldtime>=&1 and fldtime<=&2 and fldplancategory=&3 and lower(fldplan) like &4"
+        End Select
+        xstr = "and fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &5))"
+        If cmbsex.Text = "%" Then
+          res1 = modDatabase.$syConn.Exec(sql1 & $RepoStr, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), cmbtype.Text, LCase(txtsearch.Text))                                                                                                                 ''
+        Else
+          res1 = modDatabase.$syConn.Exec(sql1 & xstr & $RepoStr, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), cmbtype.Text, LCase(txtsearch.Text), cmbsex.Text)
+        Endif
 
-      If cmbsex.Text = "%" Then
-        res1 = modDatabase.$syConn.Exec(sql1 & " UNION ALL " & sql2 & " UNION ALL " & sql3 & "UNION ALL " & sql4 & $RepoStr, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), cmbtype.Text, LCase(txtsearch.Text))                                                                                                                 ''
       Else
-        res1 = modDatabase.$syConn.Exec(sql1 & xstr & " UNION ALL " & sql2 & xstr & " UNION ALL " & sql3 & xstr & "UNION ALL " & sql4 & xstr & $RepoStr, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), cmbtype.Text, LCase(txtsearch.Text), cmbsex.Text)
+        sql1 = "select fldencounterval from tblpatplanning where fldtime>=&1 and fldtime<=&2 and fldplancategory=&3 and lower(fldsubjective) like &4"
+        sql2 = "select fldencounterval from tblpatplanning where fldtime>=&1 and fldtime<=&2 and fldplancategory=&3 and lower(fldobjective) like &4"
+        sql3 = "select fldencounterval from tblpatplanning where fldtime>=&1 and fldtime<=&2 and fldplancategory=&3 and lower(fldassess) like &4"
+        sql4 = "select fldencounterval from tblpatplanning where fldtime>=&1 and fldtime<=&2 and fldplancategory=&3 and lower(fldplan) like &4"
+        xstr = "and fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &5))"
+
+        If cmbsex.Text = "%" Then
+          res1 = modDatabase.$syConn.Exec(sql1 & " UNION ALL " & sql2 & " UNION ALL " & sql3 & "UNION ALL " & sql4 & $RepoStr, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), cmbtype.Text, LCase(txtsearch.Text))                                                                                                                 ''
+        Else
+          res1 = modDatabase.$syConn.Exec(sql1 & xstr & " UNION ALL " & sql2 & xstr & " UNION ALL " & sql3 & xstr & "UNION ALL " & sql4 & xstr & $RepoStr, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), cmbtype.Text, LCase(txtsearch.Text), cmbsex.Text)
+        Endif
       Endif
       xxx = modControlSub.GetDirectFillresult(res1)
 
@@ -194,10 +315,8 @@ Private Sub GetDistinctEncounters()
 
   If xxx.Count Then
     $enctr = modString.GetDistinctStringArray(xxx)
-    lblrecordcount.Text = "Count: " & $enctr.Count
   Else
     $enctr = New String[]
-    lblrecordcount.Text = "Count: 0"
   Endif
 
 End
@@ -206,53 +325,116 @@ End
 Private Sub GetCOlumnData(encid As String, sSearch As String) As String
 
   Dim res1 As Result
+  Dim xList As String[]
   Dim xxx As String
 
-  xxx = ""
+  Dim sql1 As String
+  Dim sql2 As String
+  Dim sql3 As String
+  Dim sql4 As String
+
   Select cmbtype.Text
     Case "Diagnosis"
-      res1 = modDatabase.$syConn.Exec("select fldcode from tblpatfindings where (fldtype=&1 or fldtype=&2) and fldtime>=&3 and fldtime<=&4 and lower(fldcode) like &5 and fldencounterval=&6", "Provisional Diagnosis", "Final Diagnosis", modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), "%" & LCase(sSearch) & "%", encid)
-      If res1.Available Then
-        res1.MoveLast
-        xxx = xxx & res1["fldcode"] & gb.NewLine
+      If cmbclass.Text Then
+        res1 = modDatabase.$syConn.Exec("select fldcode as col from tblpatfindings where fldtype like &1 and fldtime>=&2 and fldtime<=&3 and lower(fldcode) like &4 and fldencounterval=&5", cmbclass.Text, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(sSearch), encid)
+      Else
+        res1 = modDatabase.$syConn.Exec("select fldcode as col from tblpatfindings where (fldtype=&1 or fldtype=&2 or fldtype=&3) and fldtime>=&4 and fldtime<=&5 and lower(fldcode) like &6 and fldencounterval=&7", "Provisional Diagnosis", "Final Diagnosis", "Nursing Diagnosis", modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(sSearch), encid)
       Endif
 
     Case "History", "Notes"
-      res1 = modDatabase.$syConn.Exec("select flddetail from tblexamgeneral where fldinput=&1 and fldtime>=&2 and fldtime<=&3 and lower(flddetail) like &4 and fldencounterval=&5", cmbtype.Text, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), "%" & LCase(sSearch) & "%", encid)
-      If res1.Available Then
-        res1.MoveLast
-        xxx = xxx & res1["flddetail"] & gb.NewLine
+      If cmbclass.Text Then
+        res1 = modDatabase.$syConn.Exec("select flddetail as col from tblexamgeneral where fldinput=&1 and fldtime>=&2 and fldtime<=&3 and lower(flddetail) like &4 and fldencounterval=&5 and flditem like &6", cmbtype.Text, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(sSearch), encid, cmbclass.Text)
+      Else
+        res1 = modDatabase.$syConn.Exec("select flddetail as col from tblexamgeneral where fldinput=&1 and fldtime>=&2 and fldtime<=&3 and lower(flddetail) like &4 and fldencounterval=&5", cmbtype.Text, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(sSearch), encid)
       Endif
 
     Case "Delivery Note"
-      res1 = modDatabase.$syConn.Exec("select fldcomment from tblconfinement where fldtime>=&1 and fldtime<=&2 and lower(fldcomment) like &3 and fldencounterval=&4", modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), "%" & LCase(sSearch) & "%", encid)                                                                                                                 ''
-      If res1.Available Then
-        res1.MoveLast                    ''
-        xxx = xxx & res1["fldcomment"] & gb.NewLine
+      If cmbclass.Text Then
+        res1 = modDatabase.$syConn.Exec("select fldcomment as col from tblconfinement where fldtime>=&1 and fldtime<=&2 and lower(fldcomment) like &3 and fldencounterval=&4 and flddelresult like &5", modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(sSearch), encid, cmbclass.Text)                                                                                                                 ''
+      Else
+        res1 = modDatabase.$syConn.Exec("select fldcomment as col from tblconfinement where fldtime>=&1 and fldtime<=&2 and lower(fldcomment) like &3 and fldencounterval=&4", modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(sSearch), encid)                                                                                                                 ''
       Endif
 
     Case "Procedure Summary"
-      res1 = modDatabase.$syConn.Exec("select flddetail from tblpatgeneral where fldtime>=&1 and fldtime<=&2 and (fldinput=&3 or fldinput=&4) and lower(flddetail) like &5 and fldencounterval=&6", modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), "Procedures", "Extra Procedures", "%" & LCase(sSearch) & "%", encid)                                                                                                                 ''
-      If res1.Available Then
-        res1.MoveLast                   ''
-        xxx = xxx & res1["flddetail"] & gb.NewLine
+      If cmbclass.Text Then
+        res1 = modDatabase.$syConn.Exec("select flddetail as col from tblpatgeneral where fldtime>=&1 and fldtime<=&2 and (fldinput=&3 or fldinput=&4) and lower(flddetail) like &5 and fldencounterval=&6 and flditem like &7", modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), "Procedures", "Extra Procedures", LCase(sSearch), encid, cmbclass.Text)                                                                                                                 ''
+      Else
+        res1 = modDatabase.$syConn.Exec("select flddetail as col from tblpatgeneral where fldtime>=&1 and fldtime<=&2 and (fldinput=&3 or fldinput=&4) and lower(flddetail) like &5 and fldencounterval=&6", modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), "Procedures", "Extra Procedures", LCase(sSearch), encid)                                                                                                                 ''
       Endif
 
     Case "Procedure Notes"
-      res1 = modDatabase.$syConn.Exec("select fldreport from tblpatsubgeneral where fldtime>=&1 and fldtime<=&2 or (fldchapter=&3 or fldchapter=&4 or fldchapter=&5 or fldchapter=&6) and lower(fldreport) like &7 and fldencounterval=&8", modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), "Pre-Operative Note", "Anaesthesia Note", "Operation Note", "Post-Operative Note", "%" & LCase(sSearch) & "%", encid)                                                                                                                 ''
-      If res1.Available Then
-        res1.MoveLast                 ''
-        xxx = xxx & res1["fldreport"] & gb.NewLine
+      If cmbclass.Text Then
+        res1 = modDatabase.$syConn.Exec("select fldreport as col from tblpatsubgeneral where fldtime>=&1 and fldtime<=&2 or fldchapter like &3 and lower(fldreport) like &4 and fldencounterval=&5", modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), cmbclass.Text, LCase(sSearch), encid)                                                                                                                 ''
+      Else
+        res1 = modDatabase.$syConn.Exec("select fldreport as col from tblpatsubgeneral where fldtime>=&1 and fldtime<=&2 or (fldchapter=&3 or fldchapter=&4 or fldchapter=&5 or fldchapter=&6) and lower(fldreport) like &7 and fldencounterval=&8", modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), "Pre-Operative Note", "Anaesthesia Note", "Operation Note", "Post-Operative Note", LCase(sSearch), encid)                                                                                                                 ''
       Endif
 
-    Case Else
-      xxx = ""
+    Case "Examination"
+      If cmbclass.Text Then
+        res1 = modDatabase.$syConn.Exec("select tblpatientexam.fldrepquali as col1,tblpatientsubexam.fldreport as col2 from tblpatientexam inner join tblpatientsubexam on tblpatientexam.fldid=tblpatientsubexam.fldheadid where tblpatientexam.fldtime>=&1 and tblpatientexam.fldtime<=&2 and tblpatientexam.fldsave=&3 and (lower(tblpatientexam.fldrepquali) like &4 or lower(tblpatientsubexam.fldreport) like &4) and tblpatientexam.fldhead like &5 and tblpatientexam.fldencounterval=&6", modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), True, LCase(sSearch), cmbclass.Text, encid)
+      Else
+        res1 = modDatabase.$syConn.Exec("select tblpatientexam.fldrepquali as col1,tblpatientsubexam.fldreport as col2 from tblpatientexam inner join tblpatientsubexam on tblpatientexam.fldid=tblpatientsubexam.fldheadid where tblpatientexam.fldtime>=&1 and tblpatientexam.fldtime<=&2 and tblpatientexam.fldsave=&3 and (lower(tblpatientexam.fldrepquali) like &4 or lower(tblpatientsubexam.fldreport) like &4) and tblpatientexam.fldencounterval=&5", modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), True, LCase(sSearch), encid)
+      Endif
 
-      ' Case "Progress Note: Problems", "Progress Note: Treatment", "Progress Note: I/O Summary", "Progress Note: Planning", "Clinical Plan: Subjective", "Clinical Plan: Objective", "Clinical Plan: Management", "Clinical Plan: Planning"
-      '   res1 = modDatabase.$syConn.Exec("select " & fld & " from tblpatplanning where fldtime>=&1 and fldtime<=&2 and fldplancategory=&3 and lower(" & fld & ") like &4 and fldencounterval=&5", modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), categ, "%" & LCase(sSearch) & "%", encid)                                                                                                                 ''
-      '   xxx = modControlSub.GetDirectFillresult(res1).Join(gb.NewLine)
+    Case "Laboratory"
+      If cmbclass.Text Then
+        res1 = modDatabase.$syConn.Exec("select tblpatlabtest.fldreportquali as col1,tblpatlabsubtest.fldreport as col2 from tblpatlabtest inner join tblpatlabsubtest on tblpatlabtest.fldid=tblpatlabsubtest.fldtestid where tblpatlabtest.fldtime_sample>=&1 and tblpatlabtest.fldtime_sample<=&2 and (lower(tblpatlabtest.fldreportquali) like &3 or lower(tblpatlabsubtest.fldreport) like &3) and tblpatlabtest.fldtestid like &4 and tblpatlabtest.fldencounterval=&5", modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(sSearch), cmbclass.Text, encid)
+      Else
+        res1 = modDatabase.$syConn.Exec("select tblpatlabtest.fldreportquali as col1,tblpatlabsubtest.fldreport as col2 from tblpatlabtest inner join tblpatlabsubtest on tblpatlabtest.fldid=tblpatlabsubtest.fldtestid where tblpatlabtest.fldtime_sample>=&1 and tblpatlabtest.fldtime_sample<=&2 and (lower(tblpatlabtest.fldreportquali) like &3 or lower(tblpatlabsubtest.fldreport) like &3) and tblpatlabtest.fldencounterval=&4", modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(sSearch), encid)
+      Endif
+
+    Case "Radiology"
+      If cmbclass.Text Then
+        res1 = modDatabase.$syConn.Exec("select tblpatradiotest.fldreportquali as col1,tblpatradiosubtest.fldreport as col2 from tblpatradiotest inner join tblpatradiosubtest on tblpatradiotest.fldid=tblpatradiosubtest.fldtestid where tblpatradiotest.fldtime_report>=&1 and tblpatradiotest.fldtime_report<=&2 and (lower(tblpatradiotest.fldreportquali) like &3 or lower(tblpatradiosubtest.fldreport) like &3) and tblpatradiotest.fldtestid like &4 and tblpatradiotest.fldencounterval=&5", modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(sSearch), cmbclass.Text, encid)
+      Else
+        res1 = modDatabase.$syConn.Exec("select tblpatradiotest.fldreportquali as col1,tblpatradiosubtest.fldreport as col2 from tblpatradiotest inner join tblpatradiosubtest on tblpatradiotest.fldid=tblpatradiosubtest.fldtestid where tblpatradiotest.fldtime_report>=&1 and tblpatradiotest.fldtime_report<=&2 and (lower(tblpatradiotest.fldreportquali) like &3 or lower(tblpatradiosubtest.fldreport) like &3) and tblpatradiotest.fldencounterval=&4", modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(sSearch), encid)
+      Endif
+
+    Case "Clinician Plan", "IP Monitoring"
+      If cmbclass.Text Then
+        Select cmbclass.Text
+          Case "Subjective", "Problems"
+            res1 = modDatabase.$syConn.Exec("select fldsubjective as col from tblpatplanning where fldtime>=&1 and fldtime<=&2 and fldplancategory=&3 and lower(fldsubjective) like &4 and fldencounterval=&5", modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), cmbtype.Text, LCase(sSearch), encid)
+          Case "Objective", "Treatment"
+            res1 = modDatabase.$syConn.Exec("select fldobjective as col from tblpatplanning where fldtime>=&1 and fldtime<=&2 and fldplancategory=&3 and lower(fldobjective) like &4 and fldencounterval=&5", modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), cmbtype.Text, LCase(sSearch), encid)
+          Case "Assessment", "Input/Output"
+            res1 = modDatabase.$syConn.Exec("select fldassess as col from tblpatplanning where fldtime>=&1 and fldtime<=&2 and fldplancategory=&3 and lower(fldassess) like &4 and fldencounterval=&5", modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), cmbtype.Text, LCase(sSearch), encid)
+          Case "Planning"
+            res1 = modDatabase.$syConn.Exec("select fldplan as col from tblpatplanning where fldtime>=&1 and fldtime<=&2 and fldplancategory=&3 and lower(fldplan) like &4 and fldencounterval=&5", modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), cmbtype.Text, LCase(sSearch), encid)
+        End Select
+      Else
+        sql1 = "select fldsubjective as col from tblpatplanning where fldtime>=&1 and fldtime<=&2 and fldplancategory=&3 and lower(fldsubjective) like &4 and fldencounterval=&5"
+        sql2 = "select fldobjective as col from tblpatplanning where fldtime>=&1 and fldtime<=&2 and fldplancategory=&3 and lower(fldobjective) like &4 and fldencounterval=&5"
+        sql3 = "select fldassess as col from tblpatplanning where fldtime>=&1 and fldtime<=&2 and fldplancategory=&3 and lower(fldassess) like &4 and fldencounterval=&5"
+        sql4 = "select fldplan as col from tblpatplanning where fldtime>=&1 and fldtime<=&2 and fldplancategory=&3 and lower(fldplan) like &4 and fldencounterval=&5"
+        res1 = modDatabase.$syConn.Exec(sql1 & " UNION ALL " & sql2 & " UNION ALL " & sql3 & "UNION ALL " & sql4, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), cmbtype.Text, LCase(sSearch), encid)
+      Endif
 
   End Select
+
+  If res1.Available Then
+    Select cmbtype.Text
+      Case "Examination", "Laboratory", "Radiology"
+        xList = New String[]
+        For Each res1
+          If Trim(res1["col1"]) Then
+            If xList.Exist(Trim(res1["col1"])) = False Then
+              xList.Add(Trim(res1["col1"]))
+            Endif
+          Endif
+          If Trim(res1["col2"]) Then
+            xList.Add(res1["col2"])
+          Endif
+        Next
+      Case Else
+        xList = modControlSub.GetDirectFillresultNoNull(res1)
+    End Select
+    If xList.Count Then
+      xxx = modString.TextToHTML(xList.Join(gb.NewLine))
+    Endif
+  Else
+    xxx = ""
+  Endif
 
   Return xxx
 

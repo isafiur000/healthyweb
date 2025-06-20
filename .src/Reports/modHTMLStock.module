@@ -1211,6 +1211,111 @@ Public Function GetDDANarcoticReport(medList As String[], dt1 As Date, dt2 As Da
 End
 
 '--------------------- Patan specific ----------------------------------
+Public Function GetTransferFromRequestSummary(dtfir As Date, dtlast As Date, sComp As String) As String
+
+  Dim $BillingReport As CReportHTML
+  Dim asx As New String[0]
+  Dim res As Result
+  Dim res1 As Result
+  Dim rex As Result
+  Dim deptot As Float
+  Dim totval As Float
+
+  Dim RepoStr As String
+
+  RepoStr = modDataRepo.GetRepoLastStr()
+  $BillingReport = New CReportHTML([("REFERENCE"), ("DATE"), ("TARGET"), ("AMOUNT"), ("COMMENT")], "", "")
+  $BillingReport.UserData.Add("TRANSFER SUMMARY : " & sComp, "PARAM1")
+  $BillingReport.UserData.Add("DATE: " & modReportVar.GetDateTimeReport(dtfir, gb.MediumDate) & " TO " & modReportVar.GetDateTimeReport(dtlast, gb.MediumDate), "PARAM2")
+
+  totval = 0
+  rex = modDatabase.$syConn.Exec("select distinct(fldrequest) as fldrequest from tbltransfer where fldtoentrytime>=&1 and fldtoentrytime<=&2 and fldfromcomp like &3 and fldreference IS NOT NULL" & RepoStr & " ORDER BY fldtocomp", modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast), sComp)
+  If rex.Available Then
+    For Each rex
+
+      deptot = 0
+      res = modDatabase.$syConn.Exec("select fldtoentrytime,fldreference,fldtocomp,SUM(fldqty*fldnetcost) as xtot,fldcomment from tbltransfer where fldtoentrytime>=&1 and fldtoentrytime<=&2 and fldfromcomp like &3 and fldrequest=&4 and fldreference IS NOT NULL" & RepoStr & " GROUP BY fldreference", modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast), sComp, rex["fldrequest"])
+      If res.Available Then
+        $BillingReport.AddChapter(rex["fldrequest"])
+        For Each res
+          deptot = deptot + res["xtot"]
+          With asx
+            .Add(res["fldreference"])
+            .Add(modReportVar.GetDateTimeReport(res["fldtoentrytime"], gb.MediumDate))
+            .Add(res["fldtocomp"])
+            .Add(modReportVar.GetLocaleNumberFormat(res["xtot"], gb.Currency))
+            .Add(res["fldcomment"])
+          End With
+          $BillingReport.Add(asx)
+          asx.Clear()
+        Next
+      Endif
+
+      totval = totval + deptot
+      With asx
+        .Add("SUBTOTAL : " & rex["fldrequest"])
+        .Add("")
+        .Add("")
+        .Add(modReportVar.GetLocaleNumberFormat(deptot, gb.Currency))
+        .Add("")
+      End With
+      $BillingReport.Add(asx)
+      asx.Clear()
+    Next
+  Endif
+
+  deptot = 0
+  res1 = modDatabase.$syConn.Exec("select fldtoentrytime,fldreference,fldtocomp,SUM(fldqty*fldnetcost) as xtot,fldcomment from tbltransfer where fldtoentrytime>=&1 and fldtoentrytime<=&2 and fldfromcomp like &3 and fldrequest IS NULL and fldreference IS NOT NULL" & RepoStr & " GROUP BY fldreference", modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast), sComp)
+  If res1.Available Then
+    $BillingReport.AddChapter("Null")
+    For Each res1
+      deptot = deptot + res1["xtot"]
+      With asx
+        .Add(res1["fldreference"])
+        .Add(modReportVar.GetDateTimeReport(res1["fldtoentrytime"], gb.MediumDate))
+        .Add(res1["fldtocomp"])
+        .Add(modReportVar.GetLocaleNumberFormat(res1["xtot"], gb.Currency))
+        .Add(res1["fldcomment"])
+      End With
+      $BillingReport.Add(asx)
+      asx.Clear()
+    Next
+
+    totval = totval + deptot
+    With asx
+      .Add("SUBTOTAL : Null")
+      .Add("")
+      .Add("")
+      .Add(modReportVar.GetLocaleNumberFormat(deptot, gb.Currency))
+      .Add("")
+    End With
+    $BillingReport.Add(asx)
+    asx.Clear()
+  Endif
+
+  With asx
+    .Add("")
+    .Add("")
+    .Add("")
+    .Add("")
+    .Add("")
+  End With
+  $BillingReport.Add(asx)
+  asx.Clear()
+  With asx
+    .Add("GRAND TOTAL")
+    .Add("")
+    .Add("")
+    .Add(modReportVar.GetLocaleNumberFormat(totval, gb.Currency))
+    .Add("")
+  End With
+  $BillingReport.Add(asx)
+  asx.Clear()
+
+  Return $BillingReport.NewHTMLPath()
+
+End
+
 Public Function GetTransferFromCompSummary(dtfir As Date, dtlast As Date, sComp As String) As String
 
   Dim $BillingReport As CReportHTML
