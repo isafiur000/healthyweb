@@ -1,0 +1,203 @@
+' Gambas module file
+
+Private $genlst As String[] = ["Male", "Female"]
+
+Public Function GetConsultationCount(dtfir As Date, dtlast As Date, cmblocation As String, cmbvalue As String) As Collection
+
+  Dim sgen As String
+  Dim res As Result
+  Dim aColl As New Collection
+
+  For Each sgen In $genlst
+    res = modDatabase.$syConn.Exec("select COUNT(tblencounter.fldencounterval) as tot from tblencounter inner join tblpatientinfo on tblencounter.fldpatientval=tblpatientinfo.fldpatientval where tblencounter.fldregdate>=&1 and tblencounter.fldregdate<=&2 and tblpatientinfo.fldptsex=&3" & modDataRepo.GetWhereStringRepo(cmblocation, cmbvalue, "tblencounter"), modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast), sgen)                                                       ''
+    If res["tot"] Then
+      aColl.Add(res["tot"], sgen)
+    Else
+      aColl.Add(0, sgen)
+    Endif
+  Next
+
+  Return aColl
+
+End
+
+Public Function GetEmergencyCount(dtfir As Date, dtlast As Date, cmblocation As String, cmbvalue As String) As Collection
+
+  Dim sgen As String
+  Dim res As Result
+  Dim sql As String
+  Dim aColl As New Collection
+
+  sql = modHMISReport.GetDBHMISettingQuery("OutPatientDept", "Emergency")
+  For Each sgen In $genlst
+    res = modDatabase.$syConn.Exec("select COUNT(tblencounter.fldencounterval) as tot from tblencounter inner join tblpatientinfo on tblencounter.fldpatientval=tblpatientinfo.fldpatientval where tblencounter.fldregdate>=&1 and tblencounter.fldregdate<=&2 and tblpatientinfo.fldptsex=&3 and tblencounter.fldadmitlocat in " & sql & modDataRepo.GetWhereStringRepo(cmblocation, cmbvalue, "tblencounter"), modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast), sgen)                                                       ''
+    If res["tot"] Then
+      aColl.Add(res["tot"], sgen)
+    Else
+      aColl.Add(0, sgen)
+    Endif
+  Next
+
+  Return aColl
+
+End
+
+Public Function GetPatAdmissionCount(dtfir As Date, dtlast As Date, cmblocation As String, cmbvalue As String) As Collection
+
+  Dim sgen As String
+  Dim res As Result
+  Dim aColl As New Collection
+
+  For Each sgen In $genlst
+    res = modDatabase.$syConn.Exec("select COUNT(tblencounter.fldencounterval) as tot from tblencounter inner join tblpatientinfo on tblencounter.fldpatientval=tblpatientinfo.fldpatientval where tblencounter.flddoa<=&1 and (tblencounter.flddod>=&2 or tblencounter.flddod IS NULL) and tblpatientinfo.fldptsex=&3" & modDataRepo.GetWhereStringRepo(cmblocation, cmbvalue, "tblencounter"), modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast), sgen)                                                       ''
+    If res["tot"] Then
+      aColl.Add(res["tot"], sgen)
+    Else
+      aColl.Add(0, sgen)
+    Endif
+  Next
+
+  Return aColl
+
+End
+
+Public Function GetDeathCount(dtfir As Date, dtlast As Date, cmblocation As String, cmbvalue As String) As Collection
+
+  Dim sgen As String
+  Dim res As Result
+  Dim aColl As New Collection
+
+  For Each sgen In $genlst
+    res = modDatabase.$syConn.Exec("select COUNT(tblencounter.fldencounterval) as tot from tblencounter inner join tblpatientinfo on tblencounter.fldpatientval=tblpatientinfo.fldpatientval where tblencounter.flddod>=&1 and tblencounter.flddod<=&2 and tblencounter.fldadmission=&3 and tblpatientinfo.fldptsex=&4" & modDataRepo.GetWhereStringRepo(cmblocation, cmbvalue, "tblencounter"), modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast), "Death", sgen)                                                       ''
+    If res["tot"] Then
+      aColl.Add(res["tot"], sgen)
+    Else
+      aColl.Add(0, sgen)
+    Endif
+  Next
+
+  Return aColl
+
+End
+
+Public Function GetInsuranceSSFPatCount(dtfir As Date, dtlast As Date, cmblocation As String, cmbvalue As String) As Integer
+
+  Dim res As Result
+  Dim refList As String[] = ["Claim Code", "Accident SSF", "Medical SSF", "MedExtra SSF", "Critical SSF"]
+  Dim aVal As Integer
+  Dim i As Integer
+
+  For i = 0 To refList.Count - 1
+    refList[i] = "'" & refList[i] & "'"
+  Next
+
+  res = modDatabase.$syConn.Exec("select COUNT(fldencounterval) as tot from tblencounter where fldregdate>=&1 and fldregdate<=&2 and flddisctype in(select fldtype from tbldiscount where fldreference in(" & refList.Join(",") & "))" & modDataRepo.GetWhereStringRepo(cmblocation, cmbvalue), modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast))                                                       ''
+  If res["tot"] Then
+    aVal = res["tot"]
+  Else
+    aVal = 0
+  Endif
+
+  Return aVal
+
+End
+
+Public Function GetCashPatCount(dtfir As Date, dtlast As Date, cmblocation As String, cmbvalue As String) As Integer
+
+  Dim res As Result
+  Dim aVal As Integer
+
+  res = modDatabase.$syConn.Exec("select COUNT(fldencounterval) as tot from tblencounter where fldregdate>=&1 and fldregdate<=&2 and flddisctype in(select fldtype from tbldiscount where fldbilltype=&3)" & modDataRepo.GetWhereStringRepo(cmblocation, cmbvalue), modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast), "Cash")                                                       ''
+  If res["tot"] Then
+    aVal = res["tot"]
+  Else
+    aVal = 0
+  Endif
+
+  Return aVal
+
+End
+
+Public Function GetLabTestCount(dtfir As Date, dtlast As Date, cmblocation As String, cmbvalue As String) As Integer
+
+  Dim res As Result
+  Dim aVal As Integer
+
+  res = modDatabase.$syConn.Exec("select COUNT(DISTINCT(fldencounterval)) as tot from tblpatbilling where fldtime>=&1 and fldtime<=&2 and flditemtype=&3 and fldsave=&4" & modDataRepo.GetWhereStringRepo(cmblocation, cmbvalue), modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast), "Diagnostic Tests", True)
+  If res["tot"] Then
+    aVal = res["tot"]
+  Else
+    aVal = 0
+  Endif
+
+  Return aVal
+
+End
+
+Public Function GetIndoorDetails(cmblocation As String, cmbvalue As String) As Variant[]
+
+  Dim depLst As String[]
+  Dim xdept As String
+  Dim xVar As New Variant[]
+  Dim aColl As Collection
+
+  Dim xcode As String
+  Dim xadmit As Integer
+  Dim xtotal As Integer
+  Dim res As Result
+
+  depLst = modGeneral.GetDepartmentAllList("Patient Ward")
+  For Each xdept In depLst
+    xcode = modGeneral.GetDepartCoding(xdept)
+    If xcode Then
+      xadmit = 0
+      xtotal = 0
+      res = modDatabase.$syConn.Exec("select count(fldbed) as xtotl,count(fldencounterval) as xcnt from tbldepartmentbed where flddept=&1 and (fldstatus IS NULL or fldstatus=&2 or fldstatus=&3)" & modDataRepo.GetWhereStringRepo(cmblocation, cmbvalue), xdept, "Active", "Maintenance")
+      If res.Available Then
+        xtotal = res["xtotl"]
+        xadmit = res["xcnt"]
+      Endif
+
+      aColl = New Collection
+      aColl.Add(xcode, "ward_code")
+      aColl.Add(xadmit, "admit")
+      aColl.Add(xtotal - xadmit, "vacant")
+      xVar.Add(aColl)
+    Endif
+  Next
+
+  Return xVar
+
+End
+
+Public Function GetOutdoorDetails(dtfir As Date, dtlast As Date, cmblocation As String, cmbvalue As String) As Variant[]
+
+  Dim depLst As String[]
+  Dim xdept As String
+  Dim xVar As New Variant[]
+  Dim aColl As Collection
+
+  Dim xcode As String
+  Dim xcount As Integer
+  Dim res As Result
+
+  depLst = modGeneral.GetDepartmentAllList("Consultation")
+  For Each xdept In depLst
+    xcode = modGeneral.GetDepartCoding(xdept)
+    If xcode Then
+      xcount = 0
+      res = modDatabase.$syConn.Exec("select count(fldencounterval) as xcnt from tblconsult where fldconsulttime>=&1 and fldconsulttime<=&2 and fldconsultname=&3 and fldstatus<>&4" & modDataRepo.GetWhereStringRepo(cmblocation, cmbvalue), modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast), xdept, "Cancelled")
+      If res.Available Then
+        xcount = res["xcnt"]
+      Endif
+
+      aColl = New Collection
+      aColl.Add(xcode, "dept_code")
+      aColl.Add(xcount, "patient_count")
+      xVar.Add(aColl)
+    Endif
+  Next
+
+  Return xVar
+
+End

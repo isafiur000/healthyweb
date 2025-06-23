@@ -1,0 +1,173 @@
+' Gambas module file
+
+Public $BagmatiURL As String
+Public $BagmatiKey As String
+
+Private $ErrorLst As String[]
+
+Public Sub LoadBagmatiDash(xDate As Date)
+
+  $BagmatiURL = modSettings.ShowSettingFromFIle("BagmatiDashboard/URL")
+  $BagmatiKey = modSettings.ShowSettingFromFIle("BagmatiDashboard/Key")
+
+  $ErrorLst = New String[]
+  UploadRegistrationData(xDate)
+  UploadWardData(xDate)
+  UploadDepartmentData(xDate)
+  UploadSSUData(xDate)
+  If $ErrorLst.Count Then
+    Message.Warning("Error in Upload: " & $ErrorLst.Join(", "))
+  Else
+    Message.Info("Process Completed", "OK")
+  Endif
+
+End
+
+Private Sub UploadRegistrationData(xDate As Date)
+
+  Dim cForm As CBagmatiDash
+  Dim xJson As JSONCollection
+
+  xJson = GetRegistrationJson(xDate)
+  If xJson.Count Then
+    If MessageHtml("Registration", JSON.Encode(xJson), ["Upload", "Cancel"]) = "Upload" Then
+      cForm = New CBagmatiDash("/api/registration", xJson)
+      If cForm.GetSuccess() = True Then
+      Else
+        $ErrorLst.Add("Registration")
+      Endif
+    Endif
+  Endif
+
+End
+
+Private Sub UploadWardData(xDate As Date)
+
+  Dim cForm As CBagmatiDash
+  Dim xJson As JSONCollection
+
+  xJson = GetInpatientJson(xDate)
+  If xJson.Count Then
+    If MessageHtml("Ward Data", JSON.Encode(xJson), ["Upload", "Cancel"]) = "Upload" Then
+      cForm = New CBagmatiDash("/api/ward", xJson)
+      If cForm.GetSuccess() = True Then
+      Else
+        $ErrorLst.Add("Ward Data")
+      Endif
+    Endif
+  Endif
+
+End
+
+Private Sub UploadDepartmentData(xDate As Date)
+
+  Dim cForm As CBagmatiDash
+  Dim xJson As JSONCollection
+
+  xJson = GetOutpatientJson(xDate)
+  If xJson.Count Then
+    If MessageHtml("OPD Data", JSON.Encode(xJson), ["Upload", "Cancel"]) = "Upload" Then
+      cForm = New CBagmatiDash("/api/opd-department", xJson)
+      If cForm.GetSuccess() = True Then
+      Else
+        $ErrorLst.Add("OPD Data")
+      Endif
+    Endif
+  Endif
+
+End
+
+Private Sub UploadSSUData(xDate As Date)
+
+  Dim cForm As CBagmatiDash
+  Dim xJson As JSONCollection
+
+  xJson = GetSSUPatientJson(xDate)
+  If xJson.Count Then
+    If MessageHtml("SSU Data", JSON.Encode(xJson), ["Upload", "Cancel"]) = "Upload" Then
+      cForm = New CBagmatiDash("/api/ssu-patient", xJson)
+      If cForm.GetSuccess() = True Then
+      Else
+        $ErrorLst.Add("SSU Data")
+      Endif
+    Endif
+  Endif
+
+End
+
+''============================== JSON ===============================
+Private Function GetRegistrationJson(xDate As Date) As JSONCollection
+
+  Dim aColl As JSONCollection
+  Dim xcredit As Integer
+  Dim xcash As Integer
+  Dim xlab As Integer
+
+  Dim aOpdColl As Collection
+  Dim aErColl As Collection
+  Dim aIpdColl As Collection
+  Dim aDeathColl As Collection
+
+  aOpdColl = modBagmatiReports.GetConsultationCount(xDate, xDate, "", "")
+  aErColl = modBagmatiReports.GetEmergencyCount(xDate, xDate, "", "")
+  aIpdColl = modBagmatiReports.GetPatAdmissionCount(xDate, xDate, "", "")
+  aDeathColl = modBagmatiReports.GetDeathCount(xDate, xDate, "", "")
+  xcredit = modBagmatiReports.GetInsuranceSSFPatCount(xDate, xDate, "", "")
+  xcash = modBagmatiReports.GetCashPatCount(xDate, xDate, "", "")
+  xlab = modBagmatiReports.GetLabTestCount(xDate, xDate, "", "")
+
+  aColl = New JSONCollection
+  aColl.Add(aOpdColl["Male"], "opd_male")
+  aColl.Add(aOpdColl["Female"], "opd_female")
+  aColl.Add(aErColl["Male"], "er_male")
+  aColl.Add(aErColl["Female"], "er_female")
+  aColl.Add(aIpdColl["Male"], "ipd_male")
+  aColl.Add(aIpdColl["Female"], "ipd_female")
+  aColl.Add(aDeathColl["Male"], "death_male")
+  aColl.Add(aDeathColl["Female"], "death_female")
+  aColl.Add(xcredit, "insurance_pt")
+  aColl.Add(xcash, "cash_pt")
+  aColl.Add(xlab, "lab")
+  aColl.Add(Format(xDate, "yyyy-mm-ddThh:nn:ssZ"), "ddate")
+
+  Return aColl
+
+End
+
+Private Function GetInpatientJson(xDate As Date) As JSONCollection
+
+  Dim xVar As Variant[]
+  Dim aColl As JSONCollection
+
+  xVar = modBagmatiReports.GetIndoorDetails("", "")
+  aColl = New JSONCollection
+  aColl.Add(Format(xDate, "yyyy-mm-ddThh:nn:ssZ"), "ddate")
+  aColl.Add(xVar, "ward_data")
+
+  Return aColl
+
+End
+
+Private Function GetOutpatientJson(xDate As Date) As JSONCollection
+
+  Dim xVar As Variant[]
+  Dim aColl As JSONCollection
+
+  xVar = modBagmatiReports.GetOutdoorDetails(xDate, xDate, "", "")
+  aColl = New JSONCollection
+  aColl.Add(Format(xDate, "yyyy-mm-ddThh:nn:ssZ"), "ddate")
+  aColl.Add(xVar, "dept_data")
+
+  Return aColl
+
+End
+
+Private Function GetSSUPatientJson(xDate As Date) As JSONCollection
+
+  Dim aColl As JSONCollection
+
+  aColl = New JSONCollection
+
+  Return aColl
+
+End

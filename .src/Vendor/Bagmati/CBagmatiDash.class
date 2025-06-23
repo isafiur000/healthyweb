@@ -1,0 +1,64 @@
+' Gambas class file
+
+Private $APIKey As String
+Private $APIUrl As String
+
+Private $APIType As String
+Private $xColl As JSONCollection
+Private $APISuccess As Boolean
+
+Public Sub _new(sType As String, xColl As JSONCollection)
+
+  $xColl = xColl
+  $APIType = sType
+
+  $APIKey = modBagmatiDash.$BagmatiKey
+  $APIUrl = modBagmatiDash.$BagmatiURL
+  If $APIKey And If $APIUrl Then
+    ExecuteAPI()
+  Else
+    Message.Warning("No Settings", ("OK"))
+  Endif
+
+End
+
+Private Sub ExecuteAPI()
+
+  Dim xcmd As String
+  Dim xKeyVal As String
+  Dim xcont As String
+
+  Dim xpatout As String
+  Dim aColl As Collection
+
+  xKeyVal = "X-API-Key:" & $APIKey
+  xcont = "Content-Type: application/json"
+  xcmd = "curl -X POST " & $APIUrl & "/" & $APIType & " -H " & Quote(xKeyVal) & " -H " & Quote(xcont) & " -d '" & JSON.Encode($xColl) & "'"
+  modBasic.DebugAPIString(xcmd)
+  Shell xcmd To xpatout
+  modBasic.DebugAPIString("Response: " & xpatout)
+
+  $APISuccess = False
+  If xpatout Then
+    Try aColl = JSON.Decode(xpatout)
+    If aColl Then
+      If aColl["success"] = True Then
+        $APISuccess = True
+      Endif
+    Endif
+  Endif
+
+End
+
+Public Function GetSuccess() As Boolean
+
+  Dim xbool As Boolean
+
+  If $APISuccess Then
+    xbool = $APISuccess
+  Else
+    xbool = False
+  Endif
+  Return xbool
+
+End
