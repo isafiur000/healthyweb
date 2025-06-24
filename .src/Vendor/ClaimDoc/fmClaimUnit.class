@@ -3,12 +3,14 @@
 Private $encid As String
 Private $sClaim As String
 Private xFilePath As String
+Private $sIndexLst As Long[]
 
-Public Sub _new(encid As String, sClaim As String, sImage As String)
+Public Sub _new(encid As String, sClaim As String, sImage As String, sIndexLst As Long[])
 
   $encid = encid
   $sClaim = sClaim
   xFilePath = sImage
+  $sIndexLst = sIndexLst
 
   txtencid.Text = $encid
   txtname.Text = modPatient.GetPatientNameByEnc($encid)
@@ -24,10 +26,22 @@ End
 Public Sub btnupload_Click()
 
   Dim aOutPath As String
+  Dim serial As Long
+  Dim res As Result
 
   If txtclaimcode.Text Then
     If Exist(xFilePath) Then
       aOutPath = UploadImagesFilesClaimServer(Trim(txtclaimcode.Text))
+
+      If aOutPath Then
+        For Each serial In $sIndexLst
+          res = modDatabase.$myConn.Edit("tblpatreport", "fldid=&1", serial)
+          res["fldtitle"] = txtclaimcode.Text
+          res["fldflag"] = True
+          res.Update
+        Next
+      Endif
+
     Endif
   Endif
 

@@ -370,6 +370,17 @@ Public Sub mnudischarge_Click()
 
 End
 
+Public Sub mnucreexpense_Click()
+
+  Dim xPath As String
+
+  If $encid Then
+    xPath = modCHTMLInvoice.ShowTotalExpensebyPatient(modDatabase.$syConn, $encid, "Admitted")
+    modControlSub.OpenHTMLPreview($encid, xPath, "ReportSize")
+  Endif
+
+End
+
 ''================== Uploads ========================
 Public Sub btnupload_Click()
 
@@ -382,31 +393,44 @@ Public Sub btnupload_Click()
 
 End
 
-Private Function GetClaimFilesList() As String[]
+Private Function GetSelIndexList() As Long[]
 
   Dim iRow As Integer
+  Dim indexLst As Long[]
+
+  indexLst = New Long[]
+  For iRow = 0 To GridView1.Count - 1
+    If GridView1.IsSelected(iRow) = True Then
+      $rData.MoveTo(iRow)
+      indexLst.Add($rData["fldid"])
+    Endif
+  Next
+  Return indexLst
+
+End
+
+Private Function GetClaimFilesList(indexLst As Long[]) As String[]
+
+  Dim sIndex As Long
   Dim fileList As String[]
   Dim xFPath As String
 
   fileList = New Long[]
-  For iRow = 0 To GridView1.Count - 1
-    If GridView1.IsSelected(iRow) = True Then
-      $rData.MoveTo(iRow)
-      xFPath = modImage.GetBlobFileData($rData["fldid"], $tblpatreport)
-      If xFPath And If Exist(xFPath) Then
+  For Each sIndex In indexLst
+    xFPath = modImage.GetBlobFileData(sIndex, $tblpatreport)
+    If xFPath And If Exist(xFPath) Then
 
-        Select Case Lower(File.Ext(xFPath))
-          Case "bmp", "jpg", "jpeg", "png", "gif", "svg", "tiff"
-            If chkblnwht.Value = True Then
-              fileList.Add(modDevAll.ConvertToBlackInWhite(xFPath))
-            Else
-              fileList.Add(xFPath)
-            Endif
-          Case "pdf"
+      Select Case Lower(File.Ext(xFPath))
+        Case "bmp", "jpg", "jpeg", "png", "gif", "svg", "tiff"
+          If chkblnwht.Value = True Then
+            fileList.Add(modDevAll.ConvertToBlackInWhite(xFPath))
+          Else
             fileList.Add(xFPath)
-        End Select
+          Endif
+        Case "pdf"
+          fileList.Add(xFPath)
+      End Select
 
-      Endif
     Endif
   Next
 
@@ -416,6 +440,7 @@ End
 
 Public Sub btnview_Click()
 
+  Dim indexLst As Long[]
   Dim fileList As String[]
   Dim xFPath As String
   Dim sPath As String
@@ -423,9 +448,12 @@ Public Sub btnview_Click()
 
   If GridView1.Selection.Count Then
     If chkmergedocs.Value = True Then
-      fileList = GetClaimFilesList()
-      If fileList.Count Then
-        sPath = modDevAll.ComvertMultiImagesToPDF(fileList)
+      indexLst = GetSelIndexList()
+      If indexLst And If indexLst.Count Then
+        fileList = GetClaimFilesList(indexLst)
+        If fileList.Count Then
+          sPath = modDevAll.ComvertMultiImagesToPDF(fileList)
+        Endif
       Endif
     Else
       $rData.MoveTo(GridView1.Selection[0])
@@ -451,6 +479,7 @@ End
 
 Private Sub UploadHIDocs()
 
+  Dim indexLst As Long[]
   Dim hForm As FmClaimForm
   Dim hForm1 As FmClaimUnit
 
@@ -459,13 +488,16 @@ Private Sub UploadHIDocs()
 
   If GridView1.Selection.Count Then
     If chkmergedocs.Value = True Then
-      fileList = GetClaimFilesList()
-      If fileList.Count Then
-        sPath = modDevAll.ComvertMultiImagesToPDF(fileList)
-        If Exist(sPath) Then
-          hForm1 = New FmClaimUnit($encid, $sClaim, sPath)
-          hForm1.ShowModal()
-          ShowDocuments()
+      indexLst = GetSelIndexList()
+      If indexLst And If indexLst.Count Then
+        fileList = GetClaimFilesList(indexLst)
+        If fileList.Count Then
+          sPath = modDevAll.ComvertMultiImagesToPDF(fileList)
+          If Exist(sPath) Then
+            hForm1 = New FmClaimUnit($encid, $sClaim, sPath, indexLst)
+            hForm1.ShowModal()
+            ShowDocuments()
+          Endif
         Endif
       Endif
 
@@ -482,6 +514,7 @@ End
 
 Private Sub UploadSSfDocs()
 
+  Dim indexLst As Long[]
   Dim hForm2 As CssfAPIAttach
   Dim fileList As String[]
   Dim xFPath As String
@@ -490,13 +523,16 @@ Private Sub UploadSSfDocs()
 
   If GridView1.Selection.Count Then
     If chkmergedocs.Value = True Then
-      fileList = GetClaimFilesList()
-      If fileList.Count Then
-        hForm2 = New CssfAPIAttach($encid, $sClaim)
-        hForm2.AddDocuments(fileList)
-        xmsg = hForm2.GetUploadDocs()
-        If xmsg Then
-          Message.Info(xmsg, ("OK"))
+      indexLst = GetSelIndexList()
+      If indexLst And If indexLst.Count Then
+        fileList = GetClaimFilesList(indexLst)
+        If fileList.Count Then
+          hForm2 = New CssfAPIAttach($encid, $sClaim)
+          hForm2.AddDocuments(fileList)
+          xmsg = hForm2.GetUploadDocs()
+          If xmsg Then
+            Message.Info(xmsg, ("OK"))
+          Endif
         Endif
       Endif
 
@@ -630,6 +666,48 @@ Public Sub mnudischupload_Click()
       Endif
     Endif
 
+  Endif
+
+End
+
+Public Sub mnuplodexpense_Click()
+
+  Dim xPath As String
+  Dim sDocID As Long
+  Dim sPath As String
+  Dim hForm As FmClaimForm
+  Dim hForm1 As CssfAPIAttach
+  Dim xmsg As String
+
+  If $encid Then
+    xPath = modCHTMLInvoice.ShowTotalExpensebyPatient(modDatabase.$syConn, $encid, "Admitted")
+    modControlSub.OpenHTMLPreview($encid, xPath, "ReportSize")
+  Endif
+
+  If xPath And If Exist(xPath) Then
+    sPath = modPrint.ConvertHTMLToPDFString(xPath, "ReportSize")
+    If sPath And If Exist(sPath) Then
+      sDocID = modImage.SavePatientFileGeneral($encid, "General Reports", "Discharge Letter", sPath, modReportVar.$ReportHash)
+      If sDocID Then
+        Select $sType
+          Case "Claim Code"
+            hForm = New FmClaimForm(sDocID, "Report", $tblpatreport, False, $sClaim)
+            hForm.ShowModal
+          Case "Accident SSF", "Medical SSF", "Critical SSF", "MedExtra SSF"
+            hForm1 = New CssfAPIAttach($encid, $sClaim)
+            hForm1.AddDocuments([sPath])
+            xmsg = hForm1.GetUploadDocs()
+            If xmsg Then
+              Message.Info(xmsg, ("OK"))
+            Endif
+        End Select
+        ShowDocuments()
+      Endif
+    Endif
+
+    If sDocID Then
+      Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "File saved", modBasic.$BalloonDelay))
+    Endif
   Endif
 
 End
