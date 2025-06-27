@@ -230,7 +230,12 @@ Public Function ShowSupplierItemList(suppname As String, dtfir As Date, dtlast A
       .Add(modStock.GetBatchFromStockNo(res["fldstockno"]) & " [" & modReportVar.GetDateTimeReport(modStock.GetExpiryFromStockNo(res["fldstockno"]), gb.MediumDate) & "]")
       .Add(modReportVar.GetLocaleNumberFormat(res["fldmrp"], gb.Currency))
       .Add(modReportVar.GetLocaleNumberFormat(res["flsuppcost"], gb.Currency))
-      .Add(modReportVar.GetLocaleNumberFormat(res["fldnetcost"], gb.Currency))
+      Select modBasic.$InvReportCost
+        Case "Average", "Latest", "Fixed"
+          .Add(modReportVar.GetLocaleNumberFormat(modStock.GetAverageCostPriceByStockNo(res["fldstockno"]), gb.Currency))
+        Case Else
+          .Add(modReportVar.GetLocaleNumberFormat(res["fldnetcost"], gb.Currency))
+      End Select
       .Add(modReportVar.GetLocaleNumberFormat(res["fldtotalqty"], -2))
       .Add(modReportVar.GetLocaleNumberFormat(res["fldtotalcost"], gb.Currency))
       If res["fldpurtype"] = "Cash Payment" Then
@@ -393,9 +398,9 @@ Public Function ShowTotalExpiryReport(sFormat As String, dt As Date, sCateg As S
       $BillingReport.AddChapter(xcateg)
 
       If sFormat = "Expired" Then
-        res = modDatabase.$syConn.Exec("select fldcategory,fldstockno,fldstockid,fldbatch,fldexpiry,fldstatus,fldqty,fldsellpr from tblentry where fldexpiry<=&1 and fldqty>&2 and fldcomp=&3 and fldcategory like &4" & RepoStr & " ORDER BY fldstockid ASC", dt, 0, xcomp, xcateg)
+        res = modDatabase.$syConn.Exec("select fldcategory,fldstockno,fldstockid,fldbatch,fldexpiry,fldstatus,fldqty,fldsellpr,fldcost from tblentry where fldexpiry<=&1 and fldqty>&2 and fldcomp=&3 and fldcategory like &4" & RepoStr & " ORDER BY fldstockid ASC", dt, 0, xcomp, xcateg)
       Else If sFormat = "Near Expiry" Then
-        res = modDatabase.$syConn.Exec("select fldcategory,fldstockno,fldstockid,fldbatch,fldexpiry,fldstatus,fldqty,fldsellpr from tblentry where fldexpiry>&1 and fldexpiry<=&2 and fldqty>&3 and fldcomp=&4 and fldcategory like &5" & RepoStr & " ORDER BY fldstockid ASC", Now(), dt, 0, xcomp, xcateg)
+        res = modDatabase.$syConn.Exec("select fldcategory,fldstockno,fldstockid,fldbatch,fldexpiry,fldstatus,fldqty,fldsellpr,fldcost from tblentry where fldexpiry>&1 and fldexpiry<=&2 and fldqty>&3 and fldcomp=&4 and fldcategory like &5" & RepoStr & " ORDER BY fldstockid ASC", Now(), dt, 0, xcomp, xcateg)
       Endif
       tot = 0
       i = 1
@@ -684,7 +689,12 @@ Public Function ShowStockTransferReport(refno As String) As String
       .Add(modReportVar.GetDateTimeReport(modStock.GetExpiryFromStockNo(res["fldstockno"]), gb.MediumDate))
       .Add(res["fldcategory"])
       .Add(modReportVar.GetLocaleNumberFormat(res["fldqty"], -2))
-      .Add(modReportVar.GetLocaleNumberFormat(res["fldnetcost"], gb.Currency))
+      Select modBasic.$InvReportCost
+        Case "Average", "Latest", "Fixed"
+          .Add(modReportVar.GetLocaleNumberFormat(modStock.GetAverageCostPriceByStockNo(res["fldstockno"]), gb.Currency))
+        Case Else
+          .Add(modReportVar.GetLocaleNumberFormat(res["fldnetcost"], gb.Currency))
+      End Select
       .Add(res["fldfromcomp"])
       .Add(res["fldtocomp"])
     End With
@@ -760,7 +770,12 @@ Public Function ShowStockAdjustmentReport(refno As String) As String
       .Add(res["fldstockid"])
       .Add(modStock.GetBatchFromStockNo(res["fldstockno"]))
       .Add(modReportVar.GetDateTimeReport(modStock.GetExpiryFromStockNo(res["fldstockno"]), gb.MediumDate))
-      .Add(modReportVar.GetLocaleNumberFormat(res["fldnetcost"], gb.Currency))
+      Select modBasic.$InvReportCost
+        Case "Average", "Latest", "Fixed"
+          .Add(modReportVar.GetLocaleNumberFormat(modStock.GetAverageCostPriceByStockNo(res["fldstockno"]), gb.Currency))
+        Case Else
+          .Add(modReportVar.GetLocaleNumberFormat(res["fldnetcost"], gb.Currency))
+      End Select
       .Add(modReportVar.GetLocaleNumberFormat(res["fldcompqty"] - res["fldcurrqty"], -2))
       .Add(res["fldreason"])
       .Add(res["fldcomp"])

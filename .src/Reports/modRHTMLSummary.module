@@ -323,7 +323,6 @@ Public Function ShowTransectionReport($con As Connection, sType As String, dt1 A
   $BillingReport.UserData.Add("CATEGORY: " & sType, "PARAM1")
   $BillingReport.UserData.Add("Date: " & modReportVar.GetDateTimeReport(dt1, gb.MediumDate) & " TO " & modReportVar.GetDateTimeReport(dt2, gb.MediumDate) & "   Comp: " & sComp, "PARAM2")
   RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
-  sFormat = modSettings.ShowSettingFromFIle("HealthReport/InventoryAmount")
 
   pur = 0
   sale = 0
@@ -337,7 +336,13 @@ Public Function ShowTransectionReport($con As Connection, sType As String, dt1 A
     res = $con.Exec("select fldstockno as col,fldstockid,fldbatch,fldpast from tblentry where fldcategory=&1 and fldstockid=&2" & RepoStr, sType, xitem)
     For Each res
       xavrg = 0
-      xavrg = modStock.GetAverageCostPriceByStockNo(res["col"])
+      Select modBasic.$InvReportCost
+        Case "Average", "Latest", "Fixed"
+          xavrg = modStock.GetAverageCostPriceByStockNo(res["col"])
+          sFormat = "Setting"
+        Case Else
+          sFormat = "Exact"
+      End Select
 
       xvax = 0
       xpast = 0
@@ -428,7 +433,7 @@ Public Function ShowTransectionReport($con As Connection, sType As String, dt1 A
         If rs1["qty"] Then
           purqty = rs1["qty"]
         Endif
-        If sFormat = "Average" Then
+        If sFormat = "Setting" Then
           puramt = purqty * xavrg
         Else
           If rs1["col"] Then
@@ -444,7 +449,7 @@ Public Function ShowTransectionReport($con As Connection, sType As String, dt1 A
         If rs2["qty"] Then
           bulqty = rs2["qty"]
         Endif
-        If sFormat = "Average" Then
+        If sFormat = "Setting" Then
           bulamt = bulqty * xavrg
         Else
           If rs2["col"] Then
@@ -460,7 +465,7 @@ Public Function ShowTransectionReport($con As Connection, sType As String, dt1 A
         If rs3["qty"] Then
           salqty = rs3["qty"]
         Endif
-        If sFormat = "Average" Then
+        If sFormat = "Setting" Then
           salamt = salqty * xavrg
         Else
           If rs3["col"] Then
@@ -479,7 +484,7 @@ Public Function ShowTransectionReport($con As Connection, sType As String, dt1 A
               If rss3["qty"] Then
                 salqty = salqty + rss3["qty"]
               Endif
-              If sFormat = "Average" Then
+              If sFormat = "Setting" Then
                 salamt = salqty * xavrg
               Else
                 If rss3["col"] Then
@@ -498,7 +503,7 @@ Public Function ShowTransectionReport($con As Connection, sType As String, dt1 A
         If rs4["qty"] Then
           sentqty = rs4["qty"]
         Endif
-        If sFormat = "Average" Then
+        If sFormat = "Setting" Then
           sentamt = sentqty * xavrg
         Else
           If rs4["totl"] Then
@@ -514,7 +519,7 @@ Public Function ShowTransectionReport($con As Connection, sType As String, dt1 A
         If rs5["qty"] Then
           recvqty = rs5["qty"]
         Endif
-        If sFormat = "Average" Then
+        If sFormat = "Setting" Then
           recvamt = recvqty * xavrg
         Else
           If rs5["totl"] Then
@@ -530,7 +535,7 @@ Public Function ShowTransectionReport($con As Connection, sType As String, dt1 A
         If rs7["qty"] Then
           adjqty = rs7["qty"]
         Endif
-        If sFormat = "Average" Then
+        If sFormat = "Setting" Then
           adjamt = adjqty * xavrg
         Else
           If rs7["totl"] Then

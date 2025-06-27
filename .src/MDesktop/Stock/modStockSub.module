@@ -35,6 +35,42 @@ Public Sub AddToExistEntry(stockno As Long, qty As Float, sComp As String)
 
 End
 
+Public Sub AddToExistEntryCost(stockno As Long, qty As Float, sComp As String, sNetCost As Float)
+
+  Dim res As Result
+  Dim xnew As Float
+
+  res = modDatabase.$myConn.Edit("tblentry", "fldstockno=&1 and fldcomp=&2", stockno, sComp)
+  xnew = res["fldqty"] + qty
+
+  res["fldqty"] = xnew
+  If xnew = 0 Then
+    res["fldstatus"] = 0
+  Endif
+  res["fldcost"] = sNetCost
+  res["fldsav"] = True
+  res["xyz"] = False
+  res.Update()
+
+  If qty > 0 Then
+    If xnew = qty Then
+      UpdateSockOrderRetn(res["fldstockid"], sComp)
+    Endif
+
+  Else
+    If xnew = 0 Then
+      UpdateSockOrderSale(res["fldstockid"], sComp)
+    Else
+      If res["fldstatus"] = 0 Then
+        UpdateSockOrderSale(res["fldstockid"], sComp)
+      Endif
+    Endif
+
+  Endif
+  'dont catch error. allow to roll back
+
+End
+
 'update stock adjustment using curr value
 Public Sub AdjustStockByCurrentQTY(id As Long, qty As Float)
 

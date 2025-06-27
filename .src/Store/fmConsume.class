@@ -260,7 +260,7 @@ Private Sub SaveEntryComp()
   Dim res As Result
   Dim res1 As Result
 
-  res1 = modDatabase.$myConn.Exec("select fldstockno,fldqty from tblentry where fldstockid=&1 and fldbatch=&2 and fldcomp=&3", cmbcommedicine.Text, cmbcombatch.Text, modBasic.$compID)
+  res1 = modDatabase.$myConn.Exec("select fldstockno,fldqty,fldcategory,fldcost from tblentry where fldstockid=&1 and fldbatch=&2 and fldcomp=&3", cmbcommedicine.Text, cmbcombatch.Text, modBasic.$compID)
   If res1.Available Then
     res1.MoveFirst
     If txtcomqty.Value <= res1["fldqty"] Then
@@ -268,10 +268,14 @@ Private Sub SaveEntryComp()
       res = modDatabase.$myConn.Create("tblbulksale")
       res["fldtarget"] = cmbcomtaget.Text
       res["fldbulktime"] = dtconsume.Value
-      res["fldcategory"] = modNonMedical.GetBillItemCategoryFromCombo(cmbcomroute.Text)
+      res["fldcategory"] = res1["fldcategory"]
       res["fldstockno"] = res1["fldstockno"]
       res["fldstockid"] = cmbcommedicine.Text
-      res["fldnetcost"] = modStock.GetAverageCostPriceByStockNo(res1["fldstockno"])
+      If res1["fldcost"] Then
+        res["fldnetcost"] = res1["fldcost"]
+      Else
+        res["fldnetcost"] = 0
+      Endif
       res["fldqtydisp"] = txtcomqty.Value
       res["fldqtyret"] = 0
       res["flduserid"] = modBasic.$lbluser

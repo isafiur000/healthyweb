@@ -1270,6 +1270,26 @@ End
 ' '
 ' ' End
 
+Public Function GetCurrCostPriceByStockNo(stockno As Long) As Float
+
+  Dim res As Result
+  Dim xx As Float
+
+  res = modDatabase.$myConn.Exec("select fldcost from tblentry where fldstockno=&1", stockno)
+  If res.Available Then
+    If res["fldcost"] Then
+      xx = Round(res["fldcost"], -2)
+    Else
+      xx = 0
+    Endif
+  Else
+    xx = 0
+  Endif
+
+  Return xx
+
+End
+
 Public Function GetCurrSellingPriceByStockNo(stockno As Long) As Float
 
   Dim res As Result
@@ -1328,41 +1348,85 @@ Public Function GetAverageCostPriceByStockNo(stockno As Long) As Float
   Dim res2 As Result
   Dim xx As Float
 
-  res = modDatabase.$myConn.Exec("select avg(fldnetcost) as netcost from tblpurchase where fldstockno=&1", stockno)
-  If res.Available = True Then
-    If res["netcost"] Then
-      xx = res["netcost"]
-    Else
-      xx = 0
-    Endif
-  Endif
+  If modBasic.$InvReportCost = "Fixed" Then
+    xx = modStock.GetCurrCostPriceByStockNo(stockno)
 
-  If xx = 0 Then
-    res1 = modDatabase.$myConn.Exec("select avg(fldnetcost) as netcost from tbltransfer where fldstockno=&1", stockno)
-    If res1.Available = True Then
-      If res1["netcost"] Then
-        xx = res1["netcost"]
+  Else If modBasic.$InvReportCost = "Latest" Then
+    res = modDatabase.$myConn.Exec("select fldnetcost as netcost from tblpurchase where fldstockno=&1 and fldnetcost>&2 ORDER BY fldtime DESC", stockno, 0)
+    If res.Available = True Then
+      res.MoveFirst
+      If res["netcost"] Then
+        xx = res["netcost"]
       Else
         xx = 0
       Endif
-    Else
-      xx = 0
     Endif
-  Endif
 
-  If xx = 0 Then
-    res2 = modDatabase.$myConn.Exec("select avg(fldnetcost) as netcost from tblpurchase where fldstockno=&1", GetPrevSockNoFromCurrNo(stockno))
-    If res2.Available = True Then
-      If res2["netcost"] Then
-        xx = res2["netcost"]
+    If xx = 0 Then
+      res1 = modDatabase.$myConn.Exec("select fldnetcost as netcost from tbltransfer where fldstockno=&1 and fldnetcost>&2 ORDER BY fldtoentrytime DESC", stockno, 0)
+      If res1.Available = True Then
+        res1.MoveFirst
+        If res1["netcost"] Then
+          xx = res1["netcost"]
+        Else
+          xx = 0
+        Endif
       Else
         xx = 0
       Endif
-    Else
-      xx = 0
     Endif
-  Endif
 
+    If xx = 0 Then
+      res2 = modDatabase.$myConn.Exec("select fldnetcost as netcost from tblpurchase where fldstockno=&1 and fldnetcost>&2 ORDER BY fldtime DESC", GetPrevSockNoFromCurrNo(stockno), 0)
+      If res2.Available = True Then
+        res2.MoveFirst
+        If res2["netcost"] Then
+          xx = res2["netcost"]
+        Else
+          xx = 0
+        Endif
+      Else
+        xx = 0
+      Endif
+    Endif
+
+  Else
+    res = modDatabase.$myConn.Exec("select avg(fldnetcost) as netcost from tblpurchase where fldstockno=&1", stockno)
+    If res.Available = True Then
+      If res["netcost"] Then
+        xx = res["netcost"]
+      Else
+        xx = 0
+      Endif
+    Endif
+
+    If xx = 0 Then
+      res1 = modDatabase.$myConn.Exec("select avg(fldnetcost) as netcost from tbltransfer where fldstockno=&1", stockno)
+      If res1.Available = True Then
+        If res1["netcost"] Then
+          xx = res1["netcost"]
+        Else
+          xx = 0
+        Endif
+      Else
+        xx = 0
+      Endif
+    Endif
+
+    If xx = 0 Then
+      res2 = modDatabase.$myConn.Exec("select avg(fldnetcost) as netcost from tblpurchase where fldstockno=&1", GetPrevSockNoFromCurrNo(stockno))
+      If res2.Available = True Then
+        If res2["netcost"] Then
+          xx = res2["netcost"]
+        Else
+          xx = 0
+        Endif
+      Else
+        xx = 0
+      Endif
+    Endif
+
+  Endif
   Return xx
 
 End

@@ -320,7 +320,7 @@ Private Sub SaveEntry(sTarget As String, Optional sLate As String)
   Dim resx As Result
   Dim xIntVal As String
 
-  res1 = modDatabase.$myConn.Exec("select fldstockno,fldstockid,fldcategory,fldbatch,fldexpiry,fldqty,fldstatus,fldcategory,fldsellpr,fldmrp from tblentry where fldstockid=&1 and fldbatch=&2 and fldcomp=&3", cmbmedicine.Text, cmbbatch.Text, modBasic.$compID)                                                   ''
+  res1 = modDatabase.$myConn.Exec("select fldstockno,fldstockid,fldcategory,fldbatch,fldexpiry,fldqty,fldstatus,fldcategory,fldsellpr,fldmrp,fldcost from tblentry where fldstockid=&1 and fldbatch=&2 and fldcomp=&3", cmbmedicine.Text, cmbbatch.Text, modBasic.$compID)                                                   ''
   If res1.Available Then
     res1.MoveFirst
     If sTarget <> modBasic.$compID And If txtqty.Value <= res1["fldqty"] Then
@@ -337,6 +337,11 @@ Private Sub SaveEntry(sTarget As String, Optional sLate As String)
           resx["fldexpiry"] = res1["fldexpiry"]
           resx["fldqty"] = 0
           resx["fldstatus"] = modStock.ItemSaleStatus(res1["fldstockid"], sTarget)
+          If res1["fldcost"] Then
+            resx["fldcost"] = res1["fldcost"]
+          Else
+            resx["fldcost"] = 0
+          Endif
           resx["fldsellpr"] = res1["fldsellpr"]
           If res1["fldmrp"] Then
             resx["fldmrp"] = res1["fldmrp"]
@@ -361,7 +366,11 @@ Private Sub SaveEntry(sTarget As String, Optional sLate As String)
         res["fldstockid"] = res1["fldstockid"]
         res["fldcategory"] = res1["fldcategory"]
         res["fldqty"] = txtqty.Value
-        res["fldnetcost"] = modStock.GetAverageCostPriceByStockNo(res1["fldstockno"])
+        If res1["fldcost"] Then
+          res["fldnetcost"] = res1["fldcost"]
+        Else
+          res["fldnetcost"] = 0
+        Endif
         res["fldsellpr"] = res1["fldsellpr"]
         res["fldsav"] = False
         res["fldfromentrytime"] = Now()
@@ -429,7 +438,7 @@ Public Sub mnuall_Click()
       res = modDatabase.$myConn.Exec(sql, modBasic.$compID, 0)
       If res.Available = True Then
         For Each res
-          SaveEntryAll(res["fldstockno"], res["fldstockid"], res["fldcategory"], res["fldqty"], res["fldsellpr"])
+          SaveEntryAll(res["fldstockno"], res["fldstockid"], res["fldqty"])
         Next
         ShowTransferGrid()
       Endif
@@ -438,82 +447,87 @@ Public Sub mnuall_Click()
 
 End
 
-Private Sub SaveEntryAll(stockno As Long, stockid As String, txtcateg As String, qty As Float, sellpr As Float)
+Private Sub SaveEntryAll(stockno As Long, stockid As String, qty As Float)
 
   Dim res As Result
   Dim rs As Result
+  Dim res1 As Result
   Dim newstno As Long
   Dim xstock As Boolean
-  Dim xIntVal As String
 
   Dim xbatch As String
   Dim xexpiry As Date
   Dim xmaxrp As Float
   Dim xstatus As Integer
+  Dim sellpr As Float
+  Dim xcost As Float
+  Dim xcateg As String
 
   If modBasic.$compID <> cmbcompsent.Text Then
-    xstock = modStock.NewStock(stockid, modStock.GetBatchFromStockNo(stockno), cmbcompsent.Text)
-    xbatch = modStock.GetBatchFromStockNo(stockno)
-    xexpiry = modStock.GetExpiryFromStockNo(stockno)
-    xmaxrp = modStock.GetMaxRPFromStockNo(stockno)
-    xstatus = modStock.ItemSaleStatus(cmbmedicine.Text, cmbcompsent.Text)
+    res1 = modDatabase.$myConn.Exec("select fldstockno,fldstockid,fldcategory,fldbatch,fldexpiry,fldqty,fldstatus,fldcomp,fldsellpr,fldmrp,fldcost from tblentry where fldstockno=&1 and fldstockid=&2", stockno, stockid)
+    If res1.Available Then
+      xbatch = res1["fldbatch"]
+      xexpiry = res1["fldexpiry"]
+      If res1["fldmrp"] Then
+        xmaxrp = res1["fldmrp"]
+      Else
+        xmaxrp = 0
+      Endif
+      sellpr = res1["fldsellpr"]
+      If res1["fldcost"] Then
+        xcost = res1["fldcost"]
+      Else
+        xcost = 0
+      Endif
+      xcateg = res1["fldcategory"]
+      xstock = modStock.NewStock(stockid, xbatch, cmbcompsent.Text)
+      xstatus = modStock.ItemSaleStatus(cmbmedicine.Text, cmbcompsent.Text)
 
-    modDatabase.$myConn.Begin
-    newstno = modStock.GetItemStockNo(stockid, modStock.GetBatchFromStockNo(stockno), cmbcompsent.Text)
-    If newstno Then
-      If xstock = True Then
-        rs = modDatabase.$myConn.Create("tblentry")
-        rs["fldstockno"] = newstno
-        rs["fldstockid"] = stockid
-        rs["fldbatch"] = xbatch
-        rs["fldexpiry"] = xexpiry
-        rs["fldqty"] = 0
-        rs["fldstatus"] = xstatus
-        rs["fldsellpr"] = sellpr
-        rs["fldmrp"] = xmaxrp
-        rs["fldsav"] = True
-        rs["fldcategory"] = txtcateg
-        rs["fldcomp"] = cmbcompsent.Text
-        rs["fldcode"] = 0
-        If MMain.$WebEntry = True Then
-          rs["fldrepodate"] = Now()
-          rs["fldrepomac"] = CGI["REMOTE_ADDR"] & ":" & CGI["REMOTE_PORT"]
-          rs["fldhospcode"] = modBasic.$HospCode
+      modDatabase.$myConn.Begin
+      newstno = modStock.GetItemStockNo(stockid, modStock.GetBatchFromStockNo(stockno), cmbcompsent.Text)
+      If newstno Then
+        If xstock = True Then
+          rs = modDatabase.$myConn.Create("tblentry")
+          rs["fldstockno"] = newstno
+          rs["fldstockid"] = stockid
+          rs["fldbatch"] = xbatch
+          rs["fldexpiry"] = xexpiry
+          rs["fldqty"] = 0
+          rs["fldstatus"] = xstatus
+          rs["fldcost"] = xcost
+          rs["fldsellpr"] = sellpr
+          rs["fldmrp"] = xmaxrp
+          rs["fldsav"] = True
+          rs["fldcategory"] = xcateg
+          rs["fldcomp"] = cmbcompsent.Text
+          rs["fldcode"] = 0
+          rs.Update()
         Endif
-        rs.Update()
+        ''
+        res = modDatabase.$myConn.Create("tbltransfer")
+        res["fldstockno"] = newstno
+        res["fldoldstockno"] = stockno
+        res["fldstockid"] = stockid
+        res["fldcategory"] = xcateg
+        res["fldqty"] = qty
+        res["fldnetcost"] = xcost
+        res["fldsellpr"] = sellpr
+        res["fldsav"] = False
+        res["fldfromentrytime"] = Now()
+        res["fldfromuser"] = modBasic.$lbluser
+        res["fldfromcomp"] = modBasic.$compID
+        res["fldfromsav"] = False
+        res["fldtoentrytime"] = ""
+        res["fldtouser"] = ""
+        res["fldtocomp"] = cmbcompsent.Text
+        res["fldtosav"] = False
+        res["fldreference"] = ""
+        res["xyz"] = False
+        res.Update()
       Endif
-      ''
-      res = modDatabase.$myConn.Create("tbltransfer")
-      res["fldstockno"] = newstno
-      res["fldoldstockno"] = stockno
-      res["fldstockid"] = stockid
-      res["fldcategory"] = txtcateg
-      res["fldqty"] = qty
-      res["fldnetcost"] = modStock.GetAverageCostPriceByStockNo(stockno)
-      res["fldsellpr"] = sellpr
-      res["fldsav"] = False
-      res["fldfromentrytime"] = Now()
-      res["fldfromuser"] = modBasic.$lbluser
-      res["fldfromcomp"] = modBasic.$compID
-      res["fldfromsav"] = False
-      res["fldtoentrytime"] = ""
-      res["fldtouser"] = ""
-      res["fldtocomp"] = cmbcompsent.Text
-      res["fldtosav"] = False
-      res["fldreference"] = ""
-      res["xyz"] = False
-      If MMain.$WebEntry = True Then
-        xIntVal = modString.GetDateString(Now())
-        res["fldid"] = CLong(xIntVal)
-        res["fldrepoid"] = modMisc.GetWebIndexStr(xIntVal)
-        res["fldrepodate"] = Now()
-        res["fldrepomac"] = CGI["REMOTE_ADDR"] & ":" & CGI["REMOTE_PORT"]
-        res["fldhospcode"] = modBasic.$HospCode
-      Endif
-      res.Update()
-    Endif
-    modDatabase.$myConn.Commit
+      modDatabase.$myConn.Commit
 
+    Endif
   Endif
 
 Catch
@@ -723,7 +737,7 @@ Private Sub SaveFinalTransfer()
   Dim xgo As Boolean
 
   If cmbcomprecv.Text Then
-    res = modDatabase.$myConn.Exec("select fldid,fldstockno,fldoldstockno,fldqty,fldfromcomp,fldtocomp from tbltransfer where fldtocomp=&1 and fldsav=&2 and fldfromsav=&3 and fldtosav=&4 and fldfromcomp like &5 and fldlockcomp IS NULL", modBasic.$compID, True, True, False, cmbcomprecv.Text)
+    res = modDatabase.$myConn.Exec("select fldid,fldstockno,fldoldstockno,fldqty,fldfromcomp,fldtocomp,fldnetcost from tbltransfer where fldtocomp=&1 and fldsav=&2 and fldfromsav=&3 and fldtosav=&4 and fldfromcomp like &5 and fldlockcomp IS NULL", modBasic.$compID, True, True, False, cmbcomprecv.Text)
     If res.Available = True Then
 
       idLock = modBillLock.LockTableForID("Reference")
@@ -743,7 +757,11 @@ Private Sub SaveFinalTransfer()
             Endif
             If xgo = True Then
               If res["fldqty"] <= modStock.TotalQTYbyStockNo(res["fldoldstockno"]) Then
-                modStockSub.AddToExistEntry(res["fldstockno"], res["fldqty"], res["fldtocomp"]) ''add to new
+                If res["fldnetcost"] Then
+                  modStockSub.AddToExistEntryCost(res["fldstockno"], res["fldqty"], res["fldtocomp"], res["fldnetcost"]) ''add to new
+                Else
+                  modStockSub.AddToExistEntry(res["fldstockno"], res["fldqty"], res["fldtocomp"]) ''add to new
+                Endif
                 modStockSub.AddToExistEntry(res["fldoldstockno"], (0 - res["fldqty"]), res["fldfromcomp"])  ''reduce from old
                 res1 = modDatabase.$myConn.Edit("tbltransfer", "fldid=&1", res["fldid"])
                 res1["fldtoentrytime"] = Now()
@@ -787,7 +805,7 @@ Private Sub SaveFinalLockTransfer()
   Dim resx As Result
 
   If cmbcomprecv.Text Then
-    res = modDatabase.$myConn.Exec("select fldid,fldstockid,fldstockno,fldoldstockno,fldqty,fldfromcomp,fldtocomp,fldlockcomp from tbltransfer where fldlockcomp=&1 and fldsav=&2 and fldfromsav=&3 and fldtosav=&4 and fldfromcomp=&5 and fldtocomp=&6", modBasic.$compID, True, True, False, cmbcomprecv.Text, "Locker")
+    res = modDatabase.$myConn.Exec("select fldid,fldstockid,fldstockno,fldoldstockno,fldqty,fldfromcomp,fldtocomp,fldlockcomp,fldnetcost from tbltransfer where fldlockcomp=&1 and fldsav=&2 and fldfromsav=&3 and fldtosav=&4 and fldfromcomp=&5 and fldtocomp=&6", modBasic.$compID, True, True, False, cmbcomprecv.Text, "Locker")
     If res.Available = True Then
 
       idLock = modBillLock.LockTableForID("Reference")
@@ -797,7 +815,7 @@ Private Sub SaveFinalLockTransfer()
         ref = modBillLock.ReferenceString("Stock Transfer")
         If ref Then
           For Each res
-            rsn = modDatabase.$myConn.Exec("select fldbatch,fldexpiry,fldsellpr,fldcategory,fldmrp from tblentry where fldstockno=&1", res["fldstockno"])
+            rsn = modDatabase.$myConn.Exec("select fldbatch,fldexpiry,fldsellpr,fldcategory,fldmrp,fldcost from tblentry where fldstockno=&1", res["fldstockno"])
             If rsn.Available Then
               xstock = modStock.NewStock(res["fldstockid"], rsn["fldbatch"], res["fldlockcomp"])
               newstno = modStock.GetItemStockNo(res["fldstockid"], rsn["fldbatch"], res["fldlockcomp"])
@@ -810,6 +828,11 @@ Private Sub SaveFinalLockTransfer()
                   resx["fldexpiry"] = rsn["fldexpiry"]
                   resx["fldqty"] = 0
                   resx["fldstatus"] = modStock.ItemSaleStatus(res["fldstockid"], res["fldlockcomp"])
+                  If rsn["fldcost"] Then
+                    resx["fldcost"] = rsn["fldcost"]
+                  Else
+                    resx["fldcost"] = 0
+                  Endif
                   resx["fldsellpr"] = rsn["fldsellpr"]
                   If rsn["fldmrp"] Then
                     resx["fldmrp"] = rsn["fldmrp"]
@@ -830,7 +853,11 @@ Private Sub SaveFinalLockTransfer()
                 Endif
 
                 If res["fldqty"] <= modStock.TotalQTYbyStockNo(res["fldstockno"]) Then
-                  modStockSub.AddToExistEntry(newstno, res["fldqty"], res["fldlockcomp"]) ''add to new
+                  If res["fldnetcost"] Then
+                    modStockSub.AddToExistEntryCost(newstno, res["fldqty"], res["fldlockcomp"], res["fldnetcost"]) ''add to new
+                  Else
+                    modStockSub.AddToExistEntry(newstno, res["fldqty"], res["fldlockcomp"]) ''add to new
+                  Endif
                   modStockSub.AddToExistEntry(res["fldstockno"], (0 - res["fldqty"]), res["fldtocomp"])  ''reduce from old
                   res1 = modDatabase.$myConn.Edit("tbltransfer", "fldid=&1", res["fldid"])
                   res1["fldtoentrytime"] = Now()

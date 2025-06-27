@@ -10,6 +10,25 @@ Public $UserPANNoData As Collection
 Public $UserTDSData As Collection
 
 'NOTE: ----------------------- Patient Password -----------------
+Public Sub GetUpdatePassword()
+
+  Dim hForm As FmChangeText
+  Dim res As Result
+  Dim xpass As String
+
+  xpass = InputPassword("Provide your current password", "Change Password", "")
+  If xpass Then
+    res = modDatabase.$myConn.Exec("select fldaccess from tbluseraccess where flduserid in(select flduserid from tbluser where flduserid=&1 and fldpass=&2)", modBasic.$lbluser, modPassword.EncryptSimple(xpass))
+    If res.Available = False Then
+      Me.Exec("Toastify({text: 'Incorrect User or Password', duration: 3000}).showToast()")
+    Else If res.Available = True Then
+      hForm = New FmChangeText("Change Password", modBasic.$lbluser, xpass, "tbluser", "flduserid", "fldpass")
+      hForm.ShowModal
+    Endif
+  Endif
+
+End
+
 Public Sub AddPatientUserAccount(sUser As String, sPass As String, sFrom As Date, sTo As Date, UserIDType As String, sStatus As String)
 
   Dim res As Result

@@ -836,7 +836,6 @@ Public Function ShowTransectionReport($con As Connection, sType As String, dt1 A
 
   RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
   dtx = Now()
-  sFormat = modSettings.ShowSettingFromFIle("HealthReport/InventoryAmount")
 
   ''one variables
   aCollEntryAll = New Collection
@@ -958,14 +957,21 @@ Public Function ShowTransectionReport($con As Connection, sType As String, dt1 A
       Endif
 
       'for transection during interval ------------------------------------------
-      xavrg = modStock.GetAverageCostPriceByStockNo(res["col"])
+      Select modBasic.$InvReportCost
+        Case "Average", "Latest", "Fixed"
+          xavrg = modStock.GetAverageCostPriceByStockNo(res["col"])
+          sFormat = "Setting"
+        Case Else
+          sFormat = "Exact"
+      End Select
+
       purqty = 0
       puramt = 0
       If bCollPurchDura[res["col"] & "|" & res["fldstockid"]] Then
         If bCollPurchDura[res["col"] & "|" & res["fldstockid"]][0] Then
           purqty = bCollPurchDura[res["col"] & "|" & res["fldstockid"]][0]
         Endif
-        If sFormat = "Average" Then
+        If sFormat = "Setting" Then
           puramt = purqty * xavrg
         Else
           If bCollPurchDura[res["col"] & "|" & res["fldstockid"]][1] Then
@@ -980,7 +986,7 @@ Public Function ShowTransectionReport($con As Connection, sType As String, dt1 A
         If bCollBulkhDura[res["col"] & "|" & res["fldstockid"]][0] Then
           bulqty = bCollBulkhDura[res["col"] & "|" & res["fldstockid"]][0]
         Endif
-        If sFormat = "Average" Then
+        If sFormat = "Setting" Then
           bulamt = bulqty * xavrg
         Else
           If bCollBulkhDura[res["col"] & "|" & res["fldstockid"]][1] Then
@@ -995,7 +1001,7 @@ Public Function ShowTransectionReport($con As Connection, sType As String, dt1 A
         If bCollSalehDura[res["col"] & "|" & res["fldstockid"]][0] Then
           salqty = bCollSalehDura[res["col"] & "|" & res["fldstockid"]][0]
         Endif
-        If sFormat = "Average" Then
+        If sFormat = "Setting" Then
           salamt = salqty * xavrg
         Else
           If bCollSalehDura[res["col"] & "|" & res["fldstockid"]][1] Then
@@ -1014,7 +1020,7 @@ Public Function ShowTransectionReport($con As Connection, sType As String, dt1 A
               If rss3["qty"] Then
                 salqty = salqty + rss3["qty"]
               Endif
-              If sFormat = "Average" Then
+              If sFormat = "Setting" Then
                 salamt = salqty * xavrg
               Else
                 If rss3["col"] Then
@@ -1032,7 +1038,7 @@ Public Function ShowTransectionReport($con As Connection, sType As String, dt1 A
         If bCollSenthDura[res["col"] & "|" & res["fldstockid"]][0] Then
           sentqty = bCollSenthDura[res["col"] & "|" & res["fldstockid"]][0]
         Endif
-        If sFormat = "Average" Then
+        If sFormat = "Setting" Then
           sentamt = sentqty * xavrg
         Else
           If bCollSenthDura[res["col"] & "|" & res["fldstockid"]][1] Then
@@ -1047,7 +1053,7 @@ Public Function ShowTransectionReport($con As Connection, sType As String, dt1 A
         If bCollRecvhDura[res["col"] & "|" & res["fldstockid"]][0] Then
           recvqty = bCollRecvhDura[res["col"] & "|" & res["fldstockid"]][0]
         Endif
-        If sFormat = "Average" Then
+        If sFormat = "Setting" Then
           recvamt = recvqty * xavrg
         Else
           If bCollRecvhDura[res["col"] & "|" & res["fldstockid"]][1] Then
@@ -1062,7 +1068,7 @@ Public Function ShowTransectionReport($con As Connection, sType As String, dt1 A
         If bCollAdjushDura[res["col"] & "|" & res["fldstockid"]][0] Then
           adjqty = bCollAdjushDura[res["col"] & "|" & res["fldstockid"]][0]
         Endif
-        If sFormat = "Average" Then
+        If sFormat = "Setting" Then
           adjamt = adjqty * xavrg
         Else
           If bCollAdjushDura[res["col"] & "|" & res["fldstockid"]][1] Then
