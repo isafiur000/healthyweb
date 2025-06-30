@@ -7,7 +7,28 @@ Private $encid As String
 Public Sub _new()
 
   dtcurr.Value = Now()
-  rbcashier.Value = True
+
+End
+
+Public Sub btnselectuser_Click()
+
+  Dim xMedUser As String[]
+
+  xMedUser = MedicalSelectedValue(("Select Consultant"), modBasic.$OPConsulUserList)
+  If xMedUser And If xMedUser.Count Then
+    btnconsult.Tag = xMedUser[0]
+    btnconsult.Text = xMedUser[1]
+  Else
+    btnconsult.Tag = ""
+    btnconsult.Text = ""
+  Endif
+
+End
+
+Public Sub btnconsultclear_Click()
+
+  btnconsult.Tag = ""
+  btnconsult.Text = ""
 
 End
 
@@ -20,14 +41,25 @@ End
 Private Sub FillRegistrationGrid(sDate As Date)
 
   Dim sql As String
+  Dim xstr As String
 
-  sql = "select fldencounterval,fldencounterval,fldadmitlocat,fldregdate,fldpatientval from tblencounter where fldregdate>=&1 and fldregdate<=&2 and fldcomp=&3"                                      ''
-  $rData = modDatabase.$myConn.Exec(sql, modDate.StartSqlDate(sDate), modDate.EndSqlDate(sDate), modBasic.$compID)
+  If chkrequest.Value = True Then
+    xstr = " and fldencounterval in(select fldencounterval from tblpatbilling where fldsave=&4 and fldprint=&5 and fldstatus=&6 and flditemqty>&7)"
+  Else
+    xstr = ""
+  Endif
+
+  If btnconsult.Tag Then
+    sql = "select fldencounterval,fldencounterval,fldadmitlocat,fldregdate,fldpatientval from tblencounter where fldregdate>=&1 and fldregdate<=&2 and flduserid=&3" & xstr
+  Else
+    sql = "select fldencounterval,fldencounterval,fldadmitlocat,fldregdate,fldpatientval from tblencounter where fldregdate>=&1 and fldregdate<=&2" & xstr                                     ''
+  Endif
+  $rData = modDatabase.$myConn.Exec(sql, modDate.StartSqlDate(sDate), modDate.EndSqlDate(sDate), btnconsult.Tag, False, False, "Punched", 0)
   $aMyFields = New String[]
   modGridView.ReadSmallData(GridView1, $rData, $aMyFields)
   With GridView1
-    .Columns[0].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
-    .Columns[1].Width = True
+    .Columns[0].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
+    .Columns[1].Expand = True
     .Columns[2].Hidden = True
     .Columns[3].Hidden = True
     .Columns[4].Hidden = True
@@ -54,65 +86,27 @@ Public Sub GridView1_Select()
 
   Dim encid As String
   Dim hForm As FmCashBilling
-  Dim hForm1 As FmDeposit
+  Dim hForm1 As FmPatPharmacy
 
   If GridView1.Selection.Count Then
     $rData.MoveTo(GridView1.Selection[0])
     encid = $rData["fldencounterval"]
 
-    If rbcashier.Value = True Then
+    If modHelpVariable.$LogInCategory = "Cashier" Then
       If pnlmain.Children.Count Then
         pnlmain.DeleteChildren()
       Endif
       hForm = New FmCashBilling(pnlmain)
+      hForm.txtencid.Text = encid
 
-    Else If rbdeposit.Value = True Then
+    Else If modHelpVariable.$LogInCategory = "Dispensar" Then
       If pnlmain.Children.Count Then
         pnlmain.DeleteChildren()
       Endif
-      hForm1 = New FmDeposit(pnlmain)
+      hForm1 = New FmPatPharmacy(pnlmain)
+      hForm1.txtencid.Text = encid
 
     Endif
   Endif
-
-End
-
-Public Sub btnnewregist_Click()
-
-  If modBasic.$regF1Cashier = "No" Then
-  Else
-    If modBasic.$RegStartTime And If modBasic.$ResEndTime Then
-      If Time() > modBasic.$RegStartTime And If Time() < modBasic.$ResEndTime Then
-        $encid = RegistrationMin(False)
-        FillRegistrationGrid(dtcurr.Value)
-      Endif
-    Else
-      $encid = RegistrationMin(False)
-      FillRegistrationGrid(dtcurr.Value)
-    Endif
-  Endif
-
-End
-
-Public Sub btnfollowregist_Click()
-
-  If modBasic.$regF1Cashier = "No" Then
-  Else
-    If modBasic.$RegStartTime And If modBasic.$ResEndTime Then
-      If Time() > modBasic.$RegStartTime And If Time() < modBasic.$ResEndTime Then
-        $encid = RegistrationMin(True)
-        FillRegistrationGrid(dtcurr.Value)
-      Endif
-    Else
-      $encid = RegistrationMin(True)
-      FillRegistrationGrid(dtcurr.Value)
-    Endif
-  Endif
-
-End
-
-Public Sub btnbooking_Click()
-
-  $encid = BookingForm()
 
 End

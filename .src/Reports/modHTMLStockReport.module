@@ -1,9 +1,9 @@
 ' Gambas module file
 
 Public Sub LoadSupplierParameters(txtsupplier As String, BillingReport As CReportHTML)
-
+  
   Dim res1 As Result
-
+  
   res1 = modDatabase.$myConn.Exec("select fldsuppname,fldsuppaddress,fldsupppan,fldsuppledger,fldsuppphone,fldsuppemail,fldcontactname,fldcontactphone from tblsupplier where fldsuppname=&1", txtsupplier)
   If res1.Available Then
     BillingReport.UserData.Add(res1["fldsuppname"], "SupplierName")
@@ -24,12 +24,12 @@ Public Sub LoadSupplierParameters(txtsupplier As String, BillingReport As CRepor
     BillingReport.UserData.Add("", "SupplierUserName")
     BillingReport.UserData.Add("", "SupplierUserContact")
   Endif
-
+  
 End
 
 ''------------------- Purchase format reports -----------------
 Public Function PurchaseEntryReport(ReferenceNo As String, txtcategory As String) As String
-
+  
   Dim $BillingReport As CReportHTML
   Dim sql1 As String
   Dim sql2 As String
@@ -45,10 +45,10 @@ Public Function PurchaseEntryReport(ReferenceNo As String, txtcategory As String
   Dim xreqDate As Date
   Dim xfinal As Float
   Dim RepoStr As String
-
+  
   RepoStr = modDataRepo.GetRepoLastStr()
   $BillingReport = New CReportHTML([("SNO"), ("PARTICULARS"), ("PACK"), ("BATCH"), ("EXPIRY"), ("MRP"), ("RATE"), ("FREE"), ("QTY"), ("NETRATE"), ("TAX"), ("TOTAL")], "PurchaseReport", "")
-
+  
   sql1 = "select fldsuppname,fldpurtype,fldbillno,flddebit,fldcredit,fldtotaltax,fldlastdisc,fldadjust,fldpurdate,fldreference,flduserid,fldtime,fldpurorder from tblpurchasebill where fldreference=&1 and fldcategory=&2" & RepoStr                           '''''''
   rs = modDatabase.$syConn.Exec(sql1, ReferenceNo, txtcategory)
   If rs.Available Then
@@ -57,11 +57,11 @@ Public Function PurchaseEntryReport(ReferenceNo As String, txtcategory As String
     $BillingReport.UserData.Add(rs["fldreference"], "PurchaseReferenceNo")
     $BillingReport.UserData.Add(rs["flduserid"], "PurchaseReferenceUser")
     $BillingReport.UserData.Add(modReportVar.GetDateTimeReport(rs["fldtime"], gb.MediumDate), "PurchaseReferenceDate")
-
+    
     $BillingReport.UserData.Add(rs["fldpurtype"], "PurchasePaymentType")
     $BillingReport.UserData.Add(rs["fldbillno"], "PurchaseInvoiceNumber")
     $BillingReport.UserData.Add(modReportVar.GetDateTimeReport(rs["fldpurdate"], gb.MediumDate), "PurchaseInvoiceDate")
-
+    
     If rs["fldpurorder"] Then
       xreqDate = modStock.GetPurchOrderDateFromRequest(rs["fldpurorder"])
       If xreqDate Then
@@ -72,7 +72,7 @@ Public Function PurchaseEntryReport(ReferenceNo As String, txtcategory As String
       $BillingReport.UserData.Add("", "PurchaseRequestDate")
       $BillingReport.UserData.Add("", "PurchaseRequestNo")
     Endif
-
+    
     xtax = 0
     xdisc = 0
     xadjs = 0
@@ -85,10 +85,10 @@ Public Function PurchaseEntryReport(ReferenceNo As String, txtcategory As String
     If rs["fldadjust"] Then
       xadjs = rs["fldadjust"]
     Endif
-
+    
     sql2 = "select fldid,fldpurtype,fldpurdate,fldbillno,fldsuppname,fldcategory,fldstockid,fldstockno,fldmrp,flsuppcost,fldtotalqty,fldnetcost,fldtaxamt,fldqtybonus,fldtotalcost,fldcomment,flduserid from tblpurchase where fldreference=&1" & RepoStr                                                      ''
     res = modDatabase.$syConn.Exec(sql2, ReferenceNo)                                                                                       ''
-
+    
     xtot = 0
     atax = 0
     aColl = New Collection
@@ -136,7 +136,7 @@ Public Function PurchaseEntryReport(ReferenceNo As String, txtcategory As String
       asx.Clear()
     Next
     $BillingReport.UserData.Add(modString.GetCollectionString(aColl).Join("<br>"), "FooterSummary")
-
+    
     With asx
       .Add("")
       .Add("SUBTOTAL")
@@ -153,7 +153,7 @@ Public Function PurchaseEntryReport(ReferenceNo As String, txtcategory As String
     End With
     $BillingReport.Add(asx)
     asx.Clear()
-
+    
     With asx
       .Add("")
       .Add("EXTRA CHARGE/DISCOUNT")
@@ -170,7 +170,7 @@ Public Function PurchaseEntryReport(ReferenceNo As String, txtcategory As String
     End With
     $BillingReport.Add(asx)
     asx.Clear()
-
+    
     With asx
       .Add("")
       .Add("TOTAL TAX (i)")
@@ -187,7 +187,7 @@ Public Function PurchaseEntryReport(ReferenceNo As String, txtcategory As String
     End With
     $BillingReport.Add(asx)
     asx.Clear()
-
+    
     With asx
       .Add("")
       .Add("ROUNDING")
@@ -204,7 +204,7 @@ Public Function PurchaseEntryReport(ReferenceNo As String, txtcategory As String
     End With
     $BillingReport.Add(asx)
     asx.Clear()
-
+    
     xfinal = modNonMedical.GetRoundupAccToSetting(xtot - xdisc + xtax + xadjs - atax)
     $BillingReport.UserData.Add(modString.ConvertMoneyToText(xfinal), "AmtWord")
     With asx
@@ -223,18 +223,18 @@ Public Function PurchaseEntryReport(ReferenceNo As String, txtcategory As String
     End With
     $BillingReport.Add(asx)
     asx.Clear()
-
+    
     If xtax Then
       $BillingReport.AddSummary("i: For Summary Purpose Only")
     Endif
   Endif
-
+  
   Return $BillingReport.NewHTMLPath()
-
+  
 End
 
 Public Function PurchaseRequestReport(xReferenceNo As String, txtsupplier As String, Optional sStatus As String) As String
-
+  
   Dim $BillingReport As CReportHTML
   Dim res As Result
   Dim asx As New String[0]
@@ -242,7 +242,7 @@ Public Function PurchaseRequestReport(xReferenceNo As String, txtsupplier As Str
   Dim xtaxper As Float
   Dim xtax As Float
   Dim xfinal As Float
-
+  
   $BillingReport = New CReportHTML([("SNO"), ("PARTICULARS"), ("BRAND"), ("PACK"), ("QTY"), ("RATE"), ("TOTAL"), ("REMARKS")], "PurchaseReport", "")
   $BillingReport.SetTemplatePath(modHelpVariable.$htmlDirectory &/ "custom/purchase_order")
   LoadSupplierParameters(txtsupplier, $BillingReport)
@@ -251,7 +251,7 @@ Public Function PurchaseRequestReport(xReferenceNo As String, txtsupplier As Str
   $BillingReport.UserData.Add("", "PurchaseReferenceNo")
   $BillingReport.UserData.Add("", "PurchaseInvoiceDate")
   $BillingReport.UserData.Add("", "PurchaseInvoiceNumber")
-
+  
   xtot = 0
   xtax = 0
   If sStatus Then
@@ -266,7 +266,7 @@ Public Function PurchaseRequestReport(xReferenceNo As String, txtsupplier As Str
     $BillingReport.UserData.Add(res["fldverify"], "PurchaseRequestVerifyUser")
     $BillingReport.UserData.Add(modReportVar.GetDateTimeReport(res["fldverify_time"], gb.MediumDate), "PurchaseRequestVerifyDate")
     $BillingReport.UserData.Add(modReportVar.GetDateTimeReport(res["flddelivery"], gb.MediumDate), "PurchaseRequestDelivery")
-
+    
     For Each res
       xtaxper = 0
       xtot = xtot + res["fldrate"] * res["fldqty"]
@@ -293,7 +293,7 @@ Public Function PurchaseRequestReport(xReferenceNo As String, txtsupplier As Str
       asx.Clear()
     Next
   Endif
-
+  
   With asx
     .Add("")
     .Add("SUBTOTAL")
@@ -306,7 +306,7 @@ Public Function PurchaseRequestReport(xReferenceNo As String, txtsupplier As Str
   End With
   $BillingReport.Add(asx)
   asx.Clear()
-
+  
   With asx
     .Add("")
     .Add("TOTAL TAX")
@@ -319,7 +319,7 @@ Public Function PurchaseRequestReport(xReferenceNo As String, txtsupplier As Str
   End With
   $BillingReport.Add(asx)
   asx.Clear()
-
+  
   xfinal = xtot + xtax
   $BillingReport.UserData.Add(modString.ConvertMoneyToText(xfinal), "AmtWord")
   With asx
@@ -334,21 +334,21 @@ Public Function PurchaseRequestReport(xReferenceNo As String, txtsupplier As Str
   End With
   $BillingReport.Add(asx)
   asx.Clear()
-
+  
   Return $BillingReport.NewHTMLPath()
-
+  
 End
 
 Public Function StoreRequestReport(ReferenceNo As String, sFinal As Boolean) As String
-
+  
   Dim $BillingReport As CReportHTML
   Dim sql As String
   Dim res As Result
   Dim asx As New String[0]
   Dim RepoStr As String
-
+  
   RepoStr = modDataRepo.GetRepoLastStr()
-
+  
   If sFinal = True Then
     $BillingReport = New CReportHTML([("SNO"), ("PARTICULARS"), ("PACK"), ("REQUESTED"), ("APPROVED"), ("URGENCY"), ("DELIVERY"), ("REMARKS")], "PurchaseReport", "")
     sql = "select fldid,fldcategory,fldstockid,fldqty,fldfinalqty,fldurgent,fldexpdate,fldremarks,fldordtime,fldordcomp,fldorduserid,fldcomp,flduserid,fldtime from tblrequest where fldreference=&1 and flduserid IS NOT NULL" & RepoStr                           '''''''
@@ -359,7 +359,7 @@ Public Function StoreRequestReport(ReferenceNo As String, sFinal As Boolean) As 
     res = modDatabase.$syConn.Exec(sql, ReferenceNo, "Requested")
   Endif
   $BillingReport.SetTemplatePath(modHelpVariable.$htmlDirectory &/ "custom/store_request")
-
+  
   $BillingReport.UserData.Add(ReferenceNo, "StoreRequestNo")
   If res.Available Then
     res.MoveFirst
@@ -369,7 +369,7 @@ Public Function StoreRequestReport(ReferenceNo As String, sFinal As Boolean) As 
     $BillingReport.UserData.Add(res["fldcomp"], "StoreRequestedComp")
     $BillingReport.UserData.Add(res["flduserid"], "StoreRequestVerifyUser")
     $BillingReport.UserData.Add(modReportVar.GetDateTimeReport(res["fldtime"], gb.MediumDate), "StoreRequestVerifyDate")
-
+    
     For Each res
       With asx
         .Add(CStr(res.Index + 1))
@@ -391,19 +391,19 @@ Public Function StoreRequestReport(ReferenceNo As String, sFinal As Boolean) As 
       asx.Clear()
     Next
   Endif
-
+  
   Return $BillingReport.NewHTMLPath()
-
+  
 End
 
 Public Function StoreRequestReportEstimate(ReferenceNo As String, sFinal As Boolean) As String
-
+  
   Dim $BillingReport As CReportHTML
   Dim sql As String
   Dim res As Result
   Dim asx As New String[0]
   Dim RepoStr As String
-
+  
   RepoStr = modDataRepo.GetRepoLastStr()
   $BillingReport = New CReportHTML([("SNO"), ("PARTICULARS"), ("PACK"), ("REQUESTED"), ("APPROVED"), ("REMARKS")], "PurchaseReport", "")
   If sFinal = True Then
@@ -414,7 +414,7 @@ Public Function StoreRequestReportEstimate(ReferenceNo As String, sFinal As Bool
     res = modDatabase.$syConn.Exec(sql, ReferenceNo, "Requested")
   Endif
   $BillingReport.SetTemplatePath(modHelpVariable.$htmlDirectory &/ "custom/store_request")
-
+  
   $BillingReport.UserData.Add(ReferenceNo, "StoreRequestNo")
   If res.Available Then
     res.MoveFirst
@@ -424,7 +424,7 @@ Public Function StoreRequestReportEstimate(ReferenceNo As String, sFinal As Bool
     $BillingReport.UserData.Add(res["fldcomp"], "StoreRequestedComp")
     $BillingReport.UserData.Add(res["flduserid"], "StoreRequestVerifyUser")
     $BillingReport.UserData.Add(modReportVar.GetDateTimeReport(res["fldtime"], gb.MediumDate), "StoreRequestVerifyDate")
-
+    
     For Each res
       With asx
         .Add(CStr(res.Index + 1))
@@ -446,7 +446,7 @@ Public Function StoreRequestReportEstimate(ReferenceNo As String, sFinal As Bool
       asx.Clear()
     Next
   Endif
-
+  
   Return $BillingReport.NewHTMLPath()
-
+  
 End
