@@ -13,6 +13,8 @@ Public Sub _new(sTitle As String, xType As String, xItemName As String)
   Select $typ
     Case "No Discount List"
       cmbcategory.List = ["Diagnostic Tests", "General Services", "Procedures", "Equipment", "Radio Diagnostics", "Other Items", "Medicines", "Surgicals", "Extra Items"]        '''
+    Case "Prohibited List"
+      cmbcategory.List = ["Diagnostic Tests", "General Services", "Procedures", "Equipment", "Radio Diagnostics", "Other Items"]
     Case "Complaints List"
       cmbcategory.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldcategory) as col from tblsymptoms"))
     Case "Essential Examinations", "Physician Examinations", "Nursing Examinations", "Triage Examinations", "Discharge Examinations"
@@ -34,6 +36,8 @@ Private Sub LoadSelectedListsView()
   Select $typ
     Case "No Discount List"
       NonStockBillingItemListView(cmbcategory.Text)
+    Case "Prohibited List"
+      GetServiceBillingItemListView(cmbcategory.Text, modNonMedical.GetDiscBindBillMode($itemName))
     Case "Complaints List"
       CompComplaintsListView(cmbcategory.Text)
     Case "Essential Examinations", "Physician Examinations", "Nursing Examinations", "Triage Examinations", "Discharge Examinations"
@@ -62,6 +66,10 @@ Private Sub ShowFilledList()
       $tbl = "tblnodiscount"
       sql = "select flditemname as col from tblnodiscount ORDER BY flditemname"
       res = modDatabase.$myConn.Exec(sql)
+    Case "Prohibited List"
+      $tbl = "tbllockedservice"
+      sql = "select flditemname as col from tbllockedservice where flddisctype=&1"
+      res = modDatabase.$myConn.Exec(sql, $itemName)
     Case "Complaints List"
       $tbl = "tblcomplaints"
       sql = "select fldsymptom as col from tblcomplaints where fldcomp=&1 ORDER BY fldsymptom"
@@ -88,6 +96,13 @@ Public Sub btnsave_Click()
         Select $typ
           Case "No Discount List"
             res["flditemname"] = lstfirst.List[i]
+            res["flditemtype"] = cmbcategory.Text
+            res["flduserid"] = modBasic.$lbluser
+            res["fldtime"] = Now()
+            res["fldcomp"] = modBasic.$compID
+          Case "Prohibited List"
+            res["flddisctype"] = $itemName
+            res["flditemname"] = lstfirst[CStr(i)].Text
             res["flditemtype"] = cmbcategory.Text
             res["flduserid"] = modBasic.$lbluser
             res["fldtime"] = Now()
@@ -136,6 +151,15 @@ Private Sub FillGridViewSelected(res As Result)
       Endif
     Next
   Endif
+
+End
+
+Private Sub GetServiceBillingItemListView(sType As String, sBillMode As String)
+
+  Dim res As Result
+
+  res = modDatabase.$myConn.Exec("select flditemname as col from tblservicecost where flditemtype=&1 and fldgroup=&2", sType, sBillMode)
+  FillGridViewSelected(res)
 
 End
 

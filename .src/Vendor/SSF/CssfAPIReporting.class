@@ -1,0 +1,75 @@
+' Gambas class file
+
+Private $xAuthString As String
+Private $HeadString As String
+
+Private $PatCode As String
+Private $OutString As String
+
+Private Sub SetAuthentication()
+
+  If modBasic.$SSFQuote = "Yes" Then
+    $xAuthString = "'" & modBasic.$SSFUser & ":" & modBasic.$SSFPass & "'"
+  Else
+    $xAuthString = modBasic.$SSFUser & ":" & modBasic.$SSFPass
+  Endif
+  $HeadString = "remote-user:" & modBasic.$SSFRemoUser
+
+End
+
+Public Sub _new(sPatcode As String)
+
+  $PatCode = sPatcode
+  GetReportDetails()
+
+End
+
+Private Function GetReportDetails(sPatCode As String) As Collection
+
+  Dim acmd As String
+  Dim xurl As String
+  Dim xcont As String
+  Dim xcolVar As Collection
+  Dim aVar As Variant[]
+  Dim xcoll As Collection
+  Dim xpatout As String
+  Dim xResColl As Collection
+  Dim xhead As String
+
+  SetAuthentication()
+  xurl = modBasic.$SSFReportURL
+  xcont = "Content-Type: application/json"
+
+  xcolVar = New Collection
+  xcolVar.Add("ExtraJson", "resourceType")
+  xcoll = New Collection
+  xcoll.Add("action.bookingHistory", "cmd_action")
+  xcoll.Add(sPatCode, "chfid")
+  xcolVar.Add(xcoll, "payload")
+
+  xhead = Space(1)
+  If modBasic.$SSFCACert = "Disable" Then
+    xhead = xhead & "-k" & Space(1)
+  Endif
+  If modBasic.$SSFUserAgent Then
+    xhead = xhead & "-A " & modBasic.$SSFUserAgent & Space(1)
+  Endif
+
+  acmd = "curl" & xhead & "-u " & $xAuthString & " -H " & Quote(xcont) & " -H " & Quote($HeadString) & " -d '" & JSON.Encode(xcolVar) & "' --location " & xurl
+  modBasic.DebugAPIString(Replace("Execute " & acmd, $xAuthString, "****"))
+  Shell acmd To xpatout
+  modBasic.DebugAPIString("Response: " & xpatout)
+
+  If xpatout Then
+    $OutString = xpatout
+  Else
+    Message.Warning("No Response from server", "OK")
+  Endif
+
+End
+
+Public Function GetOutputString() As String
+
+  Return $OutString
+
+End

@@ -18,6 +18,8 @@ Private $rDatav As Result
 Private $aMyFieldsv As String[]
 Private $varList As String[]
 Private $dataVar As Collection
+Private $warList As String[]
+Private $cataVar As Collection
 
 Public Sub _new()
 
@@ -1771,11 +1773,15 @@ End
 ''========================= Data View ========================
 Private Function GetDataViewColumns() As String[]
 
+  Dim xlist As String[]
   Dim xFldList As String[]
   Dim i As Integer
   Dim xcol As String
+  Dim ycol As String
 
-  $varList = modControlSub.GetDirectFillresultNoNull(ExecuteQuery(["distinct(fldtestid)"]))
+  xlist = modControlSub.GetDirectFillresultNoNull(ExecuteQuery(["distinct(fldtestid)"]))
+  $varList = xlist
+  $warList = xlist
 
   xFldList = New String[]
   xFldList.Add("fldencounterval")
@@ -1783,6 +1789,9 @@ Private Function GetDataViewColumns() As String[]
   xFldList.Add("fldencounterval")
   xFldList.Add("fldencounterval")
   For Each xcol In $varList
+    xFldList.Add("fldencounterval")
+  Next
+  For Each ycol In $warList
     xFldList.Add("fldencounterval")
   Next
 
@@ -1811,6 +1820,7 @@ Private Sub MakeDataViewGrid()
   Endif
 
   $dataVar = New Collection
+  $cataVar = New Collection
   FillDataViewGrid()
 
 End
@@ -1837,10 +1847,15 @@ Private Sub FillDataViewGrid()
       .Columns[Column + 4].Text = $varList[Column]
     Next
 
+    For Column = 0 To $warList.Count - 1
+      .Columns[Column + 4 + $varList.Count].Width = 150 * modBasic.$AppWidthRatio
+      .Columns[Column + 4 + $varList.Count].Text = $warList[Column] & "(LAST)"
+    Next
+
     If $newColumn.Count Then
       For i = 0 To $newColumn.Count - 1
-        .Columns[$varList.Count + 4 + i].Text = $newColumn[i]
-        .Columns[$varList.Count + 4 + i].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+        .Columns[i + 4 + $varList.Count + $warList.Count].Text = $newColumn[i]
+        .Columns[i + 4 + $varList.Count + $warList.Count].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
       Next
     Endif
   End With
@@ -1864,9 +1879,13 @@ Private Function GetDataViewValue(Column As Integer, xVariable As Variant) As Va
   Dim xxx As Variant
   Dim i As Integer
   Dim aColl As Collection
+  Dim bColl As Collection
 
   If $dataVar.Exist(xVariable) = False Then
     $dataVar.Add(GetLabCollection(xVariable), xVariable)
+  Endif
+  If $cataVar.Exist(xVariable) = False Then
+    $cataVar.Add(GetLastLabCollection(xVariable), xVariable)
   Endif
   If Column = 0 Then
     xxx = xVariable
@@ -1884,12 +1903,19 @@ Private Function GetDataViewValue(Column As Integer, xVariable As Variant) As Va
       Else
         xxx = ""
       Endif
+    Else If Column < $warList.Count + $varList.Count + 4 Then
+      bColl = $cataVar[xVariable]
+      If $warList[Column - 4 - $varList.Count] And If bColl.Exist($warList[Column - 4 - $varList.Count]) Then
+        xxx = bColl[$warList[Column - 4 - $varList.Count]]
+      Else
+        xxx = ""
+      Endif
     Endif
   Endif
 
   If $newColumn.Count Then
     For i = 0 To $newColumn.Count - 1
-      If Column = $varList.Count + 4 + i Then
+      If Column = $warList.Count + $varList.Count + 4 + i Then
         xxx = modCustPatient.NewColValue(Me.Tag, $newColumn[i], xVariable)
       Endif
     Next
@@ -1904,7 +1930,26 @@ Private Function GetLabCollection(encid As String) As Collection
   Dim aColl As Collection
 
   aColl = New Collection
-  res = ExecuteQuery(["fldtestid", "fldreportquali"], "fldencounterval|" & encid & "|ORDER BY fldtime_sample")
+  res = ExecuteQuery(["fldtestid", "fldreportquali"], "fldencounterval|" & encid & "|ORDER BY fldtime_sample ASC")
+  If res.Available Then
+    For Each res
+      If aColl.Exist(res["fldtestid"]) = False Then
+        aColl.Add(res["fldreportquali"], res["fldtestid"])
+      Endif
+    Next
+  Endif
+
+  Return aColl
+
+End
+
+Private Function GetLastLabCollection(encid As String) As Collection
+
+  Dim res As Result
+  Dim aColl As Collection
+
+  aColl = New Collection
+  res = ExecuteQuery(["fldtestid", "fldreportquali"], "fldencounterval|" & encid & "|ORDER BY fldtime_sample DESC")
   If res.Available Then
     For Each res
       If aColl.Exist(res["fldtestid"]) = False Then
