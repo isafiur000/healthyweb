@@ -12,6 +12,7 @@ Public $IntfaceDatabase As String
 Public $IntfacePort As String
 Public $IntfaceUnit As String
 Public $IntfaceTestList As String[]
+Public $InterfaceMethods As Collection
 
 Private Function GetIntfaceConfigSettingFIle() As String
 
@@ -58,10 +59,20 @@ End
 
 Public Sub GetInterfaceConn()
 
+  Dim res As Result
+
   ReadIntfaceConfig()
   $machineCon = modDBApp.OpenConnection($IntfaceService, $IntfaceHost, $IntfaceDatabase, $IntfaceUser, $IntfacePassword, $IntfacePort)
   If $IntfaceVendor Then
     $IntfaceTestList = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select fldtestid as col from tbltestmachine where fldvendor=&1", $IntfaceVendor))
+
+    $InterfaceMethods = New Collection
+    res = modDatabase.$myConn.Exec("select fldmachine,fldethod from tblmachinemethod where fldvendor=&1", $IntfaceVendor)
+    If res.Available Then
+      For Each res
+        Try $InterfaceMethods.Add(res["fldethod"], res["fldmachine"])
+      Next
+    Endif
   Endif
 
 End
@@ -220,6 +231,10 @@ Public Sub SyncInterfacingData(xdebug As Boolean)
                       Else
                         abn = False
                       Endif
+                    Endif
+
+                    If res["AnalyzerNo"] And If $InterfaceMethods[res["AnalyzerNo"]] Then
+                      res1["fldmethod"] = $InterfaceMethods[res["AnalyzerNo"]]
                     Endif
 
                     res1["fldreportquali"] = res["ResultValue"]
@@ -384,6 +399,10 @@ Public Sub SyncInterfacingDataDaily(xdebug As Boolean)
                       Endif
                     Endif
 
+                    If res["AnalyzerNo"] And If $InterfaceMethods[res["AnalyzerNo"]] Then
+                      res1["fldmethod"] = $InterfaceMethods[res["AnalyzerNo"]]
+                    Endif
+
                     res1["fldreportquali"] = res["ResultValue"]
                     res1["fldreportquanti"] = CFloat(xfinl)
                     res1["fldstatus"] = "Reported"
@@ -538,6 +557,10 @@ Public Sub SyncInterfacingSelectedData(sampleList As String[])
                         Else
                           abn = False
                         Endif
+                      Endif
+
+                      If res["AnalyzerNo"] And If $InterfaceMethods[res["AnalyzerNo"]] Then
+                        res1["fldmethod"] = $InterfaceMethods[res["AnalyzerNo"]]
                       Endif
 
                       res1["fldreportquali"] = res["ResultValue"]

@@ -254,7 +254,11 @@ Public Function PastPurchaseOrderMaLePa(xReferenceNo As String, txtcategory As S
       If res.Available Then
 
         For Each res
-          xtot = xtot + res["fldnetcost"] * res["fldtotalqty"]
+          If res["fldtaxamt"] Then
+            xtot = xtot + (res["fldtotalcost"] - res["fldtaxamt"])
+          Else
+            xtot = xtot + res["fldtotalcost"]
+          Endif
           With asx
             .Add(CStr(res.Index + 1))
             .Add(modStock.GetgenericText(res["fldstockid"], res["fldcategory"]))
@@ -266,8 +270,13 @@ Public Function PastPurchaseOrderMaLePa(xReferenceNo As String, txtcategory As S
               .Add("")
             Endif
             .Add(modReportVar.GetLocaleNumberFormat(res["fldtotalqty"], -2))
-            .Add(modReportVar.GetLocaleNumberFormat(res["fldnetcost"], gb.Currency))
-            .Add(modReportVar.GetLocaleNumberFormat(res["fldnetcost"] * res["fldtotalqty"], gb.Currency))
+            If res["fldtaxamt"] Then
+              .Add(modReportVar.GetLocaleNumberFormat((res["fldtotalcost"] - res["fldtaxamt"]) / res["fldtotalqty"], gb.Currency))
+              .Add(modReportVar.GetLocaleNumberFormat(res["fldtotalcost"] - res["fldtaxamt"], gb.Currency))
+            Else
+              .Add(modReportVar.GetLocaleNumberFormat(res["fldtotalcost"] / res["fldtotalqty"], gb.Currency))
+              .Add(modReportVar.GetLocaleNumberFormat(res["fldtotalcost"], gb.Currency))
+            Endif
             .Add("")
           End With
           $BillingReport.Add(asx)

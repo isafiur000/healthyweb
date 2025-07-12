@@ -78,8 +78,11 @@ Public Sub mainGridView_Select()
     $encid = $rDatamain["fldencounterval"]
     $PatientNum = modPatient.GetPatientNoByEnc($encid)
     $doa = modPatient.GetRecordDate($encid)
+    WebTabPanel1.Index = 0
     If cmbtype.Text Then
       FillReportData($encid, cmbtype.Text)
+    Else
+      FillReportData($encid, "all")
     Endif
   Endif
 
@@ -103,7 +106,7 @@ Public Sub WebTabPanel1_Click()
     If pnlhistory.Children.Count Then
       pnlhistory.DeleteChildren()
     Endif
-    hPtForm = New FmClinHistory($encid, "Encounter", "height-tablet-long", pnlhistory)
+    hPtForm = New FmClinHistory($encid, "Encounter", True, "height-tablet-long", pnlhistory)
 
   Endif
 
@@ -122,10 +125,18 @@ End
 
 Private Sub FillReportData(encid As String, sType As String)
 
-  If MMain.$WebEntry = True Then
-    $rData1 = modDatabase.$syConn.Exec("select fldrepoid,fldcateg,fldtime,fldencounterval,fldencounterval,fldtitle,fldid,flddetail,fldsave,fldlink,fldcomp,flduserid from tblpatreport where fldencounterval like &1 and fldcateg=&2 and (flvisible=&3 or flvisible IS NULL) ORDER BY fldid DESC", encid, sType, "Visible")
+  If sType = "all" Then
+    If MMain.$WebEntry = True Then
+      $rData1 = modDatabase.$syConn.Exec("select fldrepoid,fldcateg,fldtime,fldencounterval,fldencounterval,fldtitle,fldid,flddetail,fldsave,fldlink,fldcomp,flduserid from tblpatreport where fldencounterval like &1 and (fldcateg=&2 or fldcateg=&3 or fldcateg=&4) and (flvisible=&5 or flvisible IS NULL) ORDER BY fldid DESC", encid, "Diagnostic Tests", "Radio Diagnostics", "General Reports", "Visible")
+    Else
+      $rData1 = modDatabase.$syConn.Exec("select fldid,fldcateg,fldtime,fldencounterval,fldencounterval,fldtitle,fldid,flddetail,fldsave,fldlink,fldcomp,flduserid from tblpatreport where fldencounterval like &1 and (fldcateg=&2 or fldcateg=&3 or fldcateg=&4) and (flvisible=&5 or flvisible IS NULL) ORDER BY fldid DESC", encid, "Diagnostic Tests", "Radio Diagnostics", "General Reports", "Visible")                                                                 ''
+    Endif
   Else
-    $rData1 = modDatabase.$syConn.Exec("select fldid,fldcateg,fldtime,fldencounterval,fldencounterval,fldtitle,fldid,flddetail,fldsave,fldlink,fldcomp,flduserid from tblpatreport where fldencounterval like &1 and fldcateg=&2 and (flvisible=&3 or flvisible IS NULL) ORDER BY fldid DESC", encid, sType, "Visible")                                                                 ''
+    If MMain.$WebEntry = True Then
+      $rData1 = modDatabase.$syConn.Exec("select fldrepoid,fldcateg,fldtime,fldencounterval,fldencounterval,fldtitle,fldid,flddetail,fldsave,fldlink,fldcomp,flduserid from tblpatreport where fldencounterval like &1 and fldcateg=&2 and (flvisible=&3 or flvisible IS NULL) ORDER BY fldid DESC", encid, sType, "Visible")
+    Else
+      $rData1 = modDatabase.$syConn.Exec("select fldid,fldcateg,fldtime,fldencounterval,fldencounterval,fldtitle,fldid,flddetail,fldsave,fldlink,fldcomp,flduserid from tblpatreport where fldencounterval like &1 and fldcateg=&2 and (flvisible=&3 or flvisible IS NULL) ORDER BY fldid DESC", encid, sType, "Visible")                                                                 ''
+    Endif
   Endif
   $aMyFields1 = New String[]
   modGridView.ReadSmallData(GridView1, $rData1, $aMyFields1)
