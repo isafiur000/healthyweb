@@ -7,6 +7,8 @@ Public $AppGridRowHeight As Float
 
 Public $compID As String
 Public $lbluser As String
+Public $branch As String
+Public $branchList As String[]
 
 Public Local0 As String
 Public Local1 As String
@@ -632,6 +634,7 @@ Public $LabLockSpecimen As String
 Public $AutoEncounterF1 As String
 Public $LabSamplePrint As Integer
 Public $LabBarMultiPrint As String
+Public $LabBase64Image As String
 Public $TestAddSource As String
 Public $AutoSampleLoad As String
 
@@ -649,6 +652,7 @@ Public $LabSamplingComp As String
 Public $LabReportingFrom As String
 Public $LabReportingComp As String
 Public $LabAutoSampNo As String
+Public $LabSampNoLength As Integer
 Public $LabSamplePrefix As String
 Public $RadioSamplePrefix As String
 Public $LabReportGroup As String
@@ -958,6 +962,12 @@ Public Sub LoadGeneralVariables()
   Endif
   $YearlabtestList = modControlSub.GetDirectFillresultNoNull(modDatabase.$myConn.Exec("select fldpatlabtest as col from tblfisclosing"))
   $YearpatexamList = modControlSub.GetDirectFillresultNoNull(modDatabase.$myConn.Exec("select fldpatientexam as col from tblfisclosing"))
+  $branch = modGeneral.GetBranchName($compID)
+  If $branch Then
+    $branchList = modControlSub.GetDirectFillresultNoNull(modDatabase.$myConn.Exec("select fldcompid as col from tblhospbranch where fldbranch=&1", $branch))
+  Else
+    $branchList = New String[]
+  Endif
   GetAppCacheSettings()
 
   $PatPortalURL = modGlobalSetting.ShowSettingFromDB("RemoteLogIn/PatientPortalURL")
@@ -2410,6 +2420,8 @@ End
 
 Public Sub LabRadiologySeting()
 
+  Dim xsamplen As String
+
   ''alerts
   $AlertRadioList = modSettings.ShowSettingFromFIle("Laboratory/RadioAlertList")
   $AlertTestList = modSettings.ShowSettingFromFIle("Laboratory/TestAlertList")
@@ -2429,6 +2441,7 @@ Public Sub LabRadiologySeting()
     $LabSamplePrint = CInt(modSettings.ShowSettingFromFIle("SampleBarcode/Count"))
   Endif
   $LabBarMultiPrint = modSettings.ShowSettingFromFIle("SampleBarcode/PDF_MultiPage")
+  $LabBase64Image = modSettings.ShowSettingFromFIle("SampleBarcode/UseBase64Image")
 
   $LabBarCode = modSettings.ShowSettingFromFIle("SampleBarcode/DataContent")
   $LabBarPrint = modSettings.ShowSettingFromFIle("SampleBarcode/Separation")
@@ -2463,6 +2476,12 @@ Public Sub LabRadiologySeting()
   $LabSamplePrefix = modSettings.ShowSettingFromFIle("Laboratory/SampleNoPrefix")
   $RadioSamplePrefix = modSettings.ShowSettingFromFIle("Radiology/SamplePrefix")
   $LabArchComment = modSettings.ShowSettingFromFIle("Laboratory/ArchivingComment")
+  xsamplen = modSettings.ShowSettingFromFIle("Laboratory/SampleNoLength")
+  If xsamplen Then
+    $LabSampNoLength = CInt(xsamplen)
+  Else
+    $LabSampNoLength = 0
+  Endif
 
   $LabArchieveLog = modSettings.ShowSettingFromFIle("Laboratory/ArchiveLogReport")
   $LabTestOrdering = modSettings.ShowSettingFromFIle("Laboratory/Report_Order")

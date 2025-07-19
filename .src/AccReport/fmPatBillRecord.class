@@ -11,6 +11,7 @@ Private $SSQLFields As String[]
 Private $ColCount As Integer
 Private $newColumn As String[]
 Private $RepoStr As String
+Private $PolyCompLst As String[]
 
 Private $tblpatbilling As String
 Private $tblpatbilldetail As String
@@ -22,6 +23,7 @@ Public Sub _new()
   modReceiptAll.$RecLockLocation = ""
   cmbcomp.List = modBasic.$AllCompPerList
   cmbcomp.Text = "%"
+  $PolyCompLst = New String[]
   If MMain.$WebReport = "Multiple" Then
     If modBasic.$HospCode Then
       ' cmbsearch.Text = "Hospital"
@@ -40,6 +42,10 @@ Public Sub _new()
         mnulocked.Visible = False
         If modBasic.$ViewLockInvoice = "User" Then
           cmbsearch.List = ["Encounter", "Invoice", "Package", "Reference", "PatientCode", "RatePlan", "Doc Upload", "CBMS Upload", "Booking"]
+        Else If modBasic.$ViewLockInvoice = "Branch" Then
+          cmbsearch.List = ["Encounter", "Cashier", "Invoice", "Package", "Reference", "PatientCode", "RatePlan", "Doc Upload", "CBMS Upload", "Booking"]
+          $PolyCompLst = modBasic.$branchList
+          cmbcomp.List = modBasic.$branchList
         Else If modBasic.$ViewLockInvoice = "Location" Then
           cmbsearch.List = ["Encounter", "Cashier", "Invoice", "Package", "Reference", "PatientCode", "RatePlan", "Doc Upload", "CBMS Upload", "Booking"]
           cmbcomp.Text = modBasic.$compID
@@ -464,6 +470,10 @@ Private Function ExecuteQuery(xFldList As String[]) As Result
   Dim xsear As String
   Dim xorder As String
 
+  Dim xcomp As String
+  Dim compLst As String[]
+  Dim i As Integer
+
   If cmbtype.Text = "All Types" Then
     Bll = "%"
     Bll1 = "%"
@@ -556,12 +566,26 @@ Private Function ExecuteQuery(xFldList As String[]) As Result
     xorder = " ORDER BY fldid"
   Endif
 
+  If cmbcomp.Text = "%" Then
+    If $PolyCompLst.Count Then
+      compLst = $PolyCompLst.Copy()
+      For i = 0 To compLst.Count - 1
+        compLst[i] = "'" & compLst[i] & "'"
+      Next
+      xcomp = "fldcomp in(" & compLst.Join(",") & ") and "
+    Else
+      xcomp = ""
+    Endif
+  Else
+    xcomp = "fldcomp=&1 and "
+  Endif
+
   If rbinvoice.Value = True Then
-    res = modDatabase.$syConn.Exec("select " & xFldList.Join(",") & " from " & $tblpatbilldetail & " where fldcomp like &1 and fldbillno like &2 and fldtime>=&3 and fldtime<=&4 and fldbilltype like &5 and flduserid like &6" & xcateg & xregist & yregist & xsear & $RepoStr & xorder, cmbcomp.Text, Bll, modDate.StartSqlDate(dtfir.value), modDate.EndSqlDate(dtlast.value), cmbcashcredit.Text, txuser, cmbcategory.Text, LCase(cmbaccount.Text), 1, LCase(txtselect.Text))
+    res = modDatabase.$syConn.Exec("select " & xFldList.Join(",") & " from " & $tblpatbilldetail & " WHERE " & xcomp & "fldbillno like &2 and fldtime>=&3 and fldtime<=&4 and fldbilltype like &5 and flduserid like &6" & xcateg & xregist & yregist & xsear & $RepoStr & xorder, cmbcomp.Text, Bll, modDate.StartSqlDate(dtfir.value), modDate.EndSqlDate(dtlast.value), cmbcashcredit.Text, txuser, cmbcategory.Text, LCase(cmbaccount.Text), 1, LCase(txtselect.Text))
   Else If rbreceipt.Value = True Then
-    res = modDatabase.$syConn.Exec("select " & xFldList.Join(",") & " from " & $tbltempbilldetail & " where fldcomp like &1 and fldbillno like &2 and fldtime>=&3 and fldtime<=&4 and fldbilltype like &5 and flduserid like &6" & xcateg & xregist & yregist & xsear & $RepoStr & xorder, cmbcomp.Text, Bll, modDate.StartSqlDate(dtfir.value), modDate.EndSqlDate(dtlast.value), cmbcashcredit.Text, txuser, cmbcategory.Text, LCase(cmbaccount.Text), 1, LCase(txtselect.Text))
+    res = modDatabase.$syConn.Exec("select " & xFldList.Join(",") & " from " & $tbltempbilldetail & " WHERE " & xcomp & "fldbillno like &2 and fldtime>=&3 and fldtime<=&4 and fldbilltype like &5 and flduserid like &6" & xcateg & xregist & yregist & xsear & $RepoStr & xorder, cmbcomp.Text, Bll, modDate.StartSqlDate(dtfir.value), modDate.EndSqlDate(dtlast.value), cmbcashcredit.Text, txuser, cmbcategory.Text, LCase(cmbaccount.Text), 1, LCase(txtselect.Text))
   Else If rbboth.Value = True Then
-    res = modDatabase.$syConn.Exec("select " & xFldList.Join(",") & " from " & $tblpatbilldetail & " where fldcomp like &1 and fldbillno like &2 and fldtime>=&3 and fldtime<=&4 and fldbilltype like &5 and flduserid like &6" & xcateg & xregist & yregist & xsear & $RepoStr & " UNION ALL " & "select " & xFldList.Join(",") & " from " & $tbltempbilldetail & " where fldcomp like &1 and fldbillno like &{11} and fldtime>=&3 and fldtime<=&4 and fldbilltype like &5 and flduserid like &6" & xcateg & xregist & yregist & xsear & $RepoStr, cmbcomp.Text, Bll1, modDate.StartSqlDate(dtfir.value), modDate.EndSqlDate(dtlast.value), cmbcashcredit.Text, txuser, cmbcategory.Text, LCase(cmbaccount.Text), 1, LCase(txtselect.Text), Bll2)              ''
+    res = modDatabase.$syConn.Exec("select " & xFldList.Join(",") & " from " & $tblpatbilldetail & " WHERE " & xcomp & "fldbillno like &2 and fldtime>=&3 and fldtime<=&4 and fldbilltype like &5 and flduserid like &6" & xcateg & xregist & yregist & xsear & $RepoStr & " UNION ALL " & "select " & xFldList.Join(",") & " from " & $tbltempbilldetail & " WHERE " & xcomp & "fldbillno like &{11} and fldtime>=&3 and fldtime<=&4 and fldbilltype like &5 and flduserid like &6" & xcateg & xregist & yregist & xsear & $RepoStr, cmbcomp.Text, Bll1, modDate.StartSqlDate(dtfir.value), modDate.EndSqlDate(dtlast.value), cmbcashcredit.Text, txuser, cmbcategory.Text, LCase(cmbaccount.Text), 1, LCase(txtselect.Text), Bll2)              ''
   Endif
   Return res
 
