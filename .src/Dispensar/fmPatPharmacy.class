@@ -1363,68 +1363,63 @@ Private Sub ControlServiceName()
   ' ' Dim hForm As FmDiseaseDose
 
   If cmbmedicine.Text Then
-    If cmbroute.Text = "All" Then
-      $pharmLock = True
-      SHowInventoryStatus()
-      If modBasic.$MedDoseRecommend = "Yes" Then
-        txtdose.Value = modMedDosing.RecommendedDoseDrug(Trim(txtencid.Text), xYear, cmbmedicine.Text)
-        cmbfreq.Text = modMedDosing.RecommendedFrequencyDrug(xYear, cmbmedicine.Text)
-      Endif
-      txtdose.SetFocus()
-      Me.Exec("$_(" & JS(txtdose.Name & ":entry") & ").select()")
+    If modStockSub.GetComboStockControl(cmbroute.Text, cmbmedicine.Text, rbgeneric, rbrand, modDatabase.$medConn) = False Then
+      cmbmedicine.Text = ""
+      Me.Exec("Toastify({text: 'Item not listed', duration: 3000}).showToast()")
+      cmbroute.SetFocus
     Else
-      If modStockSub.GetComboStockControl(cmbroute.Text, cmbmedicine.Text, rbgeneric, rbrand, modDatabase.$medConn) = False Then
-        cmbmedicine.Text = ""
-        Me.Exec("Toastify({text: 'Item not listed', duration: 3000}).showToast()")
-        cmbroute.SetFocus
+
+      $pharmLock = True
+      If cmbroute.Text = "suture" Or If cmbroute.Text = "msurg" Or If cmbroute.Text = "ortho" Or If cmbroute.Text = "extra" Then
+        SHowInventoryStatus()
+        txtdose.Enabled = False
+        cmbfreq.Enabled = False
+        txtday.Enabled = False
+        If $HideDos = False Then  '' First pass to textbox
+          $HideDos = True
+          If CheckDuplicate() = True Then
+            txtqty.SetFocus
+            Me.Exec("$_(" & JS(txtqty.Name & ":entry") & ").select()")
+          Endif
+        Endif
+
       Else
-        $pharmLock = True
-        If cmbroute.Text = "suture" Or If cmbroute.Text = "msurg" Or If cmbroute.Text = "ortho" Or If cmbroute.Text = "extra" Then
-          SHowInventoryStatus()
+        SHowInventoryStatus()
+        If modBasic.$MedNoRegimen = "Enable" Then
           txtdose.Enabled = False
           cmbfreq.Enabled = False
           txtday.Enabled = False
-          txtqty.SetFocus
-          Me.Exec("$_(" & JS(txtqty.Name & ":entry") & ").select()")
-        Else
-          If rbrand.Value = True Then
-            cmbmedicine.Text = modMedConstant.ConvertBrandToGeneric(cmbroute.Text, cmbmedicine.Text)
+          If $HideDos = False Then  '' First pass to textbox
+            $HideDos = True
+            CheckLastDispensing(cmbmedicine.Text)
+            If CheckDuplicate() = True Then
+              txtqty.SetFocus
+              Me.Exec("$_(" & JS(txtqty.Name & ":entry") & ").select()")
+            Endif
           Endif
-          SHowInventoryStatus()
-          If modBasic.$MedNoRegimen = "Enable" Then
-            txtdose.Enabled = False
-            cmbfreq.Enabled = False
-            txtday.Enabled = False
-            If $HideDos = False Then
-              CheckLastDispensing(cmbmedicine.Text)
-            Endif
-            txtqty.SetFocus
-            Me.Exec("$_(" & JS(txtqty.Name & ":entry") & ").select()")
-          Else
-            txtdose.Enabled = True
-            cmbfreq.Enabled = True
-            txtday.Enabled = True
 
-            If modBasic.$MedDoseRecommend = "Yes" Then
-              txtdose.Value = modMedDosing.RecommendedDoseDrug(Trim(txtencid.Text), xYear, cmbmedicine.Text)
-              cmbfreq.Text = modMedDosing.RecommendedFrequencyDrug(xYear, cmbmedicine.Text)
-            Endif
-            If $HideDos = False Then
-              CheckLastDispensing(cmbmedicine.Text)
-            Endif
+        Else
+          txtdose.Enabled = True
+          cmbfreq.Enabled = True
+          txtday.Enabled = True
 
-            '     If modBasic.$MedDiseaseDose = "None" Then
-            '     Else
-            '       $HideDos = True
-            '       hForm = New FmDiseaseDose(modBasic.$MedDiseaseDose, Trim(txtencid.Text), cmbroute.Text, cmbmedicine.Text, txtdose, cmbfreq, txtday)
-            '       hForm.ShowModal
-            '     Endif
-            txtdose.SetFocus()
-            Me.Exec("$_(" & JS(txtdose.Name & ":entry") & ").select()")
-          Endif  ''if dose regimen enabled
-        Endif  ''med/surg/extra
+          If modBasic.$MedDoseRecommend = "Yes" Then
+            txtdose.Value = modMedDosing.RecommendedDoseDrug(Trim(txtencid.Text), xYear, cmbmedicine.Text)
+            cmbfreq.Text = modMedDosing.RecommendedFrequencyDrug(xYear, cmbmedicine.Text)
+          Endif
 
-      Endif
+          If $HideDos = False Then  '' First pass to textbox
+            $HideDos = True
+            CheckLastDispensing(cmbmedicine.Text)
+            If CheckDuplicate() = True Then
+              txtdose.SetFocus()
+              Me.Exec("$_(" & JS(txtdose.Name & ":entry") & ").select()")
+            Endif
+          Endif
+
+        Endif  ''if dose regimen enabled
+      Endif  ''med/surg/extra
+
     Endif
   Endif
 
@@ -1450,16 +1445,11 @@ Private Sub CheckLastDispensing(xmedicine As String)
 
       If xdays Then
         If DateAdd(xdate, gb.Day, xdays) > Now() Then
-          $HideDos = True
           Message.Warning("Dispensed for " & xdays & " Days On " & modReportVar.GetDateTimeReport(xdate, gb.GeneralDate), ("OK"))
         Endif
-      Else
-        $HideDos = True
       Endif
     Endif
 
-  Else
-    $HideDos = True
   Endif
 
 End
@@ -1567,6 +1557,34 @@ Private Sub SHowInventoryAllBatch(stockNo As Integer)
 
     Endif
   Endif
+
+End
+
+Private Function CheckDuplicate() As Boolean
+
+  Dim xbool As Boolean
+
+  If modGridView.GetItemPresentGrid($rData, "flditem", cmbmedicine.Text) = True Then
+    Select modBasic.$BillDuplication
+      Case "Inform"
+        Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Item already punched", modBasic.$BalloonDelay))
+        xbool = True
+      Case "Warn"
+        Message.Warning("Duplicate Entry", ("OK"))
+        xbool = True
+      Case "Disable"
+        Message.Warning("Duplicate Entry not allowed", ("OK"))
+        cmbmedicine.Text = ""
+        cmbroute.SetFocus
+        xbool = False
+      Case Else
+        xbool = True
+    End Select
+  Else
+    xbool = True
+  Endif
+
+  Return xbool
 
 End
 
