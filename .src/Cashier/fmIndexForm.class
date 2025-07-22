@@ -342,75 +342,20 @@ End
 
 Public Sub btnfileno_Click()
 
-  Dim res As Result
-  Dim sql As String
-  Dim xaddr As String[]
+  Dim xList As String[]
 
-  $selDate = False
   If txtfileno.Text Then
-    sql = "select fldpatientval,fldptnamefir,fldptnamelast,fldethniccode,fldptaddvill,fldptaddward,fldptadddist,fldptsex,fldptcontact,fldptguardian,fldptbirday,fldptadmindate,fldemail,fldrelation,fldcomment,fldadmitfile,fldptcode,fldencrypt,fldpassword from tblpatientinfo where fldadmitfile=&1"
-    res = modDatabase.$myConn.Exec(sql, Trim(txtfileno.Text))
-    If res.Available = False Then
-      Message.Warning(("File No not set"), ("OK"))
+    xList = modPatient.GetPatientListFileNo(Trim(txtfileno.Text))
+    If xList Then
+      If xList.Count = 1 Then
+        txtpatno.Text = xList[0]
+        btnpatno_Click()
+      Else
+        txtpatno.Text = InputListView("Select Patient No", "Index Form", xList)
+        btnpatno_Click()
+      Endif
     Else
-      res.MoveFirst
-      If res["fldencrypt"] Then
-        chkencrypt.Value = res["fldencrypt"]
-      Else
-        chkencrypt.Value = False
-      Endif
-      txtpatno.Text = res["fldpatientval"]
-      cmbdistrict.Text = res["fldptadddist"]  ''district always before address
-      cmbsex.Text = res["fldptsex"]
-      If res["fldptaddward"] Then
-        txtward.Text = res["fldptaddward"]
-        txtaddfir.Text = res["fldptaddvill"]
-      Else
-        If res["fldptaddvill"] Then
-          xaddr = Split(res["fldptaddvill"], "-")
-          If xaddr.Count > 1 Then
-            If IsInteger(xaddr[xaddr.Count - 1]) Then
-              txtward.Text = xaddr[xaddr.Count - 1]
-              txtaddfir.Text = xaddr.Copy(0, xaddr.Count - 1).Join("-")
-            Else
-              txtward.Text = ""
-              txtaddfir.Text = xaddr.Join("-")
-            Endif
-          Else
-            txtward.Text = ""
-            txtaddfir.Text = xaddr.Join("-")
-          Endif
-        Endif
-      Endif
-      txtguardian.Text = res["fldptguardian"]
-      cmbrelation.Text = res["fldrelation"]
-      If modBasic.$SuperUser = True Then
-        txtnamefir.Text = modPassword.DecryptPatData(res["fldptnamefir"], res["fldencrypt"])
-        txtnamelast.Text = modPassword.DecryptPatData(res["fldptnamelast"], res["fldencrypt"])
-        txtcontact.Text = modPassword.DecryptPatData(res["fldptcontact"], res["fldencrypt"])
-        txtemail.Text = modPassword.DecryptPatData(res["fldemail"], res["fldencrypt"])
-      Else
-        txtnamefir.Text = res["fldptnamefir"]
-        txtnamelast.Text = res["fldptnamelast"]
-        txtcontact.Text = res["fldptcontact"]
-        txtemail.Text = res["fldemail"]
-      Endif
-      txtethcode.Text = res["fldethniccode"]
-      txtfileno.Text = res["fldadmitfile"]
-      txtcomment.Text = res["fldcomment"]
-      txtextcode.Text = res["fldptcode"]
-      txtpassword.Text = modPassword.DecryptSimple(res["fldpassword"])
-      If res["fldptbirday"] Then
-        chknull.Value = False
-        dtdobmain.Tag = res["fldptbirday"]
-        $selDate = True
-        modDateSub.DateToYearandMonth(res["fldptbirday"], txtyears, txtmonths, btnyear, btnmon)
-      Else
-        dtdobmain.Tag = ""
-        chknull.Value = True
-      Endif
-      txtencounter.Text = ""
-      SetEditable(res["fldptadmindate"], res["fldadmitfile"])
+      Message.Warning(("File No not set"), ("OK"))
     Endif
   Endif
 

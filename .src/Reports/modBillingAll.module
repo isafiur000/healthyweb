@@ -7,6 +7,8 @@ Private $FootComment As String
 Private Function GetLockString() As String
 
   Dim xvarsql As String
+  Dim compLst As String[]
+  Dim i As Integer
 
   If $InvLockLocation Then
     xvarsql = db.Subst(" and fldcomp like &1", $InvLockLocation)
@@ -18,6 +20,13 @@ Private Function GetLockString() As String
         If modBasic.$ViewLockInvoice = "User" Then
           xvarsql = db.Subst(" and flduserid like &1", modBasic.$lbluser)
           $FootComment = modBasic.$lbluser
+        Else If modBasic.$ViewLockInvoice = "Branch" Then
+          compLst = modBasic.$branchList.Copy()
+          For i = 0 To compLst.Count - 1
+            compLst[i] = "'" & compLst[i] & "'"
+          Next
+          xvarsql = " and fldcomp in(" & compLst.Join(",") & ")"
+          $FootComment = modBasic.$branch
         Else If modBasic.$ViewLockInvoice = "Location" Then
           xvarsql = db.Subst(" and fldcomp like &1", modBasic.$compID)
           $FootComment = modBasic.$compID
@@ -83,6 +92,67 @@ Public Function GetBillDiscountDifference(sFormat As String, $con As Connection,
   Else If sType = "Tax" Then
     res = $con.Exec("select SUM(fldtaxamt) as tot from " & $tblpatbilldetail & " where " & xfld & ">=&1 and " & xfld & "<=&2 and flduserid like &3 and fldcomp like &4 and fldbilltype like &5" & RepoStr, bilid1, bilid2, sUser, sComp, billtype)
     res1 = $con.Exec("select SUM(fldtaxamt) as biltot from " & $tblpatbilling & " where fldbillno in(select fldbillno from " & $tblpatbilldetail & " where " & xfld & ">=&1 and " & xfld & "<=&2 and flduserid like &3 and fldcomp like &4 and fldbilltype like &5)" & RepoStr, bilid1, bilid2, sUser, sComp, billtype)
+  Endif
+  If res.Available Then
+    If res["tot"] Then
+      xinv = res["tot"]
+    Else
+      xinv = 0
+    Endif
+  Else
+    xinv = 0
+  Endif
+
+  If res1.Available Then
+    If res1["biltot"] Then
+      xitm = res1["biltot"]
+    Else
+      xitm = 0
+    Endif
+  Else
+    xitm = 0
+  Endif
+
+  Return (xinv - xitm)
+
+End
+
+''multiple comp
+Public Function GetBillDiscountDifferenceMulti(sFormat As String, $con As Connection, bill1 As Variant, bill2 As Variant, sType As String, sUser As String, aCompLst As String[], billtype As String, sLocaType As String, sLocation As String, $tblpatbilling As String, $tblpatbilldetail As String) As Float
+
+  Dim bilid1 As Variant
+  Dim bilid2 As Variant
+  Dim xfld As String
+  Dim i As Integer
+  Dim sCompLst As String[]
+
+  Dim res As Result
+  Dim res1 As Result
+  Dim xinv As Float
+  Dim xitm As Float
+  Dim RepoStr As String
+
+  RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
+  If sFormat = "Date" Then
+    bilid1 = bill1
+    bilid2 = bill2
+    xfld = "fldtime"
+  Else
+    bilid1 = modNonMedical.GetBillIDFromBillNo(bill1, $tblpatbilldetail)
+    bilid2 = modNonMedical.GetBillIDFromBillNo(bill2, $tblpatbilldetail)
+    xfld = "fldid"
+  Endif
+
+  sCompLst = aCompLst.Copy()
+  For i = 0 To sCompLst.Count - 1
+    sCompLst[i] = "'" & sCompLst[i] & "'"
+  Next
+  If sType = "Discount" Then
+    res = $con.Exec("select SUM(flddiscountamt) as tot from " & $tblpatbilldetail & " where " & xfld & ">=&1 and " & xfld & "<=&2 and flduserid like &3 and fldcomp in(" & sCompLst.Join(",") & ") and fldbilltype like &4" & RepoStr, bilid1, bilid2, sUser, billtype)
+    res1 = $con.Exec("select SUM(flddiscamt) as biltot from " & $tblpatbilling & " where fldbillno in(select fldbillno from " & $tblpatbilldetail & " where " & xfld & ">=&1 and " & xfld & "<=&2 and flduserid like &3 and fldcomp in(" & sCompLst.Join(",") & ") and fldbilltype like &4)" & RepoStr, bilid1, bilid2, sUser, billtype)
+  Else If sType = "Tax" Then
+    res = $con.Exec("select SUM(fldtaxamt) as tot from " & $tblpatbilldetail & " where " & xfld & ">=&1 and " & xfld & "<=&2 and flduserid like &3 and fldcomp in(" & sCompLst.Join(",") & ") and fldbilltype like &4" & RepoStr, bilid1, bilid2, sUser, billtype)
+    res1 = $con.Exec("select SUM(fldtaxamt) as biltot from " & $tblpatbilling & " where fldbillno in(select fldbillno from " & $tblpatbilldetail & " where " & xfld & ">=&1 and " & xfld & "<=&2 and flduserid like &3 and fldcomp in(" & sCompLst.Join(",") & ") and fldbilltype like &4)" & RepoStr, bilid1, bilid2, sUser, billtype)
   Endif
   If res.Available Then
     If res["tot"] Then
@@ -913,6 +983,7 @@ Public Function GetInvoiceReportBillingRangeGroupDetail($BillingReport As CRepor
   Dim RepoStr As String
   Dim sUser As String
   Dim sComp As String
+  Dim sCompLst As String[]
   Dim xround As Float
   Dim xcrnd As Float
 
@@ -922,6 +993,10 @@ Public Function GetInvoiceReportBillingRangeGroupDetail($BillingReport As CRepor
         sUser = modBasic.$lbluser
         sComp = "%"
         $FootComment = modBasic.$lbluser
+      Else If modBasic.$ViewLockInvoice = "Branch" Then
+        sUser = "%"
+        sCompLst = modBasic.$branchList.Copy()
+        $FootComment = modBasic.$branch
       Else If modBasic.$ViewLockInvoice = "Location" Then
         sUser = "%"
         sComp = modBasic.$compID
@@ -982,28 +1057,52 @@ Public Function GetInvoiceReportBillingRangeGroupDetail($BillingReport As CRepor
       cashtax = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Tax", sUser, $InvLockLocation, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
 
     Else
-      If sFormat = "Date" Then
-        xdueclear = modFinance.GetInvoiceClearanceRange($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
-      Else
-        xdueclear = modIDFinance.GetIDInvoiceClearanceRange($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
-      Endif
-      If sFormat = "Date" Then
-        xround = modFinance.GetInvoiceCashRound($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
-      Else
-        xround = modIDFinance.GetIDInvoiceCashRound($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
-      Endif
-      ''credit
-      If sFormat = "Date" Then
-        xcrnd = modFinance.GetInvoiceCreditRound($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail, $tblpatbilling)
-      Else
-        xcrnd = modIDFinance.GetIDInvoiceCreditRound($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail, $tblpatbilling)
-      Endif
+      If sCompLst And If sCompLst.Count Then
+        If sFormat = "Date" Then
+          xdueclear = modFinance.GetInvoiceClearanceRangeMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail)
+        Else
+          xdueclear = modIDFinance.GetIDInvoiceClearanceRangeMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail)
+        Endif
+        If sFormat = "Date" Then
+          xround = modFinance.GetInvoiceCashRoundMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail)
+        Else
+          xround = modIDFinance.GetIDInvoiceCashRoundMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail)
+        Endif
+        ''credit
+        If sFormat = "Date" Then
+          xcrnd = modFinance.GetInvoiceCreditRoundMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail, $tblpatbilling)
+        Else
+          xcrnd = modIDFinance.GetIDInvoiceCreditRoundMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail, $tblpatbilling)
+        Endif
 
-      crdtdisc = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Discount", sUser, sComp, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
-      crdttax = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Tax", sUser, sComp, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
-      cashdisc = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Discount", sUser, sComp, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
-      cashtax = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Tax", sUser, sComp, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+        crdtdisc = GetBillDiscountDifferenceMulti(sFormat, $con, bill1, bill2, "Discount", sUser, sCompLst, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+        crdttax = GetBillDiscountDifferenceMulti(sFormat, $con, bill1, bill2, "Tax", sUser, sCompLst, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+        cashdisc = GetBillDiscountDifferenceMulti(sFormat, $con, bill1, bill2, "Discount", sUser, sCompLst, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+        cashtax = GetBillDiscountDifferenceMulti(sFormat, $con, bill1, bill2, "Tax", sUser, sCompLst, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
 
+      Else
+        If sFormat = "Date" Then
+          xdueclear = modFinance.GetInvoiceClearanceRange($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
+        Else
+          xdueclear = modIDFinance.GetIDInvoiceClearanceRange($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
+        Endif
+        If sFormat = "Date" Then
+          xround = modFinance.GetInvoiceCashRound($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
+        Else
+          xround = modIDFinance.GetIDInvoiceCashRound($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
+        Endif
+        ''credit
+        If sFormat = "Date" Then
+          xcrnd = modFinance.GetInvoiceCreditRound($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail, $tblpatbilling)
+        Else
+          xcrnd = modIDFinance.GetIDInvoiceCreditRound($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail, $tblpatbilling)
+        Endif
+
+        crdtdisc = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Discount", sUser, sComp, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+        crdttax = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Tax", sUser, sComp, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+        cashdisc = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Discount", sUser, sComp, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+        cashtax = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Tax", sUser, sComp, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+      Endif
     Endif
 
     adue = 0
@@ -1252,6 +1351,7 @@ Public Function GetInvoiceReportBillingRangeGroupBrief($BillingReport As CReport
   Dim RepoStr As String
   Dim sUser As String
   Dim sComp As String
+  Dim sCompLst As String[]
   Dim xround As Float
   Dim xcrnd As Float
 
@@ -1261,6 +1361,10 @@ Public Function GetInvoiceReportBillingRangeGroupBrief($BillingReport As CReport
         sUser = modBasic.$lbluser
         sComp = "%"
         $FootComment = modBasic.$lbluser
+      Else If modBasic.$ViewLockInvoice = "Branch" Then
+        sUser = "%"
+        sCompLst = modBasic.$branchList.Copy()
+        $FootComment = modBasic.$branch
       Else If modBasic.$ViewLockInvoice = "Location" Then
         sUser = "%"
         sComp = modBasic.$compID
@@ -1321,28 +1425,53 @@ Public Function GetInvoiceReportBillingRangeGroupBrief($BillingReport As CReport
       cashtax = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Tax", sUser, $InvLockLocation, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
 
     Else
-      If sFormat = "Date" Then
-        xdueclear = modFinance.GetInvoiceClearanceRange($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
-      Else
-        xdueclear = modIDFinance.GetIDInvoiceClearanceRange($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
-      Endif
-      If sFormat = "Date" Then
-        xround = modFinance.GetInvoiceCashRound($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
-      Else
-        xround = modIDFinance.GetIDInvoiceCashRound($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
-      Endif
-      ''credit
-      If sFormat = "Date" Then
-        xcrnd = modFinance.GetInvoiceCreditRound($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail, $tblpatbilling)
-      Else
-        xcrnd = modIDFinance.GetIDInvoiceCreditRound($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail, $tblpatbilling)
-      Endif
+      If sCompLst And If sCompLst.Count Then
+        If sFormat = "Date" Then
+          xdueclear = modFinance.GetInvoiceClearanceRangeMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail)
+        Else
+          xdueclear = modIDFinance.GetIDInvoiceClearanceRangeMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail)
+        Endif
+        If sFormat = "Date" Then
+          xround = modFinance.GetInvoiceCashRoundMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail)
+        Else
+          xround = modIDFinance.GetIDInvoiceCashRoundMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail)
+        Endif
+        ''credit
+        If sFormat = "Date" Then
+          xcrnd = modFinance.GetInvoiceCreditRoundMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail, $tblpatbilling)
+        Else
+          xcrnd = modIDFinance.GetIDInvoiceCreditRoundMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail, $tblpatbilling)
+        Endif
 
-      crdtdisc = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Discount", sUser, sComp, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
-      crdttax = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Tax", sUser, sComp, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
-      cashdisc = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Discount", sUser, sComp, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
-      cashtax = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Tax", sUser, sComp, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+        crdtdisc = GetBillDiscountDifferenceMulti(sFormat, $con, bill1, bill2, "Discount", sUser, sCompLst, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+        crdttax = GetBillDiscountDifferenceMulti(sFormat, $con, bill1, bill2, "Tax", sUser, sCompLst, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+        cashdisc = GetBillDiscountDifferenceMulti(sFormat, $con, bill1, bill2, "Discount", sUser, sCompLst, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+        cashtax = GetBillDiscountDifferenceMulti(sFormat, $con, bill1, bill2, "Tax", sUser, sCompLst, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
 
+      Else
+        If sFormat = "Date" Then
+          xdueclear = modFinance.GetInvoiceClearanceRange($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
+        Else
+          xdueclear = modIDFinance.GetIDInvoiceClearanceRange($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
+        Endif
+        If sFormat = "Date" Then
+          xround = modFinance.GetInvoiceCashRound($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
+        Else
+          xround = modIDFinance.GetIDInvoiceCashRound($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
+        Endif
+        ''credit
+        If sFormat = "Date" Then
+          xcrnd = modFinance.GetInvoiceCreditRound($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail, $tblpatbilling)
+        Else
+          xcrnd = modIDFinance.GetIDInvoiceCreditRound($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail, $tblpatbilling)
+        Endif
+
+        crdtdisc = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Discount", sUser, sComp, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+        crdttax = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Tax", sUser, sComp, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+        cashdisc = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Discount", sUser, sComp, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+        cashtax = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Tax", sUser, sComp, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+
+      Endif
     Endif
 
     usrdue = 0
@@ -1673,6 +1802,7 @@ Public Function GetInvoiceReportBillingRangeLocation($BillingReport As CReportHT
   Dim RepoStr As String
   Dim sUser As String
   Dim sComp As String
+  Dim sCompLst As String[]
   Dim xround As Float
 
   Select modHelpVariable.$LogInCategory
@@ -1681,6 +1811,10 @@ Public Function GetInvoiceReportBillingRangeLocation($BillingReport As CReportHT
         sUser = modBasic.$lbluser
         sComp = "%"
         $FootComment = modBasic.$lbluser
+      Else If modBasic.$ViewLockInvoice = "Branch" Then
+        sUser = "%"
+        sCompLst = modBasic.$branchList.Copy()
+        $FootComment = modBasic.$branch
       Else If modBasic.$ViewLockInvoice = "Location" Then
         sUser = "%"
         sComp = modBasic.$compID
@@ -1733,22 +1867,41 @@ Public Function GetInvoiceReportBillingRangeLocation($BillingReport As CReportHT
       cashtax = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Tax", sUser, $InvLockLocation, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
 
     Else
-      If sFormat = "Date" Then
-        xdueclear = modFinance.GetInvoiceClearanceRange($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
-      Else
-        xdueclear = modIDFinance.GetIDInvoiceClearanceRange($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
-      Endif
-      If sFormat = "Date" Then
-        xround = modFinance.GetInvoiceCashRound($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
-      Else
-        xround = modIDFinance.GetIDInvoiceCashRound($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
-      Endif
+      If sCompLst And If sCompLst.Count Then
+        If sFormat = "Date" Then
+          xdueclear = modFinance.GetInvoiceClearanceRangeMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail)
+        Else
+          xdueclear = modIDFinance.GetIDInvoiceClearanceRangeMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail)
+        Endif
+        If sFormat = "Date" Then
+          xround = modFinance.GetInvoiceCashRoundMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail)
+        Else
+          xround = modIDFinance.GetIDInvoiceCashRoundMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail)
+        Endif
 
-      crdtdisc = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Discount", sUser, sComp, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
-      crdttax = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Tax", sUser, sComp, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
-      cashdisc = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Discount", sUser, sComp, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
-      cashtax = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Tax", sUser, sComp, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+        crdtdisc = GetBillDiscountDifferenceMulti(sFormat, $con, bill1, bill2, "Discount", sUser, sCompLst, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+        crdttax = GetBillDiscountDifferenceMulti(sFormat, $con, bill1, bill2, "Tax", sUser, sCompLst, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+        cashdisc = GetBillDiscountDifferenceMulti(sFormat, $con, bill1, bill2, "Discount", sUser, sCompLst, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+        cashtax = GetBillDiscountDifferenceMulti(sFormat, $con, bill1, bill2, "Tax", sUser, sCompLst, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
 
+      Else
+        If sFormat = "Date" Then
+          xdueclear = modFinance.GetInvoiceClearanceRange($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
+        Else
+          xdueclear = modIDFinance.GetIDInvoiceClearanceRange($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
+        Endif
+        If sFormat = "Date" Then
+          xround = modFinance.GetInvoiceCashRound($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
+        Else
+          xround = modIDFinance.GetIDInvoiceCashRound($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
+        Endif
+
+        crdtdisc = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Discount", sUser, sComp, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+        crdttax = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Tax", sUser, sComp, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+        cashdisc = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Discount", sUser, sComp, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+        cashtax = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Tax", sUser, sComp, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+
+      Endif
     Endif
 
     comdue = 0

@@ -3,12 +3,12 @@
 Private $rData As Result
 Private $aMyFields As String[]
 Private $strTitle As String
-Private $sComp As String
+Private $sCompLst As String[]
 
-Public Sub _new(strTitle As String, sComp As String)
+Public Sub _new(strTitle As String, aCompLst As String[])
 
   $strTitle = strTitle
-  $sComp = sComp
+  $sCompLst = aCompLst
 
   Me.Title = $strTitle
   dtlisted.Value = Now()
@@ -72,26 +72,23 @@ Private Sub ShowGridView()
 
   Dim sql As String
   Dim xstr As String
+  Dim sCompLst As String[]
+  Dim i As Integer
 
   Dim xpurchase As Float
   Dim xpayment As Float
 
-  If $sComp Then
-    If $sComp = "%" Then
-      xstr = ""
-    Else
-      xstr = " and fldcomp like &6"
-    Endif
-  Else
-    xstr = ""
-  Endif
-
+  sCompLst = $sCompLst.Copy()
+  For i = 0 To sCompLst.Count - 1
+    sCompLst[i] = "'" & sCompLst[i] & "'"
+  Next
+  xstr = " and fldcomp in(" & sCompLst.Join(",") & ")"
   If chklist.Value = True Then
     sql = "select fldid,fldreference,fldpurtype,fldpurdate,fldbillno,fldcategory,fldcredit,flddebit,fldreference,fldreference,fldpurorder,fldcomp from tblpurchasebill where fldsuppname=&1 and lower(fldreference) like &2 and lower(fldbillno) like &3 and fldpurdate>=&4 and fldpurdate<=&5" & xstr
   Else
     sql = "select fldid,fldreference,fldpurtype,fldpurdate,fldbillno,fldcategory,fldcredit,flddebit,fldreference,fldreference,fldpurorder,fldcomp from tblpurchasebill where fldsuppname=&1 and lower(fldreference) like &2 and lower(fldbillno) like &3" & xstr
   Endif
-  $rData = modDatabase.$syConn.Exec(sql, $strTitle, LCase(txtsearch.Text) & "%", LCase(txtinvoice.Text) & "%", modDate.StartSqlDate(dtlisted.Value), modDate.EndSqlDate(DateAdd(dtlisted.Value, gb.Day, txtrange.Value)), $sComp)
+  $rData = modDatabase.$syConn.Exec(sql, $strTitle, LCase(txtsearch.Text) & "%", LCase(txtinvoice.Text) & "%", modDate.StartSqlDate(dtlisted.Value), modDate.EndSqlDate(DateAdd(dtlisted.Value, gb.Day, txtrange.Value)))
   $aMyFields = New String[]
   modGridView.ReadSmallData(GridView1, $rData, $aMyFields)
 

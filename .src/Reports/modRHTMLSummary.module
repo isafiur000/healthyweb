@@ -831,12 +831,14 @@ Public Function ShowTransectionReportItemwise($con As Connection, sType As Strin
 
 End
 
-Public Function ShowProfitReport($con As Connection, sType As String, dt1 As Date, dt2 As Date, sComp As String, sLocaType As String, sLocation As String) As String
+Public Function ShowProfitReport($con As Connection, sType As String, dt1 As Date, dt2 As Date, aCompLst As String[], sLocaType As String, sLocation As String) As String
 
   Dim $BillingReport As CReportHTML
   Dim asx As New String[0]
   Dim res2 As Result
   Dim rs3 As Result
+  Dim sCompLst As String[]
+  Dim j As Integer
 
   Dim sale As Float
   Dim cost As Float
@@ -853,18 +855,22 @@ Public Function ShowProfitReport($con As Connection, sType As String, dt1 As Dat
   '   $ProgressBar1.Tag = "Const"
   ' Endif
 
+  sCompLst = aCompLst.Copy()
   $BillingReport = New CReportHTML([("PARTICULARS"), ("SALE QTY"), ("COST AMT"), ("SALE AMT"), ("PROFIT")], "", "")
   $BillingReport.UserData.Add("PROFIT ESTIMATION: " & sType, "PARAM1")
   $BillingReport.UserData.Add(modReportVar.GetDateTimeReport(dt1, gb.MediumDate) & " TO " & modReportVar.GetDateTimeReport(dt2, gb.MediumDate), "PARAM2")
   RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
 
+  For j = 0 To sCompLst.Count - 1
+    sCompLst[j] = "'" & sCompLst[j] & "'"
+  Next
+
   sale = 0
   cost = 0
   prof = 0
-
-  res2 = $con.Exec("select distinct(flditemname) as col from tblpatbilling where fldtime>=&1 and fldtime<=&2 and flditemtype=&3 and fldcomp like &4" & RepoStr & " ORDER BY flditemname ASC", modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), sType, sComp)                                                  ''
+  res2 = $con.Exec("select distinct(flditemname) as col from tblpatbilling where fldtime>=&1 and fldtime<=&2 and flditemtype=&3 and fldcomp in(" & sCompLst.Join(",") & ")" & RepoStr & " ORDER BY flditemname ASC", modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), sType)                                                  ''
   For Each res2
-    rs3 = $con.Exec("select flditemno,flditemqty,flditemrate,flddiscper,fldtaxper from tblpatbilling where fldtime>=&1 and fldtime<=&2 and flditemname=&3 and flditemtype=&4 and fldcomp like &5" & RepoStr, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), res2["col"], sType, sComp)
+    rs3 = $con.Exec("select flditemno,flditemqty,flditemrate,flddiscper,fldtaxper from tblpatbilling where fldtime>=&1 and fldtime<=&2 and flditemname=&3 and flditemtype=&4 and fldcomp in(" & sCompLst.Join(",") & ")" & RepoStr, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), res2["col"], sType)
     salqty = 0
     salcost = 0
     salamt = 0
@@ -917,12 +923,14 @@ Public Function ShowProfitReport($con As Connection, sType As String, dt1 As Dat
 
 End
 
-Public Function ShowProfitReportMapped($con As Connection, sType As String, dt1 As Date, dt2 As Date, sComp As String, sLocaType As String, sLocation As String) As String
+Public Function ShowProfitReportMapped($con As Connection, sType As String, dt1 As Date, dt2 As Date, aCompLst As String[], sLocaType As String, sLocation As String) As String
 
   Dim $BillingReport As CReportHTML
   Dim asx As New String[0]
   Dim res2 As Result
   Dim rs3 As Result
+  Dim sCompLst As String[]
+  Dim j As Integer
 
   Dim sale As Float
   Dim cost As Float
@@ -939,18 +947,22 @@ Public Function ShowProfitReportMapped($con As Connection, sType As String, dt1 
   '   $ProgressBar1.Tag = "Const"
   ' Endif
 
+  sCompLst = aCompLst.Copy()
   $BillingReport = New CReportHTML([("PARTICULARS"), ("SALE QTY"), ("COST AMT"), ("SALE AMT"), ("PROFIT")], "", "")
   $BillingReport.UserData.Add("PROFIT ESTIMATION: " & sType, "PARAM1")
   $BillingReport.UserData.Add(modReportVar.GetDateTimeReport(dt1, gb.MediumDate) & " TO " & modReportVar.GetDateTimeReport(dt2, gb.MediumDate), "PARAM2")
   RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
 
+  For j = 0 To sCompLst.Count - 1
+    sCompLst[j] = "'" & sCompLst[j] & "'"
+  Next
+
   sale = 0
   cost = 0
   prof = 0
-
-  res2 = $con.Exec("select distinct(flditemname) as col from tblpatbilling where fldtime>=&1 and fldtime<=&2 and flditemtype=&3 and fldcomp like &4 and flditemname in(select flditemname from tblstockrate)" & RepoStr & " ORDER BY flditemname ASC", modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), sType, sComp)                                                  ''
+  res2 = $con.Exec("select distinct(flditemname) as col from tblpatbilling where fldtime>=&1 and fldtime<=&2 and flditemtype=&3 and fldcomp in(" & sCompLst.Join(",") & ") and flditemname in(select flditemname from tblstockrate)" & RepoStr & " ORDER BY flditemname ASC", modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), sType)                                                  ''
   For Each res2
-    rs3 = $con.Exec("select flditemno,flditemqty,flditemrate,flddiscper,fldtaxper from tblpatbilling where fldtime>=&1 and fldtime<=&2 and flditemname=&3 and flditemtype=&4 and fldcomp like &5" & RepoStr, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), res2["col"], sType, sComp)
+    rs3 = $con.Exec("select flditemno,flditemqty,flditemrate,flddiscper,fldtaxper from tblpatbilling where fldtime>=&1 and fldtime<=&2 and flditemname=&3 and flditemtype=&4 and fldcomp in(" & sCompLst.Join(",") & ")" & RepoStr, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), res2["col"], sType)
     salqty = 0
     salcost = 0
     salamt = 0

@@ -5,6 +5,7 @@ Private $aMyFields As String[]
 Private $rData1 As Result
 Private $aMyFields1 As String[]
 Private $suppName As String
+Private $PolyCompLst As String[]
 
 Public Sub _new()
 
@@ -12,12 +13,17 @@ Public Sub _new()
     pnlbuttons.Visible = False
   Endif
 
+  $PolyCompLst = New String[]
   Select modHelpVariable.$LogInCategory
-    Case "Purchase"
+    Case "Dispensar", "Pharmacist", "Purchase", "Store"
       If modBasic.$ViewLockInventory = "Location" Then
         cmbcomp.Text = modBasic.$compID
         cmbcomp.Enabled = False
         mnudel.Visible = False
+      Else If modBasic.$ViewLockInventory = "Branch" Then
+        $PolyCompLst = modBasic.$branchList
+        cmbcomp.List = modBasic.$branchList
+        cmbcomp.Text = "%"
       Else
         cmbcomp.List = modBasic.$AllCompPerList
         cmbcomp.Text = "%"
@@ -47,6 +53,23 @@ End
 Public Sub WebForm_Open()
 
   modGeneralMain.RecordFormUse(Me)
+
+End
+
+Private Function GetSelCompList() As String[]
+
+  Dim compLst As String[]
+
+  If cmbcomp.Text = "%" Then
+    If $PolyCompLst.Count Then
+      compLst = $PolyCompLst.Copy()
+    Else
+      compLst = modBasic.$AllCompList.Copy()
+    Endif
+  Else
+    compLst = [cmbcomp.Text]
+  Endif
+  Return compLst
 
 End
 
@@ -290,11 +313,24 @@ Private Sub FillGridSupplier()
   Dim credit As Float
   Dim xtotl As Float
 
+  Dim xcomp As String
+  Dim compLst As String[]
+  Dim i As Integer
+
   If cmbcomp.Text = "%" Then
-    sql = "select fldsuppname,fldsuppname,SUM(fldcredit) as fldleftcredit, SUM(flddebit) as fldpaiddebit,fldsuppname from tblpurchasebill GROUP BY fldsuppname"
+    If $PolyCompLst.Count Then
+      compLst = $PolyCompLst.Copy()
+      For i = 0 To compLst.Count - 1
+        compLst[i] = "'" & compLst[i] & "'"
+      Next
+      xcomp = " WHERE fldcomp in(" & compLst.Join(",") & ")"
+    Else
+      xcomp = ""
+    Endif
   Else
-    sql = "select fldsuppname,fldsuppname,SUM(fldcredit) as fldleftcredit, SUM(flddebit) as fldpaiddebit,SUM(fldcredit-flddebit) as xtot from tblpurchasebill where fldcomp like &1 GROUP BY fldsuppname"
+    xcomp = " WHERE fldcomp=&1"
   Endif
+  sql = "select fldsuppname,fldsuppname,SUM(fldcredit) as fldleftcredit, SUM(flddebit) as fldpaiddebit,SUM(fldcredit-flddebit) as xtot from tblpurchasebill" & xcomp & " GROUP BY fldsuppname"
   $rData = modDatabase.$myConn.Exec(sql, cmbcomp.Text)
   $aMyFields = New String[]
   modGridView.ReadSmallData(GridView1, $rData, $aMyFields)
@@ -372,7 +408,7 @@ Public Sub btndetail_Click()
   Dim hForm As FmPurdetail
 
   If $suppName Then
-    hForm = New FmPurdetail($suppName, cmbcomp.Text)
+    hForm = New FmPurdetail($suppName, GetSelCompList())
     hForm.ShowModal
   Endif
 
@@ -386,7 +422,7 @@ Public Sub btninvoice_Click()
   If $suppName Then
     xx = DoubleDates(("Select Purchase Invoice Dates"), $suppName, [Date(), Date()])
     If xx Then
-      xPath = modHTMLStock.ShowSupplierInnvoices($suppName, xx[0], xx[1], cmbcomp.Text)
+      xPath = modHTMLStock.ShowSupplierInnvoices($suppName, xx[0], xx[1], GetSelCompList())
       modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
     Endif
   Endif
@@ -401,7 +437,7 @@ Public Sub btnitems_Click()
   If $suppName Then
     xx = DoubleDates(("Select Purchase Invoice Dates"), $suppName, [Date(), Date()])
     If xx Then
-      xPath = modHTMLStock.ShowSupplierItemList($suppName, xx[0], xx[1], cmbcomp.Text)
+      xPath = modHTMLStock.ShowSupplierItemList($suppName, xx[0], xx[1], GetSelCompList())
       modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
     Endif
   Endif
@@ -426,7 +462,7 @@ Public Sub btnrepototal_Click()
 
   xx = DoubleDates(("Select Purchase Invoice Dates"), "Summary", [Date(), Date()])
   If xx Then
-    xPath = modHTMLStock.GetSupplierSummaryAmount(xx[0], xx[1], cmbcomp.Text)
+    xPath = modHTMLStock.GetSupplierSummaryAmount(xx[0], xx[1], GetSelCompList())
     modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
   Endif
 

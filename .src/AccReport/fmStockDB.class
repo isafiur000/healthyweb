@@ -3,6 +3,7 @@
 Private $rData As Result
 Private $aMyFields As String[]
 Private $strType As String
+Private $PolyCompLst As String[]
 
 Public Sub _new()
 
@@ -30,14 +31,19 @@ Public Sub _new()
   rbany.Value = True
   chkcurrent.Value = True
 
+  $PolyCompLst = New String[]
   Select modHelpVariable.$LogInCategory
     Case "Dispensar"
       cmblocat.Text = modBasic.$compID
       cmblocat.Enabled = False
     Case "Purchase", "Store", "Pharmacist"
       If modBasic.$ViewLockInventory = "Location" Then
-        cmblocat.Text = modBasic.$compID
+        cmblocat.List = modBasic.$compID
         cmblocat.Enabled = False
+      Else If modBasic.$ViewLockInventory = "Branch" Then
+        $PolyCompLst = modBasic.$branchList
+        cmblocat.List = modBasic.$branchList
+        cmblocat.Text = "%"
       Else
         cmblocat.List = modBasic.$AllCompPerList
         cmblocat.Text = "%"
@@ -56,6 +62,12 @@ Public Sub cmblocation_Click()
   If cmblocation.Text Then
     cmbvalue.List = modDataRepo.GetRepoValueListType(cmblocation.Text)
   Endif
+
+End
+
+Public Sub rbnear_Click()
+
+  cmbmonth.Text = "3 Month"
 
 End
 
@@ -85,6 +97,10 @@ Private Sub ShowStockGrid()
   Dim xsearch As String
   Dim xroute As String
   Dim xgroup As String
+
+  Dim compLst As String[]
+  Dim i As Integer
+  Dim xcomp As String
 
   If rbmed.Value = True Then
     If rbbrand.Value = True And If Len(Trim(txtname.Text)) Then
@@ -122,27 +138,41 @@ Private Sub ShowStockGrid()
     xsearch = LCase(txtname.Text) & "%"
   Endif
 
+  If cmblocat.Text = "%" Then
+    If $PolyCompLst.Count Then
+      compLst = $PolyCompLst.Copy()
+      For i = 0 To compLst.Count - 1
+        compLst[i] = "'" & compLst[i] & "'"
+      Next
+      xcomp = "fldcomp in(" & compLst.Join(",") & ") and "
+    Else
+      xcomp = "fldcomp like &2 and "
+    Endif
+  Else
+    xcomp = "fldcomp=&2 and "
+  Endif
+
   If MMain.$WebReport = "Multiple" Then
     xstr = modDataRepo.GetWhereStringRepo(cmblocation.Text, cmbvalue.Text)
     If rbmed.Value = True Then
-      $rData = modDatabase.$syConn.Exec("select fldstockid,fldstockid,AVG(fldsellpr) as xsell,SUM(fldqty) as qty,fldstockid from tblentry where lower(fldstockid) like &1 and fldcomp like &2 and fldcategory=&4 and fldqty>=&3" & xstate & xstr & xgroup & xorder, xsearch, cmblocat.Text, 0, "Medicines", Now(), DateAdd(Now(), gb.Month, xnear))
+      $rData = modDatabase.$syConn.Exec("select fldstockid,fldstockid,AVG(fldsellpr) as xsell,SUM(fldqty) as qty,fldstockid from tblentry where lower(fldstockid) like &1 and " & xcomp & "fldcategory=&4 and fldqty>=&3" & xstate & xstr & xgroup & xorder, xsearch, cmblocat.Text, 0, "Medicines", Now(), DateAdd(Now(), gb.Month, xnear))
     Else If rbsurg.Value = True Then
-      $rData = modDatabase.$syConn.Exec("select fldstockid,fldstockid,AVG(fldsellpr) as xsell,SUM(fldqty) as qty,fldstockid from tblentry where lower(fldstockid) like &1 and fldcomp like &2 and fldcategory=&4 and fldqty>=&3" & xstate & xstr & xgroup & xorder, xsearch, cmblocat.Text, 0, "Surgicals", Now(), DateAdd(Now(), gb.Month, xnear))
+      $rData = modDatabase.$syConn.Exec("select fldstockid,fldstockid,AVG(fldsellpr) as xsell,SUM(fldqty) as qty,fldstockid from tblentry where lower(fldstockid) like &1 and " & xcomp & "fldcategory=&4 and fldqty>=&3" & xstate & xstr & xgroup & xorder, xsearch, cmblocat.Text, 0, "Surgicals", Now(), DateAdd(Now(), gb.Month, xnear))
     Else If rbextra.Value = True Then
-      $rData = modDatabase.$syConn.Exec("select fldstockid,fldstockid,AVG(fldsellpr) as xsell,SUM(fldqty) as qty,fldstockid from tblentry where lower(fldstockid) like &1 and fldcomp like &2 and fldcategory=&4 and fldqty>=&3" & xstate & xstr & xgroup & xorder, xsearch, cmblocat.Text, 0, "Extra Items", Now(), DateAdd(Now(), gb.Month, xnear))
+      $rData = modDatabase.$syConn.Exec("select fldstockid,fldstockid,AVG(fldsellpr) as xsell,SUM(fldqty) as qty,fldstockid from tblentry where lower(fldstockid) like &1 and " & xcomp & "fldcategory=&4 and fldqty>=&3" & xstate & xstr & xgroup & xorder, xsearch, cmblocat.Text, 0, "Extra Items", Now(), DateAdd(Now(), gb.Month, xnear))
     Endif
 
   Else
     If rbmed.Value = True Then
       If rbbrand.Value = True And If Len(Trim(txtname.Text)) Then
-        $rData = modDatabase.$syConn.Exec("select fldstockid,fldstockid,fldstockid,SUM(fldqty) as qty,fldstockid from tblentry where fldcomp like &2 and fldcategory=&4 and fldqty>=&3" & xstate & xroute & xgroup & xorder, xsearch, cmblocat.Text, 0, "Medicines", Now(), DateAdd(Now(), gb.Month, xnear), cmbroute.Text)
+        $rData = modDatabase.$syConn.Exec("select fldstockid,fldstockid,fldstockid,SUM(fldqty) as qty,fldstockid from tblentry where " & xcomp & "fldcategory=&4 and fldqty>=&3" & xstate & xroute & xgroup & xorder, xsearch, cmblocat.Text, 0, "Medicines", Now(), DateAdd(Now(), gb.Month, xnear), cmbroute.Text)
       Else
-        $rData = modDatabase.$syConn.Exec("select fldstockid,fldstockid,fldstockid,SUM(fldqty) as qty,fldstockid from tblentry where lower(fldstockid) like &1 and fldcomp like &2 and fldcategory=&4 and fldqty>=&3" & xstate & xroute & xgroup & xorder, xsearch, cmblocat.Text, 0, "Medicines", Now(), DateAdd(Now(), gb.Month, xnear), cmbroute.Text)
+        $rData = modDatabase.$syConn.Exec("select fldstockid,fldstockid,fldstockid,SUM(fldqty) as qty,fldstockid from tblentry where lower(fldstockid) like &1 and " & xcomp & "fldcategory=&4 and fldqty>=&3" & xstate & xroute & xgroup & xorder, xsearch, cmblocat.Text, 0, "Medicines", Now(), DateAdd(Now(), gb.Month, xnear), cmbroute.Text)
       Endif
     Else If rbsurg.Value = True Then
-      $rData = modDatabase.$syConn.Exec("select fldstockid,fldstockid,fldstockid,SUM(fldqty) as qty,fldstockid from tblentry where lower(fldstockid) like &1 and fldcomp like &2 and fldcategory=&4 and fldqty>=&3" & xstate & xroute & xgroup & xorder, xsearch, cmblocat.Text, 0, "Surgicals", Now(), DateAdd(Now(), gb.Month, xnear), cmbroute.Text)
+      $rData = modDatabase.$syConn.Exec("select fldstockid,fldstockid,fldstockid,SUM(fldqty) as qty,fldstockid from tblentry where lower(fldstockid) like &1 and " & xcomp & "fldcategory=&4 and fldqty>=&3" & xstate & xroute & xgroup & xorder, xsearch, cmblocat.Text, 0, "Surgicals", Now(), DateAdd(Now(), gb.Month, xnear), cmbroute.Text)
     Else If rbextra.Value = True Then
-      $rData = modDatabase.$syConn.Exec("select fldstockid,fldstockid,fldstockid,SUM(fldqty) as qty,fldstockid from tblentry where lower(fldstockid) like &1 and fldcomp like &2 and fldcategory=&4 and fldqty>=&3" & xstate & xroute & xgroup & xorder, xsearch, cmblocat.Text, 0, "Extra Items", Now(), DateAdd(Now(), gb.Month, xnear), cmbroute.Text)
+      $rData = modDatabase.$syConn.Exec("select fldstockid,fldstockid,fldstockid,SUM(fldqty) as qty,fldstockid from tblentry where lower(fldstockid) like &1 and " & xcomp & "fldcategory=&4 and fldqty>=&3" & xstate & xroute & xgroup & xorder, xsearch, cmblocat.Text, 0, "Extra Items", Now(), DateAdd(Now(), gb.Month, xnear), cmbroute.Text)
     Endif
 
   Endif
@@ -214,6 +244,10 @@ Public Sub GridView1_Click(Row As Integer, Column As Integer)
   Dim xstate As String
   Dim xnear As Integer
 
+  Dim compLst As String[]
+  Dim i As Integer
+  Dim xcomp As String
+
   If rbany.Value = True Then
     xstate = ""
   Else If rbnear.Value = True Then
@@ -223,14 +257,27 @@ Public Sub GridView1_Click(Row As Integer, Column As Integer)
   Endif
   xnear = modMisc.GetExpiryMonth(cmbmonth.Text)
 
+  If cmblocat.Text = "%" Then
+    If $PolyCompLst.Count Then
+      compLst = $PolyCompLst.Copy()
+      For i = 0 To compLst.Count - 1
+        compLst[i] = "'" & compLst[i] & "'"
+      Next
+      xcomp = " and fldcomp in(" & compLst.Join(",") & ")"
+    Else
+      xcomp = " and fldcomp like &3"
+    Endif
+  Else
+    xcomp = " and fldcomp=&3"
+  Endif
   If Column = 4 Then
     $rData.MoveTo(Row)
     If MMain.$WebReport = "Multiple" Then
       xitem = $rData["fldstockid"]
-      sql = "select fldstockno,fldstockid,fldbatch,fldexpiry,fldqty,fldsellpr,fldstatus,fldcomp,fldhospcode from tblentry where fldstockid=&1 and fldqty>&2 and fldcomp like &3" & xstate & modDataRepo.GetWhereStringRepo(cmblocation.Text, cmbvalue.Text)
+      sql = "select fldstockno,fldstockid,fldbatch,fldexpiry,fldqty,fldsellpr,fldstatus,fldcomp,fldhospcode from tblentry where fldstockid=&1 and fldqty>&2" & xcomp & xstate & modDataRepo.GetWhereStringRepo(cmblocation.Text, cmbvalue.Text)
     Else
       xitem = $rData["fldstockid"]
-      sql = "select fldstockno,fldstockid,fldbatch,fldexpiry,fldqty,fldsellpr,fldstatus,fldcomp from tblentry where fldstockid=&1 and fldqty>&2 and fldcomp like &3" & xstate
+      sql = "select fldstockno,fldstockid,fldbatch,fldexpiry,fldqty,fldsellpr,fldstatus,fldcomp from tblentry where fldstockid=&1 and fldqty>&2" & xcomp & xstate
     Endif
     res = modDatabase.$syConn.Exec(sql, xitem, 0, cmblocat.Text, Now(), DateAdd(Now(), gb.Month, xnear))
     If res.Available Then
@@ -290,8 +337,18 @@ End
 Public Sub btninvent_Click()
 
   Dim xPath As String
+  Dim compLst As String[]
 
-  xPath = modHTMLStock.ShowTotalInventory($strType, cmblocat.Text, cmblocation.Text, cmbvalue.Text)
+  If cmblocat.Text = "%" Then
+    If $PolyCompLst.Count Then
+      compLst = $PolyCompLst.Copy()
+    Else
+      compLst = modBasic.$AllCompList.Copy()
+    Endif
+  Else
+    compLst = [cmblocat.Text]
+  Endif
+  xPath = modHTMLStock.ShowTotalInventory($strType, compLst, cmblocation.Text, cmbvalue.Text)
   modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
 
 End
@@ -299,11 +356,5 @@ End
 Public Sub btnclose_Click()
 
   Me.Close()
-
-End
-
-Public Sub rbnear_Click()
-
-  cmbmonth.Text = "3 Month"
 
 End

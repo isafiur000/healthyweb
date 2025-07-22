@@ -773,6 +773,42 @@ Public Function GetInvoiceClearanceRange($conn As Connection, dtfir As Date, dtl
 
 End
 
+''multi comp
+Public Function GetInvoiceClearanceRangeMulti($conn As Connection, dtfir As Date, dtlast As Date, sUser As String, aCompLst As String[], sLocaType As String, sLocation As String, Optional sBillDetail As String) As Float
+
+  Dim res As Result
+  Dim xval As Float
+  Dim RepoStr As String
+  Dim i As Integer
+  Dim sCompLst As String[]
+
+  Dim xbilldetail As String
+
+  If sBillDetail Then
+    xbilldetail = sBillDetail
+  Else
+    xbilldetail = "tblpatbilldetail"
+  Endif
+
+  sCompLst = aCompLst.Copy()
+  For i = 0 To sCompLst.Count - 1
+    sCompLst[i] = "'" & sCompLst[i] & "'"
+  Next
+  RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
+  res = $conn.Exec("select SUM(fldreceivedamt) as totamt from " & xbilldetail & " where fldtime>=&1 and fldtime<=&2 and flditemamt=&3 and flduserid like &4 and fldcomp in(" & sCompLst.Join(",") & ")" & RepoStr, modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast), 0, sUser)                                        ''
+  If res.Available Then
+    If res["totamt"] Then
+      xval = res["totamt"]
+    Else
+      xval = 0
+    Endif
+  Else
+    xval = 0
+  Endif
+  Return xval
+
+End
+
 Public Function GetInvoiceCreditCash($conn As Connection, dtfir As Date, dtlast As Date, sUser As String, sComp As String, sLocaType As String, sLocation As String, Optional sBillDetail As String) As Float
 
   Dim res As Result
@@ -857,6 +893,42 @@ Public Function GetInvoiceCashRound($conn As Connection, dtfir As Date, dtlast A
 
 End
 
+''multi comp
+Public Function GetInvoiceCashRoundMulti($conn As Connection, dtfir As Date, dtlast As Date, sUser As String, aCompLst As String[], sLocaType As String, sLocation As String, Optional sBillDetail As String) As Float
+
+  Dim res As Result
+  Dim xval As Float
+  Dim RepoStr As String
+  Dim i As Integer
+  Dim sCompLst As String[]
+
+  Dim xbilldetail As String
+
+  If sBillDetail Then
+    xbilldetail = sBillDetail
+  Else
+    xbilldetail = "tblpatbilldetail"
+  Endif
+
+  sCompLst = aCompLst.Copy()
+  For i = 0 To sCompLst.Count - 1
+    sCompLst[i] = "'" & sCompLst[i] & "'"
+  Next
+  RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
+  res = $conn.Exec("select SUM(fldreceivedamt-fldchargedamt) as totamt from " & xbilldetail & " where fldtime>=&1 and fldtime<=&2 and fldbilltype=&3 and flduserid like &4 and fldcomp in(" & sCompLst.Join(",") & ") and flditemamt<>&5" & RepoStr, modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast), "Cash", sUser, 0)                                        ''
+  If res.Available Then
+    If res["totamt"] Then
+      xval = res["totamt"]
+    Else
+      xval = 0
+    Endif
+  Else
+    xval = 0
+  Endif
+  Return xval
+
+End
+
 Public Function GetInvoiceCreditRound($conn As Connection, dtfir As Date, dtlast As Date, sUser As String, sComp As String, sLocaType As String, sLocation As String, Optional sBillDetail As String, Optional sBillTable As String) As Float
 
   Dim res As Result
@@ -892,6 +964,65 @@ Public Function GetInvoiceCreditRound($conn As Connection, dtfir As Date, dtlast
   Endif
 
   res1 = $conn.Exec("select SUM((REPLACE(REPLACE(fldbilltype , 'Cash', 100), 'Credit', 0) + COALESCE(fldcashincredit, 0)) * fldditemamt / 100) as xcash from " & xbilling & " where fldbillno in(select fldbillno from " & xbilldetail & " where fldtime>=&1 and fldtime<=&2 and fldbilltype=&3 and flduserid like &4 and fldcomp like &5 and flditemamt<>&6)" & RepoStr, modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast), "Credit", sUser, sComp, 0)                                                                    ''
+  If res1.Available Then
+    If res1["xcash"] Then
+      yval = res1["xcash"]
+    Else
+      yval = 0
+    Endif
+  Else
+    yval = 0
+  Endif
+
+  xdiff = xval - yval
+
+  Return xdiff
+
+End
+
+''multi comp
+Public Function GetInvoiceCreditRoundMulti($conn As Connection, dtfir As Date, dtlast As Date, sUser As String, aCompLst As String[], sLocaType As String, sLocation As String, Optional sBillDetail As String, Optional sBillTable As String) As Float
+
+  Dim res As Result
+  Dim xval As Float
+  Dim res1 As Result
+  Dim yval As Float
+  Dim xdiff As Float
+  Dim i As Integer
+  Dim sCompLst As String[]
+
+  Dim RepoStr As String
+  Dim xbilldetail As String
+  Dim xbilling As String
+
+  If sBillDetail Then
+    xbilldetail = sBillDetail
+  Else
+    xbilldetail = "tblpatbilldetail"
+  Endif
+  If sBillTable Then
+    xbilling = sBillTable
+  Else
+    xbilling = "tblpatbilling"
+  Endif
+
+  sCompLst = aCompLst.Copy()
+  For i = 0 To sCompLst.Count - 1
+    sCompLst[i] = "'" & sCompLst[i] & "'"
+  Next
+  RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
+  res = $conn.Exec("select SUM(fldreceivedamt) as totamt from " & xbilldetail & " where fldtime>=&1 and fldtime<=&2 and fldbilltype=&3 and flduserid like &4 and fldcomp in(" & sCompLst.Join(",") & ") and flditemamt<>&5" & RepoStr, modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast), "Credit", sUser, 0)                                        ''
+  If res.Available Then
+    If res["totamt"] Then
+      xval = res["totamt"]
+    Else
+      xval = 0
+    Endif
+  Else
+    xval = 0
+  Endif
+
+  res1 = $conn.Exec("select SUM((REPLACE(REPLACE(fldbilltype , 'Cash', 100), 'Credit', 0) + COALESCE(fldcashincredit, 0)) * fldditemamt / 100) as xcash from " & xbilling & " where fldbillno in(select fldbillno from " & xbilldetail & " where fldtime>=&1 and fldtime<=&2 and fldbilltype=&3 and flduserid like &4 and fldcomp in(" & sCompLst.Join(",") & ") and flditemamt<>&5)" & RepoStr, modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast), "Credit", sUser, 0)                                                                    ''
   If res1.Available Then
     If res1["xcash"] Then
       yval = res1["xcash"]
@@ -1089,6 +1220,42 @@ Public Function GetReceiptClearanceRange($conn As Connection, dtfir As Date, dtl
   Endif
   RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
   res = $conn.Exec("select SUM(fldreceivedamt) as totamt from " & xtempdetail & " where fldtime>=&1 and fldtime<=&2 and flditemamt=&3 and flduserid like &4 and fldcomp like &5" & RepoStr, modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast), 0, sUser, sComp)                                        ''
+  If res.Available Then
+    If res["totamt"] Then
+      xval = res["totamt"]
+    Else
+      xval = 0
+    Endif
+  Else
+    xval = 0
+  Endif
+  Return xval
+
+End
+
+''multi comp
+Public Function GetReceiptClearanceRangeMulti($conn As Connection, dtfir As Date, dtlast As Date, sUser As String, aCompLst As String[], sLocaType As String, sLocation As String, Optional sBillTemp As String) As Float
+
+  Dim res As Result
+  Dim xval As Float
+  Dim RepoStr As String
+  Dim i As Integer
+  Dim sCompLst As String[]
+
+  Dim xtempdetail As String
+
+  If sBillTemp Then
+    xtempdetail = sBillTemp
+  Else
+    xtempdetail = "tbltempbilldetail"
+  Endif
+
+  sCompLst = aCompLst.Copy()
+  For i = 0 To sCompLst.Count - 1
+    sCompLst[i] = "'" & sCompLst[i] & "'"
+  Next
+  RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
+  res = $conn.Exec("select SUM(fldreceivedamt) as totamt from " & xtempdetail & " where fldtime>=&1 and fldtime<=&2 and flditemamt=&3 and flduserid like &4 and fldcomp in(" & sCompLst.Join(",") & ")" & RepoStr, modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast), 0, sUser)                                        ''
   If res.Available Then
     If res["totamt"] Then
       xval = res["totamt"]
