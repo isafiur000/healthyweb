@@ -1645,13 +1645,17 @@ Public Function GetInvoiceReportDetailByMismatch($BillingReport As CReportHTML, 
   Dim bilid1 As Variant
   Dim bilid2 As Variant
   Dim xfld As String
+
   Dim tax As Float
   Dim disc As Float
   Dim totl As Float
+  Dim acrdt As Float
   Dim acash As Float
+
   Dim nettax As Float
   Dim netdsc As Float
   Dim netotal As Float
+  Dim netcrdt As Float
   Dim netcash As Float
   Dim RepoStr As String
 
@@ -1677,8 +1681,9 @@ Public Function GetInvoiceReportDetailByMismatch($BillingReport As CReportHTML, 
     netotal = 0
     nettax = 0
     netdsc = 0
+    netcrdt = 0
     netcash = 0
-    res = $con.Exec("select fldbillno,(flditemamt+fldtaxamt-flddiscountamt) as itemamt,fldtaxamt,flddiscountamt,fldreceivedamt from " & $tblpatbilldetail & " where " & xfld & ">=&1 and " & xfld & "<=&2" & RepoStr, bilid1, bilid2)
+    res = $con.Exec("select fldbillno,fldbilltype,(flditemamt+fldtaxamt-flddiscountamt) as itemamt,fldtaxamt,flddiscountamt,fldreceivedamt from " & $tblpatbilldetail & " where " & xfld & ">=&1 and " & xfld & "<=&2" & RepoStr, bilid1, bilid2)
     For Each res
       precv = 0
       If res["fldbillno"] Like "DCL" & "*" Then
@@ -1689,8 +1694,9 @@ Public Function GetInvoiceReportDetailByMismatch($BillingReport As CReportHTML, 
       totl = 0
       tax = 0
       disc = 0
+      acrdt = 0
       acash = 0
-      res1 = $con.Exec("select SUM(fldditemamt) as itemtot,SUM(flddiscamt) as disctot,SUM(fldtaxamt) as taxtot,SUM((REPLACE(REPLACE(fldbilltype , 'Cash', 100), 'Credit', 0) + COALESCE(fldcashincredit, 0)) * fldditemamt / 100) as xcash from " & $tblpatbilling & " where fldbillno=&1" & RepoStr, res["fldbillno"])
+      res1 = $con.Exec("select SUM(fldditemamt) as itemtot,SUM(flddiscamt) as disctot,SUM(fldtaxamt) as taxtot,SUM((REPLACE(REPLACE(tblpatbilling.fldbilltype , 'Cash', 0), 'Credit', 100) - COALESCE(tblpatbilling.fldcashincredit, 0)) * tblpatbilling.fldditemamt / 100) as xcredit,SUM((REPLACE(REPLACE(tblpatbilling.fldbilltype , 'Cash', 100), 'Credit', 0) + COALESCE(tblpatbilling.fldcashincredit, 0)) * tblpatbilling.fldditemamt / 100) as xcash from " & $tblpatbilling & " where fldbillno=&1" & RepoStr, res["fldbillno"])
       If res1["itemtot"] Then
         totl = res1["itemtot"]
       Endif
@@ -1702,19 +1708,24 @@ Public Function GetInvoiceReportDetailByMismatch($BillingReport As CReportHTML, 
       Endif
       If res["fldbillno"] Like "DCL" & "*" Then
       Else
+        If res1["xcredit"] Then
+          acrdt = res1["xcredit"]
+        Endif
         If res1["xcash"] Then
           acash = res1["xcash"]
         Endif
       Endif
 
-      If Round(tax - res["fldtaxamt"], -1) <> 0 Or If Round(disc - res["flddiscountamt"], -1) <> 0 Or If Round(totl - res["itemamt"], -1) <> 0 Or If Round(acash - precv, -1) <> 0 Then
+      If Abs(tax - res["fldtaxamt"]) >= 1 Or If Abs(disc - res["flddiscountamt"]) >= 1 Or If Abs(totl - res["itemamt"]) >= 1 Or If Abs(acash - precv) >= 1 Or If Abs(acrdt - (res["itemamt"] - precv)) >= 1 Then
         netotal = netotal + (totl - res["itemamt"])
         nettax = nettax + (tax - res["fldtaxamt"])
         netdsc = netdsc + (disc - res["flddiscountamt"])
+        netcrdt = netcrdt + (acrdt - (res["itemamt"] - precv))
         netcash = netcash + (acash - precv)
 
         With asx
           .Add(res["fldbillno"])
+          .Add(res["fldbilltype"])
           .Add(modReportVar.GetLocaleNumberFormat(totl, gb.Currency))
           .Add(modReportVar.GetLocaleNumberFormat(res["itemamt"], gb.Currency))
           .Add(modReportVar.GetLocaleNumberFormat(totl - res["itemamt"], gb.Currency))
@@ -1724,6 +1735,11 @@ Public Function GetInvoiceReportDetailByMismatch($BillingReport As CReportHTML, 
           .Add(modReportVar.GetLocaleNumberFormat(disc, gb.Currency))
           .Add(modReportVar.GetLocaleNumberFormat(res["flddiscountamt"], gb.Currency))
           .Add(modReportVar.GetLocaleNumberFormat(disc - res["flddiscountamt"], gb.Currency))
+          ''credit
+          .Add(modReportVar.GetLocaleNumberFormat(acrdt, gb.Currency))
+          .Add(modReportVar.GetLocaleNumberFormat(res["itemamt"] - precv, gb.Currency))
+          .Add(modReportVar.GetLocaleNumberFormat(acrdt - (res["itemamt"] - precv), gb.Currency))
+          ''cash
           .Add(modReportVar.GetLocaleNumberFormat(acash, gb.Currency))
           .Add(modReportVar.GetLocaleNumberFormat(precv, gb.Currency))
           .Add(modReportVar.GetLocaleNumberFormat(acash - precv, gb.Currency))
@@ -1742,6 +1758,7 @@ Public Function GetInvoiceReportDetailByMismatch($BillingReport As CReportHTML, 
       .Add("")
       .Add("")
       .Add("")
+      .Add("")
       .Add(modReportVar.GetLocaleNumberFormat(netotal, gb.Currency))
       .Add("")
       .Add("")
@@ -1749,6 +1766,11 @@ Public Function GetInvoiceReportDetailByMismatch($BillingReport As CReportHTML, 
       .Add("")
       .Add("")
       .Add(modReportVar.GetLocaleNumberFormat(netdsc, gb.Currency))
+      ''credit
+      .Add("")
+      .Add("")
+      .Add(modReportVar.GetLocaleNumberFormat(netcrdt, gb.Currency))
+      ''cash
       .Add("")
       .Add("")
       .Add(modReportVar.GetLocaleNumberFormat(netcash, gb.Currency))

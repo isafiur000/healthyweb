@@ -739,10 +739,10 @@ Public Sub btnexpotree_Click()
   If res.Available Then
     For Each res
       With asx
-        .Add(res!fldencounterval)
-        .Add(modPatient.GetPatientNameByEnc(res!fldencounterval))
-        .Add(modPatient.GetPatientAgeString(res!fldencounterval, Now()) & "/" & modPatient.GetPatientSex(res!fldencounterval))
-        .Add(GetTestListForSample(res!fldencounterval).Join("; "))
+        .Add(res["fldencounterval"])
+        .Add(modPatient.GetPatientNameByEnc(res["fldencounterval"]))
+        .Add(modPatient.GetPatientAgeString(res["fldencounterval"], Now()) & "/" & modPatient.GetPatientSex(res["fldencounterval"]))
+        .Add(GetTestListForSample(res["fldencounterval"]).Join("; "))
         .Add("")
       End With
       $BillingReport.Add(asx)
@@ -1635,11 +1635,11 @@ Private Sub SampleWorkSheet(sCategList As String[])
         $sampleDate.Add(modReportVar.GetDateTimeReport(res["fldtime_sample"], gb.MediumDate))
         $invoiceNo.Add(res["fldbillno"])
 
-        xval = "<b>" & res!fldtestid & "</b>" & "<br>" & "[" & res!fldmethod & "]"
+        xval = "<b>" & res["fldtestid"] & "</b>" & "<br>" & "[" & res["fldmethod"] & "]"
         If $rData["fldtest_type"] = "Qualitative" Then
           rs = modDatabase.$myConn.Exec("select fldsubtest,fldreport,fldid from " & $tblpatlabsubtest & " where fldtestid=&1", $rData["fldid"])
           For Each rs
-            xval = xval & "<br>" & modString.HTMLBlankSpace(4) & rs!fldsubtest
+            xval = xval & "<br>" & modString.HTMLBlankSpace(4) & rs["fldsubtest"]
           Next
         Endif
 
@@ -1979,29 +1979,51 @@ Private Sub SampleBukWorkSheet(sCategory As String, sampleList As String[])
   Dim xval As String
 
   Dim xsample As String
+  Dim xleftLst As String[]
+  Dim xrightLst As String[]
 
   $BillingReport = New CReportHTML([("Test Name"), ("Observations")], "", "")
   $BillingReport.UserData.Add(sCategory, "PARAM1")
   $BillingReport.UserData.Add("DATE: " & modReportVar.GetDateTimeReport(Now(), gb.GeneralDate), "PARAM2")
 
   For Each xsample In sampleList
-    $BillingReport.AddSection(xsample & " : " & modPatient.GetPatientNameByEnc(modLabTest.GetEncounterFromSampleID(xsample)), False)
+    $BillingReport.AddChapter(xsample)
+    ' $BillingReport.AddSection(xsample & " : " & modPatient.GetPatientNameByEnc(modLabTest.GetEncounterFromSampleID(xsample)), False)
 
     If chklist.Value = True Then
-      sql = "select fldid,fldchk,fldgroupid,fldtestid,fldsampletype,fldsampleid,fldtime_sample,fldtest_type,fldrefername,fldcomment,fldencounterval,fldtime_start,fldmethod from " & $tblpatlabtest & " where fldstatus=&1 and fldsampleid=&2 and fldcomp_sample=&3 and fldtestid in(select fldtestid from tbltest where fldcategory like &4) and fldtime_sample>=&5 and fldtime_sample<=&6"
+      sql = "select fldid,fldchk,fldgroupid,fldtestid,fldsampletype,fldsampleid,fldtime_sample,flduserid_sample,fldtest_type,fldrefername,fldcomment,fldencounterval,fldtime_start,fldmethod from " & $tblpatlabtest & " where fldstatus=&1 and fldsampleid=&2 and fldcomp_sample=&3 and fldtestid in(select fldtestid from tbltest where fldcategory like &4) and fldtime_sample>=&5 and fldtime_sample<=&6"
       res = modDatabase.$myConn.Exec(sql, "Sampled", xsample, modBasic.$compID, sCategory, modDate.StartSqlDate(dtlisted.Value), modDate.EndSqlDate(DateAdd(dtlisted.Value, gb.Day, txtrange.Value)))
     Else
-      sql = "select fldid,fldchk,fldgroupid,fldtestid,fldsampletype,fldsampleid,fldtime_sample,fldtest_type,fldrefername,fldcomment,fldencounterval,fldtime_start,fldmethod from " & $tblpatlabtest & " where fldstatus=&1 and fldsampleid=&2 and fldcomp_sample=&3 and fldtestid in(select fldtestid from tbltest where fldcategory like &4)"
+      sql = "select fldid,fldchk,fldgroupid,fldtestid,fldsampletype,fldsampleid,fldtime_sample,flduserid_sample,fldtest_type,fldrefername,fldcomment,fldencounterval,fldtime_start,fldmethod from " & $tblpatlabtest & " where fldstatus=&1 and fldsampleid=&2 and fldcomp_sample=&3 and fldtestid in(select fldtestid from tbltest where fldcategory like &4)"
       res = modDatabase.$myConn.Exec(sql, "Sampled", xsample, modBasic.$compID, sCategory)
     Endif
     If res.Available Then
-      For Each res
+      res.MoveFirst
+      With asx
+        .Add("<b>EncID:</b> " & res["fldencounterval"])
+        .Add("<b>Location:</b> " & modPatient.GetPatientCurrDepartment(res["fldencounterval"]))
+      End With
+      $BillingReport.Add(asx)
+      asx.Clear()
+      With asx
+        .Add("<b>Name:</b> " & modPatient.GetPatientNameByEnc(res["fldencounterval"]))
+        .Add("<b>Category:</b> " & sCategory)
+      End With
+      $BillingReport.Add(asx)
+      asx.Clear()
+      With asx
+        .Add("<b>Sample Time:</b> " & Format(res["fldtime_sample"], "hh:nn"))
+        .Add("<b>Sample User:</b> " & res["flduserid_sample"])
+      End With
+      $BillingReport.Add(asx)
+      asx.Clear()
 
-        xval = "<b>" & res!fldtestid & "</b> : " & " (" & res!fldsampletype & ")" & "<br>" & "<small>[" & res!fldmethod & "]</small>"
+      For Each res
+        xval = "<b>" & res["fldtestid"] & "</b> : " & " (" & res["fldsampletype"] & ")" & "<br>" & "<small>[" & res["fldmethod"] & "]</small>"
         If res["fldtest_type"] = "Qualitative" Then
           rs = modDatabase.$myConn.Exec("select fldsubtest,fldreport,fldid from " & $tblpatlabsubtest & " where fldtestid=&1", res["fldid"])
           For Each rs
-            xval = xval & "<br>" & modString.HTMLBlankSpace(4) & rs!fldsubtest
+            xval = xval & "<br>" & modString.HTMLBlankSpace(4) & rs["fldsubtest"]
           Next
         Endif
 
@@ -2011,13 +2033,13 @@ Private Sub SampleBukWorkSheet(sCategory As String, sampleList As String[])
         End With
         $BillingReport.Add(asx)
         asx.Clear()
-
       Next
+
     Endif
 
     With asx
-      .Add("****")
-      .Add("****")
+      .Add("")
+      .Add("")
     End With
     $BillingReport.Add(asx)
     asx.Clear()

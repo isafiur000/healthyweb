@@ -5,9 +5,9 @@ Private $sTable As String
 Private $RegLock As Integer
 
 Public Sub _new(sid As Variant[], sTable As String)
-  
+
   Dim xx As String
-  
+
   $id = sid
   $sTable = sTable
   cmbdept.List = modGeneral.GetDepartForConsultOnly()
@@ -15,7 +15,7 @@ Public Sub _new(sid As Variant[], sTable As String)
   cmbstatus.List = ["Planned", "Cancelled", "Done"]
   dtconsultdate.Value = Now()
   dtconsultime.Text = CStr(Time(Now()))
-  
+
   xx = modGlobalSetting.ShowSettingFromDB("ConsultationList/Lock")
   If xx Then
     $RegLock = CInt(xx)
@@ -24,13 +24,13 @@ Public Sub _new(sid As Variant[], sTable As String)
   Endif
   ShowConsultGrid()
   cmbbillmode.SetFocus
-  
+
 End
 
 Private Sub ShowConsultGrid()
-  
+
   Dim res As Result
-  
+
   If $id.Count = 1 Then
     If $sTable = "tblconsult" Then
       res = modDatabase.$myConn.Exec("select fldconsultname,fldconsulttime,fldnotice,flduserid,fldstatus,fldbillingmode from tblconsult where fldid=&1", $id[0])                                                          ''
@@ -44,7 +44,7 @@ Private Sub ShowConsultGrid()
         cmbstatus.Text = res["fldstatus"]
         TextArea1.Text = res["fldnotice"]
       Endif
-      
+
     Else If $sTable = "tblpatientbook" Then
       res = modDatabase.$myConn.Exec("select fldadmitlocat,fldconsultdate,fldcomment,flduserid,fldstate,fldbillingmode from tblpatientbook where fldbookingval=&1", $id[0])
       If res.Available Then
@@ -57,17 +57,17 @@ Private Sub ShowConsultGrid()
         cmbstatus.Text = res["fldstate"]
         TextArea1.Text = res["fldcomment"]
       Endif
-      
+
     Endif
   Endif
-  
+
 End
 
 Public Sub btnselectuser_Click()
-  
+
   Dim xList As Variant[]
   Dim xMedUser As String[]
-  
+
   If modBasic.$LockConsultant = "LockByQuota" Then
     xList = modConsult.GetUserPostingList(cmbdept.Text, dtconsultdate.Value, cmbbillmode.Text)
   Else
@@ -81,28 +81,28 @@ Public Sub btnselectuser_Click()
     btnconsult.Tag = ""
     btnconsult.Text = ""
   Endif
-  
+
 End
 
 Public Sub dtnepcal_Click()
-  
+
   Dim xx As String
-  
+
   xx = BSDateFormat(("Enter BS Date in yyyy/mm/dd format"), ("Date Converter"), modDate.ConvertToLocaldate(dtconsultdate.Value))
   If xx Then
     dtconsultdate.Value = modDate.ConvertToEnglishdate(xx)
   Endif
-  
+
 End
 
 Public Sub btnedit_Click()
-  
+
   Dim res As Result
   Dim res1 As Result
   Dim res3 As Result
   Dim sDate As Date
   Dim i As Integer
-  
+
   sDate = Date(Year(dtconsultdate.Value), Month(dtconsultdate.Value), Day(dtconsultdate.Value), Hour(CDate(dtconsultime.Text)), Minute(CDate(dtconsultime.Text)), Second(CDate(dtconsultime.Text)))                                                                   ''
   If $sTable = "tblconsult" Then
     For i = 0 To $id.Count - 1
@@ -129,7 +129,7 @@ Public Sub btnedit_Click()
       Endif
     Next
     Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information updated", modBasic.$BalloonDelay))
-    
+
   Else If $sTable = "tblpatientbook" Then
     For i = 0 To $id.Count - 1
       res = modDatabase.$myConn.Edit("tblpatientbook", "fldbookingval=&1 and fldstate=&2", $id[i], "Planned")
@@ -146,19 +146,19 @@ Public Sub btnedit_Click()
     Next
     Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information updated", modBasic.$BalloonDelay))
   Endif
-  
+
 End
 
 Public Sub btnconsult_Change()
-  
+
   If btnconsult.Text = "" Then
     btnconsult.Tag = ""
   Endif
-  
+
 End
 
 Public Sub btnclose_Click()
-  
+
   Me.Close()
-  
+
 End

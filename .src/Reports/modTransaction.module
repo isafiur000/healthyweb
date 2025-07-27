@@ -333,7 +333,7 @@ Public Function ShowSpecStockReportItemwise($con As Connection, sType As String,
   ' Endif
 
   ' $BillingReport = New CReportHTML([("SNO"), ("PARTICULARS"),  ("QTY"), ("PUR-RATE"),("CUR-VALUE")], "", "")
-  $BillingReport = New CReportHTML([("SNO"), ("PARTICULARS"), ("QTY")], "", "")
+  $BillingReport = New CReportHTML([("SNO"), ("PARTICULARS"), ("AVG RATE*"), ("QTY")], "", "")
   $BillingReport.UserData.Add("CATEGORY: " & sType, "PARAM1")
   $BillingReport.UserData.Add("Date: " & modReportVar.GetDateTimeReport(dt, gb.MediumDate) & "   Comp: " & sComp, "PARAM2")
 
@@ -348,7 +348,7 @@ Public Function ShowSpecStockReportItemwise($con As Connection, sType As String,
     If aCollEntryAll[sItem] Then
       xval = aCollEntryAll[sItem]
     Endif
-    ' xcost = modStock.GetAverageCostPriceByStockName(sItem)
+    xcost = modStock.GetAverageCostPriceByStockName(sItem)
     ' xtot = xtot + xcost * xval
     If ShowNull = True Then
       xgo = True
@@ -363,8 +363,8 @@ Public Function ShowSpecStockReportItemwise($con As Connection, sType As String,
       With asx
         .Add(modReportVar.GetLocaleNumberFormat(i, 0))
         .Add(sItem)
+        .Add(modReportVar.GetLocaleNumberFormat(xcost, gb.Currency))
         .Add(modReportVar.GetLocaleNumberFormat(xval, -2))
-        ' .Add(modReportVar.GetLocaleNumberFormat(xcost, gb.Currency))
         ' .Add(modReportVar.GetLocaleNumberFormat(xcost * xval, gb.Currency))
       End With
       $BillingReport.Add(asx)
@@ -383,21 +383,14 @@ Public Function ShowSpecStockReportItemwise($con As Connection, sType As String,
     .Add("")
     .Add("")
     .Add("")
-    ' .Add("")
+    .Add("")
     ' .Add("")
   End With
   $BillingReport.Add(asx)
   asx.Clear()
-  With asx
-    .Add("")
-    .Add("<b>GRAND TOTAL</b>")
-    .Add("")
-    ' .Add("")
-    ' .Add(modReportVar.GetLocaleNumberFormat(xtot, gb.Currency))
-  End With
-  $BillingReport.Add(asx)
-  asx.Clear()
-  ' $BillingReport.AddSummary("Note: Purchase Rate is AVERAGE of available Stock. It may be zero if stock is not available.")
+
+  $BillingReport.AddSummary("Cost Price Calculation: " & modBasic.$InvReportCost)
+  $BillingReport.AddSummary("* The Avg Rate is not the actual cost price but the average of all batches of the particular medicine.")
 
   Return $BillingReport.NewHTMLPath()
 
@@ -741,6 +734,7 @@ Public Function ShowSpecStockReport($con As Connection, sType As String, dt As D
   $BillingReport.Add(asx)
   asx.Clear()
 
+  $BillingReport.AddSummary("Cost Price Calculation: " & modBasic.$InvReportCost)
   Return $BillingReport.NewHTMLPath()
 
 End
@@ -1178,6 +1172,7 @@ Public Function ShowTransectionReport($con As Connection, sType As String, dt1 A
   $BillingReport.Add(asx)
   asx.Clear()
 
+  $BillingReport.AddSummary("Cost Price Calculation: " & modBasic.$InvReportCost)
   Return $BillingReport.NewHTMLPath()
 
 End
