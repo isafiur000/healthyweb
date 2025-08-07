@@ -28,7 +28,7 @@ Private Function GetRadioVisibility(strTest As String) As String
 
 End
 
-Public Sub InsertRadioTestOrder(encid As String, strTest As String, strType As String, strMethod As String, grpid As Long, sRefer As String, sBillNo As String, sComment As String, plandate As Date, sFormat As String, Optional sPacsForm As String, Optional sStudyUID As String, Optional sSeriesUID As String)                      ''
+Public Sub InsertRadioTestOrder(encid As String, strTest As String, strType As String, strMethod As String, grpid As Long, sRefer As String, sBillNo As String, sComment As String, plandate As Date, sFormat As String, Optional sSampleID As String)                      ''
 
   Dim res As Result
   Dim xIntVal As String
@@ -39,7 +39,11 @@ Public Sub InsertRadioTestOrder(encid As String, strTest As String, strType As S
   res["fldmethod"] = strMethod
   res["fldgroupid"] = grpid
   res["fldsampletype"] = sFormat
-  res["fldsampleid"] = ""
+  If sSampleID Then
+    res["fldsampleid"] = sSampleID
+  Else
+    res["fldsampleid"] = ""
+  Endif
   res["fldreportquali"] = ""
   res["fldreportquanti"] = 0
   res["fldfilepath"] = ""
@@ -52,6 +56,66 @@ Public Sub InsertRadioTestOrder(encid As String, strTest As String, strType As S
   res["fldbillno"] = sBillNo
   res["flvisible"] = GetRadioVisibility(strTest)
   res["fldnewdate"] = plandate
+
+  res["fldpacstudy"] = ""
+  res["fldpacseries"] = ""
+  res["fldpacsform"] = ""
+
+  res["fldtest_type"] = strType
+  res["fldchk"] = False
+  res["fldorder"] = 0
+
+  res["flduserid_report"] = ""
+  res["fldtime_report"] = ""
+  res["fldcomp_report"] = modBasic.$compID
+  res["fldsave_report"] = False
+  res["flduptime_report"] = ""
+  res["fldupuser_report"] = ""
+
+  res["flduserid_verify"] = ""
+  res["fldtime_verify"] = ""
+  res["fldcomp_verify"] = ""
+  res["fldsave_verify"] = False
+  res["flduptime_verify"] = ""
+  res["fldupuser_verify"] = ""
+  res["xyz"] = True
+
+  If MMain.$WebEntry = True Then
+    xIntVal = modString.GetDateString(Now())
+    res["fldid"] = CLong(xIntVal)
+    res["fldrepoid"] = modMisc.GetWebIndexStr(xIntVal)
+    res["fldrepodate"] = Now()
+    res["fldrepomac"] = CGI["REMOTE_ADDR"] & ":" & CGI["REMOTE_PORT"]
+    res["fldhospcode"] = modBasic.$HospCode
+  Endif
+  res.Update()
+  'don't catch error
+
+End
+
+Public Sub InsertRadioTestOrderPACS(encid As String, strTest As String, strType As String, strMethod As String, grpid As Long, sPacsForm As String, sStudyUID As String, sSeriesUID As String)
+
+  Dim res As Result
+
+  res = modDatabase.$myConn.Create("tblpatradiotest")
+  res["fldencounterval"] = encid
+  res["fldtestid"] = strTest
+  res["fldmethod"] = strMethod
+  res["fldgroupid"] = grpid
+  res["fldsampletype"] = ""
+  res["fldsampleid"] = ""
+  res["fldreportquali"] = ""
+  res["fldreportquanti"] = 0
+  res["fldfilepath"] = ""
+  res["fldstatus"] = "Sampled"
+  res["fldprint"] = False
+  res["fldabnormal"] = False
+  res["fldrefername"] = ""
+  res["fldcondition"] = ""
+  res["fldcomment"] = ""
+  res["fldbillno"] = ""
+  res["flvisible"] = GetRadioVisibility(strTest)
+  res["fldnewdate"] = ""
 
   If sStudyUID Then
     res["fldpacstudy"] = sStudyUID
@@ -88,14 +152,6 @@ Public Sub InsertRadioTestOrder(encid As String, strTest As String, strType As S
   res["fldupuser_verify"] = ""
   res["xyz"] = True
 
-  If MMain.$WebEntry = True Then
-    xIntVal = modString.GetDateString(Now())
-    res["fldid"] = CLong(xIntVal)
-    res["fldrepoid"] = modMisc.GetWebIndexStr(xIntVal)
-    res["fldrepodate"] = Now()
-    res["fldrepomac"] = CGI["REMOTE_ADDR"] & ":" & CGI["REMOTE_PORT"]
-    res["fldhospcode"] = modBasic.$HospCode
-  Endif
   res.Update()
   'don't catch error
 

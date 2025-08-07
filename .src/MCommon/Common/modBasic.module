@@ -101,7 +101,11 @@ Public $LockInTime As String
 Public $SamplingYear As Integer
 Public $ShowDayMedReport As String
 Public $SHowDayDiagnosticReport As String
+
+Public $MedicineNameFormat As String
 Public $ShowDayMesStartReport As String
+Public $MedicineDoseFormat As String
+Public $MedicineFrequencyFormat As String
 
 Public $SignaPopUp As String
 Public $ShowQuantiMedReport As String
@@ -463,6 +467,7 @@ Public $BillPharmSelection As String
 Public $BillMedicineFormat As String
 Public $BillExpiryFormat As String
 Public $SalesHistoryAlert As String
+Public $SalesQTYPack As String
 Public $QRPaymentScript As String
 Public $QRPaymentShell As String
 
@@ -497,6 +502,7 @@ Public $SurgProfit As Float
 Public $MedProfit As Float
 Public $PurCompList As String
 Public $PurExtraParam As String
+Public $PurLockToTender As String
 Public $PurExpiryDay As Float
 Public $BatchSuffix As String
 
@@ -523,6 +529,9 @@ Public $LockToOwnProcedure As String
 Public $ClinMidBedRelease As String
 Public $ClinDepartFormat As String
 Public $ClinBedHoldTime As Integer
+Public $ClinLockLabTargt As String
+Public $ClinLockRadioTargt As String
+
 Public $FixDiagnosisDischarge As String
 Public $FixDiagnosisOPOutcome As String
 Public $ClinicTelemed As String
@@ -999,17 +1008,21 @@ Public Sub LoadGeneralVariables()
   $PatAgeFormat = modSettings.ShowSettingFromFIle("ReportFormat/ReportBody_AgeFormat")
   $AbnFormat = modSettings.ShowSettingFromFIle("ReportFormat/ReportBody_AbnormalMark")
   $SMSQueDisable = modGlobalSetting.ShowSettingFromDB("GeneralSettings/SMSQue_Disable")
+  $SignaPopUp = modSettings.ShowSettingFromFIle("ReportFormat/FooterPopUp")
 
   $MedRepoBody = modSettings.ShowSettingFromFIle("ClinicalReport/BodyFormat")
   $ShowDayMedReport = modSettings.ShowSettingFromFIle("ClinicalReport/ShowDay_Report")
   $SHowDayDiagnosticReport = modSettings.ShowSettingFromFIle("ClinicalReport/ShowDiagnosticDay_Report")
-  $ShowDayMesStartReport = modSettings.ShowSettingFromFIle("ClinicalReport/ShowMedicineStartDate_Report")
 
-  $SignaPopUp = modSettings.ShowSettingFromFIle("ReportFormat/FooterPopUp")
   $ShowQuantiMedReport = modSettings.ShowSettingFromFIle("ClinicalReport/QuantiValue_Format")
   $ShowQualiMedReport = modSettings.ShowSettingFromFIle("ClinicalReport/QualiValue_Format")
   $ShowScaleMedFormat = modSettings.ShowSettingFromFIle("ClinicalReport/ScaleValue_Format")
   $ShowHistorySource = modSettings.ShowSettingFromFIle("ClinicalReport/HistorySource")
+
+  $MedicineNameFormat = modSettings.ShowSettingFromFIle("ClinicalReport/MedicineName_Format")
+  $ShowDayMesStartReport = modSettings.ShowSettingFromFIle("ClinicalReport/ShowMedicineStartDate_Report")
+  $MedicineDoseFormat = modSettings.ShowSettingFromFIle("ClinicalReport/MedicineDose_Format")
+  $MedicineFrequencyFormat = modSettings.ShowSettingFromFIle("ClinicalReport/MedicineFrequency_Format")
 
   UploadDataSetting()
   LoadCustomReportSource()
@@ -1774,6 +1787,8 @@ Public Sub LoadInvoicingSetting()
   $BillMedicineFormat = modSettings.ShowSettingFromFIle("Invoice/MedicineName")
   $BillExpiryFormat = modSettings.ShowSettingFromFIle("Invoice/ShowExpiry")
   $SalesHistoryAlert = modSettings.ShowSettingFromFIle("HistoryAlert/PatientCode")
+  $SalesQTYPack = modSettings.ShowSettingFromFIle("MedicineRequest/UsePackSize")
+
   $QRPaymentScript = modSettings.ShowSettingFromFIle("Invoice/QRCodeScript")
   $QRPaymentShell = modSettings.ShowSettingFromFIle("Invoice/QRCodeShell")
 
@@ -1797,7 +1812,7 @@ Public Sub LoadBillingLists()
   If xdefall Then
     $BillDiscountAll = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select fldpackage as col from tblpackgroup where fldpackgroup=&1", xdefall))
   Else
-    $BillDiscountAll = $BillDiscountRegd  'New String[]
+    $BillDiscountAll = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select fldtype from tbldiscount where fldreserved IS &1", Null)) ''$BillDiscountRegd  'New String[]
   Endif
 
   xdeflt = modGlobalSetting.ShowSettingFromDB("CashBilling/DefaultPackage")
@@ -2225,6 +2240,7 @@ Public Sub InventorySettings()
 
   $PurCompList = modSettings.ShowSettingFromFIle("Purchase/CompWiseList")
   $PurExtraParam = modSettings.ShowSettingFromFIle("Purchase/ExtraParameters")
+  $PurLockToTender = modSettings.ShowSettingFromFIle("Purchase/LockToTender")
 
   xpurday = modSettings.ShowSettingFromFIle("Purchase/ExpiryDays")
   If xpurday Then
@@ -2300,6 +2316,9 @@ Public Sub GlobalClinicSettings()
   Else
     $ClinBedHoldTime = 0
   Endif
+
+  $ClinLockLabTargt = modGlobalSetting.ShowSettingFromDB("RestrictClinicalRequest/Laboratory")
+  $ClinLockRadioTargt = modGlobalSetting.ShowSettingFromDB("RestrictClinicalRequest/Radiology")
 
   ' $FixDiagnosisDischarge = modGlobalSetting.ShowSettingFromDB("IPClinic/FixDiagnosisDischarge")
   $FixDiagnosisOPOutcome = modGlobalSetting.ShowSettingFromDB("IPClinic/FixDiagnosisOPDOutcome")

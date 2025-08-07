@@ -568,7 +568,7 @@ Public Function ShowTotalInventory(sType As String, aCompLst As String[], sLocaT
   Dim j As Integer
 
   RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
-  $BillingReport = New CReportHTML([("SNo"), ("Particulars"), ("Batch"), ("Expiry"), ("Order"), ("QTY"), ("Cost"), ("Sell"), ("Total")], "", "")
+  $BillingReport = New CReportHTML([("SNO"), ("PARTICULARS"), ("BATCH"), ("EXPIRY"), ("ORDER"), ("QTY"), ("CP"), ("SP"), ("TOTAL")], "", "")
   $BillingReport.UserData.Add("CURRENT INVENTORY : " & sType, "PARAM1")
   $BillingReport.UserData.Add(modReportVar.GetDateTimeReport(Now(), gb.GeneralDate), "PARAM2")
 
@@ -665,7 +665,7 @@ Public Function ShowTotalExpiryReport(sFormat As String, dt As Date, sCateg As S
   Dim xcateg As String
 
   RepoStr = modDataRepo.GetRepoLastStr()
-  $BillingReport = New CReportHTML([("SNO"), ("PARTICULARS"), ("BATCH"), ("EXPIRY"), ("ORDER"), ("QTY"), ("COST"), ("SELL"), ("TOTAL")], "", "")
+  $BillingReport = New CReportHTML([("SNO"), ("PARTICULARS"), ("BATCH"), ("EXPIRY"), ("ORDER"), ("QTY"), ("CP"), ("SP"), ("TOTAL")], "", "")
   $BillingReport.UserData.Add(UCase(sFormat) & " LIST : " & compList.Join(";"), "PARAM1")
   $BillingReport.UserData.Add(modReportVar.GetDateTimeReport(dt, gb.GeneralDate), "PARAM2")
 
@@ -1595,6 +1595,45 @@ Public Function GetConsumeFromCompSummary(dtfir As Date, dtlast As Date, sComp A
   End With
   $BillingReport.Add(asx)
   asx.Clear()
+
+  Return $BillingReport.NewHTMLPath()
+
+End
+
+Public Function GetTenderListSummary(dtfir As Date, dtlast As Date) As String
+
+  Dim $BillingReport As CReportHTML
+  Dim asx As New String[0]
+  Dim res As Result
+  Dim rex As Result
+
+  $BillingReport = New CReportHTML([("START"), ("END"), ("CATEGORY"), ("PARTICULARS"), ("MAX RATE"), ("MAX QTY")], "", "")
+  $BillingReport.UserData.Add("TENDER LIST", "PARAM1")
+  $BillingReport.UserData.Add("DATE: " & modReportVar.GetDateTimeReport(dtfir, gb.MediumDate) & " TO " & modReportVar.GetDateTimeReport(dtlast, gb.MediumDate), "PARAM2")
+
+  rex = modDatabase.$syConn.Exec("select distinct(fldsuppname) as fldsuppname from tbltenderlist where fldfromdate>=&1 and fldtodate<=&2 and fldsav=&3", dtfir, dtlast, True)
+  If rex.Available Then
+    For Each rex
+      $BillingReport.AddChapter(rex["fldsuppname"])
+
+      res = modDatabase.$syConn.Exec("select fldfromdate,fldtodate,fldcategory,fldstockid,fldmaxcost,fldtotalqty from tbltenderlist where fldfromdate>=&1 and fldtodate<=&2 and fldsav=&3 and fldsuppname=&4", dtfir, dtlast, True, rex["fldsuppname"])
+      If res.Available Then
+        For Each res
+          With asx
+            .Add(modReportVar.GetDateTimeReport(res["fldfromdate"], gb.MediumDate))
+            .Add(modReportVar.GetDateTimeReport(res["fldtodate"], gb.MediumDate))
+            .Add(res["fldcategory"])
+            .Add(res["fldstockid"])
+            .Add(modReportVar.GetLocaleNumberFormat(res["fldmaxcost"], gb.Currency))
+            .Add(modReportVar.GetLocaleNumberFormat(res["fldtotalqty"], -2))
+          End With
+          $BillingReport.Add(asx)
+          asx.Clear()
+        Next
+      Endif
+
+    Next
+  Endif
 
   Return $BillingReport.NewHTMLPath()
 

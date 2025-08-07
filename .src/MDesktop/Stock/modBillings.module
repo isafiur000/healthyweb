@@ -433,7 +433,11 @@ Public Sub InsertBlankBillItemNewApp(encid As String, sBilType As String, sBillM
     res["fldsubsidy"] = xdscamt
   Endif
   res["fldditemamt"] = xtotamt
-  res["fldcashincredit"] = xCashCredit
+  If sBilType = "Cash" Then
+    res["fldcashincredit"] = 0
+  Else
+    res["fldcashincredit"] = xCashCredit
+  Endif
   res["fldbillno"] = ""
   res["fldstatus"] = status
 
@@ -1074,7 +1078,6 @@ Public Function ExitPatientWithBillingOfBed(encid As String) As String
   Dim hr As Float
   Dim bedno As String
   Dim xitem As String
-  Dim autobil As String
   Dim unitrate As String
 
   Dim xrefer As String
@@ -1089,16 +1092,15 @@ Public Function ExitPatientWithBillingOfBed(encid As String) As String
   If res.Available = True Then
     res.MoveLast
 
-    autobil = modBasic.$AutoBillBed
     xitem = modNonMedical.GetIPDepartChargeRate(res["flditem"], res["flddisctype"], bedno)
     modPatientGeneral.UpdatePatientTableSecondTime(res["fldid"], bedno, xitem)
 
     unitrate = modNonMedical.GetBillingTargeDept(xitem, "General Services")
     hr = modPatPatho.GetServiceUseDuration(encid, "General Services", res["flditem"], unitrate, res["fldfirsttime"], Now())
 
-    If autobil = "Yes" Or If autobil = "Full" Or If autobil = "Partial" Then
+    If modBasic.$AutoBillBed = "Standard" Or If modBasic.$AutoBillBed = "Full" Or If modBasic.$AutoBillBed = "Partial" Then
       If xitem Then
-        modBillings.EnterBillingForInterval(autobil, "Service", encid, res["flddisctype"], xitem, hr, 0, xpayble, xrefer)
+        modBillings.EnterBillingForInterval(modBasic.$AutoBillBed, "Service", encid, res["flddisctype"], xitem, hr, 0, xpayble, xrefer)
       Else
         xmsg = "Bed Charge not specified."
       Endif
@@ -1129,7 +1131,8 @@ Public Sub EnterBillingForInterval(autoBilling As String, sType As String, encid
 
   rte = modNonMedical.GetCashBillItemCost(txtitem, modNonMedical.GetBillItemCategoryFromCombo(sType))
   If rte Then
-    If autoBilling = "Yes" Or If autoBilling = "Full" Then
+    If autoBilling = "Standard" Then
+    Else If autoBilling = "Full" Then
       GetAutoBillingEntry(encid, DiscType, sType, txtitem, txthr, "Done", id, True, False, xx, yy)
     Else If autoBilling = "Partial" Then
       GetAutoBillingEntry(encid, DiscType, sType, txtitem, txthr, "Punched", id, False, False, xx, yy)

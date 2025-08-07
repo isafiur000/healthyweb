@@ -311,8 +311,6 @@ End
 Public Sub btnselect_Click()
 
   Dim i As Integer
-  Dim xauto As String
-
   Dim xrefer As String
   Dim xpayble As String
 
@@ -327,8 +325,7 @@ Public Sub btnselect_Click()
   Endif
   xpayble = ""
 
-  xauto = modBasic.$AutoBillTest
-  Select xauto
+  Select modBasic.$AutoBillTest
     Case "Partial"
       xList = New String[]
       xList.Insert($rData3.All("flditemname"))
@@ -343,7 +340,7 @@ Public Sub btnselect_Click()
     For i = 0 To ListView1.List.Count - 1
       If ListView1.IsSelected(i) = True Then
 
-        If xauto = "Yes" Or If xauto = "Full" Or If xauto = "Partial" Then
+        If modBasic.$AutoBillTest = "Standard" Or If modBasic.$AutoBillTest = "Full" Or If modBasic.$AutoBillTest = "Partial" Then
           If modMisc.GetDuplicationAllow(xList, ListView1.List[i]) = True Then
             modBillings.GetAutoBillingClinic($encid, cmbdisctype.Text, "Test", ListView1.List[i], 1, "Punched", 0, False, False, xpayble, xrefer)
             acount = acount + 1
@@ -431,13 +428,15 @@ End
 Public Sub btnsave_Click()
 
   Dim res As Result
-  Dim xauto As String
 
-  xauto = modBasic.$AutoBillTest
   res = modDatabase.$myConn.Edit("tblpatbilling", "fldencounterval= &1 and flditemtype=&2 and fldsave=&3 and fldstatus=&4", $encid, "Diagnostic Tests", False, "Punched")                 ''
   For Each res
 
-    If xauto = "Yes" Or If xauto = "Full" Then
+    If modBasic.$AutoBillTest = "Standard" Then
+      If modNonMedical.AllowPreCheckDeposit($encid, res["fldditemamt"]) = True Then
+        SavePartialEntry(res)
+      Endif
+    Else If modBasic.$AutoBillTest = "Full" Then
       If modNonMedical.AllowPreEntryWithDeposit($encid, "Test", res["fldditemamt"]) = True Then
         SavePartialEntry(res)
       Endif
@@ -691,8 +690,6 @@ End
 
 Public Sub btnselecttree_Click()
 
-  Dim xauto As String
-
   Dim xrefer As String
   Dim xpayble As String
 
@@ -707,8 +704,7 @@ Public Sub btnselecttree_Click()
   Endif
   xpayble = ""
 
-  xauto = modBasic.$AutoBillTest
-  Select xauto
+  Select modBasic.$AutoBillTest
     Case "Partial"
       xList = New String[]
       xList.Insert($rData4.All("flditemname"))
@@ -721,7 +717,7 @@ Public Sub btnselecttree_Click()
   If modMisc.AllowDiagnoBilling($encid) = True Then
 
     If TreeView1.Current.Image = "icons/coll3.png" Then
-      If xauto = "Yes" Or If xauto = "Full" Or If xauto = "Partial" Then
+      If modBasic.$AutoBillTest = "Standard" Or If modBasic.$AutoBillTest = "Full" Or If modBasic.$AutoBillTest = "Partial" Then
         If modMisc.GetDuplicationAllow(xList, TreeView1.Current.Text) = True Then
           modBillings.GetAutoBillingClinic($encid, cmbdisctype.Text, "Test", TreeView1.Current.Text, 1, "Punched", 0, False, False, xpayble, xrefer)
           acount = acount + 1
@@ -749,13 +745,15 @@ End
 Public Sub btnsavetree_Click()
 
   Dim res As Result
-  Dim xauto As String
 
-  xauto = modBasic.$AutoBillTest
   res = modDatabase.$myConn.Edit("tblpatbilling", "fldencounterval= &1 and flditemtype=&2 and fldsave=&3 and fldstatus=&4", $encid, "Diagnostic Tests", False, "Punched")                 ''
   For Each res
 
-    If xauto = "Yes" Or If xauto = "Full" Then
+    If modBasic.$AutoBillTest = "Standard" Then
+      If modNonMedical.AllowPreCheckDeposit($encid, res["fldditemamt"]) = True Then
+        SavePartialEntry(res)
+      Endif
+    Else If modBasic.$AutoBillTest = "Full" Then
       If modNonMedical.AllowPreEntryWithDeposit($encid, "Test", res["fldditemamt"]) = True Then
         SavePartialEntry(res)
       Endif

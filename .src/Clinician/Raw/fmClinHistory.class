@@ -5,6 +5,9 @@ Private $sType As String
 Private $xFinList As String[]
 Private $PatNum As String
 
+Private $rData As Result
+Private $aMyFields As String[]
+
 Public Sub _new(patId As String, sType As String, HideList As Boolean, PanelClass As String)
 
   $patId = patId
@@ -18,7 +21,7 @@ Public Sub _new(patId As String, sType As String, HideList As Boolean, PanelClas
     WebContainer3.Visible = True
     WebContainer7.Visible = False
     $PatNum = $patId
-    lstencounter.List = modPatient.GetEncListFromPatNo($patId)
+    ShowEncounterList()
   Else If $sType = "Encounter" Then
     WebContainer3.Visible = False
     txtnewencid.Text = $patId
@@ -36,6 +39,32 @@ Public Sub _new(patId As String, sType As String, HideList As Boolean, PanelClas
     Endif
   Else
     AddListBiewContent($xFinList)
+  Endif
+
+End
+
+Private Sub ShowEncounterList()
+
+  $rData = modDatabase.$myConn.Exec("select fldregdate,fldencounterval from tblencounter where fldpatientval=&1 ORDER BY fldregdate DESC", $patId)
+  $aMyFields = New String[]
+  modGridView.ReadSmallData(GridView1, $rData, $aMyFields)
+  With GridView1
+    .Columns[0].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
+    .Columns[1].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
+    .Columns[0].Text = "Date"
+    .Columns[1].Text = "Encounter"
+  End With
+
+End
+
+Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  $rData.MoveTo(Row)
+  modGridView.GridViewDecoration(Data, Row)
+  If Column = 0 Then
+    Data.Text = modReportVar.GetDateTimeReport($rData[$aMyFields[Column]], gb.MediumDate)
+  Else
+    Data.Text = $rData[$aMyFields[Column]]
   Endif
 
 End
@@ -85,9 +114,10 @@ Public Sub chkall_Click()
 
 End
 
-Public Sub lstencounter_Select()
+Public Sub GridView1_Select()
 
-  txtnewencid.Text = lstencounter.Text
+  $rData.MoveTo(GridView1.Selection[0])
+  txtnewencid.Text = $rData["fldencounterval"]
   ShowReportEncid(GetReportItems())
 
 End

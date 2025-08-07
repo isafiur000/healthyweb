@@ -274,8 +274,6 @@ End
 Public Sub btnselect_Click()
 
   Dim i As Integer
-  Dim xauto As String
-
   Dim xrefer As String
   Dim xpayble As String
 
@@ -290,8 +288,7 @@ Public Sub btnselect_Click()
   Endif
   xpayble = ""
 
-  xauto = modBasic.$AutoBillRadio
-  Select xauto
+  Select modBasic.$AutoBillRadio
     Case "Partial"
       xList = New String[]
       xList.Insert($rData3.All("flditemname"))
@@ -305,7 +302,7 @@ Public Sub btnselect_Click()
 
     For i = 0 To ListView1.List.Count - 1
       If ListView1.IsSelected(i) = True Then  '
-        If xauto = "Yes" Or If xauto = "Full" Or If xauto = "Partial" Then
+        If modBasic.$AutoBillRadio = "Standard" Or If modBasic.$AutoBillRadio = "Full" Or If modBasic.$AutoBillRadio = "Partial" Then
           If modMisc.GetDuplicationAllow(xList, ListView1.List[i]) = True Then
             modBillings.GetAutoBillingClinic($encid, cmbdisctype.Text, "Radio", ListView1.List[i], 1, "Punched", 0, False, False, xpayble, xrefer)
             acount = acount + 1
@@ -389,13 +386,15 @@ End
 Public Sub btnsave_Click()
 
   Dim res As Result
-  Dim xauto As String
 
-  xauto = modBasic.$AutoBillRadio
   res = modDatabase.$myConn.Edit("tblpatbilling", "fldencounterval= &1 and flditemtype=&2 and fldsave=&3 and fldstatus=&4", $encid, "Radio Diagnostics", False, "Punched")                 ''
   For Each res
 
-    If xauto = "Yes" Or If xauto = "Full" Then
+    If modBasic.$AutoBillRadio = "Standard" Then
+      If modNonMedical.AllowPreCheckDeposit($encid, res["fldditemamt"]) = True Then
+        SavePartialEntry(res)
+      Endif
+    Else If modBasic.$AutoBillRadio = "Full" Then
       If modNonMedical.AllowPreEntryWithDeposit($encid, "Radio", res["fldditemamt"]) = True Then
         SavePartialEntry(res)
       Endif

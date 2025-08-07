@@ -234,44 +234,30 @@ Public Sub btnsave_Click()
   Dim res As Result
   Dim xrefNo As String
   Dim xIntVal As String
+  Dim xmsg As String
 
-  $xclose = False
-  If txtgesweek.Value Then
-    xx = New String[]
-    xx.Add(Trim(txtdiagno.Text))
-    xx.Add("Obstetrics")
-    xx.Add(ObstetricSUmmary())
-    $sValue = xx
+  xmsg = ""
+  If dtlmp.Value > Now() Then
+    xmsg = xmsg & "Incorrect Last Mens Period Date" & gb.NewLine
+  Endif
+  If dtedd.Value > DateAdd(Now(), gb.Year, 1) Then
+    xmsg = xmsg & "Incorrect Expected Date of Delivery" & gb.NewLine
+  Endif
+  If xmsg Then
+    Message.Warning(xmsg, "OK")
+  Else
 
-    xday = 7 * txtgesweek.Value + txtgesdays.Value
-    If txtreference.Text Then
-      res = modDatabase.$myConn.Edit("tblobstetrics", "flddelref=&1", txtreference.Text)
-      res["fldgravida"] = txtgravida.Value
-      res["fldparity"] = txtparity.Value
-      res["fldbortion"] = txtabortion.Value
-      res["fldlive"] = txtliving.Value
-      res["fldlast"] = dtlmp.Value
-      res["fldexpect"] = dtedd.Value
-      res["fldgestation"] = xday
-      res["fldpresent"] = cmbpresent.Text
-      res["fldstatus"] = cmbstatus.Text
-      res["fldpast"] = txtpast.Text
-      res["flduserid"] = modBasic.$lbluser
-      res["fldcomp"] = modBasic.$compID
-      res["fldsave"] = True
-      res["xyz"] = False
-      res["flduptime"] = Now()
-      res.Update
-      $xclose = True
-      Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information updated", modBasic.$BalloonDelay))
+    $xclose = False
+    If txtgesweek.Value Then
+      xx = New String[]
+      xx.Add(Trim(txtdiagno.Text))
+      xx.Add("Obstetrics")
+      xx.Add(ObstetricSUmmary())
+      $sValue = xx
 
-    Else
-      modDatabase.$myConn.Begin
-      xrefNo = modPatient.GetDeliveryHMISVal($patNo)
-      If xrefNo Then
-        res = modDatabase.$myConn.Create("tblobstetrics")
-        res["fldencounterval"] = $encid
-        res["fldpatientval"] = $patNo
+      xday = 7 * txtgesweek.Value + txtgesdays.Value
+      If txtreference.Text Then
+        res = modDatabase.$myConn.Edit("tblobstetrics", "flddelref=&1", txtreference.Text)
         res["fldgravida"] = txtgravida.Value
         res["fldparity"] = txtparity.Value
         res["fldbortion"] = txtabortion.Value
@@ -283,30 +269,58 @@ Public Sub btnsave_Click()
         res["fldstatus"] = cmbstatus.Text
         res["fldpast"] = txtpast.Text
         res["flduserid"] = modBasic.$lbluser
-        res["fldtime"] = Now()
         res["fldcomp"] = modBasic.$compID
         res["fldsave"] = True
-        res["flddelref"] = xrefNo
         res["xyz"] = False
-        If MMain.$WebEntry = True Then
-          xIntVal = modString.GetDateString(Now())
-          res["fldid"] = CLong(xIntVal)
-          res["fldrepoid"] = modMisc.GetWebIndexStr(xIntVal)
-          res["fldrepodate"] = Now()
-          res["fldrepomac"] = CGI["REMOTE_ADDR"] & ":" & CGI["REMOTE_PORT"]
-          res["fldhospcode"] = modBasic.$HospCode
-        Endif
+        res["flduptime"] = Now()
         res.Update
-        modClinSub.AddGeneralParametersQuali($encid, "Pregnancy Status", GetTrimesterLabel(xday))
-        modDatabase.$myConn.Commit
-        txtreference.Text = xrefNo
         $xclose = True
-        Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
-      Else
-        modDatabase.$myConn.Rollback
-      Endif
+        Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information updated", modBasic.$BalloonDelay))
 
+      Else
+        modDatabase.$myConn.Begin
+        xrefNo = modPatient.GetDeliveryHMISVal($patNo)
+        If xrefNo Then
+          res = modDatabase.$myConn.Create("tblobstetrics")
+          res["fldencounterval"] = $encid
+          res["fldpatientval"] = $patNo
+          res["fldgravida"] = txtgravida.Value
+          res["fldparity"] = txtparity.Value
+          res["fldbortion"] = txtabortion.Value
+          res["fldlive"] = txtliving.Value
+          res["fldlast"] = dtlmp.Value
+          res["fldexpect"] = dtedd.Value
+          res["fldgestation"] = xday
+          res["fldpresent"] = cmbpresent.Text
+          res["fldstatus"] = cmbstatus.Text
+          res["fldpast"] = txtpast.Text
+          res["flduserid"] = modBasic.$lbluser
+          res["fldtime"] = Now()
+          res["fldcomp"] = modBasic.$compID
+          res["fldsave"] = True
+          res["flddelref"] = xrefNo
+          res["xyz"] = False
+          If MMain.$WebEntry = True Then
+            xIntVal = modString.GetDateString(Now())
+            res["fldid"] = CLong(xIntVal)
+            res["fldrepoid"] = modMisc.GetWebIndexStr(xIntVal)
+            res["fldrepodate"] = Now()
+            res["fldrepomac"] = CGI["REMOTE_ADDR"] & ":" & CGI["REMOTE_PORT"]
+            res["fldhospcode"] = modBasic.$HospCode
+          Endif
+          res.Update
+          modClinSub.AddGeneralParametersQuali($encid, "Pregnancy Status", GetTrimesterLabel(xday))
+          modDatabase.$myConn.Commit
+          txtreference.Text = xrefNo
+          $xclose = True
+          Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+        Else
+          modDatabase.$myConn.Rollback
+        Endif
+
+      Endif
     Endif
+
   Endif
 
 Catch
