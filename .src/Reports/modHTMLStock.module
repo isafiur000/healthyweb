@@ -462,6 +462,8 @@ Public Function GetDispenseSummaryReport(sType As String, dt1 As Date, dt2 As Da
   Dim RepoStr As String
   Dim sCompLst As String[]
   Dim j As Integer
+  Dim aFir As Integer
+  Dim aSec As Integer
 
   Dim xitot As Float
   Dim xdsc As Float
@@ -477,7 +479,7 @@ Public Function GetDispenseSummaryReport(sType As String, dt1 As Date, dt2 As Da
 
   RepoStr = modDataRepo.GetRepoLastStr()
   sCompLst = aCompLst.Copy()
-  $BillingReport = New CReportHTML([("SNo"), ("PARTICULARS"), ("QTY"), ("GROSS"), ("DISCOUNT"), ("TAX"), ("CREDIT"), ("CASH")], "", "")
+  $BillingReport = New CReportHTML([("SNo"), ("PARTICULARS"), ("QTY"), ("GROSS"), ("DISCOUNT"), ("TAX"), ("CREDIT"), ("CASH"), ("ABC"), ("CLASS")], "", "")
   $BillingReport.UserData.Add("DISPENSE SUMMARY : " & sType & "   DEPART : " & sCompLst.Join(", "), "PARAM1")
   $BillingReport.UserData.Add("DATE: " & modReportVar.GetDateTimeReport(dt1, gb.MediumDate) & " TO " & modReportVar.GetDateTimeReport(dt2, gb.MediumDate), "PARAM2")
 
@@ -491,8 +493,10 @@ Public Function GetDispenseSummaryReport(sType As String, dt1 As Date, dt2 As Da
   btax = 0
   bcash = 0
   bcrdt = 0
-  res2 = modDatabase.$syConn.Exec("select flditemname,SUM(flditemqty) as qty," & modNonMedical.CashCreditBillSQL() & " from tblpatbilling where flditemtype=&1 and fldtime>=&2 and fldtime<=&3 and fldsave=&4 and fldcomp in(" & sCompLst.Join(",") & ")" & RepoStr & " GROUP BY flditemname", sType, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True)
+  res2 = modDatabase.$syConn.Exec("select flditemname,SUM(flditemqty) as qty," & modNonMedical.CashCreditBillSQL() & " from tblpatbilling where flditemtype=&1 and fldtime>=&2 and fldtime<=&3 and fldsave=&4 and fldcomp in(" & sCompLst.Join(",") & ")" & RepoStr & " GROUP BY flditemname ORDER BY duemt DESC", sType, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True)
   If res2.Available Then
+    aFir = Ceil(0.1 * res2.Count)
+    aSec = Ceil(0.3 * res2.Count)
     For Each res2
       xitot = 0
       xdsc = 0
@@ -529,6 +533,14 @@ Public Function GetDispenseSummaryReport(sType As String, dt1 As Date, dt2 As Da
         .Add(modReportVar.GetLocaleNumberFormat(xtax, gb.Currency))
         .Add(modReportVar.GetLocaleNumberFormat(xcrdt, gb.Currency))
         .Add(modReportVar.GetLocaleNumberFormat(xcash, gb.Currency))
+        If i <= aFir Then
+          .Add("A")
+        Else If i <= aSec Then
+          .Add("B")
+        Else
+          .Add("C")
+        Endif
+        .Add(modMedConstant.GetCategoryFromStockID(res2["flditemname"]))
       End With
       $BillingReport.Add(asx)
       asx.Clear()
@@ -544,6 +556,8 @@ Public Function GetDispenseSummaryReport(sType As String, dt1 As Date, dt2 As Da
       .Add(modReportVar.GetLocaleNumberFormat(btax, gb.Currency))
       .Add(modReportVar.GetLocaleNumberFormat(bcrdt, gb.Currency))
       .Add(modReportVar.GetLocaleNumberFormat(bcash, gb.Currency))
+      .Add("")
+      .Add("")
     End With
     $BillingReport.Add(asx)
     asx.Clear()
