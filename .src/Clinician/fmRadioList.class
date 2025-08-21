@@ -292,7 +292,7 @@ Public Sub btnselect_Click()
     Case "Partial"
       xList = New String[]
       xList.Insert($rData3.All("flditemname"))
-    Case "Yes", "Full"
+    Case "Standard", "Full"
       xList = New String[]
       xList.Insert($rData3.All("flditemname"))
       xList.Insert($rData1.All("flditemname"))
@@ -582,44 +582,46 @@ Public Sub FillLabtable()
 
   $sColl = New Collection
   rsx = modDatabase.$myConn.Exec("select DISTINCT DATE(fldtime_report) as col from tblpatradiotest where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3) and flvisible=&4", $encid, "Reported", "Verified", "Visible")
-  For Each rsx
-    xdate = rsx["col"]
-    sql = "select fldid,fldtestid,fldmethod,fldabnormal,fldid,fldstatus,fldtime_report,fldtest_type,fldcomp_report from tblpatradiotest where fldencounterval=&1 and fldtime_report>=&2 and fldtime_report<=&3 and (fldstatus=&4 or fldstatus=&5) and flvisible=&6"
-    res = modDatabase.$myConn.Exec(sql, $encid, modDate.StartSqlDate(xdate), modDate.EndSqlDate(xdate), "Reported", "Verified", "Visible")
-    If res.Available Then
-      TableView1.Add(CStr(xdate), modReportVar.GetDateTimeReport(xdate, gb.MediumDate), pic2)
+  If rsx.Available Then
+    For Each rsx
+      xdate = rsx["col"]
+      sql = "select fldid,fldtestid,fldmethod,fldabnormal,fldid,fldstatus,fldtime_report,fldtest_type,fldcomp_report from tblpatradiotest where fldencounterval=&1 and fldtime_report>=&2 and fldtime_report<=&3 and (fldstatus=&4 or fldstatus=&5) and flvisible=&6"
+      res = modDatabase.$myConn.Exec(sql, $encid, modDate.StartSqlDate(xdate), modDate.EndSqlDate(xdate), "Reported", "Verified", "Visible")
+      If res.Available Then
+        TableView1.Add(CStr(xdate), modReportVar.GetDateTimeReport(xdate, gb.MediumDate), pic2)
 
-      Column = 0
-      For Each res
-        xdata = ""
-        If res["fldtest_type"] = "Quantitative" Then
-          xdata = modRadioTest.GetRadioTestValueString(res["fldid"], True, $encid)
-        Else If res["fldtest_type"] = "Qualitative" Then
-          xx = modRadioTest.GetRadioTestValueString(res["fldid"], True, $encid)
-          xtabval = modRadioTest.GetRadioSubTestQuali($encid, res["fldtestid"], res["fldid"])
-          If xtabval Then
-            xdata = modString.TextToHTML(xx & xtabval)
-          Else
-            xdata = modString.TextToHTML(xx)
+        Column = 0
+        For Each res
+          xdata = ""
+          If res["fldtest_type"] = "Quantitative" Then
+            xdata = modRadioTest.GetRadioTestValueString(res["fldid"], True, $encid)
+          Else If res["fldtest_type"] = "Qualitative" Then
+            xx = modRadioTest.GetRadioTestValueString(res["fldid"], True, $encid)
+            xtabval = modRadioTest.GetRadioSubTestQuali($encid, res["fldtestid"], res["fldid"])
+            If xtabval Then
+              xdata = modString.TextToHTML(xx & xtabval)
+            Else
+              xdata = modString.TextToHTML(xx)
+            Endif
           Endif
-        Endif
-        If res["fldabnormal"] = True Then
-          pic3 = "icons/true.svg"
-        Else
-          pic3 = "icons/false.svg"
-        Endif
-        $sColl.Add(xdata, CStr(xdate) & ":" & CStr(Column))
-        TableView1.Add(CStr(xdate) & ":" & CStr(Column), res["fldtestid"], pic3, CStr(xdate))
+          If res["fldabnormal"] = True Then
+            pic3 = "icons/true.svg"
+          Else
+            pic3 = "icons/false.svg"
+          Endif
+          $sColl.Add(xdata, CStr(xdate) & ":" & CStr(Column))
+          TableView1.Add(CStr(xdate) & ":" & CStr(Column), res["fldtestid"], pic3, CStr(xdate))
 
-        TableView1[CStr(xdate) & ":" & CStr(Column)][1] = modReportVar.GetDateTimeReport(res["fldtime_report"], gb.ShortTime)
-        ' TableView1[CStr(xdate) & ":" & CStr(Column)][2] = xdata
-        TableView1[CStr(xdate) & ":" & CStr(Column)][3] = modRadioTest.GetRadioTestLimitSrting(res["fldid"]) & gb.NewLine & "[" & res["fldmethod"] & "]"
-        TableView1[CStr(xdate) & ":" & CStr(Column)][4] = res["fldstatus"]
+          TableView1[CStr(xdate) & ":" & CStr(Column)][1] = modReportVar.GetDateTimeReport(res["fldtime_report"], gb.ShortTime)
+          ' TableView1[CStr(xdate) & ":" & CStr(Column)][2] = xdata
+          TableView1[CStr(xdate) & ":" & CStr(Column)][3] = modRadioTest.GetRadioTestLimitSrting(res["fldid"]) & gb.NewLine & "[" & res["fldmethod"] & "]"
+          TableView1[CStr(xdate) & ":" & CStr(Column)][4] = res["fldstatus"]
 
-        Column = Column + 1
-      Next
-    Endif
-  Next
+          Column = Column + 1
+        Next
+      Endif
+    Next
+  Endif
 
 End
 

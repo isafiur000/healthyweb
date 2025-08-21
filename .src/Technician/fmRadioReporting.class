@@ -26,6 +26,7 @@ Private $rData4 As Result
 Private $aMyFields4 As String[]
 Private $PositionList As String[]
 Private $sPath As String
+Private $counterLst As String[]
 
 Private $tblpatbilling As String
 
@@ -80,6 +81,7 @@ Public Sub _new()
     btnaddperson.Visible = False
     btnpersondelete.Visible = False
   Endif
+  $counterLst = modControlSub.GetDirectFillresultNoNull(modDatabase.$myConn.Exec("select fldcounter as col from tblradiocounter"))
 
   modRepository.ReadRemoteRepoConfig()
   If modRepository.$RepoPACSHost Then
@@ -2115,9 +2117,13 @@ Public Sub btnprefix_Click()
       Message.Warning("Reference is " & res["fldsampleid"], "OK")
     Else
 
-      xrefer = InputBox("Reference For this Examination", "Radiology", modRadioSub.GetRadioAutoIncreasingNo())
+      xrefer = InputBox("Reference For this Examination", "Radiology", modRadioSub.GetRadioAutoIncreasingNo(res["fldtestid"]))
       If xrefer Then
-        res["fldsampleid"] = xrefer
+        If res["fldsampleid"] And If $counterLst.Exist(res["fldsampleid"]) = True Then
+          res["fldsampleid"] = res["fldsampleid"] & "-" & xrefer
+        Else
+          res["fldsampleid"] = xrefer
+        Endif
         res.Update
         ShowGridMain()
       Endif

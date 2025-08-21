@@ -8,6 +8,7 @@ Private $rData As Result
 Private $encid As String
 Private $HashCode As String
 Private $xSection As String
+Private $pdfPath As String
 
 Public Sub _new(sIndex As Long, sFormat As String, sMark As Boolean)
 
@@ -551,6 +552,8 @@ Private Sub ShowRadioLaboratoryReport(sType As String, sHide As Boolean)
     ''final print
     If sType = "Report" Then
       modControlSub.OpenHTMLPreview($encid, $BillingReport.NewHTMLPath(), "ReportSize", "Radio Diagnostics")
+    Else If sType = "PDF" Then
+      $pdfPath = modPrint.ConvertHTMLToPDFString($BillingReport.NewHTMLPath(), "ReportSize")
     Else If sType = "FTP" Then
       SendFTPSMS($BillingReport.NewHTMLPath())
     Else If sType = "Save" Then
@@ -680,6 +683,19 @@ Public Sub GetReportHeadless()
     If modNonMedical.AllowEntryWithDeposit($encid, "Test") = True Then
       MarkPrintedSelected()
       ShowRadioLaboratoryReport("Report", True)
+    Else
+      Message.Warning("Report printing not allowed", ("OK"))
+    Endif
+  Endif
+
+End
+
+Public Function GetReportPDFPath() As String
+
+  If $encid Then
+    If modNonMedical.AllowEntryWithDeposit($encid, "Test") = True Then
+      ShowRadioLaboratoryReport("PDF", False)
+      Return $pdfPath
     Else
       Message.Warning("Report printing not allowed", ("OK"))
     Endif

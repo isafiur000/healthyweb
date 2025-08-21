@@ -1391,33 +1391,40 @@ Public Function GetSellingPriceByStockNo(stockno As Long, billMode As String) As
 
 End
 
-Public Function GetAverageCostPriceByStockNo(stockno As Long) As Float
+Public Function GetAverageCostPriceByStockNo(stockno As Long, Optional toDate As Date) As Float
 
   Dim res As Result
   Dim res1 As Result
   Dim res2 As Result
   Dim xx As Float
+  Dim sDate As Date
+
+  If toDate Then
+    sDate = toDate
+  Else
+    sDate = Now()
+  Endif
 
   If modBasic.$InvReportCost = "Fixed" Then
     xx = modStock.GetCurrCostPriceByStockNo(stockno)
 
   Else If modBasic.$InvReportCost = "Latest" Then
-    res = modDatabase.$myConn.Exec("select fldnetcost as netcost from tblpurchase where fldstockno=&1 and fldnetcost>&2 ORDER BY fldtime DESC", stockno, 0)
+    res = modDatabase.$myConn.Exec("select (fldtotalcost/fldtotalqty) as netcost from tblpurchase where fldstockno=&1 and fldnetcost>&2 and fldtime<=&3 and fldsav=&4 ORDER BY fldtime DESC", stockno, 0, sDate, False)
     If res.Available = True Then
       res.MoveFirst
       If res["netcost"] Then
-        xx = res["netcost"]
+        xx = Round(res["netcost"], -2)
       Else
         xx = 0
       Endif
     Endif
 
     If xx = 0 Then
-      res1 = modDatabase.$myConn.Exec("select fldnetcost as netcost from tbltransfer where fldstockno=&1 and fldnetcost>&2 ORDER BY fldtoentrytime DESC", stockno, 0)
-      If res1.Available = True Then
-        res1.MoveFirst
-        If res1["netcost"] Then
-          xx = res1["netcost"]
+      res2 = modDatabase.$myConn.Exec("select (fldtotalcost/fldtotalqty) as netcost from tblpurchase where fldstockno=&1 and fldnetcost>&2 and fldtime<=&3 and fldsav=&4 ORDER BY fldtime DESC", GetPrevSockNoFromCurrNo(stockno), 0, sDate, False)
+      If res2.Available = True Then
+        res2.MoveFirst
+        If res2["netcost"] Then
+          xx = Round(res2["netcost"], -2)
         Else
           xx = 0
         Endif
@@ -1427,11 +1434,11 @@ Public Function GetAverageCostPriceByStockNo(stockno As Long) As Float
     Endif
 
     If xx = 0 Then
-      res2 = modDatabase.$myConn.Exec("select fldnetcost as netcost from tblpurchase where fldstockno=&1 and fldnetcost>&2 ORDER BY fldtime DESC", GetPrevSockNoFromCurrNo(stockno), 0)
-      If res2.Available = True Then
-        res2.MoveFirst
-        If res2["netcost"] Then
-          xx = res2["netcost"]
+      res1 = modDatabase.$myConn.Exec("select fldnetcost as netcost from tbltransfer where fldstockno=&1 and fldnetcost>&2 and fldtoentrytime<=&3 and fldtosav=&4 ORDER BY fldtoentrytime DESC", stockno, 0, sDate, True)
+      If res1.Available = True Then
+        res1.MoveFirst
+        If res1["netcost"] Then
+          xx = Round(res1["netcost"], -2)
         Else
           xx = 0
         Endif
@@ -1441,20 +1448,20 @@ Public Function GetAverageCostPriceByStockNo(stockno As Long) As Float
     Endif
 
   Else
-    res = modDatabase.$myConn.Exec("select avg(fldnetcost) as netcost from tblpurchase where fldstockno=&1", stockno)
+    res = modDatabase.$myConn.Exec("select SUM(fldtotalcost) as totcost,SUM(fldtotalqty) as totqty from tblpurchase where fldstockno=&1 and fldtime<=&2 and fldsav=&3", stockno, sDate, False)
     If res.Available = True Then
-      If res["netcost"] Then
-        xx = res["netcost"]
+      If res["totqty"] Then
+        xx = Round(res["totcost"] / res["totqty"], -2)
       Else
         xx = 0
       Endif
     Endif
 
     If xx = 0 Then
-      res1 = modDatabase.$myConn.Exec("select avg(fldnetcost) as netcost from tbltransfer where fldstockno=&1", stockno)
-      If res1.Available = True Then
-        If res1["netcost"] Then
-          xx = res1["netcost"]
+      res2 = modDatabase.$myConn.Exec("select SUM(fldtotalcost) as totcost,SUM(fldtotalqty) as totqty from tblpurchase where fldstockno=&1 and fldtime<=&2 and fldsav=&3", GetPrevSockNoFromCurrNo(stockno), sDate, False)
+      If res2.Available = True Then
+        If res2["totqty"] Then
+          xx = Round(res2["totcost"] / res2["totqty"], -2)
         Else
           xx = 0
         Endif
@@ -1464,10 +1471,10 @@ Public Function GetAverageCostPriceByStockNo(stockno As Long) As Float
     Endif
 
     If xx = 0 Then
-      res2 = modDatabase.$myConn.Exec("select avg(fldnetcost) as netcost from tblpurchase where fldstockno=&1", GetPrevSockNoFromCurrNo(stockno))
-      If res2.Available = True Then
-        If res2["netcost"] Then
-          xx = res2["netcost"]
+      res1 = modDatabase.$myConn.Exec("select SUM(fldnetcost*fldqty) as totcost,SUM(fldqty) as totqty from tbltransfer where fldstockno=&1 and fldtoentrytime<=&2 and fldtosav=&3", stockno, sDate, True)
+      If res1.Available = True Then
+        If res1["totqty"] Then
+          xx = Round(res1["totcost"] / res1["totqty"], -2)
         Else
           xx = 0
         Endif
@@ -1477,6 +1484,7 @@ Public Function GetAverageCostPriceByStockNo(stockno As Long) As Float
     Endif
 
   Endif
+
   Return xx
 
 End
@@ -1521,24 +1529,73 @@ Public Function FindStockNoInPurchase(stockno As Long) As Integer
 
 End
 
-Public Function GetAverageCostPriceByStockName(stockid As String) As Float
+Public Function GetAverageCostPriceByStockName(stockid As String, sDate As Date) As Float
 
   Dim res As Result
-  Dim xtotal As Float
-  Dim xval As Float
+  Dim res1 As Result
+  Dim res2 As Result
+  Dim xx As Float
 
-  xtotal = 0
-  res = modDatabase.$myConn.Exec("select fldstockno from tblentry where fldstockid=&1 and fldqty>&2", stockid, 0)
-  If res.Available Then
-    For Each res
-      xtotal = xtotal + GetAverageCostPriceByStockNo(res["fldstockno"])
-    Next
-    xval = xtotal / res.Count
+  If modBasic.$InvReportCost = "Fixed" Then
+    res = modDatabase.$myConn.Exec("select fldstockno from tblentry where fldstockid=&1 ORDER BY fldstockno DESC", stockid)
+    If res.Available Then
+      res.MoveFirst
+      xx = modStock.GetCurrCostPriceByStockNo(res["fldstockno"])
+    Else
+      xx = 0
+    Endif
+
+  Else If modBasic.$InvReportCost = "Latest" Then
+    res = modDatabase.$myConn.Exec("select (fldtotalcost/fldtotalqty) as netcost from tblpurchase where fldstockid=&1 and fldnetcost>&2 and fldtime<=&3 and fldsav=&4 ORDER BY fldtime DESC", stockid, 0, sDate, False)
+    If res.Available = True Then
+      res.MoveFirst
+      If res["netcost"] Then
+        xx = Round(res["netcost"], -2)
+      Else
+        xx = 0
+      Endif
+    Endif
+
+    If xx = 0 Then
+      res1 = modDatabase.$myConn.Exec("select fldnetcost as netcost from tbltransfer where fldstockid=&1 and fldnetcost>&2 and fldtoentrytime<=&3 and fldtosav=&4 ORDER BY fldtoentrytime DESC", stockid, 0, sDate, True)
+      If res1.Available = True Then
+        res1.MoveFirst
+        If res1["netcost"] Then
+          xx = Round(res1["netcost"], -2)
+        Else
+          xx = 0
+        Endif
+      Else
+        xx = 0
+      Endif
+    Endif
+
   Else
-    xval = 0
+    res = modDatabase.$myConn.Exec("select SUM(fldtotalcost) as totcost,SUM(fldtotalqty) as totqty from tblpurchase where fldstockid=&1 and fldtime<=&2 and fldsav=&3", stockid, sDate, False)
+    If res.Available = True Then
+      If res["totqty"] Then
+        xx = Round(res["totcost"] / res["totqty"], -2)
+      Else
+        xx = 0
+      Endif
+    Endif
+
+    If xx = 0 Then
+      res1 = modDatabase.$myConn.Exec("select SUM(fldnetcost*fldqty) as totcost,SUM(fldqty) as totqty from tbltransfer where fldstockid=&1 and fldtoentrytime<=&2 and fldtosav=&3", stockid, sDate, True)
+      If res1.Available = True Then
+        If res1["totqty"] Then
+          xx = Round(res1["totcost"] / res1["totqty"], -2)
+        Else
+          xx = 0
+        Endif
+      Else
+        xx = 0
+      Endif
+    Endif
+
   Endif
 
-  Return xval
+  Return xx
 
 End
 

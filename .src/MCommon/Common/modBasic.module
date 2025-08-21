@@ -9,6 +9,7 @@ Public $compID As String
 Public $lbluser As String
 Public $branch As String
 Public $branchList As String[]
+Public $BlankImage As String
 
 Public Local0 As String
 Public Local1 As String
@@ -55,6 +56,7 @@ Public $PatRepoAutoSync As String
 Public $InfoMusic As String
 Public $InfoMusicVol As Integer
 Public $dictPathList As String[]
+Public $SpellCheckFile As String
 Public $dictadvPath As String
 Public $mediaPath As String
 Public $currency As String
@@ -151,6 +153,7 @@ Public $AutoEncSuffix As String
 Public $AutoReadNotice As String
 Public $WebZoomValue As Float
 Public $WebViewFunction As String
+Public $AutoClearHighlight As String
 
 Public $FtpUploader As String
 Public $cURLCACert As String
@@ -454,7 +457,9 @@ Public $BillEditRate As String
 Public $BillEditRateSaved As String
 Public $BillAmtRounding As String
 Public $BillInvoiceCopy As String
-Public $BillLockInvoiceToOwn As String
+' Public $BillLockInvoiceToOwn As String
+Public $BillLockInvoiceToOwnOPD As String
+Public $BillLockInvoiceToOwnIPD As String
 Public $BillPrintTime As String
 Public $BillAfterPrintDisplay As String
 Public $BillEditTaxDiscForm As String
@@ -557,11 +562,13 @@ Public $ClinRadioGrouping As String
 Public $ClinFlagAbnormExam As String
 Public $ClinSliderValue As String
 Public $ClinICDPunchFormat As String
+Public $ClinDefaultReport As String
 Public $CliniDiagnosticReport As String
 Public $ClinCategoryGrid As String
 Public $ClinPastDiagnosis As String
 
 Public $ClinInjSubRoutes As String
+Public $ClinLockPharmStock As String
 
 Public $DefaultTestList As String
 Public $DefaultRadioList As String
@@ -625,6 +632,7 @@ Public $ViewLockInvoice As String
 Public $ViewLockVoucher As String
 Public $ViewLockInventory As String
 Public $ViewLockAssets As String
+Public $ViewLockClinic As String
 
 ''Restrict Printing
 Public $PrintLockPersonal As String
@@ -983,6 +991,7 @@ Public Sub LoadGeneralVariables()
     $branchList = New String[]
   Endif
   GetAppCacheSettings()
+  $BlankImage = modPrint.GetFixedWebURL(modHelpVariable.$mediaDirectory &/ "blank.jpg")
 
   $PatPortalURL = modGlobalSetting.ShowSettingFromDB("RemoteLogIn/PatientPortalURL")
   If Not $PatPortalURL Then
@@ -1075,6 +1084,7 @@ Public Sub LoadGeneralVariables()
   $DefaultViewPath = modSettings.ShowSettingFromFIle("GeneralSettings/DefaultView_Path")
   $DefaultViewShell = modSettings.ShowSettingFromFIle("GeneralSettings/DefaultView_Shell")
   $WebViewFunction = modSettings.ShowSettingFromFIle("GeneralSettings/WebViewFunction")
+  $AutoClearHighlight = modSettings.ShowSettingFromFIle("GeneralSettings/AutoClearHighLight")
 
   $ConvImagePDF = modSettings.ShowSettingFromFIle("Converter/imagetopdf")
   $ConvHtmlPDF = modSettings.ShowSettingFromFIle("Converter/htmltopdf")
@@ -1519,6 +1529,7 @@ End
 Private Sub GetDictionaryPathAll()
 
   Dim xdict As String
+  Dim xspell As String
 
   $dictadvPath = modSettings.ShowSettingFromFIle("AdvancedDictionary/Path")
   xdict = modSettings.ShowSettingFromFIle("AppSetting/Dictionary")
@@ -1527,6 +1538,8 @@ Private Sub GetDictionaryPathAll()
   Else
     $dictPathList = New String[]
   Endif
+
+  $SpellCheckFile = modSettings.ShowSettingFromFIle("AppSetting/SpellChecker")
 
 End
 
@@ -1680,7 +1693,14 @@ Public Sub LoadCashierBillingSettings()
   $BillReceiptCategory = modGlobalSetting.ShowSettingFromDB("CashBilling/FixReceiptCategory")
   $BillLockToOwnEntry = modGlobalSetting.ShowSettingFromDB("CashBilling/LockToOwnEntry")
   $BillLockAdmitted = modGlobalSetting.ShowSettingFromDB("CashBilling/LockAdmitted")
-  $BillLockInvoiceToOwn = modGlobalSetting.ShowSettingFromDB("CashBilling/RestrictToOwnItems")
+  ' $BillLockInvoiceToOwn = modGlobalSetting.ShowSettingFromDB("CashBilling/RestrictToOwnItems")  ''to remove. kept for older settings
+  $BillLockInvoiceToOwnOPD = modGlobalSetting.ShowSettingFromDB("CashBilling/RestrictToOwn_OutPatients")
+  $BillLockInvoiceToOwnIPD = modGlobalSetting.ShowSettingFromDB("CashBilling/RestrictToOwn_Inpatients")
+  ''for temporary purpose only
+  If Not $BillLockInvoiceToOwnIPD Then
+    $BillLockInvoiceToOwnIPD = modGlobalSetting.ShowSettingFromDB("CashBilling/RestrictToOwnItems")
+  Endif
+
   $BillLockIPPrintInvoice = modGlobalSetting.ShowSettingFromDB("CashBilling/DisableIPCreditInvoice")
   $BillLockIPCreditReceipt = modGlobalSetting.ShowSettingFromDB("CashBilling/DisableIPCreditReceipt")
   $BillLockIPDepositReturn = modGlobalSetting.ShowSettingFromDB("CashBilling/DisableIPDepositReturn")
@@ -2355,11 +2375,13 @@ Public Sub GlobalClinicSettings()
   $ClinFlagAbnormExam = modSettings.ShowSettingFromFIle("ClinicForms/FlagAbnormalExam")
   $ClinSliderValue = modSettings.ShowSettingFromFIle("ClinicForms/EnableSliderValue")
   $ClinICDPunchFormat = modSettings.ShowSettingFromFIle("ClinicForms/ICDEntryFormat")
+  $ClinDefaultReport = modSettings.ShowSettingFromFIle("ClinicForms/DefaultReport")
   $CliniDiagnosticReport = modSettings.ShowSettingFromFIle("ClinicForms/DiagnosticReports")
   $ClinCategoryGrid = modSettings.ShowSettingFromFIle("ClinicForms/CategoryGridView")
   $ClinPastDiagnosis = modSettings.ShowSettingFromFIle("ClinicForms/PastDiagnosis")
 
   $ClinInjSubRoutes = modSettings.ShowSettingFromFIle("ClinicForms/ShowInjectionSubRoutes")
+  $ClinLockPharmStock = modSettings.ShowSettingFromFIle("ClinicForms/LockPharmacyStock")
 
 End
 
@@ -2405,6 +2427,7 @@ Public Sub ViewAccessControl()
   $ViewLockVoucher = modGlobalSetting.ShowSettingFromDB("GeneralSettings/RestrictToOwnVoucher")
   $ViewLockInventory = modGlobalSetting.ShowSettingFromDB("GeneralSettings/RestrictToOwnInventory")
   $ViewLockAssets = modGlobalSetting.ShowSettingFromDB("GeneralSettings/RestrictToOwnAssets")
+  $ViewLockClinic = modGlobalSetting.ShowSettingFromDB("GeneralSettings/RestrictToOwnClinic")
 
 End
 

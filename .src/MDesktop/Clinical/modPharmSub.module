@@ -1,6 +1,7 @@
 ' Gambas module file
 
-Public Sub InsertDosingEntry(encid As String, sBilType As String, billingMode As String, DiscMode As String, sLedger As String, txtroute As String, txtitem As String, txtdose As Float, txtfreq As String, txtday As Float, txtqty As Float, PatStatus As String, txtprescriber As String, txtregno As String, startDay As Integer, taxper As Float, discper As Float, fixitem As String, fixrate As Float, OrderType As String, DeptID As String, sDirection As String, sParent As Long, Optional sDefault As String)                 ''
+''--------------- without stock No
+Public Sub InsertDosingEntry(encid As String, sBilType As String, billingMode As String, DiscMode As String, sLedger As String, txtroute As String, txtitem As String, txtdose As Float, txtfreq As String, txtday As Float, txtqty As Float, PatStatus As String, txtprescriber As String, txtregno As String, startDay As Integer, taxper As Float, discper As Float, fixitem As String, fixrate As Float, OrderType As String, DeptID As String, sDirection As String, saved As Boolean, Optional sDefault As String)                 ''
 
   Dim res As Result
   Dim order As String
@@ -71,14 +72,12 @@ Public Sub InsertDosingEntry(encid As String, sBilType As String, billingMode As
   res["flddisctype"] = DiscMode
   res["fldacledger"] = sLedger
   res["fldbilltype"] = sBilType
-  If sParent Then
-    res["flditemno"] = sParent
-  Endif
+  ' res["flditemno"] = 0
 
   res["flduserid_order"] = modBasic.$lbluser  ''on insert record
   res["fldtime_order"] = Now()
   res["fldcomp_order"] = modBasic.$compID
-  res["fldsave_order"] = False
+  res["fldsave_order"] = saved
   res["flduserid"] = ""    ''on dispensing
   res["fldtime"] = ""
   res["fldcomp"] = ""
@@ -106,7 +105,7 @@ Public Sub InsertDosingEntry(encid As String, sBilType As String, billingMode As
 
 End
 
-Public Sub InsertNonMedDosingEntry(sCategory As String, encid As String, sBilType As String, billingMode As String, DiscMode As String, sLedger As String, txtroute As String, txtitem As String, txtqty As Float, PatStatus As String, startDay As Integer, taxper As Float, discper As Float, fixitem As String, fixrate As Float, OrderType As String, DeptID As String, sDirection As String, sParent As Long, Optional sDefault As String)
+Public Sub InsertNonMedDosingEntry(sCategory As String, encid As String, sBilType As String, billingMode As String, DiscMode As String, sLedger As String, txtroute As String, txtitem As String, txtqty As Float, PatStatus As String, startDay As Integer, taxper As Float, discper As Float, fixitem As String, fixrate As Float, OrderType As String, DeptID As String, sDirection As String, saved As Boolean, Optional sDefault As String)
 
   Dim res As Result
   Dim order As String
@@ -161,7 +160,7 @@ Public Sub InsertNonMedDosingEntry(sCategory As String, encid As String, sBilTyp
 
   res["flddispmode"] = disptype
   res["fldorder"] = order
-  res["fldcurval"] = "Continue"
+  res["fldcurval"] = xcurVal
   res["fldstarttime"] = xstart
   res["fldendtime"] = ""
   res["fldfixname"] = fixitem
@@ -177,14 +176,12 @@ Public Sub InsertNonMedDosingEntry(sCategory As String, encid As String, sBilTyp
   res["flddisctype"] = DiscMode
   res["fldacledger"] = sLedger
   res["fldbilltype"] = sBilType
-  If sParent Then
-    res["flditemno"] = sParent
-  Endif
+  ' res["flditemno"] = 0
 
   res["flduserid_order"] = modBasic.$lbluser
   res["fldtime_order"] = Now()
   res["fldcomp_order"] = modBasic.$compID
-  res["fldsave_order"] = False
+  res["fldsave_order"] = saved
   res["flduserid"] = ""
   res["fldtime"] = ""
   res["fldcomp"] = ""
@@ -208,6 +205,10 @@ Public Sub InsertNonMedDosingEntry(sCategory As String, encid As String, sBilTyp
 
 End
 
+''--------------- with one stock No
+''Not used in web app
+
+''---------------- Procedures ---------------
 Public Sub UpdateDispensing(did As Long, dispensed As Boolean, Optional StatDose As Boolean)
 
   Dim res As Result
@@ -484,10 +485,8 @@ Public Sub GenericMedicineList(ComboBox1 As WebComboBox)
 
   Dim res As Result
   Dim textToCursor As String
-  Dim textPosition As Integer
 
-  textPosition = ComboBox1.Pos
-  textToCursor = Mid(ComboBox1.Text, 1, textPosition)
+  textToCursor = ComboBox1.Text
   res = modDatabase.$medConn.Exec("select fldcodename as col from tblcode where lower(fldcodename) like &1", LCase(textToCursor) & "%")
   ' modFillContainer.FillComboBoxOnKeyRelease(ComboBox1, modControlSub.GetDirectFillresult(res))
 

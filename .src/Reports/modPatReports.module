@@ -1,5 +1,41 @@
 ' Gambas module file
 
+Private $FootComment As String
+
+Public Function GetLockClinicSQL() As String
+
+  Dim compLst As String[]
+  Dim xvarsql As String
+  Dim i As Integer
+
+  Select modHelpVariable.$LogInCategory
+    Case "Clinician"
+      If modBasic.$ViewLockClinic = "User" Then
+        xvarsql = db.Subst(" and flduserid like &1", modBasic.$lbluser)
+        $FootComment = modBasic.$lbluser
+      Else If modBasic.$ViewLockClinic = "Branch" Then
+        compLst = modBasic.$branchList.Copy()
+        For i = 0 To compLst.Count - 1
+          compLst[i] = "'" & compLst[i] & "'"
+        Next
+        xvarsql = " and fldcomp in(" & compLst.Join(",") & ")"
+        $FootComment = modBasic.$branch
+      Else If modBasic.$ViewLockClinic = "Location" Then
+        xvarsql = db.Subst(" and fldcomp like &1", modBasic.$compID)
+        $FootComment = modBasic.$compID
+      Else
+        xvarsql = ""
+        $FootComment = ""
+      Endif
+    Case Else
+      xvarsql = ""
+      $FootComment = ""
+  End Select
+
+  Return xvarsql
+
+End
+
 'NOTE: ----------------------------- Medical Report --------------------------------------------
 Public Function AddCustomReport(stChapter As String, stObservation As String) As String[]
 
@@ -119,7 +155,7 @@ Public Function AddClinFindingsAll(encid As String, Optional sTitle As String) A
   Else
     stChapter = "Clinical Findings"
   Endif
-  xlist = modClinic.PaientSelExamNameArray(encid, "Non-Vital")
+  xlist = PaientSelExamNameArray(encid, "Non-Vital")
   If xlist Then
     stObservation = GetExaminationHTMLProfile(encid, xlist)
     asx = AddCustomReport(stChapter, stObservation)
@@ -141,7 +177,7 @@ Public Function AddPhysicianFindings(encid As String, Optional sTitle As String)
   Else
     stChapter = "Physician Examinations"
   Endif
-  xlist = modClinic.PaientSelExamNameArray(encid, "Physician Examinations")
+  xlist = PaientSelExamNameArray(encid, "Physician Examinations")
   If xlist Then
     stObservation = GetExaminationHTMLProfile(encid, xlist)
     asx = AddCustomReport(stChapter, stObservation)
@@ -163,7 +199,7 @@ Public Function AddNursingFindings(encid As String, Optional sTitle As String) A
   Else
     stChapter = "Nursing Examinations"
   Endif
-  xlist = modClinic.PaientSelExamNameArray(encid, "Nursing Examinations")
+  xlist = PaientSelExamNameArray(encid, "Nursing Examinations")
   If xlist Then
     stObservation = GetExaminationHTMLProfile(encid, xlist)
     asx = AddCustomReport(stChapter, stObservation)
@@ -185,7 +221,7 @@ Public Function AddEssentialFindings(encid As String, Optional sTitle As String)
   Else
     stChapter = "Essential Examinations"
   Endif
-  xlist = modClinic.PaientSelExamNameArray(encid, "Essential Examinations")
+  xlist = PaientSelExamNameArray(encid, "Essential Examinations")
   If xlist Then
     stObservation = GetExaminationHTMLProfile(encid, xlist)
     asx = AddCustomReport(stChapter, stObservation)
@@ -207,7 +243,7 @@ Public Function AddTriageFindings(encid As String, Optional sTitle As String) As
   Else
     stChapter = "Triage Examinations"
   Endif
-  xlist = modClinic.PaientSelExamNameArray(encid, "Triage Examinations")
+  xlist = PaientSelExamNameArray(encid, "Triage Examinations")
   If xlist Then
     stObservation = GetExaminationHTMLProfile(encid, xlist)
     asx = AddCustomReport(stChapter, stObservation)
@@ -229,7 +265,7 @@ Public Function AddDischargeFindings(encid As String, Optional sTitle As String)
   Else
     stChapter = "Discharge Examinations"
   Endif
-  xlist = modClinic.PaientSelExamNameArray(encid, "Discharge Examinations")
+  xlist = PaientSelExamNameArray(encid, "Discharge Examinations")
   If xlist Then
     stObservation = GetExaminationHTMLProfile(encid, xlist)
     asx = AddCustomReport(stChapter, stObservation)
@@ -1998,7 +2034,7 @@ Public Function GetPatientSymptomReport(encid As String) As String[]
   Dim res As Result
   Dim xx As String[]
 
-  sql = "select fldtime,flditem,fldreportquali,flddetail,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and fldsave=&3"
+  sql = "select fldtime,flditem,fldreportquali,flddetail,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and fldsave=&3" & GetLockClinicSQL()
   res = modDatabase.$syConn.Exec(sql, encid, "Patient Symptoms", True)
   xx = New String[]
   If res.Available = True Then
@@ -2039,7 +2075,7 @@ Public Function GetPatientPresentingSymptomReport(encid As String) As String[]
   Dim xx As String[]
   Dim xstr As String
 
-  sql = "select fldtime,flditem,fldreportquali,fldreportquanti,flddetail,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and fldsave=&3"
+  sql = "select fldtime,flditem,fldreportquali,fldreportquanti,flddetail,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and fldsave=&3" & GetLockClinicSQL()
   res = modDatabase.$syConn.Exec(sql, encid, "Presenting Symptoms", True)
   xx = New String[]
   If res.Available = True Then
@@ -2093,7 +2129,7 @@ Public Function GetPatientDemographicReport(encid As String) As String[]
   Dim res As Result
   Dim xx As String[]
 
-  sql = "select fldtime,flditem,fldreportquali,flddetail,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2"
+  sql = "select fldtime,flditem,fldreportquali,flddetail,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2" & GetLockClinicSQL()
   res = modDatabase.$syConn.Exec(sql, encid, "Demographics")
   xx = New String[]
   If res.Available = True Then
@@ -2124,7 +2160,7 @@ Public Function GetPatProcedureList(encid As String, strType As String, sCondi A
   Dim xval As String
 
   xlst = New String[]
-  res = modDatabase.$syConn.Exec("select fldid,fldnewdate,flditem,flddetail,fldorduserid from tblpatgeneral where fldencounterval=&1 and fldinput=&2 and fldreportquali=&3", encid, strType, sCondi)
+  res = modDatabase.$syConn.Exec("select fldid,fldnewdate,flditem,flddetail,fldorduserid from tblpatgeneral where fldencounterval=&1 and fldinput=&2 and fldreportquali=&3" & GetLockClinicSQL(), encid, strType, sCondi)
   If res.Available = True Then
     For Each res
       If res["flddetail"] Then
@@ -2156,7 +2192,7 @@ Public Function GetPatExtProcedureList(encid As String, sCondi As String) As Str
   Dim xval As String
 
   xlst = New String[]
-  res = modDatabase.$syConn.Exec("select fldid,fldnewdate,flditem,flddetail,fldorduserid from tblpatgeneral where fldencounterval=&1 and fldinput=&2 and fldreportquali=&3", encid, "Extra Procedures", sCondi)
+  res = modDatabase.$syConn.Exec("select fldid,fldnewdate,flditem,flddetail,fldorduserid from tblpatgeneral where fldencounterval=&1 and fldinput=&2 and fldreportquali=&3" & GetLockClinicSQL(), encid, "Extra Procedures", sCondi)
   If res.Available = True Then
     For Each res
       xval = modPatPatho.GetExtProcedTable(res["fldid"], encid, res["flditem"])
@@ -2182,7 +2218,7 @@ Public Function GetPatientHistoryReport(encid As String, sType As String) As Str
   Dim res As Result
   Dim xx As String
 
-  res = modDatabase.$myConn.Exec("select flddetail,fldreportquali,fldtime,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and flditem=&3", encid, "History", sType)
+  res = modDatabase.$myConn.Exec("select flddetail,fldreportquali,fldtime,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and flditem=&3" & GetLockClinicSQL(), encid, "History", sType)
   If res.Available = True Then
     res.MoveLast
     If modBasic.$ShowDayMedReport = "User" Then
@@ -2208,7 +2244,7 @@ Public Function GetPatientNoteReport(encid As String, sType As String) As String
   Dim res As Result
   Dim xx As String
 
-  sql = "select flddetail,fldtime,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and flditem=&3"
+  sql = "select flddetail,fldtime,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and flditem=&3" & GetLockClinicSQL()
   res = modDatabase.$syConn.Exec(sql, encid, "Notes", sType)
   If res.Available = True Then
     res.MoveLast
@@ -2234,7 +2270,7 @@ Public Function GetClinNotesReport(encid As String) As String[]
   Dim res As Result
   Dim xx As String[]
 
-  res = modDatabase.$syConn.Exec("select fldtime,flditem,fldreportquali,flddetail,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and (flditem=&3 or flditem=&4 or flditem=&5 or flditem=&6)", encid, "Notes", "Progress Note", "Clinicians Note", "Nurses Note", "Transfer Note")
+  res = modDatabase.$syConn.Exec("select fldtime,flditem,fldreportquali,flddetail,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and (flditem=&3 or flditem=&4 or flditem=&5 or flditem=&6)" & GetLockClinicSQL(), encid, "Notes", "Progress Note", "Clinicians Note", "Nurses Note", "Transfer Note")
   xx = New String[]
   If res.Available = True Then
     For Each res
@@ -2258,7 +2294,7 @@ Public Function GetClinNoteSpecificReport(encid As String, sType As String) As S
   Dim res As Result
   Dim xx As String[]
 
-  res = modDatabase.$syConn.Exec("select fldtime,flditem,fldreportquali,flddetail,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and flditem=&3", encid, "Notes", sType)
+  res = modDatabase.$syConn.Exec("select fldtime,flditem,fldreportquali,flddetail,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and flditem=&3" & GetLockClinicSQL(), encid, "Notes", sType)
   xx = New String[]
   If res.Available = True Then
     For Each res
@@ -2589,7 +2625,7 @@ Public Function GetPatientPlanningReport(encid As String) As String[]
   Dim aCompo As String[]
 
   xlst = New String[]
-  res = modDatabase.$syConn.Exec("select fldtime,fldproblem,fldsubjective,fldobjective,fldassess,fldplan,flduserid from tblpatplanning where fldencounterval=&1 and fldplancategory=&2", encid, "Clinician Plan")
+  res = modDatabase.$syConn.Exec("select fldtime,fldproblem,fldsubjective,fldobjective,fldassess,fldplan,flduserid from tblpatplanning where fldencounterval=&1 and fldplancategory=&2" & GetLockClinicSQL(), encid, "Clinician Plan")
   If res.Available = True Then
     For Each res
       If modBasic.$ShowDayMedReport = "User" Then
@@ -2636,7 +2672,7 @@ Public Function GetPatientMonitorReport(encid As String) As String[]
   Dim xlst As String[]
   Dim aCompo As String[]
 
-  res = modDatabase.$syConn.Exec("select fldid,fldtime,fldproblem,fldsubjective,fldobjective,fldassess,fldplan,flduserid from tblpatplanning where fldencounterval=&1 and fldplancategory=&2", encid, "IP Monitoring")
+  res = modDatabase.$syConn.Exec("select fldid,fldtime,fldproblem,fldsubjective,fldobjective,fldassess,fldplan,flduserid from tblpatplanning where fldencounterval=&1 and fldplancategory=&2" & GetLockClinicSQL(), encid, "IP Monitoring")
   xlst = New String[]
   If res.Available = True Then
     For Each res
@@ -2726,7 +2762,7 @@ Public Function GetChartImageExam(encid As String, exam As String) As String
   pointsArr_x = New Float[]
   pointsArr_y = New Float[]
 
-  sql = "select fldrepquanti,fldtime from tblpatientexam where fldencounterval=&1 and fldhead=&2 and fldtype=&3 and fldsave=&4 ORDER BY fldtime"
+  sql = "select fldrepquanti,fldtime from tblpatientexam where fldencounterval=&1 and fldhead=&2 and fldtype=&3 and fldsave=&4" & GetLockClinicSQL() & " ORDER BY fldtime"
   res = modDatabase.$syConn.Exec(sql, encid, exam, "Quantitative", True)
   If res.Available Then
     xlimit = modClinic.GetBothQuantiExamVal(exam, encid)
@@ -2818,7 +2854,7 @@ Public Function UniProcedureExamination(encid As String, itemid As Long, sType A
   Dim xType As String
   Dim xval As String
 
-  res = modDatabase.$syConn.Exec("select fldtime,fldhead,fldrepquali,fldrepquanti,fldoption,flduserid from tblpatientexam where fldencounterval=&1 and fldinput=&2 and fldsave=&3", encid, sType & ":" & CStr(itemid), True)
+  res = modDatabase.$syConn.Exec("select fldtime,fldhead,fldrepquali,fldrepquanti,fldoption,flduserid from tblpatientexam where fldencounterval=&1 and fldinput=&2 and fldsave=&3" & GetLockClinicSQL(), encid, sType & ":" & CStr(itemid), True)
   xx = New String[]
   If res.Available Then
     For Each res
@@ -3141,6 +3177,25 @@ Private Function GetCompleteTestByEnc(encid As String, testList As String[], sUn
 End
 
 ''----------------------- Examination ---------------------------------------------
+Private Function PaientSelExamNameArray(encid As String, sType As String) As String[]
+
+  Dim res As Result
+  Dim sql As String
+  Dim xx As String[]
+
+  If sType = "Non-Vital" Then
+    sql = "select distinct(fldhead) as col from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldhead not in(select fldexamid from tblcompexam where (fldcomp=&3 or fldcomp=&4) and fldcategory<>&5)" & GetLockClinicSQL() ''all except vital
+    res = modDatabase.$syConn.Exec(sql, encid, True, modBasic.$compID, "%", "Essential Examinations")
+  Else
+    sql = "select distinct(fldhead) as col from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldinput like &3" & GetLockClinicSQL() '''for specific exam type
+    res = modDatabase.$syConn.Exec(sql, encid, True, sType)
+  Endif
+  xx = modControlSub.GetDirectFillresult(res)
+
+  Return xx
+
+End
+
 Public Function GetExaminationHTMLProfile(encid As String, examList As String[]) As String
 
   Dim aList As String[]
@@ -3349,7 +3404,7 @@ Private Function GetCompleteExamByEnc(encid As String, examList As String[], wit
     Else
 
       i = 1
-      sql = "select fldid,fldtime,fldhead,fldrepquali,fldrepquanti,fldtype,fldcomp,fldoption from tblpatientexam where fldencounterval=&1 and fldhead=&2 and fldsave=&3 and fldinput=&4"
+      sql = "select fldid,fldtime,fldhead,fldrepquali,fldrepquanti,fldtype,fldcomp,fldoption from tblpatientexam where fldencounterval=&1 and fldhead=&2 and fldsave=&3 and fldinput=&4" & GetLockClinicSQL()
       res = modDatabase.$syConn.Exec(sql, encid, strTest, True, "Examination")
       xx = New String[]
       If res.Available Then
@@ -3688,13 +3743,13 @@ Public Function GetRecommendedExam(encid As String, sType As String) As String
   If catlst And If catlst.Count Then
     For Each xcateg In catlst
 
-      res = modDatabase.$syConn.Exec("select distinct(fldinput) as fldinput,flduserid from tblpatientexam where fldserialval like &1 and fldencounterval=&2 and fldmethod=&3 and fldsave=&4", "%", encid, xcateg, True)
+      res = modDatabase.$syConn.Exec("select distinct(fldinput) as fldinput,flduserid from tblpatientexam where fldserialval like &1 and fldencounterval=&2 and fldmethod=&3 and fldsave=&4" & GetLockClinicSQL(), "%", encid, xcateg, True)
       If res.Available Then
         For Each res
           xfull = xfull & "<li>" & xcateg & " : " & res["fldinput"] & "</li>"
           aVar = New Variant[]
 
-          res1 = modDatabase.$syConn.Exec("select fldid,fldtime,fldhead,fldrepquali,fldrepquanti,fldtype,fldoption,flduserid from tblpatientexam where fldserialval like &1 and fldencounterval=&2 and fldmethod=&3 and fldinput=&4 and fldsave=&5", "%", encid, xcateg, res["fldinput"], True)                                            ''
+          res1 = modDatabase.$syConn.Exec("select fldid,fldtime,fldhead,fldrepquali,fldrepquanti,fldtype,fldoption,flduserid from tblpatientexam where fldserialval like &1 and fldencounterval=&2 and fldmethod=&3 and fldinput=&4 and fldsave=&5" & GetLockClinicSQL(), "%", encid, xcateg, res["fldinput"], True)                                            ''
           If res1.Available Then
             For Each res1
               aColl = New Collection
@@ -3753,7 +3808,7 @@ Public Function GetSelectFindingReport(encid As String, sType As String) As Stri
   Dim xfinal As String[]
 
   xfinal = New String[]
-  xlist = modClinic.PaientSelExamNameArray(encid, sType)
+  xlist = PaientSelExamNameArray(encid, sType)
   For Each xname In xList
     bsx = modClinic.GetExamClinValuePosition(encid, xname, "LastVal")
     If bsx And If bsx[1] Then

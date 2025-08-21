@@ -7,7 +7,6 @@ Private $sUnit As String
 Private $varIndex As String
 Private $HtmlFolder As String
 
-Private ReportPath As String 'Path to report
 Private $Body As New String[0]
 Private $commentText As String
 
@@ -45,11 +44,12 @@ Public Sub _new(encid As String, ReportTag As String, sMode As String, sUnit As 
 
 End
 
-Private Sub MakeHTMLFile()
+Private Function MakeHTMLFile() As String
 
+  Dim ReportPath As String
   Dim hForm As FmSigna
   Dim xBody As String[]
-  Dim $Report As String[]
+  Dim xReport As String[]
 
   If modBasic.$SignaPopUp = "Yes" Then
     hForm = New FmSigna
@@ -57,34 +57,64 @@ Private Sub MakeHTMLFile()
   Endif
   xBody = ReportBody()
 
-  $Report = New String[]
-  $Report.Add(modRepoTemplete.TitleHTMLScript())
-  $Report.Add(modReportVar.$HTMLStart)
-  $Report.Add("<section id='printable@report' class='printable@report'>") '''used to locate printable text
-  $Report.Add("     " & modReportVar.$CSSStart & "     ")
-  $Report.Add(File.Load($HtmlFolder &/ "template.tpl"))
-  $Report.Add("     " & modReportVar.$CSSEnd & "     ")
-  $Report.Add("     " & modReportVar.$TitleStart & "     ")
-  $Report.Insert(ReportTitle())
-  $Report.Add("     " & modReportVar.$TitleEnd & "     ")
-  $Report.Add("     " & modReportVar.$HeaderStart & "     ")
-  $Report.Insert(ReportHeader())
-  $Report.Add("     " & modReportVar.$HeaderEnd & "     ")
-  $Report.Add("     " & modReportVar.$BodyStart & "     ")
-  $Report.Insert(xBody)
-  $Report.Add("     " & modReportVar.$BodyEnd & "     ")
-  $Report.Add("     " & modReportVar.$FooterStart & "     ")
-  $Report.Insert(ReportFooter())
-  $Report.Add("     " & modReportVar.$FooterEnd & "     ")
-  $Report.Add("     " & modReportVar.$FootImageStart & "     ")
-  $Report.Add(modRepoTemplete.ReportFootImage())
-  $Report.Add("     " & modReportVar.$FootImageEnd & "     ")
-  $Report.Add("</section>")
-  $Report.Add(modReportVar.$HTMLEnd)
-  $Report.Add(modRepoTemplete.EndTemplete())
+  xReport = New String[]
+  xReport.Add(modRepoTemplete.TitleHTMLScript())
+  xReport.Add(modReportVar.$HTMLStart)
+  xReport.Add("<section id='printable@report' class='printable@report'>") '''used to locate printable text
+  xReport.Add("     " & modReportVar.$CSSStart & "     ")
+  xReport.Add(File.Load($HtmlFolder &/ "template.tpl"))
+  xReport.Add("     " & modReportVar.$CSSEnd & "     ")
+  xReport.Add("     " & modReportVar.$TitleStart & "     ")
+  xReport.Insert(ReportTitle())
+  xReport.Add("     " & modReportVar.$TitleEnd & "     ")
+  xReport.Add("     " & modReportVar.$HeaderStart & "     ")
+  xReport.Insert(ReportHeader())
+  xReport.Add("     " & modReportVar.$HeaderEnd & "     ")
+  xReport.Add("     " & modReportVar.$BodyStart & "     ")
+  xReport.Insert(xBody)
+  xReport.Add("     " & modReportVar.$BodyEnd & "     ")
+  xReport.Add("     " & modReportVar.$FooterStart & "     ")
+  xReport.Insert(ReportFooter())
+  xReport.Add("     " & modReportVar.$FooterEnd & "     ")
+  xReport.Add("     " & modReportVar.$FootImageStart & "     ")
+  xReport.Add(modRepoTemplete.ReportFootImage())
+  xReport.Add("     " & modReportVar.$FootImageEnd & "     ")
+  xReport.Add("</section>")
+  xReport.Add(modReportVar.$HTMLEnd)
+  xReport.Add(modRepoTemplete.EndTemplete())
 
   ReportPath = Temp() & ".html"
-  File.Save(ReportPath, $Report.Join(gb.NewLine))
+  File.Save(ReportPath, xReport.Join(gb.NewLine))
+
+  Return ReportPath
+
+End
+
+Private Function MakeHTMLString() As String
+
+  Dim xBody As String[]
+  Dim xReport As String[]
+
+  xBody = ReportBody()
+
+  xReport = New String[]
+  xReport.Add(modRepoTemplete.TitleHTMLScript())
+  xReport.Add(modReportVar.$HTMLStart)
+  xReport.Add("<section id='printable@report' class='printable@report'>") '''used to locate printable text
+  xReport.Add("     " & modReportVar.$CSSStart & "     ")
+  xReport.Add(File.Load($HtmlFolder &/ "template.tpl"))
+  xReport.Add("     " & modReportVar.$CSSEnd & "     ")
+  xReport.Add("     " & modReportVar.$HeaderStart & "     ")
+  xReport.Insert(ReportHeader())
+  xReport.Add("     " & modReportVar.$HeaderEnd & "     ")
+  xReport.Add("     " & modReportVar.$BodyStart & "     ")
+  xReport.Insert(xBody)
+  xReport.Add("     " & modReportVar.$BodyEnd & "     ")
+  xReport.Add("</section>")
+  xReport.Add(modReportVar.$HTMLEnd)
+  xReport.Add(modRepoTemplete.EndTemplete())
+
+  Return xReport.Join(gb.NewLine)
 
 End
 
@@ -560,9 +590,25 @@ End
 
 Public Function NewHTMLPath() As String
 
+  Dim sPath As String
+
   If modHelpVariable.$ApplKey < 2 Then
-    MakeHTMLFile()
-    Return ReportPath
+    sPath = MakeHTMLFile()
+    Return sPath
+
+  Else
+    Message.Warning(("HTML Report disabled. Please insert validation key"), ("OK"))
+  Endif
+
+End
+
+Public Function NewHTMLString() As String
+
+  Dim xstr As String
+
+  If modHelpVariable.$ApplKey < 2 Then
+    xstr = MakeHTMLString()
+    Return xstr
 
   Else
     Message.Warning(("HTML Report disabled. Please insert validation key"), ("OK"))
