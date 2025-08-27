@@ -1,31 +1,74 @@
 ' Gambas class file
 
+Private $sType As String
+Private $encid As String
+Private $sValue As Long[]
+
 Private $rData As Result
 Private $aMyFields As String[]
-Private $sValue As Long
-Private $sType As String
-
 Private $ItemList As String[]
+Private sIndexLst As Long[]
 
-Public Sub Run(sType As String) As Long
+Private $PatientNum As String
+Private $curEncid As String
+Private $lstEncid As String
+
+Public Sub Run(sType As String, Optional encid As String) As Long[]
 
   $sType = sType
-  If $sType = "Personal" Then
-    Me.Title = "Personal Regimen"
-    lstletter.Visible = True
-  Else
-    Me.Title = "Medicine List"
+  If encid Then
+    $encid = encid
   Endif
-  $ItemList = New String[]
+
+  If $sType = "Personal" Then
+    Me.Title = "Medicine Regimen"
+    lstletter.Visible = True
+    WebContainer4.Visible = False
+  Else If $sType = "Used Medicines" Then
+    Me.Title = "Medication History"
+    $curEncid = $encid
+    $PatientNum = modPatient.GetPatientNoByEnc($encid)
+    $lstEncid = modPatient.GetSecondLastEncidPatient($encid)
+    cmbcategory.List = modPatient.GetEncListFromPatNo($PatientNum)
+  Endif
   modGeneralMain.GetOpenModalForm(Me)
+
+  rbcurrent.Value = True
+  $ItemList = New String[]
   SHowGrid()
   lstletter.List = modString.GetFirstLetterArray($ItemList)
+  sIndexLst = New Long[]
+
   If modBasic.$TabletModeEnable = "Yes" Then
   Else
     txtname.SetFocus
   Endif
 
   If Me.ShowModal() Then Return $sValue
+
+End
+
+Public Sub btnrefresh_Click()
+
+  Dim xdate As Date
+
+  If rbcurrent.Value = True Then
+    $curEncid = $encid
+  Else If rbpast.Value = True Then
+    $curEncid = $lstEncid
+  Else If rbselect.Value = True Then
+    If cmbcategory.Text Then
+      $curEncid = cmbcategory.Text
+    Endif
+  Endif
+
+  If $curEncid Then
+    $ItemList = New String[]
+    SHowGrid()
+    lstletter.List = modString.GetFirstLetterArray($ItemList)
+    xdate = modPatient.GetRecordDate($curEncid)
+    lbldate.Text = "DATE: " & Format(xdate, gb.ShortDate) & Space(1) & "(" & modDate.ConvertToLocaldate(xdate) & ")"
+  Endif
 
 End
 
@@ -46,12 +89,12 @@ Private Sub SHowGrid()
     Else
       $rData = modDatabase.$myConn.Exec(sql, modBasic.$lbluser, "%", LCase(Trim(txtname.Text)) & "%")
     Endif
-  Else
-    sql = "select fldid,fldid,fldroute,flditem,flddose,fldfreq,flddays,fldqtydisp,flddirection from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and flditemtype=&3 and fldcurval=&4 and lower(flditem) like &5 and fldid IN (SELECT MAX(fldid) FROM tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and flditemtype=&3 and fldcurval=&4 GROUP BY flditem)"
+  Else If $sType = "Used Medicines" Then
+    sql = "select fldid,fldid,fldroute,flditem,flddose,fldfreq,flddays,fldqtydisp,flddirection from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and flditemtype=&3 and fldcurval=&4 and flddose>&5 and lower(flditem) like &6 ORDER BY flditem"   ''and fldid IN (SELECT MAX(fldid) FROM tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and flditemtype=&3 and fldcurval=&4 GROUP BY flditem)
     If chkleftmain.Value = True Then
-      $rData = modDatabase.$myConn.Exec(sql, $sType, True, "Medicines", "Continue", "%" & LCase(Trim(txtname.Text)) & "%")
+      $rData = modDatabase.$myConn.Exec(sql, $curEncid, True, "Medicines", "Continue", 0, "%" & LCase(Trim(txtname.Text)) & "%")
     Else
-      $rData = modDatabase.$myConn.Exec(sql, $sType, True, "Medicines", "Continue", LCase(Trim(txtname.Text)) & "%")
+      $rData = modDatabase.$myConn.Exec(sql, $curEncid, True, "Medicines", "Continue", 0, LCase(Trim(txtname.Text)) & "%")
     Endif
   Endif
   $aMyFields = New String[]
@@ -60,7 +103,7 @@ Private Sub SHowGrid()
   For Each $rData
     If $sType = "Personal" Then
       $ItemList.Add($rData["fldbrandid"])
-    Else
+    Else If $sType = "Used Medicines" Then
       $ItemList.Add($rData["flditem"])
     Endif
   Next
@@ -103,23 +146,29 @@ End
 
 Public Sub btnok_Click()
 
-  If $sValue Then
-    Me.Close(True)
-  Endif
-
-End
-
-Public Sub GridView1_Select()
+  Dim Row As Integer
 
   If GridView1.Selection.Count Then
-    $rData.MoveTo(GridView1.Selection[0])
-    $sValue = $rData["fldid"]
+    For Row = 0 To GridView1.Count - 1
+      If GridView1.IsSelected(Row) = True Then
+        $rData.MoveTo(Row)
+        If sIndexLst.Exist($rData["fldid"]) = False Then
+          sIndexLst.Add($rData["fldid"])
+        Endif
+      Endif
+    Next
+    Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
   Endif
 
 End
 
 Public Sub btnclose_Click()
 
-  Me.Close()
+  If sIndexLst.Count Then
+    $sValue = sIndexLst
+    Me.Close(True)
+  Else
+    Me.Close
+  Endif
 
 End

@@ -1,0 +1,116 @@
+' Gambas class file
+
+Private $LockType As String
+Private $BillVariable As String
+
+Private $xvarsql As String
+Private $FootComment As String
+
+Private $UserGrp As String
+Private $CompGrp As String
+Private $CompLst As String[]
+
+Public Sub _new(Optional sLockType As String, Optional sBillVariable As String)
+
+  If sLockType Then
+    $LockType = sLockType
+    $BillVariable = sBillVariable
+  Endif
+  LockParameter()
+
+End
+
+Private Sub LockParameter()
+
+  Dim aList As String[]
+  Dim compLst As String[]
+  Dim i As Integer
+
+  Select modHelpVariable.$LogInCategory
+    Case "Cashier", "Dispensar"
+      If modBasic.$ViewLockInvoice = "User" Then
+        $xvarsql = db.Subst(" and flduserid like &1", modBasic.$lbluser)
+        $FootComment = modBasic.$lbluser
+        $UserGrp = modBasic.$lbluser
+        $CompGrp = "%"
+      Else If modBasic.$ViewLockInvoice = "Branch" Then
+        compLst = modBasic.$branchList.Copy()
+        For i = 0 To compLst.Count - 1
+          compLst[i] = "'" & compLst[i] & "'"
+        Next
+        $xvarsql = " and fldcomp in(" & compLst.Join(",") & ")"
+        $FootComment = modBasic.$branch
+        $UserGrp = "%"
+        $CompLst = modBasic.$branchList.Copy()
+      Else If modBasic.$ViewLockInvoice = "Location" Then
+        $xvarsql = db.Subst(" and fldcomp like &1", modBasic.$compID)
+        $FootComment = modBasic.$compID
+        $UserGrp = "%"
+        $CompGrp = modBasic.$compID
+      Else
+        $xvarsql = ""
+        $FootComment = ""
+        $UserGrp = "%"
+        $CompGrp = "%"
+      Endif
+
+    Case Else  ''for account
+      If $LockType = "User" Then
+        $xvarsql = db.Subst(" and flduserid like &1", $BillVariable)
+        $FootComment = $BillVariable
+        $UserGrp = $BillVariable
+        $CompGrp = "%"
+      Else If $LockType = "Branch" Then
+        aList = modControlSub.GetDirectFillresultNoNull(modDatabase.$myConn.Exec("select fldcompid as col from tblhospbranch where fldbranch=&1", $BillVariable))
+        compLst = aList.Copy()
+        For i = 0 To compLst.Count - 1
+          compLst[i] = "'" & compLst[i] & "'"
+        Next
+        $xvarsql = " and fldcomp in(" & compLst.Join(",") & ")"
+        $FootComment = $BillVariable
+        $UserGrp = "%"
+        $CompLst = aList.Copy()
+      Else If $LockType = "Location" Then
+        $xvarsql = db.Subst(" and fldcomp like &1", $BillVariable)
+        $FootComment = $BillVariable
+        $UserGrp = "%"
+        $CompGrp = $BillVariable
+      Else
+        $xvarsql = ""
+        $FootComment = ""
+        $UserGrp = "%"
+        $CompGrp = "%"
+      Endif
+  End Select
+
+End
+
+Public Function GetExtraSQL() As String
+
+  Return $xvarsql
+
+End
+
+Public Function GetFooterText() As String
+
+  Return $FootComment
+
+End
+
+Public Function GetUserID() As String
+
+  Return $UserGrp
+
+End
+
+Public Function GetCompID() As String
+
+  Return $CompGrp
+
+End
+
+Public Function GetCompList() As String[]
+
+  Return $CompLst
+
+End

@@ -1,47 +1,24 @@
-' Gambas module file
+' Gambas class file
 
-Public $InvLockLocation As String
+Private $xvarsql As String
 Private $FootComment As String
 ' Private $ProgressBar1 As ProgressBar
 
+Public $UserGrp As String
+Public $CompGrp As String
+Public $CompLst As String[]
+
+Public Sub _new(xVarSQL As String, xFootComm As String)
+
+  $xvarsql = xVarSQL
+  $FootComment = xFootComm
+
+End
+
+''------------------- Common functions -------------------------
 Private Function GetLockString() As String
 
-  Dim xvarsql As String
-  Dim compLst As String[]
-  Dim i As Integer
-
-  If $InvLockLocation Then
-    xvarsql = db.Subst(" and fldcomp like &1", $InvLockLocation)
-    $FootComment = $InvLockLocation
-  Else
-
-    Select modHelpVariable.$LogInCategory
-      Case "Cashier", "Dispensar"
-        If modBasic.$ViewLockInvoice = "User" Then
-          xvarsql = db.Subst(" and flduserid like &1", modBasic.$lbluser)
-          $FootComment = modBasic.$lbluser
-        Else If modBasic.$ViewLockInvoice = "Branch" Then
-          compLst = modBasic.$branchList.Copy()
-          For i = 0 To compLst.Count - 1
-            compLst[i] = "'" & compLst[i] & "'"
-          Next
-          xvarsql = " and fldcomp in(" & compLst.Join(",") & ")"
-          $FootComment = modBasic.$branch
-        Else If modBasic.$ViewLockInvoice = "Location" Then
-          xvarsql = db.Subst(" and fldcomp like &1", modBasic.$compID)
-          $FootComment = modBasic.$compID
-        Else
-          xvarsql = ""
-          $FootComment = ""
-        Endif
-      Case Else
-        xvarsql = ""
-        $FootComment = ""
-    End Select
-
-  Endif
-
-  Return xvarsql
+  Return $xvarsql
 
 End
 
@@ -58,7 +35,7 @@ Private Sub GetFooterMsg($BillingReport As CReportHTML, sLocaType As String, sLo
   Endif
 
   If xmsg.Count Then
-    $BillingReport.AddSummary("Note: Locked To " & xmsg.Join(";"))
+    $BillingReport.AddSummary("Note: " & xmsg.Join(";"))
   Endif
 
 End
@@ -178,7 +155,7 @@ Public Function GetBillDiscountDifferenceMulti(sFormat As String, $con As Connec
 
 End
 
-''====================== Bottom Reports =====================================
+''======================== Procedures ============================================
 Public Function GetInvoiceReportBillingRangeSummary($BillingReport As CReportHTML, sFormat As String, $con As Connection, bill1 As Variant, bill2 As Variant, sLocaType As String, sLocation As String, $tblpatbilldetail As String) As Float
 
   Dim asx As New String[0]
@@ -548,13 +525,13 @@ Public Function GetInvoiceReportBillingRangeAccount($BillingReport As CReportHTM
     Endif
 
     With asx
-      .Add("***")
-      .Add("***")
-      .Add("***")
-      .Add("***")
-      .Add("***")
-      .Add("***")
-      .Add("***")
+      .Add("")
+      .Add("")
+      .Add("")
+      .Add("")
+      .Add("")
+      .Add("")
+      .Add("")
     End With
     $BillingReport.Add(asx)
     asx.Clear()
@@ -987,30 +964,9 @@ Public Function GetInvoiceReportBillingRangeGroupDetail($BillingReport As CRepor
   Dim xround As Float
   Dim xcrnd As Float
 
-  Select modHelpVariable.$LogInCategory
-    Case "Cashier", "Dispensar"
-      If modBasic.$ViewLockInvoice = "User" Then
-        sUser = modBasic.$lbluser
-        sComp = "%"
-        $FootComment = modBasic.$lbluser
-      Else If modBasic.$ViewLockInvoice = "Branch" Then
-        sUser = "%"
-        sCompLst = modBasic.$branchList.Copy()
-        $FootComment = modBasic.$branch
-      Else If modBasic.$ViewLockInvoice = "Location" Then
-        sUser = "%"
-        sComp = modBasic.$compID
-        $FootComment = modBasic.$compID
-      Else
-        sUser = "%"
-        sComp = "%"
-        $FootComment = ""
-      Endif
-    Case Else
-      sUser = "%"
-      sComp = "%"
-      $FootComment = ""
-  End Select
+  sUser = $UserGrp
+  sComp = $CompGrp
+  sCompLst = $CompLst
 
   RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
   If sFormat = "Date" Then
@@ -1033,76 +989,52 @@ Public Function GetInvoiceReportBillingRangeGroupDetail($BillingReport As CRepor
     crdttax = 0
     cashdisc = 0
     cashtax = 0
-    If $InvLockLocation Then
+
+    If sCompLst And If sCompLst.Count Then
       If sFormat = "Date" Then
-        xdueclear = modFinance.GetInvoiceClearanceRange($con, bilid1, bilid2, sUser, $InvLockLocation, sLocaType, sLocation, $tblpatbilldetail)
+        xdueclear = modFinance.GetInvoiceClearanceRangeMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail)
       Else
-        xdueclear = modIDFinance.GetIDInvoiceClearanceRange($con, bilid1, bilid2, sUser, $InvLockLocation, sLocaType, sLocation, $tblpatbilldetail)
+        xdueclear = modIDFinance.GetIDInvoiceClearanceRangeMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail)
       Endif
       If sFormat = "Date" Then
-        xround = modFinance.GetInvoiceCashRound($con, bilid1, bilid2, sUser, $InvLockLocation, sLocaType, sLocation, $tblpatbilldetail)
+        xround = modFinance.GetInvoiceCashRoundMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail)
       Else
-        xround = modIDFinance.GetIDInvoiceCashRound($con, bilid1, bilid2, sUser, $InvLockLocation, sLocaType, sLocation, $tblpatbilldetail)
+        xround = modIDFinance.GetIDInvoiceCashRoundMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail)
       Endif
       ''credit
       If sFormat = "Date" Then
-        xcrnd = modFinance.GetInvoiceCreditRound($con, bilid1, bilid2, sUser, $InvLockLocation, sLocaType, sLocation, $tblpatbilldetail, $tblpatbilling)
+        xcrnd = modFinance.GetInvoiceCreditRoundMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail, $tblpatbilling)
       Else
-        xcrnd = modIDFinance.GetIDInvoiceCreditRound($con, bilid1, bilid2, sUser, $InvLockLocation, sLocaType, sLocation, $tblpatbilldetail, $tblpatbilling)
+        xcrnd = modIDFinance.GetIDInvoiceCreditRoundMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail, $tblpatbilling)
       Endif
 
-      crdtdisc = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Discount", sUser, $InvLockLocation, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
-      crdttax = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Tax", sUser, $InvLockLocation, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
-      cashdisc = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Discount", sUser, $InvLockLocation, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
-      cashtax = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Tax", sUser, $InvLockLocation, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+      crdtdisc = GetBillDiscountDifferenceMulti(sFormat, $con, bill1, bill2, "Discount", sUser, sCompLst, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+      crdttax = GetBillDiscountDifferenceMulti(sFormat, $con, bill1, bill2, "Tax", sUser, sCompLst, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+      cashdisc = GetBillDiscountDifferenceMulti(sFormat, $con, bill1, bill2, "Discount", sUser, sCompLst, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+      cashtax = GetBillDiscountDifferenceMulti(sFormat, $con, bill1, bill2, "Tax", sUser, sCompLst, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
 
     Else
-      If sCompLst And If sCompLst.Count Then
-        If sFormat = "Date" Then
-          xdueclear = modFinance.GetInvoiceClearanceRangeMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail)
-        Else
-          xdueclear = modIDFinance.GetIDInvoiceClearanceRangeMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail)
-        Endif
-        If sFormat = "Date" Then
-          xround = modFinance.GetInvoiceCashRoundMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail)
-        Else
-          xround = modIDFinance.GetIDInvoiceCashRoundMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail)
-        Endif
-        ''credit
-        If sFormat = "Date" Then
-          xcrnd = modFinance.GetInvoiceCreditRoundMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail, $tblpatbilling)
-        Else
-          xcrnd = modIDFinance.GetIDInvoiceCreditRoundMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail, $tblpatbilling)
-        Endif
-
-        crdtdisc = GetBillDiscountDifferenceMulti(sFormat, $con, bill1, bill2, "Discount", sUser, sCompLst, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
-        crdttax = GetBillDiscountDifferenceMulti(sFormat, $con, bill1, bill2, "Tax", sUser, sCompLst, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
-        cashdisc = GetBillDiscountDifferenceMulti(sFormat, $con, bill1, bill2, "Discount", sUser, sCompLst, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
-        cashtax = GetBillDiscountDifferenceMulti(sFormat, $con, bill1, bill2, "Tax", sUser, sCompLst, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
-
+      If sFormat = "Date" Then
+        xdueclear = modFinance.GetInvoiceClearanceRange($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
       Else
-        If sFormat = "Date" Then
-          xdueclear = modFinance.GetInvoiceClearanceRange($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
-        Else
-          xdueclear = modIDFinance.GetIDInvoiceClearanceRange($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
-        Endif
-        If sFormat = "Date" Then
-          xround = modFinance.GetInvoiceCashRound($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
-        Else
-          xround = modIDFinance.GetIDInvoiceCashRound($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
-        Endif
-        ''credit
-        If sFormat = "Date" Then
-          xcrnd = modFinance.GetInvoiceCreditRound($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail, $tblpatbilling)
-        Else
-          xcrnd = modIDFinance.GetIDInvoiceCreditRound($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail, $tblpatbilling)
-        Endif
-
-        crdtdisc = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Discount", sUser, sComp, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
-        crdttax = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Tax", sUser, sComp, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
-        cashdisc = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Discount", sUser, sComp, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
-        cashtax = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Tax", sUser, sComp, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+        xdueclear = modIDFinance.GetIDInvoiceClearanceRange($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
       Endif
+      If sFormat = "Date" Then
+        xround = modFinance.GetInvoiceCashRound($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
+      Else
+        xround = modIDFinance.GetIDInvoiceCashRound($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
+      Endif
+      ''credit
+      If sFormat = "Date" Then
+        xcrnd = modFinance.GetInvoiceCreditRound($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail, $tblpatbilling)
+      Else
+        xcrnd = modIDFinance.GetIDInvoiceCreditRound($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail, $tblpatbilling)
+      Endif
+
+      crdtdisc = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Discount", sUser, sComp, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+      crdttax = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Tax", sUser, sComp, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+      cashdisc = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Discount", sUser, sComp, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+      cashtax = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Tax", sUser, sComp, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
     Endif
 
     adue = 0
@@ -1355,30 +1287,9 @@ Public Function GetInvoiceReportBillingRangeGroupBrief($BillingReport As CReport
   Dim xround As Float
   Dim xcrnd As Float
 
-  Select modHelpVariable.$LogInCategory
-    Case "Cashier", "Dispensar"
-      If modBasic.$ViewLockInvoice = "User" Then
-        sUser = modBasic.$lbluser
-        sComp = "%"
-        $FootComment = modBasic.$lbluser
-      Else If modBasic.$ViewLockInvoice = "Branch" Then
-        sUser = "%"
-        sCompLst = modBasic.$branchList.Copy()
-        $FootComment = modBasic.$branch
-      Else If modBasic.$ViewLockInvoice = "Location" Then
-        sUser = "%"
-        sComp = modBasic.$compID
-        $FootComment = modBasic.$compID
-      Else
-        sUser = "%"
-        sComp = "%"
-        $FootComment = ""
-      Endif
-    Case Else
-      sUser = "%"
-      sComp = "%"
-      $FootComment = ""
-  End Select
+  sUser = $UserGrp
+  sComp = $CompGrp
+  sCompLst = $CompLst
 
   RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
   If sFormat = "Date" Then
@@ -1401,77 +1312,53 @@ Public Function GetInvoiceReportBillingRangeGroupBrief($BillingReport As CReport
     crdttax = 0
     cashdisc = 0
     cashtax = 0
-    If $InvLockLocation Then
+
+    If sCompLst And If sCompLst.Count Then
       If sFormat = "Date" Then
-        xdueclear = modFinance.GetInvoiceClearanceRange($con, bilid1, bilid2, sUser, $InvLockLocation, sLocaType, sLocation, $tblpatbilldetail)
+        xdueclear = modFinance.GetInvoiceClearanceRangeMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail)
       Else
-        xdueclear = modIDFinance.GetIDInvoiceClearanceRange($con, bilid1, bilid2, sUser, $InvLockLocation, sLocaType, sLocation, $tblpatbilldetail)
+        xdueclear = modIDFinance.GetIDInvoiceClearanceRangeMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail)
       Endif
       If sFormat = "Date" Then
-        xround = modFinance.GetInvoiceCashRound($con, bilid1, bilid2, sUser, $InvLockLocation, sLocaType, sLocation, $tblpatbilldetail)
+        xround = modFinance.GetInvoiceCashRoundMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail)
       Else
-        xround = modIDFinance.GetIDInvoiceCashRound($con, bilid1, bilid2, sUser, $InvLockLocation, sLocaType, sLocation, $tblpatbilldetail)
+        xround = modIDFinance.GetIDInvoiceCashRoundMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail)
       Endif
       ''credit
       If sFormat = "Date" Then
-        xcrnd = modFinance.GetInvoiceCreditRound($con, bilid1, bilid2, sUser, $InvLockLocation, sLocaType, sLocation, $tblpatbilldetail, $tblpatbilling)
+        xcrnd = modFinance.GetInvoiceCreditRoundMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail, $tblpatbilling)
       Else
-        xcrnd = modIDFinance.GetIDInvoiceCreditRound($con, bilid1, bilid2, sUser, $InvLockLocation, sLocaType, sLocation, $tblpatbilldetail, $tblpatbilling)
+        xcrnd = modIDFinance.GetIDInvoiceCreditRoundMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail, $tblpatbilling)
       Endif
 
-      crdtdisc = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Discount", sUser, $InvLockLocation, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
-      crdttax = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Tax", sUser, $InvLockLocation, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
-      cashdisc = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Discount", sUser, $InvLockLocation, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
-      cashtax = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Tax", sUser, $InvLockLocation, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+      crdtdisc = GetBillDiscountDifferenceMulti(sFormat, $con, bill1, bill2, "Discount", sUser, sCompLst, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+      crdttax = GetBillDiscountDifferenceMulti(sFormat, $con, bill1, bill2, "Tax", sUser, sCompLst, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+      cashdisc = GetBillDiscountDifferenceMulti(sFormat, $con, bill1, bill2, "Discount", sUser, sCompLst, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+      cashtax = GetBillDiscountDifferenceMulti(sFormat, $con, bill1, bill2, "Tax", sUser, sCompLst, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
 
     Else
-      If sCompLst And If sCompLst.Count Then
-        If sFormat = "Date" Then
-          xdueclear = modFinance.GetInvoiceClearanceRangeMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail)
-        Else
-          xdueclear = modIDFinance.GetIDInvoiceClearanceRangeMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail)
-        Endif
-        If sFormat = "Date" Then
-          xround = modFinance.GetInvoiceCashRoundMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail)
-        Else
-          xround = modIDFinance.GetIDInvoiceCashRoundMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail)
-        Endif
-        ''credit
-        If sFormat = "Date" Then
-          xcrnd = modFinance.GetInvoiceCreditRoundMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail, $tblpatbilling)
-        Else
-          xcrnd = modIDFinance.GetIDInvoiceCreditRoundMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail, $tblpatbilling)
-        Endif
-
-        crdtdisc = GetBillDiscountDifferenceMulti(sFormat, $con, bill1, bill2, "Discount", sUser, sCompLst, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
-        crdttax = GetBillDiscountDifferenceMulti(sFormat, $con, bill1, bill2, "Tax", sUser, sCompLst, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
-        cashdisc = GetBillDiscountDifferenceMulti(sFormat, $con, bill1, bill2, "Discount", sUser, sCompLst, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
-        cashtax = GetBillDiscountDifferenceMulti(sFormat, $con, bill1, bill2, "Tax", sUser, sCompLst, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
-
+      If sFormat = "Date" Then
+        xdueclear = modFinance.GetInvoiceClearanceRange($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
       Else
-        If sFormat = "Date" Then
-          xdueclear = modFinance.GetInvoiceClearanceRange($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
-        Else
-          xdueclear = modIDFinance.GetIDInvoiceClearanceRange($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
-        Endif
-        If sFormat = "Date" Then
-          xround = modFinance.GetInvoiceCashRound($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
-        Else
-          xround = modIDFinance.GetIDInvoiceCashRound($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
-        Endif
-        ''credit
-        If sFormat = "Date" Then
-          xcrnd = modFinance.GetInvoiceCreditRound($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail, $tblpatbilling)
-        Else
-          xcrnd = modIDFinance.GetIDInvoiceCreditRound($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail, $tblpatbilling)
-        Endif
-
-        crdtdisc = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Discount", sUser, sComp, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
-        crdttax = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Tax", sUser, sComp, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
-        cashdisc = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Discount", sUser, sComp, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
-        cashtax = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Tax", sUser, sComp, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
-
+        xdueclear = modIDFinance.GetIDInvoiceClearanceRange($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
       Endif
+      If sFormat = "Date" Then
+        xround = modFinance.GetInvoiceCashRound($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
+      Else
+        xround = modIDFinance.GetIDInvoiceCashRound($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
+      Endif
+      ''credit
+      If sFormat = "Date" Then
+        xcrnd = modFinance.GetInvoiceCreditRound($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail, $tblpatbilling)
+      Else
+        xcrnd = modIDFinance.GetIDInvoiceCreditRound($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail, $tblpatbilling)
+      Endif
+
+      crdtdisc = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Discount", sUser, sComp, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+      crdttax = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Tax", sUser, sComp, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+      cashdisc = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Discount", sUser, sComp, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+      cashtax = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Tax", sUser, sComp, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+
     Endif
 
     usrdue = 0
@@ -1636,154 +1523,6 @@ Public Function GetInvoiceReportBillingRangeGroupBrief($BillingReport As CReport
 
 End
 
-Public Function GetInvoiceReportDetailByMismatch($BillingReport As CReportHTML, sFormat As String, $con As Connection, bill1 As Variant, bill2 As Variant, sLocaType As String, sLocation As String, $tblpatbilling As String, $tblpatbilldetail As String) As Float
-
-  Dim asx As New String[0]
-  Dim RepoVal As Float
-  Dim res As Result
-  Dim res1 As Result
-  Dim bilid1 As Variant
-  Dim bilid2 As Variant
-  Dim xfld As String
-
-  Dim tax As Float
-  Dim disc As Float
-  Dim totl As Float
-  Dim acrdt As Float
-  Dim acash As Float
-
-  Dim nettax As Float
-  Dim netdsc As Float
-  Dim netotal As Float
-  Dim netcrdt As Float
-  Dim netcash As Float
-  Dim RepoStr As String
-
-  Dim precv As Float
-
-  RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
-  If sFormat = "Date" Then
-    bilid1 = bill1
-    bilid2 = bill2
-    xfld = "fldtime"
-  Else
-    bilid1 = modNonMedical.GetBillIDFromBillNo(bill1, $tblpatbilldetail)
-    bilid2 = modNonMedical.GetBillIDFromBillNo(bill2, $tblpatbilldetail)
-    xfld = "fldid"
-  Endif
-
-  If bilid1 And If bilid2 Then
-    ' If MMain.$IsGUIApp = True Then
-    '   $ProgressBar1 = modAppSupport.FindWorkProgressBar(modHelpVariable.$LogInCategory)
-    '   $ProgressBar1.Tag = "Const"
-    ' Endif
-
-    netotal = 0
-    nettax = 0
-    netdsc = 0
-    netcrdt = 0
-    netcash = 0
-    res = $con.Exec("select fldbillno,fldbilltype,(flditemamt+fldtaxamt-flddiscountamt) as itemamt,fldtaxamt,flddiscountamt,fldreceivedamt from " & $tblpatbilldetail & " where " & xfld & ">=&1 and " & xfld & "<=&2" & RepoStr, bilid1, bilid2)
-    For Each res
-      precv = 0
-      If res["fldbillno"] Like "DCL" & "*" Then
-      Else
-        precv = res["fldreceivedamt"]
-      Endif
-
-      totl = 0
-      tax = 0
-      disc = 0
-      acrdt = 0
-      acash = 0
-      res1 = $con.Exec("select SUM(fldditemamt) as itemtot,SUM(flddiscamt) as disctot,SUM(fldtaxamt) as taxtot,SUM((REPLACE(REPLACE(tblpatbilling.fldbilltype , 'Cash', 0), 'Credit', 100) - COALESCE(tblpatbilling.fldcashincredit, 0)) * tblpatbilling.fldditemamt / 100) as xcredit,SUM((REPLACE(REPLACE(tblpatbilling.fldbilltype , 'Cash', 100), 'Credit', 0) + COALESCE(tblpatbilling.fldcashincredit, 0)) * tblpatbilling.fldditemamt / 100) as xcash from " & $tblpatbilling & " where fldbillno=&1" & RepoStr, res["fldbillno"])
-      If res1["itemtot"] Then
-        totl = res1["itemtot"]
-      Endif
-      If res1["disctot"] Then
-        disc = res1["disctot"]
-      Endif
-      If res1["taxtot"] Then
-        tax = res1["taxtot"]
-      Endif
-      If res["fldbillno"] Like "DCL" & "*" Then
-      Else
-        If res1["xcredit"] Then
-          acrdt = res1["xcredit"]
-        Endif
-        If res1["xcash"] Then
-          acash = res1["xcash"]
-        Endif
-      Endif
-
-      If Abs(tax - res["fldtaxamt"]) >= 1 Or If Abs(disc - res["flddiscountamt"]) >= 1 Or If Abs(totl - res["itemamt"]) >= 1 Or If Abs(acash - precv) >= 1 Or If Abs(acrdt - (res["itemamt"] - precv)) >= 1 Then
-        netotal = netotal + (totl - res["itemamt"])
-        nettax = nettax + (tax - res["fldtaxamt"])
-        netdsc = netdsc + (disc - res["flddiscountamt"])
-        netcrdt = netcrdt + (acrdt - (res["itemamt"] - precv))
-        netcash = netcash + (acash - precv)
-
-        With asx
-          .Add(res["fldbillno"])
-          .Add(res["fldbilltype"])
-          .Add(modReportVar.GetLocaleNumberFormat(totl, gb.Currency))
-          .Add(modReportVar.GetLocaleNumberFormat(res["itemamt"], gb.Currency))
-          .Add(modReportVar.GetLocaleNumberFormat(totl - res["itemamt"], gb.Currency))
-          .Add(modReportVar.GetLocaleNumberFormat(tax, gb.Currency))
-          .Add(modReportVar.GetLocaleNumberFormat(res["fldtaxamt"], gb.Currency))
-          .Add(modReportVar.GetLocaleNumberFormat(tax - res["fldtaxamt"], gb.Currency))
-          .Add(modReportVar.GetLocaleNumberFormat(disc, gb.Currency))
-          .Add(modReportVar.GetLocaleNumberFormat(res["flddiscountamt"], gb.Currency))
-          .Add(modReportVar.GetLocaleNumberFormat(disc - res["flddiscountamt"], gb.Currency))
-          ''credit
-          .Add(modReportVar.GetLocaleNumberFormat(acrdt, gb.Currency))
-          .Add(modReportVar.GetLocaleNumberFormat(res["itemamt"] - precv, gb.Currency))
-          .Add(modReportVar.GetLocaleNumberFormat(acrdt - (res["itemamt"] - precv), gb.Currency))
-          ''cash
-          .Add(modReportVar.GetLocaleNumberFormat(acash, gb.Currency))
-          .Add(modReportVar.GetLocaleNumberFormat(precv, gb.Currency))
-          .Add(modReportVar.GetLocaleNumberFormat(acash - precv, gb.Currency))
-        End With
-        $BillingReport.Add(asx)
-        asx.Clear()
-      Endif
-
-      ' If MMain.$IsGUIApp = True Then
-      '   $ProgressBar1.Value = (res.Index + 1) / res.Count
-      '   Wait
-      ' Endif
-    Next
-
-    With asx
-      .Add("")
-      .Add("")
-      .Add("")
-      .Add("")
-      .Add(modReportVar.GetLocaleNumberFormat(netotal, gb.Currency))
-      .Add("")
-      .Add("")
-      .Add(modReportVar.GetLocaleNumberFormat(nettax, gb.Currency))
-      .Add("")
-      .Add("")
-      .Add(modReportVar.GetLocaleNumberFormat(netdsc, gb.Currency))
-      ''credit
-      .Add("")
-      .Add("")
-      .Add(modReportVar.GetLocaleNumberFormat(netcrdt, gb.Currency))
-      ''cash
-      .Add("")
-      .Add("")
-      .Add(modReportVar.GetLocaleNumberFormat(netcash, gb.Currency))
-    End With
-    $BillingReport.Add(asx)
-    asx.Clear()
-    GetFooterMsg($BillingReport, sLocaType, sLocation)
-
-    Return RepoVal
-  Endif
-
-End
-
 Public Function GetInvoiceReportBillingRangeLocation($BillingReport As CReportHTML, sFormat As String, $con As Connection, bill1 As Variant, bill2 As Variant, sLocaType As String, sLocation As String, $tblpatbilling As String, $tblpatbilldetail As String) As Float
 
   Dim RepoVal As Float
@@ -1827,30 +1566,9 @@ Public Function GetInvoiceReportBillingRangeLocation($BillingReport As CReportHT
   Dim sCompLst As String[]
   Dim xround As Float
 
-  Select modHelpVariable.$LogInCategory
-    Case "Cashier", "Dispensar"
-      If modBasic.$ViewLockInvoice = "User" Then
-        sUser = modBasic.$lbluser
-        sComp = "%"
-        $FootComment = modBasic.$lbluser
-      Else If modBasic.$ViewLockInvoice = "Branch" Then
-        sUser = "%"
-        sCompLst = modBasic.$branchList.Copy()
-        $FootComment = modBasic.$branch
-      Else If modBasic.$ViewLockInvoice = "Location" Then
-        sUser = "%"
-        sComp = modBasic.$compID
-        $FootComment = modBasic.$compID
-      Else
-        sUser = "%"
-        sComp = "%"
-        $FootComment = ""
-      Endif
-    Case Else
-      sUser = "%"
-      sComp = "%"
-      $FootComment = ""
-  End Select
+  sUser = $UserGrp
+  sComp = $CompGrp
+  sCompLst = $CompLst
 
   RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
   If sFormat = "Date" Then
@@ -1871,59 +1589,41 @@ Public Function GetInvoiceReportBillingRangeLocation($BillingReport As CReportHT
     crdttax = 0
     cashdisc = 0
     cashtax = 0
-    If $InvLockLocation Then
+
+    If sCompLst And If sCompLst.Count Then
       If sFormat = "Date" Then
-        xdueclear = modFinance.GetInvoiceClearanceRange($con, bilid1, bilid2, sUser, $InvLockLocation, sLocaType, sLocation, $tblpatbilldetail)
+        xdueclear = modFinance.GetInvoiceClearanceRangeMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail)
       Else
-        xdueclear = modIDFinance.GetIDInvoiceClearanceRange($con, bilid1, bilid2, sUser, $InvLockLocation, sLocaType, sLocation, $tblpatbilldetail)
+        xdueclear = modIDFinance.GetIDInvoiceClearanceRangeMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail)
       Endif
       If sFormat = "Date" Then
-        xround = modFinance.GetInvoiceCashRound($con, bilid1, bilid2, sUser, $InvLockLocation, sLocaType, sLocation, $tblpatbilldetail)
+        xround = modFinance.GetInvoiceCashRoundMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail)
       Else
-        xround = modIDFinance.GetIDInvoiceCashRound($con, bilid1, bilid2, sUser, $InvLockLocation, sLocaType, sLocation, $tblpatbilldetail)
+        xround = modIDFinance.GetIDInvoiceCashRoundMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail)
       Endif
 
-      crdtdisc = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Discount", sUser, $InvLockLocation, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
-      crdttax = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Tax", sUser, $InvLockLocation, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
-      cashdisc = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Discount", sUser, $InvLockLocation, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
-      cashtax = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Tax", sUser, $InvLockLocation, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+      crdtdisc = GetBillDiscountDifferenceMulti(sFormat, $con, bill1, bill2, "Discount", sUser, sCompLst, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+      crdttax = GetBillDiscountDifferenceMulti(sFormat, $con, bill1, bill2, "Tax", sUser, sCompLst, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+      cashdisc = GetBillDiscountDifferenceMulti(sFormat, $con, bill1, bill2, "Discount", sUser, sCompLst, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+      cashtax = GetBillDiscountDifferenceMulti(sFormat, $con, bill1, bill2, "Tax", sUser, sCompLst, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
 
     Else
-      If sCompLst And If sCompLst.Count Then
-        If sFormat = "Date" Then
-          xdueclear = modFinance.GetInvoiceClearanceRangeMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail)
-        Else
-          xdueclear = modIDFinance.GetIDInvoiceClearanceRangeMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail)
-        Endif
-        If sFormat = "Date" Then
-          xround = modFinance.GetInvoiceCashRoundMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail)
-        Else
-          xround = modIDFinance.GetIDInvoiceCashRoundMulti($con, bilid1, bilid2, sUser, sCompLst, sLocaType, sLocation, $tblpatbilldetail)
-        Endif
-
-        crdtdisc = GetBillDiscountDifferenceMulti(sFormat, $con, bill1, bill2, "Discount", sUser, sCompLst, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
-        crdttax = GetBillDiscountDifferenceMulti(sFormat, $con, bill1, bill2, "Tax", sUser, sCompLst, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
-        cashdisc = GetBillDiscountDifferenceMulti(sFormat, $con, bill1, bill2, "Discount", sUser, sCompLst, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
-        cashtax = GetBillDiscountDifferenceMulti(sFormat, $con, bill1, bill2, "Tax", sUser, sCompLst, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
-
+      If sFormat = "Date" Then
+        xdueclear = modFinance.GetInvoiceClearanceRange($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
       Else
-        If sFormat = "Date" Then
-          xdueclear = modFinance.GetInvoiceClearanceRange($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
-        Else
-          xdueclear = modIDFinance.GetIDInvoiceClearanceRange($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
-        Endif
-        If sFormat = "Date" Then
-          xround = modFinance.GetInvoiceCashRound($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
-        Else
-          xround = modIDFinance.GetIDInvoiceCashRound($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
-        Endif
-
-        crdtdisc = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Discount", sUser, sComp, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
-        crdttax = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Tax", sUser, sComp, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
-        cashdisc = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Discount", sUser, sComp, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
-        cashtax = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Tax", sUser, sComp, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
-
+        xdueclear = modIDFinance.GetIDInvoiceClearanceRange($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
       Endif
+      If sFormat = "Date" Then
+        xround = modFinance.GetInvoiceCashRound($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
+      Else
+        xround = modIDFinance.GetIDInvoiceCashRound($con, bilid1, bilid2, sUser, sComp, sLocaType, sLocation, $tblpatbilldetail)
+      Endif
+
+      crdtdisc = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Discount", sUser, sComp, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+      crdttax = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Tax", sUser, sComp, "Credit", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+      cashdisc = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Discount", sUser, sComp, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+      cashtax = GetBillDiscountDifference(sFormat, $con, bill1, bill2, "Tax", sUser, sComp, "Cash", sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+
     Endif
 
     comdue = 0
@@ -2245,16 +1945,16 @@ Public Function GetInvoiceReportBillingRangeTaxDiscount($BillingReport As CRepor
       $BillingReport.Add(asx)
       asx.Clear()
       With asx
-        .Add("****")
-        .Add("****")
-        .Add("****")
-        .Add("****")
-        .Add("****")
-        .Add("****")
-        .Add("****")
-        .Add("****")
-        .Add("****")
-        .Add("****")
+        .Add("")
+        .Add("")
+        .Add("")
+        .Add("")
+        .Add("")
+        .Add("")
+        .Add("")
+        .Add("")
+        .Add("")
+        .Add("")
       End With
       $BillingReport.Add(asx)
       asx.Clear()
@@ -2630,7 +2330,318 @@ Public Function GetInvoiceReportBillingRangeCashCredit($BillingReport As CReport
 
 End
 
-''================== EXTRA REPORTS ===================
+Public Function GetInvoiceReportDetailByMismatch($BillingReport As CReportHTML, sFormat As String, $con As Connection, bill1 As Variant, bill2 As Variant, sLocaType As String, sLocation As String, $tblpatbilling As String, $tblpatbilldetail As String) As Float
+
+  Dim asx As New String[0]
+  Dim RepoVal As Float
+  Dim res As Result
+  Dim res1 As Result
+  Dim bilid1 As Variant
+  Dim bilid2 As Variant
+  Dim xfld As String
+
+  Dim tax As Float
+  Dim disc As Float
+  Dim totl As Float
+  Dim acrdt As Float
+  Dim acash As Float
+
+  Dim nettax As Float
+  Dim netdsc As Float
+  Dim netotal As Float
+  Dim netcrdt As Float
+  Dim netcash As Float
+  Dim RepoStr As String
+
+  Dim precv As Float
+
+  RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
+  If sFormat = "Date" Then
+    bilid1 = bill1
+    bilid2 = bill2
+    xfld = "fldtime"
+  Else
+    bilid1 = modNonMedical.GetBillIDFromBillNo(bill1, $tblpatbilldetail)
+    bilid2 = modNonMedical.GetBillIDFromBillNo(bill2, $tblpatbilldetail)
+    xfld = "fldid"
+  Endif
+
+  If bilid1 And If bilid2 Then
+    ' If MMain.$IsGUIApp = True Then
+    '   $ProgressBar1 = modAppSupport.FindWorkProgressBar(modHelpVariable.$LogInCategory)
+    '   $ProgressBar1.Tag = "Const"
+    ' Endif
+
+    netotal = 0
+    nettax = 0
+    netdsc = 0
+    netcrdt = 0
+    netcash = 0
+    res = $con.Exec("select fldbillno,fldbilltype,(flditemamt+fldtaxamt-flddiscountamt) as itemamt,fldtaxamt,flddiscountamt,fldreceivedamt from " & $tblpatbilldetail & " where " & xfld & ">=&1 and " & xfld & "<=&2" & RepoStr, bilid1, bilid2)
+    For Each res
+      precv = 0
+      If res["fldbillno"] Like "DCL" & "*" Then
+      Else
+        precv = res["fldreceivedamt"]
+      Endif
+
+      totl = 0
+      tax = 0
+      disc = 0
+      acrdt = 0
+      acash = 0
+      res1 = $con.Exec("select SUM(fldditemamt) as itemtot,SUM(flddiscamt) as disctot,SUM(fldtaxamt) as taxtot,SUM((REPLACE(REPLACE(tblpatbilling.fldbilltype , 'Cash', 0), 'Credit', 100) - COALESCE(tblpatbilling.fldcashincredit, 0)) * tblpatbilling.fldditemamt / 100) as xcredit,SUM((REPLACE(REPLACE(tblpatbilling.fldbilltype , 'Cash', 100), 'Credit', 0) + COALESCE(tblpatbilling.fldcashincredit, 0)) * tblpatbilling.fldditemamt / 100) as xcash from " & $tblpatbilling & " where fldbillno=&1" & RepoStr, res["fldbillno"])
+      If res1["itemtot"] Then
+        totl = res1["itemtot"]
+      Endif
+      If res1["disctot"] Then
+        disc = res1["disctot"]
+      Endif
+      If res1["taxtot"] Then
+        tax = res1["taxtot"]
+      Endif
+      If res["fldbillno"] Like "DCL" & "*" Then
+      Else
+        If res1["xcredit"] Then
+          acrdt = res1["xcredit"]
+        Endif
+        If res1["xcash"] Then
+          acash = res1["xcash"]
+        Endif
+      Endif
+
+      If Abs(tax - res["fldtaxamt"]) >= 1 Or If Abs(disc - res["flddiscountamt"]) >= 1 Or If Abs(totl - res["itemamt"]) >= 1 Or If Abs(acash - precv) >= 1 Or If Abs(acrdt - (res["itemamt"] - precv)) >= 1 Then
+        netotal = netotal + (totl - res["itemamt"])
+        nettax = nettax + (tax - res["fldtaxamt"])
+        netdsc = netdsc + (disc - res["flddiscountamt"])
+        netcrdt = netcrdt + (acrdt - (res["itemamt"] - precv))
+        netcash = netcash + (acash - precv)
+
+        With asx
+          .Add(res["fldbillno"])
+          .Add(res["fldbilltype"])
+          .Add(modReportVar.GetLocaleNumberFormat(totl, gb.Currency))
+          .Add(modReportVar.GetLocaleNumberFormat(res["itemamt"], gb.Currency))
+          .Add(modReportVar.GetLocaleNumberFormat(totl - res["itemamt"], gb.Currency))
+          .Add(modReportVar.GetLocaleNumberFormat(tax, gb.Currency))
+          .Add(modReportVar.GetLocaleNumberFormat(res["fldtaxamt"], gb.Currency))
+          .Add(modReportVar.GetLocaleNumberFormat(tax - res["fldtaxamt"], gb.Currency))
+          .Add(modReportVar.GetLocaleNumberFormat(disc, gb.Currency))
+          .Add(modReportVar.GetLocaleNumberFormat(res["flddiscountamt"], gb.Currency))
+          .Add(modReportVar.GetLocaleNumberFormat(disc - res["flddiscountamt"], gb.Currency))
+          ''credit
+          .Add(modReportVar.GetLocaleNumberFormat(acrdt, gb.Currency))
+          .Add(modReportVar.GetLocaleNumberFormat(res["itemamt"] - precv, gb.Currency))
+          .Add(modReportVar.GetLocaleNumberFormat(acrdt - (res["itemamt"] - precv), gb.Currency))
+          ''cash
+          .Add(modReportVar.GetLocaleNumberFormat(acash, gb.Currency))
+          .Add(modReportVar.GetLocaleNumberFormat(precv, gb.Currency))
+          .Add(modReportVar.GetLocaleNumberFormat(acash - precv, gb.Currency))
+        End With
+        $BillingReport.Add(asx)
+        asx.Clear()
+      Endif
+
+      ' If MMain.$IsGUIApp = True Then
+      '   $ProgressBar1.Value = (res.Index + 1) / res.Count
+      '   Wait
+      ' Endif
+    Next
+
+    With asx
+      .Add("")
+      .Add("")
+      .Add("")
+      .Add("")
+      .Add(modReportVar.GetLocaleNumberFormat(netotal, gb.Currency))
+      .Add("")
+      .Add("")
+      .Add(modReportVar.GetLocaleNumberFormat(nettax, gb.Currency))
+      .Add("")
+      .Add("")
+      .Add(modReportVar.GetLocaleNumberFormat(netdsc, gb.Currency))
+      ''credit
+      .Add("")
+      .Add("")
+      .Add(modReportVar.GetLocaleNumberFormat(netcrdt, gb.Currency))
+      ''cash
+      .Add("")
+      .Add("")
+      .Add(modReportVar.GetLocaleNumberFormat(netcash, gb.Currency))
+    End With
+    $BillingReport.Add(asx)
+    asx.Clear()
+
+    Return RepoVal
+  Endif
+
+End
+
+''----------- extra --------------------------
+Public Function GetInvoiceReportBillingRangeCashSource($BillingReport As CReportHTML, $con As Connection, bill1 As Variant, bill2 As Variant, sLocaType As String, sLocation As String) As Float
+
+  Dim RepoVal As Float
+  Dim bilid1 As Variant
+  Dim bilid2 As Variant
+  Dim xfld As String
+  Dim res1 As Result
+  Dim res3 As Result
+
+  Dim asx As New String[0]
+  Dim res As Result
+
+  Dim xrecv As Float
+  Dim urecv As Float
+  Dim totrecv As Float
+
+  Dim p As Integer
+  Dim RepoStr As String
+
+  RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
+  ' If MMain.$IsGUIApp = True Then
+  '   $ProgressBar1 = modAppSupport.FindWorkProgressBar(modHelpVariable.$LogInCategory)
+  '   $ProgressBar1.Tag = "Const"
+  ' Endif
+
+  bilid1 = bill1
+  bilid2 = bill2
+  xfld = "fldtime"
+
+  If bilid1 And If bilid2 Then
+    res1 = $con.Exec("select distinct(flduserid) as col from tblcashsources where " & xfld & ">=&1 and " & xfld & "<=&2" & GetLockString() & RepoStr, bilid1, bilid2)
+    totrecv = 0
+
+    p = 1
+    For Each res1
+      $BillingReport.AddSection(res1["col"] & " [" & modGeneral.GetUserFullName(res1["col"]) & "]", True)
+
+      res = $con.Exec("select distinct(fldvendor) as col from tblcashsources where " & xfld & ">=&1 and " & xfld & "<=&2 and flduserid=&3" & GetLockString() & RepoStr, bilid1, bilid2, res1["col"])
+      urecv = 0
+
+      For Each res
+        'for individual account
+        $BillingReport.AddChapter(res["col"])
+        res3 = $con.Exec("select fldtime,fldencounterval,fldencounterval,fldvendor,fldbillno,fldcashamt,fldreference from tblcashsources where " & xfld & ">=&1 and " & xfld & "<=&2 and flduserid like &3 and fldvendor like &4" & GetLockString() & RepoStr, bilid1, bilid2, res1["col"], res["col"])
+        xrecv = 0
+
+        If res3.Available Then
+          For Each res3
+            If res3["fldcashamt"] Then
+              xrecv = xrecv + res3["fldcashamt"]
+            Endif
+            With asx
+              .Add(modString.HTMLBlankSpace(3) & modReportVar.GetDateTimeReport(res3["fldtime"], gb.GeneralDate))
+              .Add(res3["fldencounterval"])
+              .Add(modPatient.GetPatientNameByEnc(res3["fldencounterval"], $con))
+              .Add(res3["fldreference"])
+              .Add(res3["fldbillno"])
+              .Add("")
+              .Add("")
+              .Add("")
+              .Add("")
+              .Add(modReportVar.GetLocaleNumberFormat(res3["fldcashamt"], gb.Currency))
+              .Add(res3["fldvendor"])
+            End With
+            $BillingReport.Add(asx)
+            asx.Clear()
+          Next
+        Endif
+
+        urecv = urecv + xrecv
+
+        With asx
+          .Add(modString.HTMLBlankSpace(3) & res1["col"] & "@" & res["col"])
+          .Add("")
+          .Add("")
+          .Add("")
+          .Add("")
+          .Add("")
+          .Add("")
+          .Add("")
+          .Add("")
+          .Add(modReportVar.GetLocaleNumberFormat(xrecv, gb.Currency))
+          .Add("")
+        End With
+        $BillingReport.Add(asx)
+        asx.Clear()
+        With asx
+          .Add("....")
+          .Add("....")
+          .Add("....")
+          .Add("....")
+          .Add("....")
+          .Add("....")
+          .Add("....")
+          .Add("....")
+          .Add("....")
+          .Add("....")
+          .Add("....")
+        End With
+        $BillingReport.Add(asx)
+        asx.Clear()
+      Next
+
+      totrecv = totrecv + urecv
+      With asx
+        .Add("<b>" & res1["col"] & " @ Total</b>")
+        .Add("")
+        .Add("")
+        .Add("")
+        .Add("")
+        .Add("")
+        .Add("")
+        .Add("")
+        .Add("")
+        .Add(modReportVar.GetLocaleNumberFormat(urecv, gb.Currency))
+        .Add("")
+      End With
+      $BillingReport.Add(asx)
+      asx.Clear()
+      With asx
+        .Add("")
+        .Add("")
+        .Add("")
+        .Add("")
+        .Add("")
+        .Add("")
+        .Add("")
+        .Add("")
+        .Add("")
+        .Add("")
+        .Add("")
+      End With
+      $BillingReport.Add(asx)
+      asx.Clear()
+
+      ' If MMain.$IsGUIApp = True Then
+      '   $ProgressBar1.Value = p / res1.Count
+      '   Wait
+      ' Endif
+      p = p + 1
+    Next
+
+    With asx
+      .Add("")
+      .Add("")
+      .Add("")
+      .Add("")
+      .Add("")
+      .Add("")
+      .Add("")
+      .Add("")
+      .Add("")
+      .Add(modReportVar.GetLocaleNumberFormat(totrecv, gb.Currency))
+      .Add("")
+    End With
+    $BillingReport.Add(asx)
+    asx.Clear()
+    GetFooterMsg($BillingReport, sLocaType, sLocation)
+
+    Return RepoVal
+  Endif
+
+End
+
 Public Function GetInvoiceReportGroupsSummarySpecial($BillingReport As CReportHTML, sFormat As String, $con As Connection, bill1 As Variant, bill2 As Variant, aList As String[], sLocaType As String, sLocation As String, $tblpatbilling As String, $tblpatbilldetail As String) As Float
 
   Dim RepoVal As Float
@@ -2845,171 +2856,6 @@ Public Function GetInvoiceReportGroupsSummarySpecial($BillingReport As CReportHT
     End With
     $BillingReport.Add(asx)
     asx.Clear()
-
-    Return RepoVal
-  Endif
-
-End
-
-''---------------------- Cash source -----
-Public Function GetInvoiceReportBillingRangeCashSource($BillingReport As CReportHTML, $con As Connection, bill1 As Variant, bill2 As Variant, sLocaType As String, sLocation As String) As Float
-
-  Dim RepoVal As Float
-  Dim bilid1 As Variant
-  Dim bilid2 As Variant
-  Dim xfld As String
-  Dim res1 As Result
-  Dim res3 As Result
-
-  Dim asx As New String[0]
-  Dim res As Result
-
-  Dim xrecv As Float
-  Dim urecv As Float
-  Dim totrecv As Float
-
-  Dim p As Integer
-  Dim RepoStr As String
-
-  RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
-  ' If MMain.$IsGUIApp = True Then
-  '   $ProgressBar1 = modAppSupport.FindWorkProgressBar(modHelpVariable.$LogInCategory)
-  '   $ProgressBar1.Tag = "Const"
-  ' Endif
-
-  bilid1 = bill1
-  bilid2 = bill2
-  xfld = "fldtime"
-
-  If bilid1 And If bilid2 Then
-    res1 = $con.Exec("select distinct(flduserid) as col from tblcashsources where " & xfld & ">=&1 and " & xfld & "<=&2" & GetLockString() & RepoStr, bilid1, bilid2)
-    totrecv = 0
-
-    p = 1
-    For Each res1
-      $BillingReport.AddSection(res1["col"] & " [" & modGeneral.GetUserFullName(res1["col"]) & "]", True)
-
-      res = $con.Exec("select distinct(fldvendor) as col from tblcashsources where " & xfld & ">=&1 and " & xfld & "<=&2 and flduserid=&3" & GetLockString() & RepoStr, bilid1, bilid2, res1["col"])
-      urecv = 0
-
-      For Each res
-        'for individual account
-        $BillingReport.AddChapter(res["col"])
-        res3 = $con.Exec("select fldtime,fldencounterval,fldencounterval,fldvendor,fldbillno,fldcashamt,fldreference from tblcashsources where " & xfld & ">=&1 and " & xfld & "<=&2 and flduserid like &3 and fldvendor like &4" & GetLockString() & RepoStr, bilid1, bilid2, res1["col"], res["col"])
-        xrecv = 0
-
-        If res3.Available Then
-          For Each res3
-            If res3["fldcashamt"] Then
-              xrecv = xrecv + res3["fldcashamt"]
-            Endif
-            With asx
-              .Add(modString.HTMLBlankSpace(3) & modReportVar.GetDateTimeReport(res3["fldtime"], gb.GeneralDate))
-              .Add(res3["fldencounterval"])
-              .Add(modPatient.GetPatientNameByEnc(res3["fldencounterval"], $con))
-              .Add(res3["fldreference"])
-              .Add(res3["fldbillno"])
-              .Add("")
-              .Add("")
-              .Add("")
-              .Add("")
-              .Add(modReportVar.GetLocaleNumberFormat(res3["fldcashamt"], gb.Currency))
-              .Add(res3["fldvendor"])
-            End With
-            $BillingReport.Add(asx)
-            asx.Clear()
-          Next
-        Endif
-
-        urecv = urecv + xrecv
-
-        With asx
-          .Add(modString.HTMLBlankSpace(3) & res1["col"] & "@" & res["col"])
-          .Add("")
-          .Add("")
-          .Add("")
-          .Add("")
-          .Add("")
-          .Add("")
-          .Add("")
-          .Add("")
-          .Add(modReportVar.GetLocaleNumberFormat(xrecv, gb.Currency))
-          .Add("")
-        End With
-        $BillingReport.Add(asx)
-        asx.Clear()
-        With asx
-          .Add("....")
-          .Add("....")
-          .Add("....")
-          .Add("....")
-          .Add("....")
-          .Add("....")
-          .Add("....")
-          .Add("....")
-          .Add("....")
-          .Add("....")
-          .Add("....")
-        End With
-        $BillingReport.Add(asx)
-        asx.Clear()
-      Next
-
-      totrecv = totrecv + urecv
-      With asx
-        .Add("<b>" & res1["col"] & " @ Total</b>")
-        .Add("")
-        .Add("")
-        .Add("")
-        .Add("")
-        .Add("")
-        .Add("")
-        .Add("")
-        .Add("")
-        .Add(modReportVar.GetLocaleNumberFormat(urecv, gb.Currency))
-        .Add("")
-      End With
-      $BillingReport.Add(asx)
-      asx.Clear()
-      With asx
-        .Add("****")
-        .Add("****")
-        .Add("****")
-        .Add("****")
-        .Add("****")
-        .Add("****")
-        .Add("****")
-        .Add("****")
-        .Add("****")
-        .Add("****")
-        .Add("****")
-      End With
-      $BillingReport.Add(asx)
-      asx.Clear()
-
-      ' If MMain.$IsGUIApp = True Then
-      '   $ProgressBar1.Value = p / res1.Count
-      '   Wait
-      ' Endif
-      p = p + 1
-    Next
-
-    With asx
-      .Add("")
-      .Add("")
-      .Add("")
-      .Add("")
-      .Add("")
-      .Add("")
-      .Add("")
-      .Add("")
-      .Add("")
-      .Add(modReportVar.GetLocaleNumberFormat(totrecv, gb.Currency))
-      .Add("")
-    End With
-    $BillingReport.Add(asx)
-    asx.Clear()
-    GetFooterMsg($BillingReport, sLocaType, sLocation)
 
     Return RepoVal
   Endif

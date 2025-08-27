@@ -19,8 +19,6 @@ Private $tbltempbilldetail As String
 
 Public Sub _new()
 
-  modBillingAll.$InvLockLocation = ""
-  modReceiptAll.$RecLockLocation = ""
   cmbcomp.List = modBasic.$AllCompPerList
   cmbcomp.Text = "%"
   $PolyCompLst = New String[]
@@ -39,7 +37,6 @@ Public Sub _new()
   Else
     Select modHelpVariable.$LogInCategory
       Case "Cashier", "Dispensar", "Pharmacist", "Purchase", "Store"
-        mnulocked.Visible = False
         If modBasic.$ViewLockInvoice = "User" Then
           cmbsearch.List = ["Encounter", "Invoice", "Package", "Reference", "PatientCode", "RatePlan", "Doc Upload", "CBMS Upload", "Booking"]
         Else If modBasic.$ViewLockInvoice = "Branch" Then
@@ -75,6 +72,7 @@ Public Sub _new()
       modAccount.PasInvoiceSetting(cmbfiscal, False)
       mnufinance.Visible = False
       mnufinansumm.Visible = False
+      pnlaccextra.Visible = False
       If modBasic.$BillReportSummary = "Hidden" Then
         Panel4.Visible = False
         btnfullrep.Enabled = False
@@ -83,10 +81,12 @@ Public Sub _new()
       modAccount.PasInvoiceSetting(cmbfiscal, True)
       mnufinance.Visible = True
       mnufinansumm.Visible = True
+      pnlaccextra.Visible = True
   End Select
 
   dtfir.Value = Now()
   dtlast.Value = Now()
+  rbsummary.Value = True
   txtselect.Text = ""
   cmbcashcredit.Text = "%"
   cmbcategory.Text = "%"
@@ -105,27 +105,6 @@ End
 Public Sub WebForm_Open()
 
   modGeneralMain.RecordFormUse(Me)
-
-End
-
-Public Sub mnulocked_Click()
-
-  Dim xcomp As String
-
-  xcomp = InputCombo("Select Location to be Locked", "Reports", modBasic.$AllCompList, "", False)
-  If xcomp Then
-    modBillingAll.$InvLockLocation = xcomp
-    modReceiptAll.$RecLockLocation = xcomp
-    cmbcomp.Text = xcomp
-    cmbcomp.Enabled = False
-    lblcomp.Text = "Lock"
-  Else
-    modBillingAll.$InvLockLocation = ""
-    modReceiptAll.$RecLockLocation = ""
-    cmbcomp.Text = "%"
-    cmbcomp.Enabled = True
-    lblcomp.Text = "Comp"
-  Endif
 
 End
 
@@ -740,11 +719,11 @@ Private Sub FillGrid()
   With GridView1
     .Columns[0].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
     .Columns[1].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
-    .Columns[2].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
-    .Columns[3].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
-    .Columns[4].Width = CStr(200 * modBasic.$AppWidthRatio) & "px"
+    .Columns[2].Width = CStr(175 * modBasic.$AppWidthRatio) & "px"
+    .Columns[3].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+    .Columns[4].Width = CStr(225 * modBasic.$AppWidthRatio) & "px"
     .Columns[5].Width = CStr(50 * modBasic.$AppWidthRatio) & "px"
-    .Columns[6].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
+    .Columns[6].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
     .Columns[7].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
     .Columns[8].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
     .Columns[9].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
@@ -769,10 +748,10 @@ Private Sub FillGrid()
     .Columns[5].Text = "Type"
     .Columns[6].Text = "Account"
     .Columns[7].Text = "Reference"
-    .Columns[8].Text = "SubTotal"
-    .Columns[9].Text = "DiscAmt"
-    .Columns[10].Text = "TaxAmt"
-    .Columns[11].Text = "NetTotal"
+    .Columns[8].Text = "Gross"
+    .Columns[9].Text = "Discount"
+    .Columns[10].Text = "Tax"
+    .Columns[11].Text = "Total"
     .Columns[12].Text = "Received"
     .Columns[13].Text = "Deposit"
     .Columns[14].Text = "User"
@@ -1314,7 +1293,7 @@ Public Sub mnucombsummary_Click()
   SetRepoString()
   xdate = DoubleDates("Select Dates", "SUMMARY", [dtfir.Value, dtlast.Value])
   If xdate Then
-    xPath = modCombinedReport.CombinedReportBillingRangeSummary("Date", modDatabase.$syConn, modDate.StartSqlDate(xdate[0]), modDate.EndSqlDate(xdate[1]), cmbsearch.Text, txtselect.Text, $tblpatbilldetail, $tbltempbilldetail)
+    xPath = modCombinedReport.CombinedReportBillingRangeSummary("Date", modDatabase.$syConn, SummFormat(), modDate.StartSqlDate(xdate[0]), modDate.EndSqlDate(xdate[1]), cmbsearch.Text, txtselect.Text, $tblpatbilldetail, $tbltempbilldetail)
     modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
   Endif
 
@@ -1328,7 +1307,7 @@ Public Sub mnucombledger_Click()
   SetRepoString()
   xdate = DoubleDates("Select Dates", "SUMMARY", [dtfir.Value, dtlast.Value])
   If xdate Then
-    xPath = modCombinedReport.CombinedReportBillingRangeAccount("Date", modDatabase.$syConn, modDate.StartSqlDate(xdate[0]), modDate.EndSqlDate(xdate[1]), cmbsearch.Text, txtselect.Text, $tblpatbilldetail, $tbltempbilldetail)
+    xPath = modCombinedReport.CombinedReportBillingRangeAccount("Date", modDatabase.$syConn, SummFormat(), modDate.StartSqlDate(xdate[0]), modDate.EndSqlDate(xdate[1]), cmbsearch.Text, txtselect.Text, $tblpatbilldetail, $tbltempbilldetail)
     modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
   Endif
 
@@ -1342,7 +1321,7 @@ Public Sub mnucombuser_Click()
   SetRepoString()
   xdate = DoubleDates("Select Dates", "SUMMARY", [dtfir.Value, dtlast.Value])
   If xdate Then
-    xPath = modCombinedReport.CombinedReportBillingRangeUserBrief("Date", modDatabase.$syConn, modDate.StartSqlDate(xdate[0]), modDate.EndSqlDate(xdate[1]), cmbsearch.Text, txtselect.Text, $tblpatbilldetail, $tbltempbilldetail)
+    xPath = modCombinedReport.CombinedReportBillingRangeUserBrief("Date", modDatabase.$syConn, SummFormat(), modDate.StartSqlDate(xdate[0]), modDate.EndSqlDate(xdate[1]), cmbsearch.Text, txtselect.Text, $tblpatbilldetail, $tbltempbilldetail)
     modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
   Endif
 
@@ -1356,7 +1335,7 @@ Public Sub mnucombgroup_Click()
   SetRepoString()
   xdate = DoubleDates("Select Dates", "SUMMARY", [dtfir.Value, dtlast.Value])
   If xdate Then
-    xPath = modCombinedReport.CombinedReportBillingRangeGroupBrief("Date", modDatabase.$syConn, modDate.StartSqlDate(xdate[0]), modDate.EndSqlDate(xdate[1]), cmbsearch.Text, txtselect.Text, $tblpatbilling, $tblpatbilldetail, $tbltempbilldetail)
+    xPath = modCombinedReport.CombinedReportBillingRangeGroupBrief("Date", modDatabase.$syConn, SummFormat(), modDate.StartSqlDate(xdate[0]), modDate.EndSqlDate(xdate[1]), cmbsearch.Text, txtselect.Text, $tblpatbilling, $tblpatbilldetail, $tbltempbilldetail)
     modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
   Endif
 
@@ -1370,13 +1349,29 @@ Public Sub mnucomblocation_Click()
   SetRepoString()
   xdate = DoubleDates("Select Dates", "SUMMARY", [dtfir.Value, dtlast.Value])
   If xdate Then
-    xPath = modCombinedReport.CombinedReportBillingRangeLocation("Date", modDatabase.$syConn, modDate.StartSqlDate(xdate[0]), modDate.EndSqlDate(xdate[1]), cmbsearch.Text, txtselect.Text, $tblpatbilling, $tblpatbilldetail, $tbltempbilldetail)
+    xPath = modCombinedReport.CombinedReportBillingRangeLocation("Date", modDatabase.$syConn, SummFormat(), modDate.StartSqlDate(xdate[0]), modDate.EndSqlDate(xdate[1]), cmbsearch.Text, txtselect.Text, $tblpatbilling, $tblpatbilldetail, $tbltempbilldetail)
     modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
   Endif
 
 End
 
 ''============================ SUMMARY REPORT ===========================================
+Private Function SummFormat() As String
+
+  Dim xx As String
+
+  If rbbranch.Value = True Then
+    xx = "Branch"
+  Else If rbdepart.Value = True Then
+    xx = "Location"
+  Else
+    xx = "Summary"
+  Endif
+
+  Return xx
+
+End
+
 Public Sub btnrecv_Click()
 
   Dim xPath As String
@@ -1385,13 +1380,13 @@ Public Sub btnrecv_Click()
   If rbinvoice.Value = True Then
     If $RepoOption = "Date" Then
       If txtdtfrom.Value And If txtdtto.Value Then
-        xPath = modBillingReport.InvoiceReportBillingRangeSummary($RepoOption, modDatabase.$syConn, txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilldetail)
+        xPath = modBillingReport.InvoiceReportBillingRangeSummary($RepoOption, modDatabase.$syConn, SummFormat(), txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilldetail)
         modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
       Endif
 
     Else
       If txtinvfrom.Text And If txtinvto.Text Then
-        xPath = modBillingReport.InvoiceReportBillingRangeSummary($RepoOption, modDatabase.$syConn, Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tblpatbilldetail)
+        xPath = modBillingReport.InvoiceReportBillingRangeSummary($RepoOption, modDatabase.$syConn, SummFormat(), Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tblpatbilldetail)
         modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
       Endif
 
@@ -1400,13 +1395,13 @@ Public Sub btnrecv_Click()
   Else If rbreceipt.Value = True Then
     If $RepoOption = "Date" Then
       If txtdtfrom.Value And If txtdtto.Value Then
-        xPath = modReceiptReport.ReceiptReportBillingRangeSummary($RepoOption, modDatabase.$syConn, txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tbltempbilldetail)
+        xPath = modReceiptReport.ReceiptReportBillingRangeSummary($RepoOption, modDatabase.$syConn, SummFormat(), txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tbltempbilldetail)
         modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
       Endif
 
     Else
       If txtinvfrom.Text And If txtinvto.Text Then
-        xPath = modReceiptReport.ReceiptReportBillingRangeSummary($RepoOption, modDatabase.$syConn, Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tbltempbilldetail)
+        xPath = modReceiptReport.ReceiptReportBillingRangeSummary($RepoOption, modDatabase.$syConn, SummFormat(), Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tbltempbilldetail)
         modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
       Endif
 
@@ -1415,7 +1410,7 @@ Public Sub btnrecv_Click()
   Else If rbboth.Value = True Then
     If $RepoOption = "Date" Then
       If txtdtfrom.Value And If txtdtto.Value Then
-        xPath = modCombinedReport.CombinedReportBillingRangeSummary($RepoOption, modDatabase.$syConn, txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilldetail, $tbltempbilldetail)
+        xPath = modCombinedReport.CombinedReportBillingRangeSummary($RepoOption, modDatabase.$syConn, SummFormat(), txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilldetail, $tbltempbilldetail)
         modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
       Endif
     Endif
@@ -1432,13 +1427,13 @@ Public Sub btnsummdepo_Click()
   If rbinvoice.Value = True Then
     If $RepoOption = "Date" Then
       If txtdtfrom.Value And If txtdtto.Value Then
-        xPath = modBillingReport.InvoiceReportBillingRangeLocation($RepoOption, modDatabase.$syConn, txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilling, $tblpatbilldetail)
+        xPath = modBillingReport.InvoiceReportBillingRangeLocation($RepoOption, modDatabase.$syConn, SummFormat(), txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilling, $tblpatbilldetail)
         modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
       Endif
 
     Else
       If txtinvfrom.Text And If txtinvto.Text Then
-        xPath = modBillingReport.InvoiceReportBillingRangeLocation($RepoOption, modDatabase.$syConn, Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tblpatbilling, $tblpatbilldetail)
+        xPath = modBillingReport.InvoiceReportBillingRangeLocation($RepoOption, modDatabase.$syConn, SummFormat(), Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tblpatbilling, $tblpatbilldetail)
         modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
       Endif
 
@@ -1447,13 +1442,13 @@ Public Sub btnsummdepo_Click()
   Else If rbreceipt.Value = True Then
     If $RepoOption = "Date" Then
       If txtdtfrom.Value And If txtdtto.Value Then
-        xPath = modReceiptReport.ReceiptReportBillingRangeLocation($RepoOption, modDatabase.$syConn, txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilling, $tbltempbilldetail)
+        xPath = modReceiptReport.ReceiptReportBillingRangeLocation($RepoOption, modDatabase.$syConn, SummFormat(), txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilling, $tbltempbilldetail)
         modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
       Endif
 
     Else
       If txtinvfrom.Text And If txtinvto.Text Then
-        xPath = modReceiptReport.ReceiptReportBillingRangeLocation($RepoOption, modDatabase.$syConn, Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tblpatbilling, $tbltempbilldetail)
+        xPath = modReceiptReport.ReceiptReportBillingRangeLocation($RepoOption, modDatabase.$syConn, SummFormat(), Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tblpatbilling, $tbltempbilldetail)
         modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
       Endif
 
@@ -1462,7 +1457,7 @@ Public Sub btnsummdepo_Click()
   Else If rbboth.Value = True Then
     If $RepoOption = "Date" Then
       If txtdtfrom.Value And If txtdtto.Value Then
-        xPath = modCombinedReport.CombinedReportBillingRangeLocation($RepoOption, modDatabase.$syConn, txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilling, $tblpatbilldetail, $tbltempbilldetail)
+        xPath = modCombinedReport.CombinedReportBillingRangeLocation($RepoOption, modDatabase.$syConn, SummFormat(), txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilling, $tblpatbilldetail, $tbltempbilldetail)
         modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
       Endif
     Endif
@@ -1479,13 +1474,13 @@ Public Sub btndatewise_Click()
   If rbinvoice.Value = True Then
     If $RepoOption = "Date" Then
       If txtdtfrom.Value And If txtdtto.Value Then
-        xPath = modBillingReport.InvoiceReportBillingRangeUserDetail($RepoOption, modDatabase.$syConn, txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilldetail)
+        xPath = modBillingReport.InvoiceReportBillingRangeUserDetail($RepoOption, modDatabase.$syConn, SummFormat(), txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilldetail)
         modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
       Endif
 
     Else
       If txtinvfrom.Text And If txtinvto.Text Then
-        xPath = modBillingReport.InvoiceReportBillingRangeUserDetail($RepoOption, modDatabase.$syConn, Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tblpatbilldetail)
+        xPath = modBillingReport.InvoiceReportBillingRangeUserDetail($RepoOption, modDatabase.$syConn, SummFormat(), Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tblpatbilldetail)
         modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
       Endif
 
@@ -1494,13 +1489,13 @@ Public Sub btndatewise_Click()
   Else If rbreceipt.Value = True Then
     If $RepoOption = "Date" Then
       If txtdtfrom.Value And If txtdtto.Value Then
-        xPath = modReceiptReport.ReceiptReportBillingRangeUserDetail($RepoOption, modDatabase.$syConn, txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tbltempbilldetail)
+        xPath = modReceiptReport.ReceiptReportBillingRangeUserDetail($RepoOption, modDatabase.$syConn, SummFormat(), txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tbltempbilldetail)
         modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
       Endif
 
     Else
       If txtinvfrom.Text And If txtinvto.Text Then
-        xPath = modReceiptReport.ReceiptReportBillingRangeUserDetail($RepoOption, modDatabase.$syConn, Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tbltempbilldetail)
+        xPath = modReceiptReport.ReceiptReportBillingRangeUserDetail($RepoOption, modDatabase.$syConn, SummFormat(), Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tbltempbilldetail)
         modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
       Endif
 
@@ -1509,7 +1504,7 @@ Public Sub btndatewise_Click()
   Else If rbboth.Value = True Then
     If $RepoOption = "Date" Then
       If txtdtfrom.Value And If txtdtto.Value Then
-        xPath = modCombinedReport.CombinedReportBillingRangeUserDetail($RepoOption, modDatabase.$syConn, txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilldetail, $tbltempbilldetail)
+        xPath = modCombinedReport.CombinedReportBillingRangeUserDetail($RepoOption, modDatabase.$syConn, SummFormat(), txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilldetail, $tbltempbilldetail)
         modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
       Endif
     Endif
@@ -1526,13 +1521,13 @@ Public Sub btninvsumm_Click()
   If rbinvoice.Value = True Then
     If $RepoOption = "Date" Then
       If txtdtfrom.Value And If txtdtto.Value Then
-        xPath = modBillingReport.InvoiceReportBillingRangeUserBrief($RepoOption, modDatabase.$syConn, txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilldetail)
+        xPath = modBillingReport.InvoiceReportBillingRangeUserBrief($RepoOption, modDatabase.$syConn, SummFormat(), txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilldetail)
         modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
       Endif
 
     Else
       If txtinvfrom.Text And If txtinvto.Text Then
-        xPath = modBillingReport.InvoiceReportBillingRangeUserBrief($RepoOption, modDatabase.$syConn, Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tblpatbilldetail)
+        xPath = modBillingReport.InvoiceReportBillingRangeUserBrief($RepoOption, modDatabase.$syConn, SummFormat(), Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tblpatbilldetail)
         modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
       Endif
 
@@ -1541,13 +1536,13 @@ Public Sub btninvsumm_Click()
   Else If rbreceipt.Value = True Then
     If $RepoOption = "Date" Then
       If txtdtfrom.Value And If txtdtto.Value Then
-        xPath = modReceiptReport.ReceiptReportBillingRangeUserBrief($RepoOption, modDatabase.$syConn, txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tbltempbilldetail)
+        xPath = modReceiptReport.ReceiptReportBillingRangeUserBrief($RepoOption, modDatabase.$syConn, SummFormat(), txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tbltempbilldetail)
         modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
       Endif
 
     Else
       If txtinvfrom.Text And If txtinvto.Text Then
-        xPath = modReceiptReport.ReceiptReportBillingRangeUserBrief($RepoOption, modDatabase.$syConn, Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tbltempbilldetail)
+        xPath = modReceiptReport.ReceiptReportBillingRangeUserBrief($RepoOption, modDatabase.$syConn, SummFormat(), Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tbltempbilldetail)
         modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
       Endif
 
@@ -1556,7 +1551,7 @@ Public Sub btninvsumm_Click()
   Else If rbboth.Value = True Then
     If $RepoOption = "Date" Then
       If txtdtfrom.Value And If txtdtto.Value Then
-        xPath = modCombinedReport.CombinedReportBillingRangeUserBrief($RepoOption, modDatabase.$syConn, txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilldetail, $tbltempbilldetail)
+        xPath = modCombinedReport.CombinedReportBillingRangeUserBrief($RepoOption, modDatabase.$syConn, SummFormat(), txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilldetail, $tbltempbilldetail)
         modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
       Endif
     Endif
@@ -1573,13 +1568,13 @@ Public Sub btngrpdetail_Click()
   If rbinvoice.Value = True Then
     If $RepoOption = "Date" Then
       If txtdtfrom.Value And If txtdtto.Value Then
-        xPath = modBillingReport.InvoiceReportBillingRangeGroupDetail($RepoOption, modDatabase.$syConn, txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilling, $tblpatbilldetail)
+        xPath = modBillingReport.InvoiceReportBillingRangeGroupDetail($RepoOption, modDatabase.$syConn, SummFormat(), txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilling, $tblpatbilldetail)
         modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
       Endif
 
     Else
       If txtinvfrom.Text And If txtinvto.Text Then
-        xPath = modBillingReport.InvoiceReportBillingRangeGroupDetail($RepoOption, modDatabase.$syConn, Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tblpatbilling, $tblpatbilldetail)
+        xPath = modBillingReport.InvoiceReportBillingRangeGroupDetail($RepoOption, modDatabase.$syConn, SummFormat(), Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tblpatbilling, $tblpatbilldetail)
         modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
       Endif
 
@@ -1588,13 +1583,13 @@ Public Sub btngrpdetail_Click()
   Else If rbreceipt.Value = True Then
     If $RepoOption = "Date" Then
       If txtdtfrom.Value And If txtdtto.Value Then
-        xPath = modReceiptReport.ReceiptReportBillingRangeGroupDetail($RepoOption, modDatabase.$syConn, txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilling, $tbltempbilldetail)
+        xPath = modReceiptReport.ReceiptReportBillingRangeGroupDetail($RepoOption, modDatabase.$syConn, SummFormat(), txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilling, $tbltempbilldetail)
         modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
       Endif
 
     Else
       If txtinvfrom.Text And If txtinvto.Text Then
-        xPath = modReceiptReport.ReceiptReportBillingRangeGroupDetail($RepoOption, modDatabase.$syConn, Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tblpatbilling, $tbltempbilldetail)
+        xPath = modReceiptReport.ReceiptReportBillingRangeGroupDetail($RepoOption, modDatabase.$syConn, SummFormat(), Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tblpatbilling, $tbltempbilldetail)
         modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
       Endif
 
@@ -1603,7 +1598,7 @@ Public Sub btngrpdetail_Click()
   Else If rbboth.Value = True Then
     If $RepoOption = "Date" Then
       If txtdtfrom.Value And If txtdtto.Value Then
-        xPath = modCombinedReport.CombinedReportBillingRangeGroupDetail($RepoOption, modDatabase.$syConn, txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilling, $tblpatbilldetail, $tbltempbilldetail)
+        xPath = modCombinedReport.CombinedReportBillingRangeGroupDetail($RepoOption, modDatabase.$syConn, SummFormat(), txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilling, $tblpatbilldetail, $tbltempbilldetail)
         modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
       Endif
     Endif
@@ -1620,13 +1615,13 @@ Public Sub btngrpsummry_Click()
   If rbinvoice.Value = True Then
     If $RepoOption = "Date" Then
       If txtdtfrom.Value And If txtdtto.Value Then
-        xPath = modBillingReport.InvoiceReportBillingRangeGroupBrief($RepoOption, modDatabase.$syConn, txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilling, $tblpatbilldetail)
+        xPath = modBillingReport.InvoiceReportBillingRangeGroupBrief($RepoOption, modDatabase.$syConn, SummFormat(), txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilling, $tblpatbilldetail)
         modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
       Endif
 
     Else
       If txtinvfrom.Text And If txtinvto.Text Then
-        xPath = modBillingReport.InvoiceReportBillingRangeGroupBrief($RepoOption, modDatabase.$syConn, Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tblpatbilling, $tblpatbilldetail)
+        xPath = modBillingReport.InvoiceReportBillingRangeGroupBrief($RepoOption, modDatabase.$syConn, SummFormat(), Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tblpatbilling, $tblpatbilldetail)
         modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
       Endif
 
@@ -1635,13 +1630,13 @@ Public Sub btngrpsummry_Click()
   Else If rbreceipt.Value = True Then
     If $RepoOption = "Date" Then
       If txtdtfrom.Value And If txtdtto.Value Then
-        xPath = modReceiptReport.ReceiptReportBillingRangeGroupBrief($RepoOption, modDatabase.$syConn, txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilling, $tbltempbilldetail)
+        xPath = modReceiptReport.ReceiptReportBillingRangeGroupBrief($RepoOption, modDatabase.$syConn, SummFormat(), txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilling, $tbltempbilldetail)
         modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
       Endif
 
     Else
       If txtinvfrom.Text And If txtinvto.Text Then
-        xPath = modReceiptReport.ReceiptReportBillingRangeGroupBrief($RepoOption, modDatabase.$syConn, Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tblpatbilling, $tbltempbilldetail)
+        xPath = modReceiptReport.ReceiptReportBillingRangeGroupBrief($RepoOption, modDatabase.$syConn, SummFormat(), Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tblpatbilling, $tbltempbilldetail)
         modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
       Endif
 
@@ -1650,7 +1645,7 @@ Public Sub btngrpsummry_Click()
   Else If rbboth.Value = True Then
     If $RepoOption = "Date" Then
       If txtdtfrom.Value And If txtdtto.Value Then
-        xPath = modCombinedReport.CombinedReportBillingRangeGroupBrief($RepoOption, modDatabase.$syConn, txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilling, $tblpatbilldetail, $tbltempbilldetail)
+        xPath = modCombinedReport.CombinedReportBillingRangeGroupBrief($RepoOption, modDatabase.$syConn, SummFormat(), txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilling, $tblpatbilldetail, $tbltempbilldetail)
         modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
       Endif
     Endif
@@ -1714,13 +1709,13 @@ Public Sub btnitemsumm_Click()
   If rbinvoice.Value = True Then
     If $RepoOption = "Date" Then
       If txtdtfrom.Value And If txtdtto.Value Then
-        xPath = modBillingReport.InvoiceReportBillingRangeAccount($RepoOption, modDatabase.$syConn, txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilldetail)
+        xPath = modBillingReport.InvoiceReportBillingRangeAccount($RepoOption, modDatabase.$syConn, SummFormat(), txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilldetail)
         modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
       Endif
 
     Else
       If txtinvfrom.Text And If txtinvto.Text Then
-        xPath = modBillingReport.InvoiceReportBillingRangeAccount($RepoOption, modDatabase.$syConn, Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tblpatbilldetail)
+        xPath = modBillingReport.InvoiceReportBillingRangeAccount($RepoOption, modDatabase.$syConn, SummFormat(), Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tblpatbilldetail)
         modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
       Endif
 
@@ -1729,13 +1724,13 @@ Public Sub btnitemsumm_Click()
   Else If rbreceipt.Value = True Then
     If $RepoOption = "Date" Then
       If txtdtfrom.Value And If txtdtto.Value Then
-        xPath = modReceiptReport.ReceiptReportBillingRangeAccount($RepoOption, modDatabase.$syConn, txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tbltempbilldetail)
+        xPath = modReceiptReport.ReceiptReportBillingRangeAccount($RepoOption, modDatabase.$syConn, SummFormat(), txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tbltempbilldetail)
         modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
       Endif
 
     Else
       If txtinvfrom.Text And If txtinvto.Text Then
-        xPath = modReceiptReport.ReceiptReportBillingRangeAccount($RepoOption, modDatabase.$syConn, Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tbltempbilldetail)
+        xPath = modReceiptReport.ReceiptReportBillingRangeAccount($RepoOption, modDatabase.$syConn, SummFormat(), Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tbltempbilldetail)
         modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
       Endif
 
@@ -1744,7 +1739,7 @@ Public Sub btnitemsumm_Click()
   Else If rbboth.Value = True Then
     If $RepoOption = "Date" Then
       If txtdtfrom.Value And If txtdtto.Value Then
-        xPath = modCombinedReport.CombinedReportBillingRangeAccount($RepoOption, modDatabase.$syConn, txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilldetail, $tbltempbilldetail)
+        xPath = modCombinedReport.CombinedReportBillingRangeAccount($RepoOption, modDatabase.$syConn, SummFormat(), txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilldetail, $tbltempbilldetail)
         modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
       Endif
     Endif
@@ -1761,14 +1756,14 @@ Public Sub btndsc_Click()
   If rbinvoice.Value = True Then
     If $RepoOption = "Date" Then
       If txtdtfrom.Value And If txtdtto.Value Then
-        xPath = modBillingReport.InvoiceReportBillingRangeTaxDiscount($RepoOption, modDatabase.$syConn, "Discount", txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilldetail)
+        xPath = modBillingReport.InvoiceReportBillingRangeTaxDiscount($RepoOption, modDatabase.$syConn, SummFormat(), "Discount", txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilldetail)
         ' modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
         modControlSub.DisplayReportExport(xPath)
       Endif
 
     Else
       If txtinvfrom.Text And If txtinvto.Text Then
-        xPath = modBillingReport.InvoiceReportBillingRangeTaxDiscount($RepoOption, modDatabase.$syConn, "Discount", Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tblpatbilldetail)
+        xPath = modBillingReport.InvoiceReportBillingRangeTaxDiscount($RepoOption, modDatabase.$syConn, SummFormat(), "Discount", Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tblpatbilldetail)
         ' modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
         modControlSub.DisplayReportExport(xPath)
       Endif
@@ -1778,14 +1773,14 @@ Public Sub btndsc_Click()
   Else If rbreceipt.Value = True Then
     If $RepoOption = "Date" Then
       If txtdtfrom.Value And If txtdtto.Value Then
-        xPath = modReceiptReport.ReceiptReportBillingRangeTaxDiscount($RepoOption, modDatabase.$syConn, "Discount", txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tbltempbilldetail)
+        xPath = modReceiptReport.ReceiptReportBillingRangeTaxDiscount($RepoOption, modDatabase.$syConn, SummFormat(), "Discount", txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tbltempbilldetail)
         ' modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
         modControlSub.DisplayReportExport(xPath)
       Endif
 
     Else
       If txtinvfrom.Text And If txtinvto.Text Then
-        xPath = modReceiptReport.ReceiptReportBillingRangeTaxDiscount($RepoOption, modDatabase.$syConn, "Discount", Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tbltempbilldetail)
+        xPath = modReceiptReport.ReceiptReportBillingRangeTaxDiscount($RepoOption, modDatabase.$syConn, SummFormat(), "Discount", Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tbltempbilldetail)
         ' modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
         modControlSub.DisplayReportExport(xPath)
       Endif
@@ -1795,7 +1790,7 @@ Public Sub btndsc_Click()
   Else If rbboth.Value = True Then
     If $RepoOption = "Date" Then
       If txtdtfrom.Value And If txtdtto.Value Then
-        xPath = modCombinedReport.CombinedReportBillingRangeTaxDiscount($RepoOption, modDatabase.$syConn, "Discount", txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilldetail, $tbltempbilldetail)
+        xPath = modCombinedReport.CombinedReportBillingRangeTaxDiscount($RepoOption, modDatabase.$syConn, SummFormat(), "Discount", txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilldetail, $tbltempbilldetail)
         ' modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
         modControlSub.DisplayReportExport(xPath)
       Endif
@@ -1813,13 +1808,13 @@ Public Sub btntax_Click()
   If rbinvoice.Value = True Then
     If $RepoOption = "Date" Then
       If txtdtfrom.Value And If txtdtto.Value Then
-        xPath = modBillingReport.InvoiceReportBillingRangeTaxDiscount($RepoOption, modDatabase.$syConn, "Tax", txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilldetail)
+        xPath = modBillingReport.InvoiceReportBillingRangeTaxDiscount($RepoOption, modDatabase.$syConn, SummFormat(), "Tax", txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilldetail)
         modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
       Endif
 
     Else
       If txtinvfrom.Text And If txtinvto.Text Then
-        xPath = modBillingReport.InvoiceReportBillingRangeTaxDiscount($RepoOption, modDatabase.$syConn, "Tax", Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tblpatbilldetail)
+        xPath = modBillingReport.InvoiceReportBillingRangeTaxDiscount($RepoOption, modDatabase.$syConn, SummFormat(), "Tax", Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tblpatbilldetail)
         modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
       Endif
 
@@ -1828,13 +1823,13 @@ Public Sub btntax_Click()
   Else If rbreceipt.Value = True Then
     If $RepoOption = "Date" Then
       If txtdtfrom.Value And If txtdtto.Value Then
-        xPath = modReceiptReport.ReceiptReportBillingRangeTaxDiscount($RepoOption, modDatabase.$syConn, "Tax", txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tbltempbilldetail)
+        xPath = modReceiptReport.ReceiptReportBillingRangeTaxDiscount($RepoOption, modDatabase.$syConn, SummFormat(), "Tax", txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tbltempbilldetail)
         modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
       Endif
 
     Else
       If txtinvfrom.Text And If txtinvto.Text Then
-        xPath = modReceiptReport.ReceiptReportBillingRangeTaxDiscount($RepoOption, modDatabase.$syConn, "Tax", Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tbltempbilldetail)
+        xPath = modReceiptReport.ReceiptReportBillingRangeTaxDiscount($RepoOption, modDatabase.$syConn, SummFormat(), "Tax", Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tbltempbilldetail)
         modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
       Endif
 
@@ -1843,7 +1838,7 @@ Public Sub btntax_Click()
   Else If rbboth.Value = True Then
     If $RepoOption = "Date" Then
       If txtdtfrom.Value And If txtdtto.Value Then
-        xPath = modCombinedReport.CombinedReportBillingRangeTaxDiscount($RepoOption, modDatabase.$syConn, "Tax", txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilldetail, $tbltempbilldetail)
+        xPath = modCombinedReport.CombinedReportBillingRangeTaxDiscount($RepoOption, modDatabase.$syConn, SummFormat(), "Tax", txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilldetail, $tbltempbilldetail)
         modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
       Endif
     Endif
@@ -1860,14 +1855,14 @@ Public Sub btnsumdisc_Click()
   If rbinvoice.Value = True Then
     If $RepoOption = "Date" Then
       If txtdtfrom.Value And If txtdtto.Value Then
-        xPath = modBillingReport.InvoiceReportBillingRangeCashCredit($RepoOption, modDatabase.$syConn, "Credit", txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilldetail)
+        xPath = modBillingReport.InvoiceReportBillingRangeCashCredit($RepoOption, modDatabase.$syConn, SummFormat(), "Credit", txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilldetail)
         ' modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
         modControlSub.DisplayReportExport(xPath)
       Endif
 
     Else
       If txtinvfrom.Text And If txtinvto.Text Then
-        xPath = modBillingReport.InvoiceReportBillingRangeCashCredit($RepoOption, modDatabase.$syConn, "Credit", Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tblpatbilldetail)
+        xPath = modBillingReport.InvoiceReportBillingRangeCashCredit($RepoOption, modDatabase.$syConn, SummFormat(), "Credit", Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tblpatbilldetail)
         ' modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
         modControlSub.DisplayReportExport(xPath)
       Endif
@@ -1877,14 +1872,14 @@ Public Sub btnsumdisc_Click()
   Else If rbreceipt.Value = True Then
     If $RepoOption = "Date" Then
       If txtdtfrom.Value And If txtdtto.Value Then
-        xPath = modReceiptReport.ReceiptReportBillingRangeCashCredit($RepoOption, modDatabase.$syConn, "Credit", txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tbltempbilldetail)
+        xPath = modReceiptReport.ReceiptReportBillingRangeCashCredit($RepoOption, modDatabase.$syConn, SummFormat(), "Credit", txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tbltempbilldetail)
         ' modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
         modControlSub.DisplayReportExport(xPath)
       Endif
 
     Else
       If txtinvfrom.Text And If txtinvto.Text Then
-        xPath = modReceiptReport.ReceiptReportBillingRangeCashCredit($RepoOption, modDatabase.$syConn, "Credit", Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tbltempbilldetail)
+        xPath = modReceiptReport.ReceiptReportBillingRangeCashCredit($RepoOption, modDatabase.$syConn, SummFormat(), "Credit", Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tbltempbilldetail)
         ' modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
         modControlSub.DisplayReportExport(xPath)
       Endif
@@ -1894,7 +1889,7 @@ Public Sub btnsumdisc_Click()
   Else If rbboth.Value = True Then
     If $RepoOption = "Date" Then
       If txtdtfrom.Value And If txtdtto.Value Then
-        xPath = modCombinedReport.CombinedReportBillingRangeCashCredit($RepoOption, modDatabase.$syConn, "Credit", txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilldetail, $tbltempbilldetail)
+        xPath = modCombinedReport.CombinedReportBillingRangeCashCredit($RepoOption, modDatabase.$syConn, SummFormat(), "Credit", txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilldetail, $tbltempbilldetail)
         ' modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
         modControlSub.DisplayReportExport(xPath)
       Endif
@@ -1912,14 +1907,14 @@ Public Sub btntaxsum_Click()
   If rbinvoice.Value = True Then
     If $RepoOption = "Date" Then
       If txtdtfrom.Value And If txtdtto.Value Then
-        xPath = modBillingReport.InvoiceReportBillingRangeCashCredit($RepoOption, modDatabase.$syConn, "Cash", txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilldetail)
+        xPath = modBillingReport.InvoiceReportBillingRangeCashCredit($RepoOption, modDatabase.$syConn, SummFormat(), "Cash", txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilldetail)
         ' modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
         modControlSub.DisplayReportExport(xPath)
       Endif
 
     Else
       If txtinvfrom.Text And If txtinvto.Text Then
-        xPath = modBillingReport.InvoiceReportBillingRangeCashCredit($RepoOption, modDatabase.$syConn, "Cash", Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tblpatbilldetail)
+        xPath = modBillingReport.InvoiceReportBillingRangeCashCredit($RepoOption, modDatabase.$syConn, SummFormat(), "Cash", Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tblpatbilldetail)
         ' modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
         modControlSub.DisplayReportExport(xPath)
       Endif
@@ -1929,14 +1924,14 @@ Public Sub btntaxsum_Click()
   Else If rbreceipt.Value = True Then
     If $RepoOption = "Date" Then
       If txtdtfrom.Value And If txtdtto.Value Then
-        xPath = modReceiptReport.ReceiptReportBillingRangeCashCredit($RepoOption, modDatabase.$syConn, "Cash", txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tbltempbilldetail)
+        xPath = modReceiptReport.ReceiptReportBillingRangeCashCredit($RepoOption, modDatabase.$syConn, SummFormat(), "Cash", txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tbltempbilldetail)
         ' modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
         modControlSub.DisplayReportExport(xPath)
       Endif
 
     Else
       If txtinvfrom.Text And If txtinvto.Text Then
-        xPath = modReceiptReport.ReceiptReportBillingRangeCashCredit($RepoOption, modDatabase.$syConn, "Cash", Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tbltempbilldetail)
+        xPath = modReceiptReport.ReceiptReportBillingRangeCashCredit($RepoOption, modDatabase.$syConn, SummFormat(), "Cash", Trim(txtinvfrom.Text), Trim(txtinvto.Text), cmbsearch.Text, txtselect.Text, $tbltempbilldetail)
         ' modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
         modControlSub.DisplayReportExport(xPath)
       Endif
@@ -1946,7 +1941,7 @@ Public Sub btntaxsum_Click()
   Else If rbboth.Value = True Then
     If $RepoOption = "Date" Then
       If txtdtfrom.Value And If txtdtto.Value Then
-        xPath = modCombinedReport.CombinedReportBillingRangeCashCredit($RepoOption, modDatabase.$syConn, "Cash", txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilldetail, $tbltempbilldetail)
+        xPath = modCombinedReport.CombinedReportBillingRangeCashCredit($RepoOption, modDatabase.$syConn, SummFormat(), "Cash", txtdtfrom.Value, txtdtto.Value, cmbsearch.Text, txtselect.Text, $tblpatbilldetail, $tbltempbilldetail)
         ' modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
         modControlSub.DisplayReportExport(xPath)
       Endif

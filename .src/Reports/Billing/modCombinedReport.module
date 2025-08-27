@@ -1,0 +1,990 @@
+' Gambas module file
+
+Public Function CombinedReportBillingRangeSummary(sFormat As String, $con As Connection, RepoForm As String, bill1 As Variant, bill2 As Variant, sLocaType As String, sLocation As String, $tblpatbilldetail As String, $tbltempbilldetail As String) As String
+
+  Dim $BillingReport As CReportHTML
+  Dim xparam As String
+  Dim RepoPath As String
+  Dim RepoVal As Float
+  Dim RecVal As Float
+  Dim asx As New String[0]
+
+  Dim cParam1 As CAccParam
+  Dim cParam2 As CAccParam
+  Dim cReport1 As CBillingAll
+  Dim cReport2 As CReceiptAll
+  Dim headLst As String[]
+  Dim xhead As String
+  Dim RepoLst As String[]
+
+  If sFormat = "Date" Then
+    xparam = modReportVar.GetDateTimeReport(bill1, gb.GeneralDate) & " TO " & modReportVar.GetDateTimeReport(bill2, gb.GeneralDate)
+  Else
+    xparam = bill1 & " TO " & bill2
+  Endif
+  $BillingReport = New CReportHTML([("CATEGORY"), ("COUNT"), ("GROSS"), ("DISCOUNT"), ("TAX"), ("CREDIT"), ("CASH")], "", "")
+  $BillingReport.UserData.Add("Combined Summary", "PARAM1")
+  $BillingReport.UserData.Add(xparam, "PARAM2")
+
+  $BillingReport.AddSection("INVOICE", True)
+  ' RepoVal = modBillingAll.GetInvoiceReportBillingRangeSummary($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tblpatbilldetail)
+  RepoVal = 0
+  If RepoForm = "Summary" Then
+    cParam1 = New CAccParam
+    cReport1 = New CBillingAll(cParam1.GetExtraSQL(), cParam1.GetFooterText())
+    RepoVal = RepoVal + cReport1.GetInvoiceReportBillingRangeSummary($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tblpatbilldetail)
+
+  Else If RepoForm = "Branch" Then
+    RepoLst = New String[]
+    headLst = modBasic.$AllBranchList
+    For Each xhead In headLst
+      $BillingReport.AddChapter(xhead)
+      cParam1 = New CAccParam("Branch", xhead)
+      cReport1 = New CBillingAll(cParam1.GetExtraSQL(), cParam1.GetFooterText())
+      RepoVal = RepoVal + cReport1.GetInvoiceReportBillingRangeSummary($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tblpatbilldetail)
+      $BillingReport.AddChapter("")
+    Next
+
+  Else If RepoForm = "Location" Then
+    RepoLst = New String[]
+    headLst = modBasic.$AllCompList
+    For Each xhead In headLst
+      $BillingReport.AddChapter(xhead)
+      cParam1 = New CAccParam("Location", xhead)
+      cReport1 = New CBillingAll(cParam1.GetExtraSQL(), cParam1.GetFooterText())
+      RepoVal = RepoVal + cReport1.GetInvoiceReportBillingRangeSummary($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tblpatbilldetail)
+      $BillingReport.AddChapter("")
+    Next
+
+  Endif
+  $BillingReport.AddChapter("<br>")
+
+  $BillingReport.AddSection("RECEIPT", True)
+  ' RecVal = modReceiptAll.GetReceiptReportBillingRangeSummary($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tbltempbilldetail)
+  RecVal = 0
+  If RepoForm = "Summary" Then
+    cParam2 = New CAccParam
+    cReport2 = New CReceiptAll(cParam2.GetExtraSQL(), cParam2.GetFooterText())
+    RecVal = RecVal + cReport2.GetReceiptReportBillingRangeSummary($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tbltempbilldetail)
+
+  Else If RepoForm = "Branch" Then
+    RepoLst = New String[]
+    headLst = modBasic.$AllBranchList
+    For Each xhead In headLst
+      $BillingReport.AddChapter(xhead)
+      cParam2 = New CAccParam("Branch", xhead)
+      cReport2 = New CReceiptAll(cParam2.GetExtraSQL(), cParam2.GetFooterText())
+      RecVal = RecVal + cReport2.GetReceiptReportBillingRangeSummary($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tbltempbilldetail)
+      $BillingReport.AddChapter("")
+    Next
+
+  Else If RepoForm = "Location" Then
+    RepoLst = New String[]
+    headLst = modBasic.$AllCompList
+    For Each xhead In headLst
+      $BillingReport.AddChapter(xhead)
+      cParam2 = New CAccParam("Location", xhead)
+      cReport2 = New CReceiptAll(cParam2.GetExtraSQL(), cParam2.GetFooterText())
+      RecVal = RecVal + cReport2.GetReceiptReportBillingRangeSummary($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tbltempbilldetail)
+      $BillingReport.AddChapter("")
+    Next
+
+  Endif
+  $BillingReport.AddChapter("<br>")
+
+  With asx
+    .Add("GRAND TOTAL")
+    .Add("")
+    .Add("")
+    .Add("")
+    .Add("")
+    .Add("")
+    .Add(modReportVar.GetLocaleNumberFormat(RepoVal + RecVal, gb.Currency))
+  End With
+  $BillingReport.Add(asx)
+  asx.Clear()
+
+  RepoPath = $BillingReport.NewHTMLPath()
+  Return RepoPath
+
+End
+
+Public Function CombinedReportBillingRangeAccount(sFormat As String, $con As Connection, RepoForm As String, bill1 As Variant, bill2 As Variant, sLocaType As String, sLocation As String, $tblpatbilldetail As String, $tbltempbilldetail As String) As String
+
+  Dim $BillingReport As CReportHTML
+  Dim xparam As String
+  Dim RepoPath As String
+  Dim RepoVal As Float
+  Dim RecVal As Float
+  Dim asx As New String[0]
+
+  Dim cParam1 As CAccParam
+  Dim cParam2 As CAccParam
+  Dim cReport1 As CBillingAll
+  Dim cReport2 As CReceiptAll
+  Dim headLst As String[]
+  Dim xhead As String
+  Dim RepoLst As String[]
+
+  If sFormat = "Date" Then
+    xparam = modReportVar.GetDateTimeReport(bill1, gb.GeneralDate) & " TO " & modReportVar.GetDateTimeReport(bill2, gb.GeneralDate)
+  Else
+    xparam = bill1 & " TO " & bill2
+  Endif
+  $BillingReport = New CReportHTML([("CATEGORY"), ("COUNT"), ("GROSS"), ("DISCOUNT"), ("TAX"), ("CREDIT"), ("CASH")], "", "")
+  $BillingReport.UserData.Add("Combined Summary", "PARAM1")
+  $BillingReport.UserData.Add(xparam, "PARAM2")
+
+  $BillingReport.AddSection("INVOICE", True)
+  ' RepoVal = modBillingAll.GetInvoiceReportBillingRangeAccount($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tblpatbilldetail)
+  RepoVal = 0
+  If RepoForm = "Summary" Then
+    cParam1 = New CAccParam
+    cReport1 = New CBillingAll(cParam1.GetExtraSQL(), cParam1.GetFooterText())
+    RepoVal = RepoVal + cReport1.GetInvoiceReportBillingRangeAccount($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tblpatbilldetail)
+
+  Else If RepoForm = "Branch" Then
+    RepoLst = New String[]
+    headLst = modBasic.$AllBranchList
+    For Each xhead In headLst
+      $BillingReport.AddChapter(xhead)
+      cParam1 = New CAccParam("Branch", xhead)
+      cReport1 = New CBillingAll(cParam1.GetExtraSQL(), cParam1.GetFooterText())
+      RepoVal = RepoVal + cReport1.GetInvoiceReportBillingRangeAccount($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tblpatbilldetail)
+      $BillingReport.AddChapter("")
+    Next
+
+  Else If RepoForm = "Location" Then
+    RepoLst = New String[]
+    headLst = modBasic.$AllCompList
+    For Each xhead In headLst
+      $BillingReport.AddChapter(xhead)
+      cParam1 = New CAccParam("Location", xhead)
+      cReport1 = New CBillingAll(cParam1.GetExtraSQL(), cParam1.GetFooterText())
+      RepoVal = RepoVal + cReport1.GetInvoiceReportBillingRangeAccount($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tblpatbilldetail)
+      $BillingReport.AddChapter("")
+    Next
+
+  Endif
+  $BillingReport.AddChapter("<br>")
+
+  $BillingReport.AddSection("RECEIPT", True)
+  ' RecVal = modReceiptAll.GetReceiptReportBillingRangeAccount($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tbltempbilldetail)
+  RecVal = 0
+  If RepoForm = "Summary" Then
+    cParam2 = New CAccParam
+    cReport2 = New CReceiptAll(cParam2.GetExtraSQL(), cParam2.GetFooterText())
+    RecVal = RecVal + cReport2.GetReceiptReportBillingRangeAccount($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tbltempbilldetail)
+
+  Else If RepoForm = "Branch" Then
+    RepoLst = New String[]
+    headLst = modBasic.$AllBranchList
+    For Each xhead In headLst
+      $BillingReport.AddChapter(xhead)
+      cParam2 = New CAccParam("Branch", xhead)
+      cReport2 = New CReceiptAll(cParam2.GetExtraSQL(), cParam2.GetFooterText())
+      RecVal = RecVal + cReport2.GetReceiptReportBillingRangeAccount($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tbltempbilldetail)
+      $BillingReport.AddChapter("")
+    Next
+
+  Else If RepoForm = "Location" Then
+    RepoLst = New String[]
+    headLst = modBasic.$AllCompList
+    For Each xhead In headLst
+      $BillingReport.AddChapter(xhead)
+      cParam2 = New CAccParam("Location", xhead)
+      cReport2 = New CReceiptAll(cParam2.GetExtraSQL(), cParam2.GetFooterText())
+      RecVal = RecVal + cReport2.GetReceiptReportBillingRangeAccount($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tbltempbilldetail)
+      $BillingReport.AddChapter("")
+    Next
+
+  Endif
+  $BillingReport.AddChapter("<br>")
+
+  With asx
+    .Add("GRAND TOTAL")
+    .Add("")
+    .Add("")
+    .Add("")
+    .Add("")
+    .Add("")
+    .Add(modReportVar.GetLocaleNumberFormat(RepoVal + RecVal, gb.Currency))
+  End With
+  $BillingReport.Add(asx)
+  asx.Clear()
+
+  RepoPath = $BillingReport.NewHTMLPath()
+  Return RepoPath
+
+End
+
+Public Function CombinedReportBillingRangeUserDetail(sFormat As String, $con As Connection, RepoForm As String, bill1 As Variant, bill2 As Variant, sLocaType As String, sLocation As String, $tblpatbilldetail As String, $tbltempbilldetail As String) As String
+
+  Dim $BillingReport As CReportHTML
+  Dim xparam As String
+  Dim RepoPath As String
+  Dim RepoVal As Float
+  Dim RecVal As Float
+
+  Dim cParam1 As CAccParam
+  Dim cParam2 As CAccParam
+  Dim cReport1 As CBillingAll
+  Dim cReport2 As CReceiptAll
+  Dim headLst As String[]
+  Dim xhead As String
+  Dim RepoLst As String[]
+
+  If sFormat = "Date" Then
+    xparam = modReportVar.GetDateTimeReport(bill1, gb.GeneralDate) & " TO " & modReportVar.GetDateTimeReport(bill2, gb.GeneralDate)
+  Else
+    xparam = bill1 & " TO " & bill2
+  Endif
+  $BillingReport = New CReportHTML([("USER"), ("COUNT"), ("GROSS"), ("DISCOUNT"), ("TAX"), ("CREDIT"), ("CASH"), ("DEPOSIT")], "", "")
+  $BillingReport.UserData.Add("Combined Collection", "PARAM1")
+  $BillingReport.UserData.Add(xparam, "PARAM2")
+
+  $BillingReport.AddSection("INVOICE", True)
+  ' RepoVal = modBillingAll.GetInvoiceReportBillingRangeUserDetail($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tblpatbilldetail)
+  RepoVal = 0
+  If RepoForm = "Summary" Then
+    cParam1 = New CAccParam
+    cReport1 = New CBillingAll(cParam1.GetExtraSQL(), cParam1.GetFooterText())
+    RepoVal = RepoVal + cReport1.GetInvoiceReportBillingRangeUserDetail($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tblpatbilldetail)
+
+  Else If RepoForm = "Branch" Then
+    RepoLst = New String[]
+    headLst = modBasic.$AllBranchList
+    For Each xhead In headLst
+      $BillingReport.AddChapter(xhead)
+      cParam1 = New CAccParam("Branch", xhead)
+      cReport1 = New CBillingAll(cParam1.GetExtraSQL(), cParam1.GetFooterText())
+      RepoVal = RepoVal + cReport1.GetInvoiceReportBillingRangeUserDetail($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tblpatbilldetail)
+      $BillingReport.AddChapter("")
+    Next
+
+  Else If RepoForm = "Location" Then
+    RepoLst = New String[]
+    headLst = modBasic.$AllCompList
+    For Each xhead In headLst
+      $BillingReport.AddChapter(xhead)
+      cParam1 = New CAccParam("Location", xhead)
+      cReport1 = New CBillingAll(cParam1.GetExtraSQL(), cParam1.GetFooterText())
+      RepoVal = RepoVal + cReport1.GetInvoiceReportBillingRangeUserDetail($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tblpatbilldetail)
+      $BillingReport.AddChapter("")
+    Next
+
+  Endif
+  $BillingReport.AddChapter("<br>")
+
+  $BillingReport.AddSection("RECEIPT", True)
+  ' RecVal = modReceiptAll.GetReceiptReportBillingRangeUserDetail($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tbltempbilldetail)
+  RecVal = 0
+  If RepoForm = "Summary" Then
+    cParam2 = New CAccParam
+    cReport2 = New CReceiptAll(cParam2.GetExtraSQL(), cParam2.GetFooterText())
+    RecVal = RecVal + cReport2.GetReceiptReportBillingRangeUserDetail($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tbltempbilldetail)
+
+  Else If RepoForm = "Branch" Then
+    RepoLst = New String[]
+    headLst = modBasic.$AllBranchList
+    For Each xhead In headLst
+      $BillingReport.AddChapter(xhead)
+      cParam2 = New CAccParam("Branch", xhead)
+      cReport2 = New CReceiptAll(cParam2.GetExtraSQL(), cParam2.GetFooterText())
+      RecVal = RecVal + cReport2.GetReceiptReportBillingRangeUserDetail($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tbltempbilldetail)
+      $BillingReport.AddChapter("")
+    Next
+
+  Else If RepoForm = "Location" Then
+    RepoLst = New String[]
+    headLst = modBasic.$AllCompList
+    For Each xhead In headLst
+      $BillingReport.AddChapter(xhead)
+      cParam2 = New CAccParam("Location", xhead)
+      cReport2 = New CReceiptAll(cParam2.GetExtraSQL(), cParam2.GetFooterText())
+      RecVal = RecVal + cReport2.GetReceiptReportBillingRangeUserDetail($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tbltempbilldetail)
+      $BillingReport.AddChapter("")
+    Next
+
+  Endif
+  $BillingReport.AddChapter("<br>")
+
+  RepoPath = $BillingReport.NewHTMLPath()
+  Return RepoPath
+
+End
+
+Public Function CombinedReportBillingRangeUserBrief(sFormat As String, $con As Connection, RepoForm As String, bill1 As Variant, bill2 As Variant, sLocaType As String, sLocation As String, $tblpatbilldetail As String, $tbltempbilldetail As String) As String
+
+  Dim $BillingReport As CReportHTML
+  Dim xparam As String
+  Dim RepoPath As String
+  Dim RepoVal As Float
+  Dim RecVal As Float
+
+  Dim cParam1 As CAccParam
+  Dim cParam2 As CAccParam
+  Dim cReport1 As CBillingAll
+  Dim cReport2 As CReceiptAll
+  Dim headLst As String[]
+  Dim xhead As String
+  Dim RepoLst As String[]
+
+  If sFormat = "Date" Then
+    xparam = modReportVar.GetDateTimeReport(bill1, gb.GeneralDate) & " TO " & modReportVar.GetDateTimeReport(bill2, gb.GeneralDate)
+  Else
+    xparam = bill1 & " TO " & bill2
+  Endif
+  $BillingReport = New CReportHTML([("USER"), ("GROSS"), ("DISCOUNT"), ("TAX"), ("CREDIT"), ("CASH"), ("DEPOSIT")], "", "")
+  $BillingReport.UserData.Add("Combined Collection", "PARAM1")
+  $BillingReport.UserData.Add(xparam, "PARAM2")
+
+  $BillingReport.AddSection("INVOICE", True)
+  ' RepoVal = modBillingAll.GetInvoiceReportBillingRangeUserBrief($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tblpatbilldetail)
+  RepoVal = 0
+  If RepoForm = "Summary" Then
+    cParam1 = New CAccParam
+    cReport1 = New CBillingAll(cParam1.GetExtraSQL(), cParam1.GetFooterText())
+    RepoVal = RepoVal + cReport1.GetInvoiceReportBillingRangeUserBrief($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tblpatbilldetail)
+
+  Else If RepoForm = "Branch" Then
+    RepoLst = New String[]
+    headLst = modBasic.$AllBranchList
+    For Each xhead In headLst
+      $BillingReport.AddChapter(xhead)
+      cParam1 = New CAccParam("Branch", xhead)
+      cReport1 = New CBillingAll(cParam1.GetExtraSQL(), cParam1.GetFooterText())
+      RepoVal = RepoVal + cReport1.GetInvoiceReportBillingRangeUserBrief($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tblpatbilldetail)
+      $BillingReport.AddChapter("")
+    Next
+
+  Else If RepoForm = "Location" Then
+    RepoLst = New String[]
+    headLst = modBasic.$AllCompList
+    For Each xhead In headLst
+      $BillingReport.AddChapter(xhead)
+      cParam1 = New CAccParam("Location", xhead)
+      cReport1 = New CBillingAll(cParam1.GetExtraSQL(), cParam1.GetFooterText())
+      RepoVal = RepoVal + cReport1.GetInvoiceReportBillingRangeUserBrief($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tblpatbilldetail)
+      $BillingReport.AddChapter("")
+    Next
+
+  Endif
+  $BillingReport.AddChapter("<br>")
+
+  $BillingReport.AddSection("RECEIPT", True)
+  ' RecVal = modReceiptAll.GetReceiptReportBillingRangeUserBrief($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tbltempbilldetail)
+  RecVal = 0
+  If RepoForm = "Summary" Then
+    cParam2 = New CAccParam
+    cReport2 = New CReceiptAll(cParam2.GetExtraSQL(), cParam2.GetFooterText())
+    RecVal = RecVal + cReport2.GetReceiptReportBillingRangeUserBrief($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tbltempbilldetail)
+
+  Else If RepoForm = "Branch" Then
+    RepoLst = New String[]
+    headLst = modBasic.$AllBranchList
+    For Each xhead In headLst
+      $BillingReport.AddChapter(xhead)
+      cParam2 = New CAccParam("Branch", xhead)
+      cReport2 = New CReceiptAll(cParam2.GetExtraSQL(), cParam2.GetFooterText())
+      RecVal = RecVal + cReport2.GetReceiptReportBillingRangeUserBrief($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tbltempbilldetail)
+      $BillingReport.AddChapter("")
+    Next
+
+  Else If RepoForm = "Location" Then
+    RepoLst = New String[]
+    headLst = modBasic.$AllCompList
+    For Each xhead In headLst
+      $BillingReport.AddChapter(xhead)
+      cParam2 = New CAccParam("Location", xhead)
+      cReport2 = New CReceiptAll(cParam2.GetExtraSQL(), cParam2.GetFooterText())
+      RecVal = RecVal + cReport2.GetReceiptReportBillingRangeUserBrief($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tbltempbilldetail)
+      $BillingReport.AddChapter("")
+    Next
+
+  Endif
+  $BillingReport.AddChapter("<br>")
+
+  RepoPath = $BillingReport.NewHTMLPath()
+  Return RepoPath
+
+End
+
+Public Function CombinedReportBillingRangeGroupDetail(sFormat As String, $con As Connection, RepoForm As String, bill1 As Variant, bill2 As Variant, sLocaType As String, sLocation As String, $tblpatbilling As String, $tblpatbilldetail As String, $tbltempbilldetail As String) As String
+
+  Dim $BillingReport As CReportHTML
+  Dim xparam As String
+  Dim RepoPath As String
+  Dim RepoVal As Float
+  Dim RecVal As Float
+
+  Dim cParam1 As CAccParam
+  Dim cParam2 As CAccParam
+  Dim cReport1 As CBillingAll
+  Dim cReport2 As CReceiptAll
+  Dim headLst As String[]
+  Dim xhead As String
+  Dim RepoLst As String[]
+
+  If sFormat = "Date" Then
+    xparam = modReportVar.GetDateTimeReport(bill1, gb.GeneralDate) & " TO " & modReportVar.GetDateTimeReport(bill2, gb.GeneralDate)
+  Else
+    xparam = bill1 & " TO " & bill2
+  Endif
+  $BillingReport = New CReportHTML([("CATEGORY"), ("GROSS"), ("DISCOUNT"), ("TAX"), ("NET")], "", "")
+  $BillingReport.UserData.Add("Combined Collection", "PARAM1")
+  $BillingReport.UserData.Add(xparam, "PARAM2")
+
+  $BillingReport.AddSection("INVOICE", True)
+  ' RepoVal = modBillingAll.GetInvoiceReportBillingRangeGroupDetail($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+  RepoVal = 0
+  If RepoForm = "Summary" Then
+    cParam1 = New CAccParam
+    cReport1 = New CBillingAll(cParam1.GetExtraSQL(), cParam1.GetFooterText())
+    cReport1.$UserGrp = cParam1.GetUserID()
+    cReport1.$CompGrp = cParam1.GetCompID()
+    RepoVal = RepoVal + cReport1.GetInvoiceReportBillingRangeGroupDetail($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+
+  Else If RepoForm = "Branch" Then
+    RepoLst = New String[]
+    headLst = modBasic.$AllBranchList
+    For Each xhead In headLst
+      $BillingReport.AddChapter(xhead)
+      cParam1 = New CAccParam("Branch", xhead)
+      cReport1 = New CBillingAll(cParam1.GetExtraSQL(), cParam1.GetFooterText())
+      cReport1.$UserGrp = cParam1.GetUserID()
+      cReport1.$CompLst = cParam1.GetCompList()
+      RepoVal = RepoVal + cReport1.GetInvoiceReportBillingRangeGroupDetail($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+      $BillingReport.AddChapter("")
+    Next
+
+  Else If RepoForm = "Location" Then
+    RepoLst = New String[]
+    headLst = modBasic.$AllCompList
+    For Each xhead In headLst
+      $BillingReport.AddChapter(xhead)
+      cParam1 = New CAccParam("Location", xhead)
+      cReport1 = New CBillingAll(cParam1.GetExtraSQL(), cParam1.GetFooterText())
+      cReport1.$UserGrp = cParam1.GetUserID()
+      cReport1.$CompGrp = cParam1.GetCompID()
+      RepoVal = RepoVal + cReport1.GetInvoiceReportBillingRangeGroupDetail($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+      $BillingReport.AddChapter("")
+    Next
+
+  Endif
+  $BillingReport.AddChapter("<br>")
+
+  $BillingReport.AddSection("RECEIPT", True)
+  ' RecVal = modReceiptAll.GetReceiptReportBillingRangeGroupDetail($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tblpatbilling, $tbltempbilldetail)
+  RecVal = 0
+  If RepoForm = "Summary" Then
+    cParam2 = New CAccParam
+    cReport2 = New CReceiptAll(cParam2.GetExtraSQL(), cParam2.GetFooterText())
+    cReport2.$UserGrp = cParam2.GetUserID()
+    cReport2.$CompGrp = cParam2.GetCompID()
+    RecVal = RecVal + cReport2.GetReceiptReportBillingRangeGroupDetail($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tblpatbilling, $tbltempbilldetail)
+
+  Else If RepoForm = "Branch" Then
+    RepoLst = New String[]
+    headLst = modBasic.$AllBranchList
+    For Each xhead In headLst
+      $BillingReport.AddChapter(xhead)
+      cParam2 = New CAccParam("Branch", xhead)
+      cReport2 = New CReceiptAll(cParam2.GetExtraSQL(), cParam2.GetFooterText())
+      cReport2.$UserGrp = cParam2.GetUserID()
+      cReport2.$CompLst = cParam2.GetCompList()
+      RecVal = RecVal + cReport2.GetReceiptReportBillingRangeGroupDetail($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tblpatbilling, $tbltempbilldetail)
+      $BillingReport.AddChapter("")
+    Next
+
+  Else If RepoForm = "Location" Then
+    RepoLst = New String[]
+    headLst = modBasic.$AllCompList
+    For Each xhead In headLst
+      $BillingReport.AddChapter(xhead)
+      cParam2 = New CAccParam("Location", xhead)
+      cReport2 = New CReceiptAll(cParam2.GetExtraSQL(), cParam2.GetFooterText())
+      cReport2.$UserGrp = cParam2.GetUserID()
+      cReport2.$CompGrp = cParam2.GetCompID()
+      RecVal = RecVal + cReport2.GetReceiptReportBillingRangeGroupDetail($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tblpatbilling, $tbltempbilldetail)
+      $BillingReport.AddChapter("")
+    Next
+
+  Endif
+  $BillingReport.AddChapter("<br>")
+
+  RepoPath = $BillingReport.NewHTMLPath()
+  Return RepoPath
+
+End
+
+Public Function CombinedReportBillingRangeGroupBrief(sFormat As String, $con As Connection, RepoForm As String, bill1 As Variant, bill2 As Variant, sLocaType As String, sLocation As String, $tblpatbilling As String, $tblpatbilldetail As String, $tbltempbilldetail As String) As String
+
+  Dim $BillingReport As CReportHTML
+  Dim xparam As String
+  Dim RepoPath As String
+  Dim RepoVal As Float
+  Dim RecVal As Float
+  Dim asx As New String[0]
+
+  Dim cParam1 As CAccParam
+  Dim cParam2 As CAccParam
+  Dim cReport1 As CBillingAll
+  Dim cReport2 As CReceiptAll
+  Dim headLst As String[]
+  Dim xhead As String
+  Dim RepoLst As String[]
+
+  If sFormat = "Date" Then
+    xparam = modReportVar.GetDateTimeReport(bill1, gb.GeneralDate) & " TO " & modReportVar.GetDateTimeReport(bill2, gb.GeneralDate)
+  Else
+    xparam = bill1 & " TO " & bill2
+  Endif
+  $BillingReport = New CReportHTML([("CATEGORY"), ("GROSS"), ("DISCOUNT"), ("TAX"), ("CREDIT"), ("CASH")], "", "")
+  $BillingReport.UserData.Add("Combined Collection", "PARAM1")
+  $BillingReport.UserData.Add(xparam, "PARAM2")
+
+  $BillingReport.AddSection("INVOICE", True)
+  ' RepoVal = modBillingAll.GetInvoiceReportBillingRangeGroupBrief($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+  RepoVal = 0
+  If RepoForm = "Summary" Then
+    cParam1 = New CAccParam
+    cReport1 = New CBillingAll(cParam1.GetExtraSQL(), cParam1.GetFooterText())
+    cReport1.$UserGrp = cParam1.GetUserID()
+    cReport1.$CompGrp = cParam1.GetCompID()
+    RepoVal = RepoVal + cReport1.GetInvoiceReportBillingRangeGroupBrief($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+
+  Else If RepoForm = "Branch" Then
+    RepoLst = New String[]
+    headLst = modBasic.$AllBranchList
+    For Each xhead In headLst
+      $BillingReport.AddChapter(xhead)
+      cParam1 = New CAccParam("Branch", xhead)
+      cReport1 = New CBillingAll(cParam1.GetExtraSQL(), cParam1.GetFooterText())
+      cReport1.$UserGrp = cParam1.GetUserID()
+      cReport1.$CompLst = cParam1.GetCompList()
+      RepoVal = RepoVal + cReport1.GetInvoiceReportBillingRangeGroupBrief($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+      $BillingReport.AddChapter("")
+    Next
+
+  Else If RepoForm = "Location" Then
+    RepoLst = New String[]
+    headLst = modBasic.$AllCompList
+    For Each xhead In headLst
+      $BillingReport.AddChapter(xhead)
+      cParam1 = New CAccParam("Location", xhead)
+      cReport1 = New CBillingAll(cParam1.GetExtraSQL(), cParam1.GetFooterText())
+      cReport1.$UserGrp = cParam1.GetUserID()
+      cReport1.$CompGrp = cParam1.GetCompID()
+      RepoVal = RepoVal + cReport1.GetInvoiceReportBillingRangeGroupBrief($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+      $BillingReport.AddChapter("")
+    Next
+
+  Endif
+  $BillingReport.AddChapter("<br>")
+
+  $BillingReport.AddSection("RECEIPT", True)
+  ' RecVal = modReceiptAll.GetReceiptReportBillingRangeGroupBrief($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tblpatbilling, $tbltempbilldetail)
+  RecVal = 0
+  If RepoForm = "Summary" Then
+    cParam2 = New CAccParam
+    cReport2 = New CReceiptAll(cParam2.GetExtraSQL(), cParam2.GetFooterText())
+    cReport2.$UserGrp = cParam2.GetUserID()
+    cReport2.$CompGrp = cParam2.GetCompID()
+    RecVal = RecVal + cReport2.GetReceiptReportBillingRangeGroupBrief($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tblpatbilling, $tbltempbilldetail)
+
+  Else If RepoForm = "Branch" Then
+    RepoLst = New String[]
+    headLst = modBasic.$AllBranchList
+    For Each xhead In headLst
+      $BillingReport.AddChapter(xhead)
+      cParam2 = New CAccParam("Branch", xhead)
+      cReport2 = New CReceiptAll(cParam2.GetExtraSQL(), cParam2.GetFooterText())
+      cReport2.$UserGrp = cParam2.GetUserID()
+      cReport2.$CompLst = cParam2.GetCompList()
+      RecVal = RecVal + cReport2.GetReceiptReportBillingRangeGroupBrief($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tblpatbilling, $tbltempbilldetail)
+      $BillingReport.AddChapter("")
+    Next
+
+  Else If RepoForm = "Location" Then
+    RepoLst = New String[]
+    headLst = modBasic.$AllCompList
+    For Each xhead In headLst
+      $BillingReport.AddChapter(xhead)
+      cParam2 = New CAccParam("Location", xhead)
+      cReport2 = New CReceiptAll(cParam2.GetExtraSQL(), cParam2.GetFooterText())
+      cReport2.$UserGrp = cParam2.GetUserID()
+      cReport2.$CompGrp = cParam2.GetCompID()
+      RecVal = RecVal + cReport2.GetReceiptReportBillingRangeGroupBrief($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tblpatbilling, $tbltempbilldetail)
+      $BillingReport.AddChapter("")
+    Next
+
+  Endif
+  $BillingReport.AddChapter("<br>")
+
+  With asx
+    .Add("GRAND TOTAL")
+    .Add("")
+    .Add("")
+    .Add("")
+    .Add("")
+    .Add(modReportVar.GetLocaleNumberFormat(RepoVal + RecVal, gb.Currency))
+  End With
+  $BillingReport.Add(asx)
+  asx.Clear()
+
+  RepoPath = $BillingReport.NewHTMLPath()
+  Return RepoPath
+
+End
+
+Public Function CombinedReportBillingRangeLocation(sFormat As String, $con As Connection, RepoForm As String, bill1 As Variant, bill2 As Variant, sLocaType As String, sLocation As String, $tblpatbilling As String, $tblpatbilldetail As String, $tbltempbilldetail As String) As String
+
+  Dim $BillingReport As CReportHTML
+  Dim xparam As String
+  Dim RepoPath As String
+  Dim RepoVal As Float
+  Dim RecVal As Float
+  Dim asx As New String[0]
+
+  Dim cParam1 As CAccParam
+  Dim cParam2 As CAccParam
+  Dim cReport1 As CBillingAll
+  Dim cReport2 As CReceiptAll
+  Dim headLst As String[]
+  Dim xhead As String
+  Dim RepoLst As String[]
+
+  If sFormat = "Date" Then
+    xparam = modReportVar.GetDateTimeReport(bill1, gb.GeneralDate) & " TO " & modReportVar.GetDateTimeReport(bill2, gb.GeneralDate)
+  Else
+    xparam = bill1 & " TO " & bill2
+  Endif
+  $BillingReport = New CReportHTML([("CATEGORY"), ("GROSS"), ("DISCOUNT"), ("TAX"), ("CREDIT"), ("CASH")], "", "")
+  $BillingReport.UserData.Add("Combined Collection", "PARAM1")
+  $BillingReport.UserData.Add(xparam, "PARAM2")
+
+  $BillingReport.AddSection("INVOICE", True)
+  ' RepoVal = modBillingAll.GetInvoiceReportBillingRangeLocation($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+  RepoVal = 0
+  If RepoForm = "Summary" Then
+    cParam1 = New CAccParam
+    cReport1 = New CBillingAll(cParam1.GetExtraSQL(), cParam1.GetFooterText())
+    cReport1.$UserGrp = cParam1.GetUserID()
+    cReport1.$CompGrp = cParam1.GetCompID()
+    RepoVal = RepoVal + cReport1.GetInvoiceReportBillingRangeLocation($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+
+  Else If RepoForm = "Branch" Then
+    RepoLst = New String[]
+    headLst = modBasic.$AllBranchList
+    For Each xhead In headLst
+      $BillingReport.AddChapter(xhead)
+      cParam1 = New CAccParam("Branch", xhead)
+      cReport1 = New CBillingAll(cParam1.GetExtraSQL(), cParam1.GetFooterText())
+      cReport1.$UserGrp = cParam1.GetUserID()
+      cReport1.$CompLst = cParam1.GetCompList()
+      RepoVal = RepoVal + cReport1.GetInvoiceReportBillingRangeLocation($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+      $BillingReport.AddChapter("")
+    Next
+
+  Else If RepoForm = "Location" Then
+    RepoLst = New String[]
+    headLst = modBasic.$AllCompList
+    For Each xhead In headLst
+      $BillingReport.AddChapter(xhead)
+      cParam1 = New CAccParam("Location", xhead)
+      cReport1 = New CBillingAll(cParam1.GetExtraSQL(), cParam1.GetFooterText())
+      cReport1.$UserGrp = cParam1.GetUserID()
+      cReport1.$CompGrp = cParam1.GetCompID()
+      RepoVal = RepoVal + cReport1.GetInvoiceReportBillingRangeLocation($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+      $BillingReport.AddChapter("")
+    Next
+
+  Endif
+  $BillingReport.AddChapter("<br>")
+
+  $BillingReport.AddSection("RECEIPT", True)
+  ' RecVal = modReceiptAll.GetReceiptReportBillingRangeLocation($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tblpatbilling, $tbltempbilldetail)
+  RecVal = 0
+  If RepoForm = "Summary" Then
+    cParam2 = New CAccParam
+    cReport2 = New CReceiptAll(cParam2.GetExtraSQL(), cParam2.GetFooterText())
+    cReport2.$UserGrp = cParam2.GetUserID()
+    cReport2.$CompGrp = cParam2.GetCompID()
+    RecVal = RecVal + cReport2.GetReceiptReportBillingRangeLocation($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tblpatbilling, $tbltempbilldetail)
+
+  Else If RepoForm = "Branch" Then
+    RepoLst = New String[]
+    headLst = modBasic.$AllBranchList
+    For Each xhead In headLst
+      $BillingReport.AddChapter(xhead)
+      cParam2 = New CAccParam("Branch", xhead)
+      cReport2 = New CReceiptAll(cParam2.GetExtraSQL(), cParam2.GetFooterText())
+      cReport2.$UserGrp = cParam2.GetUserID()
+      cReport2.$CompLst = cParam2.GetCompList()
+      RecVal = RecVal + cReport2.GetReceiptReportBillingRangeLocation($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tblpatbilling, $tbltempbilldetail)
+      $BillingReport.AddChapter("")
+    Next
+
+  Else If RepoForm = "Location" Then
+    RepoLst = New String[]
+    headLst = modBasic.$AllCompList
+    For Each xhead In headLst
+      $BillingReport.AddChapter(xhead)
+      cParam2 = New CAccParam("Location", xhead)
+      cReport2 = New CReceiptAll(cParam2.GetExtraSQL(), cParam2.GetFooterText())
+      cReport2.$UserGrp = cParam2.GetUserID()
+      cReport2.$CompGrp = cParam2.GetCompID()
+      RecVal = RecVal + cReport2.GetReceiptReportBillingRangeLocation($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tblpatbilling, $tbltempbilldetail)
+      $BillingReport.AddChapter("")
+    Next
+
+  Endif
+  $BillingReport.AddChapter("<br>")
+
+  With asx
+    .Add("GRAND TOTAL")
+    .Add("")
+    .Add("")
+    .Add("")
+    .Add("")
+    .Add(modReportVar.GetLocaleNumberFormat(RepoVal + RecVal, gb.Currency))
+  End With
+  $BillingReport.Add(asx)
+  asx.Clear()
+
+  RepoPath = $BillingReport.NewHTMLPath()
+  Return RepoPath
+
+End
+
+Public Function CombinedReportBillingRangeTaxDiscount(sFormat As String, $con As Connection, RepoForm As String, sType As String, bill1 As Variant, bill2 As Variant, sLocaType As String, sLocation As String, $tblpatbilldetail As String, $tbltempbilldetail As String) As String
+
+  Dim $BillingReport As CReportHTML
+  Dim xparam As String
+  Dim RepoPath As String
+  Dim RepoVal As Float
+  Dim RecVal As Float
+
+  Dim cParam1 As CAccParam
+  Dim cParam2 As CAccParam
+  Dim cReport1 As CBillingAll
+  Dim cReport2 As CReceiptAll
+  Dim headLst As String[]
+  Dim xhead As String
+  Dim RepoLst As String[]
+
+  If sFormat = "Date" Then
+    xparam = modReportVar.GetDateTimeReport(bill1, gb.GeneralDate) & " TO " & modReportVar.GetDateTimeReport(bill2, gb.GeneralDate)
+  Else
+    xparam = bill1 & " TO " & bill2
+  Endif
+  $BillingReport = New CReportHTML([("DATE"), ("ENCID"), ("PATIENT"), ("TYPE"), ("INVOICE"), ("GROSS"), UCase(sType), ("LABEL"), ("ACCOUNT"), ("CASHIER")], "", "")
+  $BillingReport.UserData.Add(sType & " Report", "PARAM1")
+  $BillingReport.UserData.Add(xparam, "PARAM2")
+
+  $BillingReport.AddSection("INVOICE", True)
+  ' RepoVal = modBillingAll.GetInvoiceReportBillingRangeTaxDiscount($BillingReport, sFormat, $con, sType, bill1, bill2, sLocaType, sLocation, $tblpatbilldetail)
+  RepoVal = 0
+  If RepoForm = "Summary" Then
+    cParam1 = New CAccParam
+    cReport1 = New CBillingAll(cParam1.GetExtraSQL(), cParam1.GetFooterText())
+    RepoVal = RepoVal + cReport1.GetInvoiceReportBillingRangeTaxDiscount($BillingReport, sFormat, $con, sType, bill1, bill2, sLocaType, sLocation, $tblpatbilldetail)
+
+  Else If RepoForm = "Branch" Then
+    RepoLst = New String[]
+    headLst = modBasic.$AllBranchList
+    For Each xhead In headLst
+      $BillingReport.AddChapter(xhead)
+      cParam1 = New CAccParam("Branch", xhead)
+      cReport1 = New CBillingAll(cParam1.GetExtraSQL(), cParam1.GetFooterText())
+      RepoVal = RepoVal + cReport1.GetInvoiceReportBillingRangeTaxDiscount($BillingReport, sFormat, $con, sType, bill1, bill2, sLocaType, sLocation, $tblpatbilldetail)
+      $BillingReport.AddChapter("")
+    Next
+
+  Else If RepoForm = "Location" Then
+    RepoLst = New String[]
+    headLst = modBasic.$AllCompList
+    For Each xhead In headLst
+      $BillingReport.AddChapter(xhead)
+      cParam1 = New CAccParam("Location", xhead)
+      cReport1 = New CBillingAll(cParam1.GetExtraSQL(), cParam1.GetFooterText())
+      RepoVal = RepoVal + cReport1.GetInvoiceReportBillingRangeTaxDiscount($BillingReport, sFormat, $con, sType, bill1, bill2, sLocaType, sLocation, $tblpatbilldetail)
+      $BillingReport.AddChapter("")
+    Next
+
+  Endif
+  $BillingReport.AddChapter("<br>")
+
+  $BillingReport.AddSection("RECEIPT", True)
+  ' RecVal = modReceiptAll.GetReceiptReportBillingRangeTaxDiscount($BillingReport, sFormat, $con, sType, bill1, bill2, sLocaType, sLocation, $tbltempbilldetail)
+  RecVal = 0
+  If RepoForm = "Summary" Then
+    cParam2 = New CAccParam
+    cReport2 = New CReceiptAll(cParam2.GetExtraSQL(), cParam2.GetFooterText())
+    RecVal = RecVal + cReport2.GetReceiptReportBillingRangeTaxDiscount($BillingReport, sFormat, $con, sType, bill1, bill2, sLocaType, sLocation, $tbltempbilldetail)
+
+  Else If RepoForm = "Branch" Then
+    RepoLst = New String[]
+    headLst = modBasic.$AllBranchList
+    For Each xhead In headLst
+      $BillingReport.AddChapter(xhead)
+      cParam2 = New CAccParam("Branch", xhead)
+      cReport2 = New CReceiptAll(cParam2.GetExtraSQL(), cParam2.GetFooterText())
+      RecVal = RecVal + cReport2.GetReceiptReportBillingRangeTaxDiscount($BillingReport, sFormat, $con, sType, bill1, bill2, sLocaType, sLocation, $tbltempbilldetail)
+      $BillingReport.AddChapter("")
+    Next
+
+  Else If RepoForm = "Location" Then
+    RepoLst = New String[]
+    headLst = modBasic.$AllCompList
+    For Each xhead In headLst
+      $BillingReport.AddChapter(xhead)
+      cParam2 = New CAccParam("Location", xhead)
+      cReport2 = New CReceiptAll(cParam2.GetExtraSQL(), cParam2.GetFooterText())
+      RecVal = RecVal + cReport2.GetReceiptReportBillingRangeTaxDiscount($BillingReport, sFormat, $con, sType, bill1, bill2, sLocaType, sLocation, $tbltempbilldetail)
+      $BillingReport.AddChapter("")
+    Next
+
+  Endif
+  $BillingReport.AddChapter("<br>")
+
+  RepoPath = $BillingReport.NewHTMLPath()
+  Return RepoPath
+
+End
+
+Public Function CombinedReportBillingRangeCashCredit(sFormat As String, $con As Connection, RepoForm As String, sType As String, bill1 As Variant, bill2 As Variant, sLocaType As String, sLocation As String, $tblpatbilldetail As String, $tbltempbilldetail As String) As String
+
+  Dim $BillingReport As CReportHTML
+  Dim xparam As String
+  Dim RepoPath As String
+  Dim RepoVal As Float
+  Dim RecVal As Float
+
+  Dim cParam1 As CAccParam
+  Dim cParam2 As CAccParam
+  Dim cReport1 As CBillingAll
+  Dim cReport2 As CReceiptAll
+  Dim headLst As String[]
+  Dim xhead As String
+  Dim RepoLst As String[]
+
+  If sFormat = "Date" Then
+    xparam = modReportVar.GetDateTimeReport(bill1, gb.GeneralDate) & " TO " & modReportVar.GetDateTimeReport(bill2, gb.GeneralDate)
+  Else
+    xparam = bill1 & " TO " & bill2
+  Endif
+  If sType = "Cash" Then
+    $BillingReport = New CReportHTML([("DATE"), ("ENCID"), ("PATIENT"), ("TYPE"), ("INVOICE"), ("GROSS"), ("DISCOUNT"), ("TAX"), ("NET"), ("RECEIVED"), ("QR-PAY"), ("HAND-CASH"), ("ACCOUNT")], "", "")
+  Else
+    $BillingReport = New CReportHTML([("DATE"), ("ENCID"), ("PATIENT"), ("TYPE"), ("INVOICE"), ("GROSS"), ("DISCOUNT"), ("TAX"), ("NET"), ("RECEIVED"), ("ACCOUNT")], "", "")
+  Endif
+  $BillingReport.UserData.Add(sType & " Report", "PARAM1")
+  $BillingReport.UserData.Add(xparam, "PARAM2")
+
+  $BillingReport.AddSection("INVOICE", True)
+  ' RepoVal = modBillingAll.GetInvoiceReportBillingRangeCashCredit($BillingReport, sFormat, $con, sType, bill1, bill2, sLocaType, sLocation, $tblpatbilldetail)
+  RepoVal = 0
+  If RepoForm = "Summary" Then
+    cParam1 = New CAccParam
+    cReport1 = New CBillingAll(cParam1.GetExtraSQL(), cParam1.GetFooterText())
+    RepoVal = RepoVal + cReport1.GetInvoiceReportBillingRangeCashCredit($BillingReport, sFormat, $con, sType, bill1, bill2, sLocaType, sLocation, $tblpatbilldetail)
+
+  Else If RepoForm = "Branch" Then
+    RepoLst = New String[]
+    headLst = modBasic.$AllBranchList
+    For Each xhead In headLst
+      $BillingReport.AddChapter(xhead)
+      cParam1 = New CAccParam("Branch", xhead)
+      cReport1 = New CBillingAll(cParam1.GetExtraSQL(), cParam1.GetFooterText())
+      RepoVal = RepoVal + cReport1.GetInvoiceReportBillingRangeCashCredit($BillingReport, sFormat, $con, sType, bill1, bill2, sLocaType, sLocation, $tblpatbilldetail)
+      $BillingReport.AddChapter("")
+    Next
+
+  Else If RepoForm = "Location" Then
+    RepoLst = New String[]
+    headLst = modBasic.$AllCompList
+    For Each xhead In headLst
+      $BillingReport.AddChapter(xhead)
+      cParam1 = New CAccParam("Location", xhead)
+      cReport1 = New CBillingAll(cParam1.GetExtraSQL(), cParam1.GetFooterText())
+      RepoVal = RepoVal + cReport1.GetInvoiceReportBillingRangeCashCredit($BillingReport, sFormat, $con, sType, bill1, bill2, sLocaType, sLocation, $tblpatbilldetail)
+      $BillingReport.AddChapter("")
+    Next
+
+  Endif
+  $BillingReport.AddChapter("<br>")
+
+  $BillingReport.AddSection("RECEIPT", True)
+  ' RecVal = modReceiptAll.GetReceiptReportBillingRangeCashCredit($BillingReport, sFormat, $con, sType, bill1, bill2, sLocaType, sLocation, $tbltempbilldetail)
+  RecVal = 0
+  If RepoForm = "Summary" Then
+    cParam2 = New CAccParam
+    cReport2 = New CReceiptAll(cParam2.GetExtraSQL(), cParam2.GetFooterText())
+    RecVal = RecVal + cReport2.GetReceiptReportBillingRangeCashCredit($BillingReport, sFormat, $con, sType, bill1, bill2, sLocaType, sLocation, $tbltempbilldetail)
+
+  Else If RepoForm = "Branch" Then
+    RepoLst = New String[]
+    headLst = modBasic.$AllBranchList
+    For Each xhead In headLst
+      $BillingReport.AddChapter(xhead)
+      cParam2 = New CAccParam("Branch", xhead)
+      cReport2 = New CReceiptAll(cParam2.GetExtraSQL(), cParam2.GetFooterText())
+      RecVal = RecVal + cReport2.GetReceiptReportBillingRangeCashCredit($BillingReport, sFormat, $con, sType, bill1, bill2, sLocaType, sLocation, $tbltempbilldetail)
+      $BillingReport.AddChapter("")
+    Next
+
+  Else If RepoForm = "Location" Then
+    RepoLst = New String[]
+    headLst = modBasic.$AllCompList
+    For Each xhead In headLst
+      $BillingReport.AddChapter(xhead)
+      cParam2 = New CAccParam("Location", xhead)
+      cReport2 = New CReceiptAll(cParam2.GetExtraSQL(), cParam2.GetFooterText())
+      RecVal = RecVal + cReport2.GetReceiptReportBillingRangeCashCredit($BillingReport, sFormat, $con, sType, bill1, bill2, sLocaType, sLocation, $tbltempbilldetail)
+      $BillingReport.AddChapter("")
+    Next
+
+  Endif
+  $BillingReport.AddChapter("<br>")
+
+  RepoPath = $BillingReport.NewHTMLPath()
+  Return RepoPath
+
+End
+
+Public Function BothInvoiceReportDetailByMismatch(sFormat As String, $con As Connection, bill1 As Variant, bill2 As Variant, sLocaType As String, sLocation As String, $tblpatbilling As String, $tblpatbilldetail As String, $tbltempbilldetail As String) As String
+
+  Dim $BillingReport As CReportHTML
+  Dim xparam As String
+  Dim RepoPath As String
+  Dim RepoVal As Float
+  Dim RecVal As Float
+
+  Dim cReport1 As CBillingAll
+  Dim cReport2 As CReceiptAll
+
+  If sFormat = "Date" Then
+    xparam = modReportVar.GetDateTimeReport(bill1, gb.GeneralDate) & " TO " & modReportVar.GetDateTimeReport(bill2, gb.GeneralDate)
+  Else
+    xparam = bill1 & " TO " & bill2
+  Endif
+  $BillingReport = New CReportHTML([("INVOICE"), ("ItemTotal"), ("InvTotal"), ("TotDiff"), ("ItemTax"), ("InvTax"), ("TaxDiff"), ("ItemDisc"), ("InvDisc"), ("DiscDiff")], "", "")
+  $BillingReport.UserData.Add("Invoice Tax/Discount Mismatch", "PARAM1")
+  $BillingReport.UserData.Add(xparam, "PARAM2")
+
+  $BillingReport.AddSection("INVOICE", True)
+  cReport1 = New CBillingAll("", "")
+  RepoVal = cReport1.GetInvoiceReportDetailByMismatch($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tblpatbilling, $tblpatbilldetail)
+  $BillingReport.AddChapter("")
+
+  $BillingReport.AddSection("RECEIPT", True)
+  cReport2 = New CReceiptAll("", "")
+  RecVal = cReport2.GetReceiptInvoiceReportDetailByMismatch($BillingReport, sFormat, $con, bill1, bill2, sLocaType, sLocation, $tblpatbilling, $tbltempbilldetail)
+  $BillingReport.AddChapter("")
+
+  RepoPath = $BillingReport.NewHTMLPath()
+  Return RepoPath
+
+End

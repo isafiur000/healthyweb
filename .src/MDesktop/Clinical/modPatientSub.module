@@ -569,7 +569,6 @@ End
 Public Sub UpdateCurrentStatus(encid As String, status As String, sComment As Variant)
 
   Dim res As Result
-  Dim res1 As Result
 
   res = modDatabase.$myConn.Edit("tblencounter", "fldencounterval=&1", encid)
   res["fldadmission"] = status
@@ -587,20 +586,31 @@ Public Sub UpdateCurrentStatus(encid As String, status As String, sComment As Va
   res["xyz"] = False
   res.Update
 
-  Select status
-    Case "Discharged", "LAMA", "Death", "Refer", "Absconder"
-      res1 = modDatabase.$myConn.Edit("tbldepartmentbed", "fldencounterval=&1", encid)
-      If res1.Available Then
-        For Each res1
-          res1["fldencounterval"] = ""
-          res1["fldaddservice"] = ""
-          res1["fldflag"] = False
-          res1["fldfreedate"] = Now()
-          res1.Update
-        Next
-      Endif
-  End Select
+  If modBasic.$ClinBedReleaseEvent = "Clearance" Then
+  Else
+    Select status
+      Case "Discharged", "LAMA", "Death", "Refer", "Absconder"
+        GetPatBedRelease(encid)
+    End Select
+  Endif
   modPatientSub.EnterPatientImpDate(encid, status, sComment)
+
+End
+
+Public Sub GetPatBedRelease(encid As String)
+
+  Dim res1 As Result
+
+  res1 = modDatabase.$myConn.Edit("tbldepartmentbed", "fldencounterval=&1", encid)
+  If res1.Available Then
+    For Each res1
+      res1["fldencounterval"] = ""
+      res1["fldaddservice"] = ""
+      res1["fldflag"] = False
+      res1["fldfreedate"] = Now()
+      res1.Update
+    Next
+  Endif
 
 End
 

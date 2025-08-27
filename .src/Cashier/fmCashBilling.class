@@ -3202,18 +3202,26 @@ Public Sub mnuchangestate_Click()
   Dim status As String[] = ["Recovered", "Improved", "Unchanged", "Worse", "LAMA", "Death", "Refer", "Absconder"]
   Dim xx As String
   Dim xmsg As String
+  Dim xList As String[]
+  Dim xrefer As String
 
   If $sTatus = "Admitted" Then
     If modPathoSub.AllowDischargeDiagno(Trim(txtencid.Text)) = True Then
       xx = InputCombo(("Select Clinical Status of patient ") & modPatient.GetPatientNameByEnc(Trim(txtencid.Text)), "Enc: " & Trim(txtencid.Text), status, "", True)
       If xx Then
+        If xx = "Refer" Then
+          xList = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select fldlocation from tblreferlist"))
+          xrefer = InputCombo("Select Refer Location from List", "Refer To", xList, "", False)
+        Endif
         modDatabase.$myConn.Begin
         xmsg = modBillings.ExitPatientWithBillingOfBed(Trim(txtencid.Text))
         Select xx
           Case "Recovered", "Improved", "Unchanged", "Worse"
             modPatientSub.UpdateCurrentStatus(Trim(txtencid.Text), "Discharged", xx)
-          Case "LAMA", "Death", "Refer", "Absconder"
+          Case "LAMA", "Death", "Absconder"
             modPatientSub.UpdateCurrentStatus(Trim(txtencid.Text), xx, "")
+          Case "Refer"
+            modPatientSub.UpdateCurrentStatus(Trim(txtencid.Text), "Refer", xrefer)
         End Select
         modDatabase.$myConn.Commit
         $sTatus = modPatient.CurrentAdmissionStatus(Trim(txtencid.Text))
@@ -4930,8 +4938,12 @@ Public Sub mnuclear_Click()
             If $xFinClear = True Then
               TabStrip1.Enabled = False
               Panel2.Enabled = False
+              If modBasic.$ClinBedReleaseEvent = "Clearance" Then
+                modPatientSub.GetPatBedRelease(Trim(txtencid.Text))
+              Endif
+              Message.Info(("Discharge Lock completed"), ("OK"))
             Endif
-            Message.Info(("Discharge Lock completed"), ("OK"))
+
           Else
             Message.Warning(("Please invoice Pending items"), ("OK"))
           Endif

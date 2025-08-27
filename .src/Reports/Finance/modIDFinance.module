@@ -1053,6 +1053,60 @@ Public Function GetIDReceiptCreditCash($conn As Connection, recpid1 As Long, rec
 
 End
 
+Private Function GetBillDiscountDifference(sFormat As String, $con As Connection, bill1 As Variant, bill2 As Variant, sType As String, sUser As String, sComp As String, billtype As String, sLocaType As String, sLocation As String, $tblpatbilling As String, $tblpatbilldetail As String) As Float
+
+  Dim bilid1 As Variant
+  Dim bilid2 As Variant
+  Dim xfld As String
+
+  Dim res As Result
+  Dim res1 As Result
+  Dim xinv As Float
+  Dim xitm As Float
+  Dim RepoStr As String
+
+  RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
+  If sFormat = "Date" Then
+    bilid1 = bill1
+    bilid2 = bill2
+    xfld = "fldtime"
+  Else
+    bilid1 = modNonMedical.GetBillIDFromBillNo(bill1, $tblpatbilldetail)
+    bilid2 = modNonMedical.GetBillIDFromBillNo(bill2, $tblpatbilldetail)
+    xfld = "fldid"
+  Endif
+
+  If sType = "Discount" Then
+    res = $con.Exec("select SUM(flddiscountamt) as tot from " & $tblpatbilldetail & " where " & xfld & ">=&1 and " & xfld & "<=&2 and flduserid like &3 and fldcomp like &4 and fldbilltype like &5" & RepoStr, bilid1, bilid2, sUser, sComp, billtype)
+    res1 = $con.Exec("select SUM(flddiscamt) as biltot from " & $tblpatbilling & " where fldbillno in(select fldbillno from " & $tblpatbilldetail & " where " & xfld & ">=&1 and " & xfld & "<=&2 and flduserid like &3 and fldcomp like &4 and fldbilltype like &5)" & RepoStr, bilid1, bilid2, sUser, sComp, billtype)
+  Else If sType = "Tax" Then
+    res = $con.Exec("select SUM(fldtaxamt) as tot from " & $tblpatbilldetail & " where " & xfld & ">=&1 and " & xfld & "<=&2 and flduserid like &3 and fldcomp like &4 and fldbilltype like &5" & RepoStr, bilid1, bilid2, sUser, sComp, billtype)
+    res1 = $con.Exec("select SUM(fldtaxamt) as biltot from " & $tblpatbilling & " where fldbillno in(select fldbillno from " & $tblpatbilldetail & " where " & xfld & ">=&1 and " & xfld & "<=&2 and flduserid like &3 and fldcomp like &4 and fldbilltype like &5)" & RepoStr, bilid1, bilid2, sUser, sComp, billtype)
+  Endif
+  If res.Available Then
+    If res["tot"] Then
+      xinv = res["tot"]
+    Else
+      xinv = 0
+    Endif
+  Else
+    xinv = 0
+  Endif
+
+  If res1.Available Then
+    If res1["biltot"] Then
+      xitm = res1["biltot"]
+    Else
+      xitm = 0
+    Endif
+  Else
+    xitm = 0
+  Endif
+
+  Return (xinv - xitm)
+
+End
+
 ''============================ REPORTS ======================================
 Public Function GetIDIncomeBookingFinance($conn As Connection, bill1 As String, bill2 As String, recp1 As String, recp2 As String, sLocaType As String, sLocation As String, sYear As String, Optional sHosp As String) As String
 
@@ -1403,8 +1457,8 @@ Public Function GetIDIncomeBookingFinance($conn As Connection, bill1 As String, 
 
   ''mismatch tax/discount
   xRowVal = New Collection
-  mcashdisc = modBillingAll.GetBillDiscountDifference("Invoice", $conn, bill1, bill2, "Discount", "%", "%", "Cash", sLocaType, sLocation, xbilling, xbilldetail)
-  mcashtax = modBillingAll.GetBillDiscountDifference("Invoice", $conn, bill1, bill2, "Tax", "%", "%", "Cash", sLocaType, sLocation, xbilling, xbilldetail)
+  mcashdisc = GetBillDiscountDifference("Invoice", $conn, bill1, bill2, "Discount", "%", "%", "Cash", sLocaType, sLocation, xbilling, xbilldetail)
+  mcashtax = GetBillDiscountDifference("Invoice", $conn, bill1, bill2, "Tax", "%", "%", "Cash", sLocaType, sLocation, xbilling, xbilldetail)
   xRowVal.Add("Discount/Tax Mismatch", CStr(0))
   xRowVal.Add(modReportVar.GetLocaleNumberFormat(mcashtax - mcashdisc, gb.Currency), CStr(1))
   xFinal.Add(xRowVal)
