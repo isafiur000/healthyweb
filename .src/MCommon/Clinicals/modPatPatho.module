@@ -330,120 +330,118 @@ Public Function GetPatientDiseaseSymptom(sympid As Long) As String
 End
 
 ''---------------------------------------------------equipment/service duration----------------------------------------------------------------------------
-Public Function GetEquiDurationSetting(sType As String, sMode As String, dt1 As Date, dt2 As Date, xbol As Boolean) As Float
+Public Function GetEquipmentDurationSetting(sMode As String, dt1 As Date, dt2 As Date, xbol As Boolean) As Float
 
   Dim hr As Float
   Dim xequip As String
-  Dim xservice As String
 
-  If sType = "Equipment" Then
-    xequip = modGlobalSetting.ShowSettingFromDB("EquipmentDurationRounding/Method")
+  xequip = modGlobalSetting.ShowSettingFromDB("EquipmentDurationRounding/Method")
 
-    If sMode = "Minute" Then
-      If modGlobalSetting.ShowSettingFromDB("EquipmentDurationRounding/Minute") = "Yes" Then
-        If xequip = "Smart" Then
-          If xbol = True Then
-            hr = Ceil(DateDiff(dt1, dt2, gb.Second) / 60)
-          Else If xbol = False Then
-            hr = 0
-          Endif
-        Else
+  If sMode = "Minute" Then
+    If modGlobalSetting.ShowSettingFromDB("EquipmentDurationRounding/Minute") = "Yes" Then
+      If xequip = "Smart" Then
+        If xbol = True Then
           hr = Ceil(DateDiff(dt1, dt2, gb.Second) / 60)
+        Else If xbol = False Then
+          hr = 0
         Endif
       Else
-        hr = Round(DateDiff(dt1, dt2, gb.Second) / 60, -2)
+        hr = Ceil(DateDiff(dt1, dt2, gb.Second) / 60)
       Endif
+    Else
+      hr = Round(DateDiff(dt1, dt2, gb.Second) / 60, -2)
+    Endif
 
-    Else If sMode = "Hour" Then
-      If modGlobalSetting.ShowSettingFromDB("EquipmentDurationRounding/Hour") = "Yes" Then
-        If xequip = "Smart" Then
-          If xbol = True Then
-            hr = Ceil(DateDiff(dt1, dt2, gb.Minute) / 60)
-          Else If xbol = False Then
-            hr = 0
-          Endif
-        Else
+  Else If sMode = "Hour" Then
+    If modGlobalSetting.ShowSettingFromDB("EquipmentDurationRounding/Hour") = "Yes" Then
+      If xequip = "Smart" Then
+        If xbol = True Then
           hr = Ceil(DateDiff(dt1, dt2, gb.Minute) / 60)
+        Else If xbol = False Then
+          hr = 0
         Endif
       Else
-        hr = Round(DateDiff(dt1, dt2, gb.Minute) / 60, -2)
+        hr = Ceil(DateDiff(dt1, dt2, gb.Minute) / 60)
       Endif
-
     Else
-      If modGlobalSetting.ShowSettingFromDB("EquipmentDurationRounding/Day") = "Yes" Then
-        If xequip = "Smart" Then
-          If xbol = True Then
-            hr = Ceil(DateDiff(dt1, dt2, gb.Hour) / 24)
-          Else If xbol = False Then
-            hr = 0
-          Endif
-        Else
+      hr = Round(DateDiff(dt1, dt2, gb.Minute) / 60, -2)
+    Endif
+
+  Else
+    If modGlobalSetting.ShowSettingFromDB("EquipmentDurationRounding/Day") = "Yes" Then
+      If xequip = "Smart" Then
+        If xbol = True Then
           hr = Ceil(DateDiff(dt1, dt2, gb.Hour) / 24)
+        Else If xbol = False Then
+          hr = 0
         Endif
       Else
-        hr = Round(DateDiff(dt1, dt2, gb.Hour) / 24, -2)
+        hr = Ceil(DateDiff(dt1, dt2, gb.Hour) / 24)
       Endif
-    Endif
-
-  Else If sType = "General Services" Then
-    If modBasic.$AutoBedChargeMode = "Daily" Then
-      hr = DateDiff(modDate.EndSqlDate(dt1), dt2, gb.Day) + 1
     Else
-
-      xservice = modGlobalSetting.ShowSettingFromDB("ServiceDurationRounding/Method")
-      If sMode = "Minute" Then
-        If modGlobalSetting.ShowSettingFromDB("ServiceDurationRounding/Minute") = "Yes" Then
-          If xservice = "Smart" Then
-            If xbol = True Then
-              hr = Ceil(DateDiff(dt1, dt2, gb.Second) / 60)
-            Else If xbol = False Then
-              hr = 0
-            Endif
-          Else
-            hr = Ceil(DateDiff(dt1, dt2, gb.Second) / 60)
-          Endif
-        Else
-          hr = Round(DateDiff(dt1, dt2, gb.Second) / 60, -2)
-        Endif
-      Else If sMode = "Hour" Then
-        If modGlobalSetting.ShowSettingFromDB("ServiceDurationRounding/Hour") = "Yes" Then
-          If xservice = "Smart" Then
-            If xbol = True Then
-              hr = Ceil(DateDiff(dt1, dt2, gb.Minute) / 60)
-            Else If xbol = False Then
-              hr = 0
-            Endif
-          Else
-            hr = Ceil(DateDiff(dt1, dt2, gb.Minute) / 60)
-          Endif
-        Else
-          hr = Round(DateDiff(dt1, dt2, gb.Minute) / 60, -2)
-        Endif
-      Else
-        If modGlobalSetting.ShowSettingFromDB("ServiceDurationRounding/Day") = "Yes" Then
-          If xservice = "Smart" Then
-            If xbol = True Then
-              hr = Ceil(DateDiff(dt1, dt2, gb.Hour) / 24)
-            Else If xbol = False Then
-              hr = 0
-            Endif
-          Else
-            hr = Ceil(DateDiff(dt1, dt2, gb.Hour) / 24)
-          Endif
-        Else
-          hr = Round(DateDiff(dt1, dt2, gb.Hour) / 24, -2)
-        Endif
-      Endif
+      hr = Round(DateDiff(dt1, dt2, gb.Hour) / 24, -2)
     Endif
-
-  Endif   ''service or equipment
+  Endif
 
   Return hr
-  'don't catch error. used for billing
 
 End
 
-Public Function GetServiceUseDuration(encid As String, sType As String, txtitem As String, sMode As String, dt1 As Date, dt2 As Date) As Float
+Public Function GetBedChargeDurationSetting(sMode As String, dt1 As Date, dt2 As Date, xbol As Boolean) As Float
+
+  Dim hr As Float
+  Dim xservice As String
+
+  xservice = modGlobalSetting.ShowSettingFromDB("ServiceDurationRounding/Method")
+  If sMode = "Minute" Then
+    If modGlobalSetting.ShowSettingFromDB("ServiceDurationRounding/Minute") = "Yes" Then
+      If xservice = "Smart" Then
+        If xbol = True Then
+          hr = Ceil(DateDiff(dt1, dt2, gb.Second) / 60)
+        Else If xbol = False Then
+          hr = 0
+        Endif
+      Else
+        hr = Ceil(DateDiff(dt1, dt2, gb.Second) / 60)
+      Endif
+    Else
+      hr = Round(DateDiff(dt1, dt2, gb.Second) / 60, -2)
+    Endif
+  Else If sMode = "Hour" Then
+    If modGlobalSetting.ShowSettingFromDB("ServiceDurationRounding/Hour") = "Yes" Then
+      If xservice = "Smart" Then
+        If xbol = True Then
+          hr = Ceil(DateDiff(dt1, dt2, gb.Minute) / 60)
+        Else If xbol = False Then
+          hr = 0
+        Endif
+      Else
+        hr = Ceil(DateDiff(dt1, dt2, gb.Minute) / 60)
+      Endif
+    Else
+      hr = Round(DateDiff(dt1, dt2, gb.Minute) / 60, -2)
+    Endif
+  Else
+    If modGlobalSetting.ShowSettingFromDB("ServiceDurationRounding/Day") = "Yes" Then
+      If xservice = "Smart" Then
+        If xbol = True Then
+          hr = Ceil(DateDiff(dt1, dt2, gb.Hour) / 24)
+        Else If xbol = False Then
+          hr = 0
+        Endif
+      Else
+        hr = Ceil(DateDiff(dt1, dt2, gb.Hour) / 24)
+      Endif
+    Else
+      hr = Round(DateDiff(dt1, dt2, gb.Hour) / 24, -2)
+    Endif
+  Endif
+
+  Return hr
+
+End
+
+Public Function GetEquipmentUseDuration(encid As String, txtitem As String, sMode As String, dt1 As Date, dt2 As Date) As Float
 
   Dim hr As Float
   Dim sql As String
@@ -456,11 +454,11 @@ Public Function GetServiceUseDuration(encid As String, sType As String, txtitem 
 
     sql = "select fldfirsttime,fldsecondtime from tblpattiming where fldencounterval=&1 and fldtype=&2 and flditem=&3 and fldfirstsave=&4 and fldsecondsave=&5 and fldsecondtime>=&6 and fldsecondtime<=&7"
     If sMode = "Minute" Then
-      res = modDatabase.$myConn.Exec(sql, encid, sType, txtitem, True, True, modDate.StartSqlMinute(dt2), modDate.EndSqlMinute(dt2))
+      res = modDatabase.$myConn.Exec(sql, encid, "Equipment", txtitem, True, True, modDate.StartSqlMinute(dt2), modDate.EndSqlMinute(dt2))
     Else If sMode = "Hour" Then
-      res = modDatabase.$myConn.Exec(sql, encid, sType, txtitem, True, True, modDate.StartSqlHour(dt2), modDate.EndSqlHour(dt2))
+      res = modDatabase.$myConn.Exec(sql, encid, "Equipment", txtitem, True, True, modDate.StartSqlHour(dt2), modDate.EndSqlHour(dt2))
     Else
-      res = modDatabase.$myConn.Exec(sql, encid, sType, txtitem, True, True, modDate.StartSqlDate(dt2), modDate.EndSqlDate(dt2))
+      res = modDatabase.$myConn.Exec(sql, encid, "Equipment", txtitem, True, True, modDate.StartSqlDate(dt2), modDate.EndSqlDate(dt2))
     Endif
     If res.Available Then
       If res.Count = 1 Then
@@ -468,7 +466,7 @@ Public Function GetServiceUseDuration(encid As String, sType As String, txtitem 
       Else If res.Count > 1 Then
         xbol = False
       Endif
-      hr = GetEquiDurationSetting(sType, sMode, dt1, dt2, xbol)
+      hr = GetEquipmentDurationSetting(sMode, dt1, dt2, xbol)
     Else
       hr = 0
     Endif
@@ -476,7 +474,58 @@ Public Function GetServiceUseDuration(encid As String, sType As String, txtitem 
   Endif ''unit or time
 
   Return hr
-  'don't catch error. used for billing
+
+End
+
+Public Function GetWardBedUseDuration(encid As String, txtitem As String, sMode As String, dt1 As Date, dt2 As Date, xTotal As Integer) As Float
+
+  Dim hr As Float
+  Dim sql As String
+  Dim res As Result
+  Dim xbol As Boolean
+
+  If modBasic.$AutoBedChargeMode = "Daily" Then
+    If xTotal = 0 Then
+      If dt2 < modDate.EndSqlDate(dt1) Then
+        hr = 1
+      Else
+        hr = DateDiff(modDate.EndSqlDate(dt1), dt2, gb.Day) + 1
+      Endif
+    Else
+      If dt2 < modDate.EndSqlDate(dt1) Then
+        hr = 0
+      Else
+        hr = DateDiff(modDate.EndSqlDate(dt1), dt2, gb.Day)
+      Endif
+    Endif
+
+  Else
+    If sMode = "Unit" Then
+      hr = 1
+    Else
+      sql = "select fldfirsttime,fldsecondtime from tblpattiming where fldencounterval=&1 and fldtype=&2 and flditem=&3 and fldfirstsave=&4 and fldsecondsave=&5 and fldsecondtime>=&6 and fldsecondtime<=&7"
+      If sMode = "Minute" Then
+        res = modDatabase.$myConn.Exec(sql, encid, "General Services", txtitem, True, True, modDate.StartSqlMinute(dt2), modDate.EndSqlMinute(dt2))
+      Else If sMode = "Hour" Then
+        res = modDatabase.$myConn.Exec(sql, encid, "General Services", txtitem, True, True, modDate.StartSqlHour(dt2), modDate.EndSqlHour(dt2))
+      Else
+        res = modDatabase.$myConn.Exec(sql, encid, "General Services", txtitem, True, True, modDate.StartSqlDate(dt2), modDate.EndSqlDate(dt2))
+      Endif
+      If res.Available Then
+        If res.Count = 1 Then
+          xbol = True
+        Else If res.Count > 1 Then
+          xbol = False
+        Endif
+        hr = GetBedChargeDurationSetting(sMode, dt1, dt2, xbol)
+      Else
+        hr = 0
+      Endif
+    Endif ''unit or time
+
+  Endif
+
+  Return hr
 
 End
 
@@ -501,7 +550,11 @@ Public Function GetEquipServiceInterval(sdid As Variant) As String
         If sMode = "Unit" Then
           xdura = "1 Unit"
         Else
-          xhr = GetEquiDurationSetting(res["fldtype"], sMode, res["fldfirsttime"], res["fldsecondtime"], True)
+          If res["fldtype"] = "Equipment" Then
+            xhr = GetEquipmentDurationSetting(sMode, res["fldfirsttime"], res["fldsecondtime"], True)
+          Else If res["fldtype"] = "General Services" Then
+            xhr = GetBedChargeDurationSetting(sMode, res["fldfirsttime"], res["fldsecondtime"], True)
+          Endif
           xdura = CStr(xhr) & Space(1) & sMode
         Endif
       Else
@@ -535,7 +588,11 @@ Public Function GetBedTransitionInterval(sdid As Variant) As String
         If sMode = "Unit" Then
           xdura = "1 Unit"
         Else
-          xhr = GetEquiDurationSetting(res["fldtype"], sMode, res["fldfirsttime"], res["fldsecondtime"], True)
+          If res["fldtype"] = "Equipment" Then
+            xhr = GetEquipmentDurationSetting(sMode, res["fldfirsttime"], res["fldsecondtime"], True)
+          Else If res["fldtype"] = "General Services" Then
+            xhr = GetBedChargeDurationSetting(sMode, res["fldfirsttime"], res["fldsecondtime"], True)
+          Endif
           xdura = CStr(xhr) & Space(1) & sMode
         Endif
       Else

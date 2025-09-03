@@ -31,7 +31,7 @@ Public Function GetCurrentClaimCodePrint(encid As String) As String
 
 End
 
-Public Function GetClaimCidePatient(encid As String) As String
+Public Function GetClaimCidePatient(encid As String, claimType As String) As String
 
   Dim xclaim As String
   Dim xstatus As String
@@ -40,7 +40,11 @@ Public Function GetClaimCidePatient(encid As String) As String
   If modBasic.$RegistNewClaimEnc = "Disable" Then
     xclaim = ShowCreateClaimOld(encid, xstatus)
   Else
-    xclaim = ShowCreateClaimNew(encid, xstatus)
+    If claimType Then
+      xclaim = ShowCreateClaimNew(encid, xstatus, claimType)
+    Else
+      xclaim = ShowCreateClaimNew(encid, xstatus)
+    Endif
   Endif
 
   Return xclaim
@@ -75,7 +79,7 @@ Private Sub GetClaimStatus(encid As String) As String
 
 End
 
-Public Function GetNewClaimCode(encid As String) As String
+Public Function GetNewClaimCode(encid As String, Optional xType As String) As String
 
   Dim res As Result
   Dim res2 As Result
@@ -96,6 +100,9 @@ Public Function GetNewClaimCode(encid As String) As String
       If res.Available Then
         res["fldencounterval"] = encid
         res["fldptcode"] = xnhis
+        If xType Then
+          res["fldclaimtype"] = xType
+        Endif
         res["fldstatus"] = GetClaimStatus(encid)
         res["fldtime"] = Now()
         res["flduserid"] = modBasic.$lbluser
@@ -253,7 +260,7 @@ Private Sub ShowOnlyClaimNew(encid As String, xstatus As String) As String
 
 End
 
-Private Sub ShowCreateClaimNew(encid As String, xstatus As String) As String
+Private Sub ShowCreateClaimNew(encid As String, xstatus As String, Optional sType As String) As String
 
   Dim dfirdate As Date
   Dim dlstdate As Date
@@ -262,6 +269,13 @@ Private Sub ShowCreateClaimNew(encid As String, xstatus As String) As String
   Dim xclaim As String
   Dim xpatno As String
   Dim xregist As Date
+  Dim xType As String
+
+  If sType Then
+    xType = sType
+  Else
+    xType = ""
+  Endif
 
   If xstatus = "Consultation" Then
     xpatno = modPatient.GetPatientNoByEnc(encid)
@@ -274,7 +288,7 @@ Private Sub ShowCreateClaimNew(encid As String, xstatus As String) As String
     Else
       xregist = modDate.StartSqlDate(modPatient.GetRecordDate(encid))
       If DateAdd(xregist, gb.day, 7) >= modDate.StartSqlDate(Now()) Then
-        xclaim = GetNewClaimCode(encid)
+        xclaim = GetNewClaimCode(encid, xType)
       Endif
     Endif
 
@@ -286,7 +300,7 @@ Private Sub ShowCreateClaimNew(encid As String, xstatus As String) As String
       res1.MoveLast
       xclaim = res1["fldclaimid"]
     Else
-      xclaim = GetNewClaimCode(encid)
+      xclaim = GetNewClaimCode(encid, xType)
     Endif
 
   Else
@@ -295,7 +309,7 @@ Private Sub ShowCreateClaimNew(encid As String, xstatus As String) As String
       res1.MoveLast
       xclaim = res1["fldclaimid"]
     Else
-      xclaim = GetNewClaimCode(encid)
+      xclaim = GetNewClaimCode(encid, xType)
     Endif
   Endif
 

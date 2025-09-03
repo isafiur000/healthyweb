@@ -1072,6 +1072,42 @@ Public Function InsertRegistrationBilling(xMode As String, encid As String, sDep
 End
 
 '' all to do when a person discharge/LAMA/Death/Refer
+Public Function GetSavedBedChargesTotal(encid As String) As Integer
+
+  Dim sql As String
+  Dim res As Result
+  Dim xval As Integer
+
+  sql = "select flditem from tblpattiming where fldencounterval=&1 and fldtype=&2 and fldfirstreport=&3 and fldfirstsave=&4 and fldsecondsave=&5"
+  res = modDatabase.$myConn.Exec(sql, encid, "General Services", "Bed", True, True)
+  If res.Available Then
+    xval = res.Count
+  Else
+    xval = 0
+  Endif
+
+  Return xval
+
+End
+
+Public Function GetSavedBedChargesDay(encid As String, sDate As Date) As Integer
+
+  Dim sql As String
+  Dim res As Result
+  Dim xval As Integer
+
+  sql = "select flditem from tblpattiming where fldencounterval=&1 and fldtype=&2 and fldfirstreport=&3 and fldfirstsave=&4 and fldsecondsave=&5 and fldsecondtime>=&6 and fldsecondtime<=&7"
+  res = modDatabase.$myConn.Exec(sql, encid, "General Services", "Bed", True, True, modDate.StartSqlDate(sDate), modDate.EndSqlDate(sDate))
+  If res.Available Then
+    xval = res.Count
+  Else
+    xval = 0
+  Endif
+
+  Return xval
+
+End
+
 Public Function ExitPatientWithBillingOfBed(encid As String) As String
 
   Dim res As Result
@@ -1083,6 +1119,7 @@ Public Function ExitPatientWithBillingOfBed(encid As String) As String
   Dim xrefer As String
   Dim xpayble As String
   Dim xmsg As String
+  Dim xTotal As Integer
 
   xrefer = modBillings.GetReferralUserSetting("Service", encid)
   xpayble = modBillings.GetPayableUserSetting("Service", encid)
@@ -1092,19 +1129,26 @@ Public Function ExitPatientWithBillingOfBed(encid As String) As String
   If res.Available = True Then
     res.MoveLast
 
+    If modBasic.$AutoBedChargeMode = "Daily" Then   ''done before update
+      xTotal = modBillings.GetSavedBedChargesTotal(encid)
+    Else
+      xTotal = 0
+    Endif
     xitem = modNonMedical.GetIPDepartChargeRate(res["flditem"], res["flddisctype"], bedno)
     modPatientGeneral.UpdatePatientTableSecondTime(res["fldid"], bedno, xitem)
 
-    unitrate = modNonMedical.GetBillingTargeDept(xitem, "General Services")
-    hr = modPatPatho.GetServiceUseDuration(encid, "General Services", res["flditem"], unitrate, res["fldfirsttime"], Now())
-
     If modBasic.$AutoBillBed = "Standard" Or If modBasic.$AutoBillBed = "Full" Or If modBasic.$AutoBillBed = "Partial" Then
       If xitem Then
-        modBillings.EnterBillingForInterval(modBasic.$AutoBillBed, "Service", encid, res["flddisctype"], xitem, hr, 0, xpayble, xrefer)
+        unitrate = modNonMedical.GetBillingTargeDept(xitem, "General Services")
+        hr = modPatPatho.GetWardBedUseDuration(encid, res["flditem"], unitrate, res["fldfirsttime"], Now(), xTotal)
+        If hr > 0 Then
+          modBillings.EnterBillingForInterval(modBasic.$AutoBillBed, "Service", encid, res["flddisctype"], xitem, hr, 0, xpayble, xrefer)
+        Endif
       Else
         xmsg = "Bed Charge not specified."
       Endif
     Endif
+
   Endif
 
   Return xmsg
@@ -1167,7 +1211,7 @@ Public Sub GetAutoBillingRegularCharges(sType As String)
       res1 = modDatabase.$myConn.Exec("select flddept from tbldepartmentbed where fldencounterval=&1", res["fldencounterval"])
       If res1.Available Then
         If sType = "Bed Charge" Then
-          xitem = modNonMedical.GetIPDepartChargeRate(res1!flddept, modNonMedical.GetAutoIPBillingPack("Service", res["fldencounterval"]), res["fldcurrlocat"])
+          xitem = modNonMedical.GetIPDepartChargeRate(res1!flddept, modNonMedical.GetAutoIPBillingPack("BedCharge", res["fldencounterval"]), res["fldcurrlocat"])
         Else If sType = "Round Charge" Then
           xitem = modNonMedical.GetIPDepartConsultRate(res1!flddept, modNonMedical.GetAutoIPBillingPack("Service", res["fldencounterval"]), res["fldcurrlocat"])
         Endif

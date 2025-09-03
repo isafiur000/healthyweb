@@ -246,15 +246,19 @@ Public Sub StopButton_Click()
 
     modDatabase.$myConn.Begin
     modPatientGeneral.UpdatePatientTableSecondTime(aObj4[j].Value, "")
-    unitrate = modNonMedical.GetBillingTargeDept(aObj1[j].Text, "Equipment")
-    res = modDatabase.$myConn.Exec("select fldfirsttime,fldsecondtime,flddisctype from tblpattiming where fldid=&1", aObj4[j].Value)
-    hr = modPatPatho.GetServiceUseDuration($encid, "Equipment", aObj1[j].Text, unitrate, res["fldfirsttime"], res["fldsecondtime"])
 
     If modBasic.$AutoBillEquipment = "Standard" Or If modBasic.$AutoBillEquipment = "Full" Or If modBasic.$AutoBillEquipment = "Partial" Then
-      modBillings.EnterBillingForInterval(modBasic.$AutoBillEquipment, "Equipment", $encid, res["flddisctype"], aObj1[j].Text, hr, aObj4[j].Value, xpayble, xrefer)
+      res = modDatabase.$myConn.Exec("select fldfirsttime,fldsecondtime,flddisctype from tblpattiming where fldid=&1", aObj4[j].Value)
+      If res.Available Then
+        unitrate = modNonMedical.GetBillingTargeDept(aObj1[j].Text, "Equipment")
+        hr = modPatPatho.GetEquipmentUseDuration($encid, aObj1[j].Text, unitrate, res["fldfirsttime"], res["fldsecondtime"])
+        If hr > 0 Then
+          modBillings.EnterBillingForInterval(modBasic.$AutoBillEquipment, "Equipment", $encid, res["flddisctype"], aObj1[j].Text, hr, aObj4[j].Value, xpayble, xrefer)
+        Endif
+      Endif
     Endif
-    modDatabase.$myConn.Commit
 
+    modDatabase.$myConn.Commit
     aObj33[j].Enabled = False
     aObj22[j].Enabled = True
   Endif

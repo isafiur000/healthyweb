@@ -787,7 +787,7 @@ Public Sub btnOK_Click()
   Wait
   If txtencounter.Text Then
     If txtreference.Text = "Claim Code" Then
-      xval = modClaim.GetClaimCidePatient(Trim(txtencounter.Text))
+      xval = modClaim.GetClaimCidePatient(Trim(txtencounter.Text), $APISelect)
     Else If txtreference.Text = "Accident SSF" Then
       xval = modSSF.GetSSFClaimRegistPatient(Trim(txtencounter.Text), "Accident SSF")
     Else If txtreference.Text = "Critical SSF" Then
@@ -2044,6 +2044,23 @@ Private Sub GetIMISDataAPI(xfile As String)
   Dim xpayval As Float
   Dim xpayType As String
 
+  Dim aPolicy As String
+  Dim aexpdate As Date
+  Dim acredamt As Float
+  Dim apayval As Float
+  Dim apayType As String
+
+  Dim bPolicy As String
+  Dim bexpdate As Date
+  Dim bcredamt As Float
+  Dim bpayval As Float
+  Dim bpayType As String
+
+  Dim xPatVar As Variant[]
+  Dim aColl As Collection
+  Dim xallow1 As Boolean
+  Dim xallow2 As Boolean
+
   If xfile Then
     hCform = New CimisAPIPatient(xfile)
     xname = hCform.GetPatientName()
@@ -2058,11 +2075,41 @@ Private Sub GetIMISDataAPI(xfile As String)
 
     If xname Then
       hCElig = New CimisAPIEligible(xfile)
-      xPolicy = hCElig.GetPolicyNo()
-      xexpdate = hCElig.GetexpiryDaye()
-      xcredamt = hCElig.GetAllowedAmt()
-      xpayval = hCElig.GetCopayValue()
-      xpayType = hCElig.PatientPayType()
+      xPatVar = hCElig.GetPatientPolicyData()
+      For Each aColl In xPatVar
+        If aColl["Policy Name"] = "HIB-3500" Then
+          aPolicy = aColl["Policy Name"]
+          aexpdate = aColl["Expiry Date"]
+          acredamt = aColl["Credit Limit"]
+          apayval = aColl["Credit Value"]
+          apayType = aColl["Credit Type"]
+          xallow1 = True
+          If aexpdate < modDate.StartSqlDate(Now()) Then
+            xallow1 = False
+          Endif
+          If acredamt < 200 Then
+            xallow1 = False
+          Endif
+        Else
+          bPolicy = aColl["Policy Name"]
+          bexpdate = aColl["Expiry Date"]
+          bcredamt = aColl["Credit Limit"]
+          bpayval = aColl["Credit Value"]
+          bpayType = aColl["Credit Type"]
+          xallow2 = True
+          If bexpdate < modDate.StartSqlDate(Now()) Then
+            xallow2 = False
+          Endif
+          If bcredamt < 200 Then
+            xallow2 = False
+          Endif
+        Endif
+      Next
+      ' xPolicy = hCElig.GetPolicyNo()
+      ' xexpdate = hCElig.GetexpiryDaye()
+      ' xcredamt = hCElig.GetAllowedAmt()
+      ' xpayval = hCElig.GetCopayValue()
+      ' xpayType = hCElig.PatientPayType()
       If Not xdistrict Then
         xdistrict = hCElig.GetPatientDistrict()
       Endif
@@ -2082,18 +2129,44 @@ Private Sub GetIMISDataAPI(xfile As String)
 
     If xname Then
       xallow = True
-      xmessage = "<h1>" & xname & modString.HTMLBlankSpace(1) & xsurname & "</h1><br>" & "<b>Policy No:</b> " & xPolicy & "<br>" & "<b>Expiry:</b> " & modReportVar.GetDateTimeReport(xexpdate, gb.MediumDate) & "<br>" & "<b>Credit Amt:</b> " & modReportVar.GetLocaleNumberFormat(xcredamt, gb.Currency)
-      If xfirserv Then
-        xmessage = xmessage & "<br><b>First Service : </b>" & xfirserv
+      xmessage = "<h1>" & xname & modString.HTMLBlankSpace(1) & xsurname & "</h1>"
+
+      If xallow1 = False And If aPolicy Then
+        xmessage = xmessage & "<br><b>" & aPolicy & " Expired</b>"
       Endif
-      If xexpdate < modDate.StartSqlDate(Now()) Then
-        xallow = False
-        xmessage = xmessage & "<h3> Account Expired </h3>"
+      If xallow2 = False And If bPolicy Then
+        xmessage = xmessage & "<br><b>" & bPolicy & " Expired</b>"
       Endif
-      If xcredamt < 200 Then
-        xallow = False
-        xmessage = xmessage & "<h4> No Balance</h4>"
-      Else If xcredamt < 1000 Then
+      If xallow1 = True And If xallow2 = True Then
+        xmessage = xmessage & "<br><b>Allowed Policy:</b> " & aPolicy & ", " & bPolicy
+        xPolicy = aPolicy
+        xexpdate = aexpdate
+        xcredamt = acredamt
+        xpayval = apayval
+        xpayType = apayType
+      Else
+        If xallow1 = True Then
+          xmessage = xmessage & "<br><b>Allowed Policy:</b> " & aPolicy
+          xPolicy = aPolicy
+          xexpdate = aexpdate
+          xcredamt = acredamt
+          xpayval = apayval
+          xpayType = apayType
+        Else If xallow2 = True Then
+          xmessage = xmessage & "<br><b>Allowed Policy:</b> " & bPolicy
+          xPolicy = bPolicy
+          xexpdate = bexpdate
+          xcredamt = bcredamt
+          xpayval = bpayval
+          xpayType = bpayType
+        Else
+          xallow = False
+        Endif
+      Endif
+
+      xmessage = xmessage & "<br>" & "<b>Expiry Date:</b> " & modReportVar.GetDateTimeReport(xexpdate, gb.MediumDate)
+      xmessage = xmessage & "<br>" & "<b>Credit Limit:</b> " & modReportVar.GetLocaleNumberFormat(xcredamt, gb.Currency)
+      If xcredamt < 1000 Then
         xmessage = xmessage & "<h4> Low Balance</h4>"
       Endif
       If xpayval = 0.1 Then
@@ -2102,6 +2175,9 @@ Private Sub GetIMISDataAPI(xfile As String)
         xmessage = xmessage & "<h3> Full Credit</h3>"
       Endif
       xmessage = xmessage & "<b>Patient Type : </b>" & xpayType
+      If xfirserv Then
+        xmessage = xmessage & "<br><b>FSP : </b>" & xfirserv
+      Endif
       If xallow = True Then
         xresp = MessageValue(xmessage, ["Cancel", "Outpatient", "Emergency"], ximage)
         ' xresp = Message.Question(xmessage, ("Cancel"), ("Outpatient"), ("Emergency"))
@@ -2122,6 +2198,7 @@ Private Sub GetIMISDataAPI(xfile As String)
           modDateSub.DateToYearandMonth(dtdobmain.Tag, txtyears, txtmonths, btnyear, btnmon)
           cmbdistrict.Text = xdistrict
 
+          $APISelect = xPolicy
           $ValidExpiry = xexpdate
           $CredAmount = xcredamt
           If $CredAmount Then
@@ -2152,6 +2229,7 @@ Private Sub GetIMISDataAPI(xfile As String)
           modDateSub.DateToYearandMonth(dtdobmain.Tag, txtyears, txtmonths, btnyear, btnmon)
           cmbdistrict.Text = xdistrict
 
+          $APISelect = xPolicy
           $ValidExpiry = xexpdate
           $CredAmount = xcredamt
           If $CredAmount Then

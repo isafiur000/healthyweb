@@ -1882,37 +1882,38 @@ Public Function SummaryServiceAccTabular(conn As Connection, dt1 As Date, dt2 As
   $BillingReport.UserData.Add("Value: " & sVariable, "PARAM1")
   $BillingReport.UserData.Add("Date: " & modReportVar.GetDateTimeReport(dt1, gb.MediumDate) & " TO " & modReportVar.GetDateTimeReport(dt2, gb.MediumDate), "PARAM2")
 
-  compLst = modGeneral.CompList()
-  For Each xcomp In compLst
-    $BillingReport.AddChapter(xcomp)
-    aitm = 0
-    adsc = 0
-    atax = 0
-    anet = 0
-    acash = 0
-    acrdt = 0
+  If xList And If xList.Count Then
+    compLst = modBasic.$AllCompList
+    For Each xcomp In compLst
+      $BillingReport.AddChapter(xcomp)
+      aitm = 0
+      adsc = 0
+      atax = 0
+      anet = 0
+      acash = 0
+      acrdt = 0
 
-    If xList And xList.Count Then
       For Each xitem In xList
-        If sColumn = "Last Status" Or If sColumn = "Visit Type" Or If sColumn = "Visit Mode" Then
-          If sInvoiced = True Then
-            res2 = conn.Exec("select " & modNonMedical.CashCreditBillSQL() & " from tblpatbilling where fldsave=&1 and fldbillno in(select fldbillno from tblpatbilldetail where fldtime>=&2 and fldtime<=&3 and fldcomp like &4) and flditemtype like &5 and fldencounterval in(select fldencounterval from tblencounter where " & xval & " like &6)" & xstr, True, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), xcomp, sVariable, xitem)
-          Else
-            res2 = conn.Exec("select " & modNonMedical.CashCreditBillSQL() & " from tblpatbilling where fldsave=&1 and fldtime>=&2 and fldtime<=&3 and fldcomp like &4 and flditemtype like &5 and fldencounterval in(select fldencounterval from tblencounter where " & xval & " like &6)" & xstr, True, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), xcomp, sVariable, xitem)
-          Endif
-        Else If sColumn = "Gender" Or If sColumn = "Surname" Or If sColumn = "District" Or If sColumn = "Municipality" Or If sColumn = "Service Rank" Or If sColumn = "Service Unit" Or If sColumn = "Service Category" Then
-          If sInvoiced = True Then
-            res2 = conn.Exec("select " & modNonMedical.CashCreditBillSQL() & " from tblpatbilling where fldsave=&1 and fldbillno in(select fldbillno from tblpatbilldetail where fldtime>=&2 and fldtime<=&3 and fldcomp like &4) and flditemtype like &5 and fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where " & xval & " like &6))" & xstr, True, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), xcomp, sVariable, xitem)
-          Else
-            res2 = conn.Exec("select " & modNonMedical.CashCreditBillSQL() & " from tblpatbilling where fldsave=&1 and fldtime>=&2 and fldtime<=&3 and fldcomp like &4 and flditemtype like &5 and fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where " & xval & " like &6))" & xstr, True, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), xcomp, sVariable, xitem)
-          Endif
-        Else
-          If sInvoiced = True Then
-            res2 = conn.Exec("select " & modNonMedical.CashCreditBillSQL() & " from tblpatbilling where fldsave=&1 and fldbillno in(select fldbillno from tblpatbilldetail where fldtime>=&2 and fldtime<=&3 and fldcomp like &4) and flditemtype like &5 and " & xval & " like &6" & xstr, True, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), xcomp, sVariable, xitem)
-          Else
-            res2 = conn.Exec("select " & modNonMedical.CashCreditBillSQL() & " from tblpatbilling where fldsave=&1 and fldtime>=&2 and fldtime<=&3 and fldcomp like &4 and flditemtype like &5 and " & xval & " like &6" & xstr, True, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), xcomp, sVariable, xitem)
-          Endif
-        Endif
+        Select sColumn
+          Case "Last Status", "Visit Type", "Visit Mode"
+            If sInvoiced = True Then
+              res2 = conn.Exec("select " & modNonMedical.CashCreditBillSQL() & " from tblpatbilling where fldsave=&1 and fldbillno in(select fldbillno from tblpatbilldetail where fldtime>=&2 and fldtime<=&3 and fldcomp like &4) and flditemtype like &5 and fldencounterval in(select fldencounterval from tblencounter where " & xval & " like &6)" & xstr, True, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), xcomp, sVariable, xitem)
+            Else
+              res2 = conn.Exec("select " & modNonMedical.CashCreditBillSQL() & " from tblpatbilling where fldsave=&1 and fldtime>=&2 and fldtime<=&3 and fldcomp like &4 and flditemtype like &5 and fldencounterval in(select fldencounterval from tblencounter where " & xval & " like &6)" & xstr, True, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), xcomp, sVariable, xitem)
+            Endif
+          Case "Gender", "Surname", "District", "Municipality", "Service Rank", "Service Unit", "Service Category"
+            If sInvoiced = True Then
+              res2 = conn.Exec("select " & modNonMedical.CashCreditBillSQL() & " from tblpatbilling where fldsave=&1 and fldbillno in(select fldbillno from tblpatbilldetail where fldtime>=&2 and fldtime<=&3 and fldcomp like &4) and flditemtype like &5 and fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where " & xval & " like &6))" & xstr, True, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), xcomp, sVariable, xitem)
+            Else
+              res2 = conn.Exec("select " & modNonMedical.CashCreditBillSQL() & " from tblpatbilling where fldsave=&1 and fldtime>=&2 and fldtime<=&3 and fldcomp like &4 and flditemtype like &5 and fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where " & xval & " like &6))" & xstr, True, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), xcomp, sVariable, xitem)
+            Endif
+          Case Else
+            If sInvoiced = True Then
+              res2 = conn.Exec("select " & modNonMedical.CashCreditBillSQL() & " from tblpatbilling where fldsave=&1 and fldbillno in(select fldbillno from tblpatbilldetail where fldtime>=&2 and fldtime<=&3 and fldcomp like &4) and flditemtype like &5 and " & xval & " like &6" & xstr, True, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), xcomp, sVariable, xitem)
+            Else
+              res2 = conn.Exec("select " & modNonMedical.CashCreditBillSQL() & " from tblpatbilling where fldsave=&1 and fldtime>=&2 and fldtime<=&3 and fldcomp like &4 and flditemtype like &5 and " & xval & " like &6" & xstr, True, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), xcomp, sVariable, xitem)
+            Endif
+        End Select
 
         xitm = 0
         xtax = 0
@@ -1940,51 +1941,53 @@ Public Function SummaryServiceAccTabular(conn As Connection, dt1 As Date, dt2 As
             xcash = res2["xcash"]
           Endif
 
-          aitm = aitm + xitm
-          adsc = adsc + xdsc
-          atax = atax + xtax
-          anet = anet + xnet
-          acash = acash + xcash
-          acrdt = acrdt + xcrdt
-          With asx
-            .Add(xitem)
-            .Add(modReportVar.GetLocaleNumberFormat(xitm, gb.Currency))
-            .Add(modReportVar.GetLocaleNumberFormat(xdsc, gb.Currency))
-            .Add(modReportVar.GetLocaleNumberFormat(xtax, gb.Currency))
-            .Add(modReportVar.GetLocaleNumberFormat(xnet, gb.Currency))
-            .Add(modReportVar.GetLocaleNumberFormat(xcrdt, gb.Currency))
-            .Add(modReportVar.GetLocaleNumberFormat(xcash, gb.Currency))
-          End With
-          $BillingReport.Add(asx)
-          asx.Clear()
+          If xitm Then
+            aitm = aitm + xitm
+            adsc = adsc + xdsc
+            atax = atax + xtax
+            anet = anet + xnet
+            acash = acash + xcash
+            acrdt = acrdt + xcrdt
+            With asx
+              .Add(xitem)
+              .Add(modReportVar.GetLocaleNumberFormat(xitm, gb.Currency))
+              .Add(modReportVar.GetLocaleNumberFormat(xdsc, gb.Currency))
+              .Add(modReportVar.GetLocaleNumberFormat(xtax, gb.Currency))
+              .Add(modReportVar.GetLocaleNumberFormat(xnet, gb.Currency))
+              .Add(modReportVar.GetLocaleNumberFormat(xcrdt, gb.Currency))
+              .Add(modReportVar.GetLocaleNumberFormat(xcash, gb.Currency))
+            End With
+            $BillingReport.Add(asx)
+            asx.Clear()
+          Endif
         Endif
       Next
-    Endif
 
-    With asx
-      .Add(modString.HTMLBlankSpace(5) & "TOTAL")
-      .Add(modReportVar.GetLocaleNumberFormat(aitm, gb.Currency))
-      .Add(modReportVar.GetLocaleNumberFormat(adsc, gb.Currency))
-      .Add(modReportVar.GetLocaleNumberFormat(atax, gb.Currency))
-      .Add(modReportVar.GetLocaleNumberFormat(anet, gb.Currency))
-      .Add(modReportVar.GetLocaleNumberFormat(acrdt, gb.Currency))
-      .Add(modReportVar.GetLocaleNumberFormat(acash, gb.Currency))
-    End With
-    $BillingReport.Add(asx)
-    asx.Clear()
+      With asx
+        .Add(modString.HTMLBlankSpace(5) & "TOTAL")
+        .Add(modReportVar.GetLocaleNumberFormat(aitm, gb.Currency))
+        .Add(modReportVar.GetLocaleNumberFormat(adsc, gb.Currency))
+        .Add(modReportVar.GetLocaleNumberFormat(atax, gb.Currency))
+        .Add(modReportVar.GetLocaleNumberFormat(anet, gb.Currency))
+        .Add(modReportVar.GetLocaleNumberFormat(acrdt, gb.Currency))
+        .Add(modReportVar.GetLocaleNumberFormat(acash, gb.Currency))
+      End With
+      $BillingReport.Add(asx)
+      asx.Clear()
 
-    With asx
-      .Add("")
-      .Add("")
-      .Add("")
-      .Add("")
-      .Add("")
-      .Add("")
-      .Add("")
-    End With
-    $BillingReport.Add(asx)
-    asx.Clear()
-  Next
+      With asx
+        .Add("")
+        .Add("")
+        .Add("")
+        .Add("")
+        .Add("")
+        .Add("")
+        .Add("")
+      End With
+      $BillingReport.Add(asx)
+      asx.Clear()
+    Next
+  Endif
 
   Return $BillingReport.NewHTMLPath()
 

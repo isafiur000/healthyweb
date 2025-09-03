@@ -291,6 +291,9 @@ Public Function UploadClaim() As String
   Dim xcreatdate As Date
   Dim xvisit As String
 
+  Dim xTypeVar As Variant[]
+  Dim varColl As Collection
+
   Dim acmd As String
   Dim xurl As String
   Dim xcont As String
@@ -321,8 +324,16 @@ Public Function UploadClaim() As String
   Dim sComColl As Collection
   Dim iComColl As Collection
 
-  res = modDatabase.$myConn.Exec("select fldstatus,fldtime from tblclaimcode where fldclaimid=&1", $ClaimCode)
+  res = modDatabase.$myConn.Exec("select fldstatus,fldtime,fldclaimtype from tblclaimcode where fldclaimid=&1", $ClaimCode)
   If res.Available Then
+    If res["fldclaimtype"] Then
+      xTypeVar = New Variant[]
+      varColl = New Collection
+      varColl.Add("http://hl7.org/fhir/StructureDefinition/Product", "url")
+      varColl.Add(res["fldclaimtype"], "valueString")
+      xTypeVar.Add(varColl)
+    Endif
+
     Select res["fldstatus"]
       Case "Consultation"
         xstartdate = modDate.StartSqlDate(res["fldtime"])
@@ -355,6 +366,10 @@ Public Function UploadClaim() As String
   xcont = "Content-Type: application/json"
 
   xVar.Add("Claim", "resourceType")
+
+  If xTypeVar And If xTypeVar.Count Then
+    xVar.Add(xTypeVar, "extension")
+  Endif
 
   aColl = New Collection
   aColl.Add(Format(xenddate, "yyyy-mm-dd"), "end")

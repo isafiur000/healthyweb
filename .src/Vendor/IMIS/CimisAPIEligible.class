@@ -9,6 +9,7 @@ Private $ExpiryDate As Date
 Private $PolicyNo As String
 Private $PayValue As Float
 Private $PayType As String
+Private $EligibilityVar As Variant[]
 
 Private $PatDistrict As String
 Private $PatFSPoint As String
@@ -95,6 +96,9 @@ Private Sub ShowFinancialParams()
   Dim ximage As String
   Dim xPath As String
 
+  Dim xeligCol As Collection
+  Dim aColl As Collection
+
   xVarPat = GetFinancialDetails($PatCode)
   If xVarPat Then
     xamt = xVarPat["insurance"][0]["benefitBalance"][0]["financial"][0]["allowedMoney"]["value"]
@@ -117,6 +121,7 @@ Private Sub ShowFinancialParams()
       Endif
     Next
 
+    ''extra extensions
     xexten = xVarPat["extension"]
     For Each xcoll In xexten
       If xcoll["url"] = "https://hib.gov.np/fhir/FHIE+extension+Profile+District" Then
@@ -143,6 +148,41 @@ Private Sub ShowFinancialParams()
           Endif
         Endif
       Endif
+    Next
+
+    ''policy collections
+    $EligibilityVar = New Variant[]
+    For Each xeligCol In xVarPat["insurance"]
+      aColl = New Collection
+      xamt = xeligCol["benefitBalance"][0]["financial"][0]["allowedMoney"]["value"]
+      If xamt Then
+        aColl.Add(CFloat(xamt), "Credit Limit")
+      Else
+        aColl.Add(0, "Credit Limit")
+      Endif
+
+      xdate = xeligCol["contract"]["reference"]
+      asx = Split(xdate, "/")
+      If asx Then
+        aColl.Add(asx[1], "Policy Name")
+        aColl.Add(modDate.GetDateFromJSON(asx[2]), "Expiry Date")
+      Else
+        aColl.Add("", "Policy Name")
+        aColl.Add("", "Expiry Date")
+      Endif
+
+      For Each xexColl In xeligCol["extension"]
+        If xexColl["url"] = "https://hib.gov.np/fhir/FHIE+extension+Copayment" Then
+          $PayValue = xexColl["valueDecimal"]
+          $PayType = xexColl["valueString"]
+          aColl.Add(CFloat(xexColl["valueDecimal"]), "Credit Value")
+          aColl.Add(xexColl["valueString"], "Credit Type")
+        Else
+          aColl.Add(0, "Credit Value")
+          aColl.Add("", "Credit Type")
+        Endif
+      Next
+      $EligibilityVar.Add(aColl)
     Next
 
   Else
@@ -181,6 +221,7 @@ Public Function PatientPayType() As String
 
 End
 
+''extra extensions
 Public Function GetPatientDistrict() As String
 
   Return $PatDistrict
@@ -196,5 +237,12 @@ End
 Public Function GetPatientImage() As String
 
   Return $PatImage
+
+End
+
+''Policy Collection
+Public Function GetPatientPolicyData() As Variant[]
+
+  Return $EligibilityVar
 
 End

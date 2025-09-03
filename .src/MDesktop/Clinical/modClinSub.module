@@ -581,3 +581,194 @@ Public Function GetDevicePending(encid As String) As Boolean
   Return xval
 
 End
+
+''------------------------------------- Status icons ---------------------------------
+Public Function GetMedicineClinStaus(encid As String) As Integer
+
+  Dim res As Result
+  Dim res1 As Result
+  Dim xval As Integer
+
+  res = modDatabase.$myConn.Exec("select fldid,fldsave_order from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and fldroute<>&3", encid, "Medicines", "fluid")
+  If res.Available Then
+    xval = 2
+    For Each res
+      If res["fldsave_order"] = False Then
+        xval = 1
+        Break
+      Endif
+    Next
+  Else
+    xval = 0
+  Endif
+
+  If xval = 2 Then
+    xval = 3
+    For Each res
+      res1 = modDatabase.$myConn.Exec("select flddoseno from  tblnurdosing where fldencounterval=&1 and flddoseno=&2", encid, res["fldid"])
+      If res1.Available = False Then
+        xval = 2
+        Break
+      Endif
+    Next
+  Endif
+
+  Return xval
+
+End
+
+Public Function GetLabClinStaus(encid As String) As Integer
+
+  Dim res As Result
+  Dim res1 As Result
+  Dim xval As Integer
+
+  res = modDatabase.$myConn.Exec("select fldid,fldsample from tblpatbilling where fldencounterval=&1 and flditemtype=&2", encid, "Diagnostic Tests")
+  If res.Available Then
+    xval = 2
+    For Each res
+      If res["fldsample"] = "Waiting" Then
+        xval = 1
+        Break
+      Endif
+    Next
+  Else
+    xval = 0
+  Endif
+
+  If xval = 2 Then
+    res1 = modDatabase.$myConn.Exec("select fldstatus,flvisible from tblpatlabtest where fldencounterval=&1", encid)
+    If res1.Available Then
+      xval = 3
+      For Each res1
+        If res1["fldstatus"] = "Ordered" Then
+          xval = 2
+          Break
+        Else If res1["fldstatus"] = "Sampled" Then
+          xval = 2
+          Break
+        Endif
+      Next
+    Endif
+  Endif
+
+  Return xval
+
+End
+
+Public Function GetRadioClinStaus(encid As String) As Integer
+
+  Dim res As Result
+  Dim res1 As Result
+  Dim xval As Integer
+
+  res = modDatabase.$myConn.Exec("select fldid,fldsample from tblpatbilling where fldencounterval=&1 and flditemtype=&2", encid, "Radio Diagnostics")
+  If res.Available Then
+    xval = 2
+    For Each res
+      If res["fldsample"] = "Waiting" Then
+        xval = 1
+        Break
+      Endif
+    Next
+  Else
+    xval = 0
+  Endif
+
+  If xval = 2 Then
+    res1 = modDatabase.$myConn.Exec("select fldstatus,flvisible from tblpatradiotest where fldencounterval=&1", encid)
+    If res1.Available Then
+      xval = 3
+      For Each res1
+        If res1["fldstatus"] = "Ordered" Then
+          xval = 2
+          Break
+        Else If res1["fldstatus"] = "Sampled" Then
+          xval = 2
+          Break
+        Endif
+      Next
+    Endif
+  Endif
+
+  Return xval
+
+End
+
+Public Function GetFluidsClinStaus(encid As String) As Integer
+
+  Dim res As Result
+  Dim res1 As Result
+  Dim xval As Integer
+
+  res = modDatabase.$myConn.Exec("select fldid,fldsave_order from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and fldroute=&3", encid, "Medicines", "fluid")
+  If res.Available Then
+    xval = 2
+    For Each res
+      If res["fldsave_order"] = False Then
+        xval = 1
+        Break
+      Endif
+    Next
+  Else
+    xval = 0
+  Endif
+
+  If xval = 2 Then
+    xval = 3
+    For Each res
+      res1 = modDatabase.$myConn.Exec("select flddoseno from  tblnurdosing where fldencounterval=&1 and flddoseno=&2", encid, res["fldid"])
+      If res1.Available = False Then
+        xval = 2
+        Break
+      Endif
+    Next
+  Endif
+
+  Return xval
+
+End
+
+Public Function GetDeviceClinStaus(encid As String) As Integer
+
+  Dim res As Result
+  Dim xval As Boolean
+
+  res = modDatabase.$myConn.Exec("select fldid,fldfirstsave,fldsecondsave from tblpatevents where fldencounterval=&1 and fldtype=&2", encid, "Devices")
+  If res.Available Then
+    xval = 3
+    For Each res
+      If res["fldsecondsave"] = False Then
+        xval = 2
+        Break
+      Endif
+    Next
+  Else
+    xval = 0
+  Endif
+
+  Return xval
+
+End
+
+Public Function GetEquipClinStaus(encid As String) As Integer
+
+  Dim res As Result
+  Dim xval As Boolean
+
+  res = modDatabase.$myConn.Exec("select fldid,fldfirstsave,fldsecondsave from tblpattiming where fldencounterval=&1 and fldtype=&2", encid, "Equipment")
+  If res.Available Then
+    xval = 3
+    For Each res
+      If res["fldsecondsave"] = False Then
+        xval = 2
+        Break
+      Endif
+    Next
+  Else
+    xval = 0
+  Endif
+
+  Return xval
+
+End

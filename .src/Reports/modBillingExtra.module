@@ -363,19 +363,14 @@ Public Function CreditSalesDueCelared(sCateg As String, sFormat As String, $con 
   Dim xfld As String
   Dim res As Result
   Dim res3 As Result
-  Dim res1 As Result
-
+  Dim billsign As String
   Dim asx As New String[0]
   Dim xparam As String
 
-  Dim xnet As Float
-  Dim xdisc As Float
-  Dim xdiscper As Float
-  Dim xdueval As Float
-
-  Dim unet As Float
-  Dim udsc As Float
-  Dim udueval As Float
+  Dim xdue As Float
+  Dim xinv As String
+  Dim duetot As Float
+  Dim invtot As Float
   Dim RepoStr As String
 
   RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
@@ -397,7 +392,7 @@ Public Function CreditSalesDueCelared(sCateg As String, sFormat As String, $con 
   Endif
 
   If bilid1 And If bilid2 Then
-    $BillingReport = New CReportHTML([("DATE"), ("CLEARANCE NO"), ("ENCID"), ("NAME"), ("DISC%"), ("DISCAMT"), ("DUE RECEIVED"), ("USER"), ("ORIGINAL"), ("ACCOUNT"), ("STATE"), ("INV-DATE"), ("INV-TIME"), ("INV-TOTAL"), ("INV-USER")], "", "")
+    $BillingReport = New CReportHTML([("DATE"), ("CLEARANCE NO"), ("ENCID"), ("NAME"), ("DISCOUNT"), ("DUE RECEIVED"), ("USER"), ("ACCOUNT"), ("STATE"), ("ORIGINAL"), ("ORIG-TOTAL")], "", "")
     If sHosp Then
       $BillingReport.UserData.Add("CREDIT" & " CLEARANCE REPORT : " & sHosp, "PARAM1")
     Else
@@ -405,77 +400,52 @@ Public Function CreditSalesDueCelared(sCateg As String, sFormat As String, $con 
     Endif
     $BillingReport.UserData.Add(xparam, "PARAM2")
 
-    udsc = 0
-    udueval = 0
-    unet = 0
-    res = $con.Exec(Subst("select fldencounterval,fldbillno,fldtime,fldbillitem,flditemrate,flditemqty,flddiscper,fldditemamt,fldbillno,flditemtype,flduserid from tblduebilling where fldbillitem in(select fldbillno from &1", sTable) & " where fldbankname like &1) and fldprint=&2 and " & xfld & ">=&3 and " & xfld & "<=&4" & RepoStr, xLedger, True, bilid1, bilid2)
-    If res.Available Then
-      For Each res
-        res3 = $con.Exec(Subst("select fldtime,fldencounterval,fldbilltype,fldbillno,flditemamt,flddiscountamt,fldtaxamt,(flditemamt+fldtaxamt-flddiscountamt-fldreceivedamt) as nettot,fldbankname,flduserid,fldprevdeposit from &1", sTable) & " where fldbillno=&1" & RepoStr, res["fldbillitem"])
-        xdiscper = 0
-        xdisc = 0
-        xdueval = 0
-        xnet = 0
-        If res3.Available Then
-          If res["flddiscper"] Then
-            xdiscper = res["flddiscper"]
-            xdisc = res["flditemrate"] * res["flditemqty"] * (res["flddiscper"] / 100)
+    duetot = 0
+    invtot = 0
+    If sCateg = "Invoice" Then
+      billsign = modBillLock.InvSign("Due Clearance") & "%"
+    Else If sCateg = "Receipt" Then
+      billsign = modBillLock.ReceiptSign("Due Clearance") & "%"
+    Endif
+    res3 = $con.Exec(Subst("select fldtime,fldencounterval,fldbilltype,fldbillno,flditemamt,flddiscountamt,fldtaxamt,fldreceivedamt,fldbankname,flduserid,fldtime,fldprevdeposit from &1", sTable) & " where fldbillno like &1 and " & xfld & ">=&2 and " & xfld & "<=&3 and fldbillno in(select fldbillno from tblduebilling where fldacledger like &4)" & RepoStr, billsign, bilid1, bilid2, xLedger)
+    If res3.Available Then
+      For Each res3
+        xdue = 0
+        xinv = ""
+        res = $con.Exec("select GROUP_CONCAT(fldbillitem) as xbills,SUM(fldditemamt) as xtot from tblduebilling where fldencounterval=&1 and fldbillno=&2 GROUP BY fldbillno", res3["fldencounterval"], res3["fldbillno"])
+        If res.Available Then
+          If res["xtot"] Then
+            xdue = res["xtot"]
           Endif
-
-          If res["flditemtype"] = "InvoiceClearance" Then
-            res1 = $con.Exec("select fldreceivedamt from " & sTable & " where fldbillno=&1" & RepoStr, res["fldbillno"])
-          Else If res["flditemtype"] = "ReceiptClearance" Then
-            res1 = $con.Exec("select fldreceivedamt from " & sTable & " where fldbillno=&1" & RepoStr, res["fldbillno"])
-          Endif
-          If res1.Available And If res1.Count = 1 Then
-            xdueval = res1["fldreceivedamt"]
-          Else
-            If res["fldditemamt"] Then
-              xdueval = res["fldditemamt"]
-            Endif
-          Endif
-
-          If res3["nettot"] Then
-            xnet = res3["nettot"]
-          Endif
-
-          udsc = udsc + xdisc
-          udueval = udueval + xdueval
-          unet = unet + xnet
-          With asx
-            .Add(modReportVar.GetDateTimeReport(res["fldtime"], gb.MediumDate))
-            .Add(res["fldbillno"])
-            .Add(res["fldencounterval"])
-            .Add(modPatient.GetPatientNameByEnc(res["fldencounterval"], $con))
-            If xdiscper Then
-              .Add(modReportVar.GetLocaleNumberFormat(xdiscper, -2))
-            Else
-              .Add("")
-            Endif
-            .Add(modReportVar.GetLocaleNumberFormat(xdisc, gb.Currency))
-            .Add(modReportVar.GetLocaleNumberFormat(xdueval, gb.Currency))
-            .Add(res["flduserid"])
-            ''original
-            .Add(res3["fldbillno"])
-            .Add(res3["fldbankname"])
-            If res3["fldprevdeposit"] Then
-              If res3["fldprevdeposit"] = 1 Then
-                .Add("OP")
-              Else If res3["fldprevdeposit"] > 1 Then
-                .Add("IP")
-              Endif
-            Else
-              .Add("-")
-            Endif
-            .Add(modReportVar.GetDateTimeReport(res3["fldtime"], gb.MediumDate))
-            .Add(modReportVar.GetDateTimeReport(res3["fldtime"], gb.MediumTime))
-            .Add(modReportVar.GetLocaleNumberFormat(xnet, gb.Currency))
-            .Add(res3["flduserid"])
-          End With
-          $BillingReport.Add(asx)
-          asx.Clear()
+          xinv = res["xbills"]
         Endif
 
+        duetot = duetot + res3["fldreceivedamt"]
+        invtot = invtot + xdue
+        With asx
+          .Add(modReportVar.GetDateTimeReport(res3["fldtime"], gb.MediumDate))
+          .Add(res3["fldbillno"])
+          .Add(res3["fldencounterval"])
+          .Add(modPatient.GetPatientNameByEnc(res3["fldencounterval"], $con))
+          .Add(modReportVar.GetLocaleNumberFormat(res3["flddiscountamt"], gb.Currency))
+          .Add(modReportVar.GetLocaleNumberFormat(res3["fldreceivedamt"], gb.Currency))
+          .Add(res3["flduserid"])
+          .Add(res3["fldbankname"])
+          If res3["fldprevdeposit"] Then
+            If res3["fldprevdeposit"] = 1 Then
+              .Add("OP")
+            Else If res3["fldprevdeposit"] > 1 Then
+              .Add("IP")
+            Endif
+          Else
+            .Add("-")
+          Endif
+          ''original
+          .Add(xinv)
+          .Add(modReportVar.GetLocaleNumberFormat(xdue, gb.Currency))
+        End With
+        $BillingReport.Add(asx)
+        asx.Clear()
       Next
     Endif
 
@@ -485,16 +455,12 @@ Public Function CreditSalesDueCelared(sCateg As String, sFormat As String, $con 
       .Add("")
       .Add("TOTAL")
       .Add("")
-      .Add(modReportVar.GetLocaleNumberFormat(udsc, gb.Currency))
-      .Add(modReportVar.GetLocaleNumberFormat(udueval, gb.Currency))
-      .Add("")
-      ''original
+      .Add(modReportVar.GetLocaleNumberFormat(duetot, gb.Currency))
       .Add("")
       .Add("")
       .Add("")
       .Add("")
-      .Add("")
-      .Add(modReportVar.GetLocaleNumberFormat(unet, gb.Currency))
+      .Add(modReportVar.GetLocaleNumberFormat(invtot, gb.Currency))
       .Add("")
     End With
     $BillingReport.Add(asx)

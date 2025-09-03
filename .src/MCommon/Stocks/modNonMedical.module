@@ -1317,6 +1317,25 @@ Public Function ShowCreditVAlues(DiscType As String) As Float
 
 End
 
+Public Function GetFixedInvType(sPackage As String) As String
+
+  Dim xrefer As String
+  Dim res As Result
+
+  res = modDatabase.$myConn.Exec("select fldbilltype from tbldiscount where fldtype=&1", sPackage)
+  If res.Available Then
+    If res["fldbilltype"] Then
+      xrefer = res["fldbilltype"]
+    Else
+      xrefer = ""
+    Endif
+  Else
+    xrefer = ""
+  Endif
+  Return xrefer
+
+End
+
 Public Function GetFixedDiscount(sPackage As String) As String
 
   Dim xrefer As String
@@ -1606,13 +1625,19 @@ Public Function AllowEntryWithDeposit(encid As String, sType As String) As Boole
 
 End
 
-Public Function AllowPreCheckDeposit(encid As String, sAmt As Float) As Boolean
+Public Function AllowPreCheckDeposit(encid As String, sAmt As Float, sPackage As String) As Boolean
 
   Dim allow As Boolean
   Dim expenseamt As Float
   Dim paidamt As Float
+  Dim sBillType As String
 
-  paidamt = TotalPaidAmountbyPatient(modDatabase.$myConn, encid) + ShowCreditLimitEnc(encid)
+  sBillType = modNonMedical.GetFixedInvType(sPackage)
+  If sBillType = "Credit" Then
+    paidamt = ShowCreditLimitEnc(encid)
+  Else
+    paidamt = TotalPaidAmountbyPatient(modDatabase.$myConn, encid)
+  Endif
   expenseamt = TotalExpenseAmountbyPatient(modDatabase.$myConn, encid) + sAmt
   If expenseamt > paidamt Then
     allow = False
@@ -1624,12 +1649,13 @@ Public Function AllowPreCheckDeposit(encid As String, sAmt As Float) As Boolean
 
 End
 
-Public Function AllowPreEntryWithDeposit(encid As String, sType As String, sAmt As Float) As Boolean
+Public Function AllowPreEntryWithDeposit(encid As String, sType As String, sAmt As Float, sPackage As String) As Boolean
 
   Dim allow As Boolean
   Dim expenseamt As Float
   Dim paidamt As Float
   Dim xauto As String
+  Dim sBillType As String
 
   If sType = "Pharmacy" Then
     xauto = modBasic.$LowDepoPharm
@@ -1648,7 +1674,12 @@ Public Function AllowPreEntryWithDeposit(encid As String, sType As String, sAmt 
   Endif
   If xauto Then
     If xauto = "Warn" Then
-      paidamt = TotalPaidAmountbyPatient(modDatabase.$myConn, encid) + ShowCreditLimitEnc(encid)
+      sBillType = modNonMedical.GetFixedInvType(sPackage)
+      If sBillType = "Credit" Then
+        paidamt = ShowCreditLimitEnc(encid)
+      Else
+        paidamt = TotalPaidAmountbyPatient(modDatabase.$myConn, encid)
+      Endif
       expenseamt = TotalExpenseAmountbyPatient(modDatabase.$myConn, encid) + sAmt
       If expenseamt > paidamt Then
         allow = True
@@ -1661,7 +1692,12 @@ Public Function AllowPreEntryWithDeposit(encid As String, sType As String, sAmt 
       Endif
 
     Else If xauto = "Disable" Then
-      paidamt = TotalPaidAmountbyPatient(modDatabase.$myConn, encid) + ShowCreditLimitEnc(encid)
+      sBillType = modNonMedical.GetFixedInvType(sPackage)
+      If sBillType = "Credit" Then
+        paidamt = ShowCreditLimitEnc(encid)
+      Else
+        paidamt = TotalPaidAmountbyPatient(modDatabase.$myConn, encid)
+      Endif
       expenseamt = TotalExpenseAmountbyPatient(modDatabase.$myConn, encid) + sAmt
       If expenseamt > paidamt Then
         allow = False
@@ -4236,6 +4272,27 @@ Public Function AllowRegistSlipWithInvoiceEncid(encid As String) As Boolean
   xgo = modNonMedical.AllowRegistSlipWithInvoice(encid, xdepart, xmode)
 
   Return xgo
+
+End
+
+Public Function GetLastCLaimType(encid As String) As String
+
+  Dim res As Result
+  Dim xx As String
+
+  res = modDatabase.$myConn.Exec("select fldclaimtype from tblclaimcode where fldencounterval=&1 and fldclaimtype like &2", encid, "%")
+  If res.Available Then
+    res.MoveLast
+    If res["fldclaimtype"] Then
+      xx = res["fldclaimtype"]
+    Else
+      xx = ""
+    Endif
+  Else
+    xx = ""
+  Endif
+
+  Return xx
 
 End
 
