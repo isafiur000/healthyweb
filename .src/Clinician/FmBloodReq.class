@@ -1,19 +1,17 @@
 ' Gambas class file
 
 Private $encid As String
-Private $sType As String
 
 Private $rData As Result
 Private $aMyFields As String[]
 Private $rData2 As Result
 Private $aMyFields2 As String[]
 
-Public Sub _new(encid As String, sType As String)
+Public Sub _new(encid As String)
 
   Dim xstatus As String
 
   $encid = encid
-  $sType = sType
   modGeneralMain.GetOpenModalForm(Me)
 
   txtpatientname.Text = modPatient.GetPatientNameByEnc($encid)
@@ -21,22 +19,11 @@ Public Sub _new(encid As String, sType As String)
 
   xstatus = modPatient.CurrentAdmissionStatus($encid)
   txtlocation.Text = modPatient.GetLocationSetting($encid, xstatus)
-  If $sType Then
-    cmbcategory.Text = $sType
-  Else
-    cmbcategory.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldcategory) as col from tblmedinventory"))
-  Endif
 
-  If $sType = "Blood" Then
-    cmbcategory.Enabled = False
-    cmbitem.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tblbloodstore"))
-  Endif
+  cmbitem.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(flditem) as col from tblbloodstore"))
+  cmbgroup.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldgroup) as col from tblbloodstore"))
   FillRequestGrid()
   CompleteGrid()
-  If modBasic.$TabletModeEnable = "Yes" Then
-  Else
-    cmbcategory.SetFocus
-  Endif
 
 End
 
@@ -50,10 +37,18 @@ Public Sub TabPanel1_Click()
 
 End
 
-Public Sub cmbcategory_Activate()
+Public Sub btnshow_Click()
 
-  cmbitem.Clear()
-  cmbitem.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(flditem) as col from tblmedinventory where fldcategory=&1", cmbcategory.Text))                                                                         ''
+  Dim res As Result
+
+  If cmbitem.Text And If cmbgroup.Text Then
+    res = modDatabase.$myConn.Exec("select flditemcode from tblbloodstore where flditem=&1 and fldgroup=&2", cmbitem.Text, cmbgroup.Text)
+    If res.Available Then
+      lblcode.Text = res["flditemcode"]
+    Else
+      Message.Warning("Item not coded", "OK")
+    Endif
+  Endif
 
 End
 
@@ -61,12 +56,16 @@ Public Sub btnsubOK_Click()
 
   Dim i As Integer
 
-  For i = 1 To txtqty.Value
-    modPatientGeneral.PatMedicalItemRequest(cmbcategory.Text, $encid, cmbitem.Text, TextArea1.Text)
-  Next
-  FillRequestGrid()
-  cmbitem.Text = ""
-  txtqty.Value = 0
+  If lblcode.Text And If txtqty.Value Then
+    For i = 1 To txtqty.Value
+      modPatientGeneral.PatMedicalItemRequest("Blood", $encid, lblcode.Text, TextArea1.Text)
+    Next
+    FillRequestGrid()
+    lblcode.Text = ""
+    cmbitem.Text = ""
+    cmbgroup.Text = ""
+    txtqty.Value = 0
+  Endif
 
 End
 
@@ -74,7 +73,7 @@ Public Sub FillRequestGrid()
 
   Dim sql As String
 
-  sql = "select fldid,fldtime_order,fldcategory,flditem,fldcomment,fldid from tblpatmeditem where fldencounterval=&1 and fldorder=&2"                                             ''
+  sql = "select fldid,fldtime_order,fldcategory,flditem,fldpatinfo,fldid from tblpatmeditem where fldencounterval=&1 and fldorder=&2"                                             ''
   $rData = modDatabase.$myConn.Exec(sql, $encid, "Requested")
   $aMyFields = New String[]
   modGridView.ReadSmallData(GridView1, $rData, $aMyFields)
@@ -82,14 +81,14 @@ Public Sub FillRequestGrid()
   With GridView1
     .Columns[0].Hidden = True
     .Columns[1].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
-    .Columns[2].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
-    .Columns[3].Width = CStr(225 * modBasic.$AppWidthRatio) & "px"
-    .Columns[4].Hidden = True
+    .Columns[2].Hidden = True
+    .Columns[3].Width = CStr(300 * modBasic.$AppWidthRatio) & "px"
+    .Columns[4].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
     .Columns[5].Hidden = True
 
     .Columns[1].Text = "DateTime"
-    .Columns[2].Text = "Category"
     .Columns[3].Text = "Particulars"
+    .Columns[4].Text = "Details"
   End With
 
 End
@@ -118,7 +117,7 @@ Public Sub btnpharm_Click()
 
 End
 
-Public Sub btnsubOK2_Click()
+Public Sub btnclose_Click()
 
   Me.Close()
 
