@@ -369,7 +369,7 @@ Public Sub InsertBillingDetail($con As Connection, encid As String, billno As St
 End
 
 ''for new App
-Public Sub InsertBlankBillItemNewApp(encid As String, sBilType As String, sBillMode As String, DiscPlan As String, sLedgerAC As String, itemtyp As String, itemNo As Integer, itemname As String, rte As Float, qty As Float, tax As Float, disc As Float, xCashCredit As Float, status As String, parentNo As Long, sav As Boolean, prt As Boolean, Optional target As String, Optional sPayable As String, Optional sRefer As String, Optional sReason As String, Optional ReturnBill As String)                                       ''
+Public Sub InsertBlankBillItemNewApp(encid As String, sBilType As String, sBillMode As String, DiscPlan As String, sLedgerAC As String, itemtyp As String, itemNo As Integer, itemname As String, rte As Float, qty As Float, tax As Float, disc As Float, xCashCredit As Float, status As String, parentNo As Long, sav As Boolean, prt As Boolean, Optional target As String, Optional sPayable As String, Optional sRefer As String, Optional sReason As String, Optional ReturnBill As String, Optional ExtraInfo As String)                                       ''
 
   Dim res As Result
   Dim sPay As String
@@ -378,7 +378,7 @@ Public Sub InsertBlankBillItemNewApp(encid As String, sBilType As String, sBillM
   Dim sReas As String
   Dim sRetBill As String
   Dim sLocation As String
-  Dim xIntVal As String
+  Dim xextInfo As String
 
   Dim xtaxamt As Float
   Dim xdscamt As Float
@@ -410,6 +410,11 @@ Public Sub InsertBlankBillItemNewApp(encid As String, sBilType As String, sBillM
     sRetBill = ReturnBill
   Else
     sRetBill = ""
+  Endif
+  If ExtraInfo Then
+    xextInfo = ExtraInfo
+  Else
+    xextInfo = ""
   Endif
 
   xdue = rte * qty
@@ -475,16 +480,8 @@ Public Sub InsertBlankBillItemNewApp(encid As String, sBilType As String, sBillM
   res["fldcurrlocat"] = sLocation
   res["fldhostmac"] = ""
   res["fldextracol"] = ""
-  res["fldextrarow"] = ""
+  res["fldextrarow"] = xextInfo
 
-  If MMain.$WebEntry = True Then
-    xIntVal = modString.GetDateString(Now())
-    res["fldid"] = CLong(xIntVal)
-    res["fldrepoid"] = modMisc.GetWebIndexStr(xIntVal)
-    res["fldrepodate"] = Now()
-    res["fldrepomac"] = CGI["REMOTE_ADDR"] & ":" & CGI["REMOTE_PORT"]
-    res["fldhospcode"] = modBasic.$HospCode
-  Endif
   res.Update()
   'dont catch error. Error will rollback
 
@@ -755,7 +752,7 @@ Public Sub ServiceBillBlankLedgerPack(encid As String, sBilType As String, sBill
 End
 
 ''used for autobilling
-Public Sub GetAutoBillingClinic(encid As String, DiscPackage As String, sRoute As String, itemname As String, sQTY As Float, status As String, parentNo As Long, sav As Boolean, prt As Boolean, Optional sPayable As String, Optional sRefer As String, Optional sTarget As String)
+Public Sub GetAutoBillingClinic(encid As String, DiscPackage As String, sRoute As String, itemname As String, sQTY As Float, status As String, parentNo As Long, sav As Boolean, prt As Boolean, Optional sPayable As String, Optional sRefer As String, Optional sTarget As String, Optional sInfo As String)
 
   Dim itemtyp As String
   Dim itemNo As Integer
@@ -767,6 +764,7 @@ Public Sub GetAutoBillingClinic(encid As String, DiscPackage As String, sRoute A
   Dim sPay As String
   Dim sRef As String
   Dim target As String
+  Dim xexInfo As String
 
   Dim sBilType As String
   Dim res As Result
@@ -785,6 +783,11 @@ Public Sub GetAutoBillingClinic(encid As String, DiscPackage As String, sRoute A
     sRef = sRefer
   Else
     sRef = ""
+  Endif
+  If sInfo Then
+    xexInfo = sInfo
+  Else
+    xexInfo = ""
   Endif
 
   resx = modDatabase.$myConn.Exec("select fldmode,fldbillingmode,fldacledger,fldbilltype,fldreference,fldlimit,fldlockstate from tbldiscount where fldtype=&1", DiscPackage)
@@ -838,7 +841,7 @@ Public Sub GetAutoBillingClinic(encid As String, DiscPackage As String, sRoute A
       taxper = 0
     Endif
 
-    InsertBlankBillItemNewApp(encid, sBilType, sBillingMode, DiscPackage, LedgerAC, itemtyp, itemNo, itemname, sRate, sQTY, taxper, discper, xCshCrd, status, parentNo, sav, prt, target, sPay, sRef)
+    InsertBlankBillItemNewApp(encid, sBilType, sBillingMode, DiscPackage, LedgerAC, itemtyp, itemNo, itemname, sRate, sQTY, taxper, discper, xCshCrd, status, parentNo, sav, prt, target, sPay, sRef, "", "", xexInfo)
 
   Endif
   'dont catch error. Error will rollback
