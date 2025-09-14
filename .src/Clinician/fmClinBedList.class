@@ -88,6 +88,7 @@ Public Sub _new()
 
   SHowSelectOption()
   rbmetric.Value = True
+  rblocat.Value = True
   WebProgressBar1.Value = 0
   If cmbdept.Text Then
     btnrefresh_Click()
@@ -186,11 +187,11 @@ Private Function GetFieldsList()
 
   xhospfld = modDataRepo.HospitalField()
   If cmbdept.Text = "Unallocated" Then
-    $SSQLFields = ["fldencounterval", "fldcurrlocat", "fldcurrlocat", "fldcurrlocat", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval"]
+    $SSQLFields = ["fldencounterval", "fldcurrlocat", "fldcurrlocat", "fldcurrlocat", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval"]
   Else If cmbdept.Text = "Free Beds" Then
-    $SSQLFields = ["fldfreedate", "fldoxyport", "fldventilator", "fldbed", "fldencounterval", "fldencounterval", "flddept", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldstatus"]
+    $SSQLFields = ["fldfreedate", "fldoxyport", "fldventilator", "fldbed", "fldencounterval", "fldencounterval", "flddept", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldstatus"]
   Else
-    $SSQLFields = ["fldencounterval", "fldoxyport", "fldventilator", "fldbed", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldstatus"]
+    $SSQLFields = ["fldencounterval", "fldoxyport", "fldventilator", "fldbed", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldstatus"]
   Endif
   If xhospfld Then
     $SSQLFields.Add(xhospfld)
@@ -202,6 +203,7 @@ Private Function GetSQLColumns() As String[]
 
   Dim xFldList As String[]
   Dim i As Integer
+  Dim j As Integer
 
   GetFieldsList()
   modCustPatient.FillNewCOlumnCollection(Me.Tag)
@@ -212,6 +214,15 @@ Private Function GetSQLColumns() As String[]
       xFldList.Add("fldencounterval")
     Next
   Endif
+
+  Select cmbdept.Text
+    Case "Unallocated", "Waiting", "Free Beds", "%"
+    Case Else
+      For j = 0 To xFldList.Count - 1
+        xFldList[j] = "tbldepartmentbed." & xFldList[j]
+      Next
+  End Select
+
   Return xFldList
 
 End
@@ -223,19 +234,22 @@ Private Function ExecuteQuery(xFldList As String[]) As Result
   Dim xencid As String
   Dim xcolor As String
 
+  Dim xorder As String
+  Dim xunion As String
+
   If ToolButton1.Background = Color.White Then
     xcolor = ""
   Else
-    xcolor = " and fldencounterval in(select fldencounterval from tblencounter where " & db.Subst("fldheight=&1)", CStr(ToolButton1.Background))
+    xcolor = " and tbldepartmentbed.fldencounterval in(select fldencounterval from tblencounter where " & db.Subst("fldheight=&1)", CStr(ToolButton1.Background))
   Endif
 
   If Len(txtencid.Text) Then
-    xencid = db.Subst(" and lower(fldencounterval) like &1", LCase(Trim(txtencid.Text)))
+    xencid = db.Subst(" and lower(tbldepartmentbed.fldencounterval) like &1", LCase(Trim(txtencid.Text)))
   Else
     xencid = ""
   Endif
 
-  $RepoStr = modDataRepo.GetWhereStringRepo(cmblocation.Text, cmbvalue.Text)
+  $RepoStr = modDataRepo.GetWhereStringRepo(cmblocation.Text, cmbvalue.Text, "tbldepartmentbed")
   If cmbdept.Text = "%" Then
     sql = "select " & xFldList.Join(",") & " from tbldepartmentbed where fldencounterval like &1" & xencid & xcolor & $RepoStr & " ORDER BY fldbed ASC"                       ''
     res = modDatabase.$myConn.Exec(sql, "%")
@@ -246,14 +260,26 @@ Private Function ExecuteQuery(xFldList As String[]) As Result
     sql = "select " & xFldList.Join(",") & " from tbldepartmentbed where (fldstatus IS NULL or fldstatus=&1) and fldencounterval IS NULL" & $RepoStr & " ORDER BY fldbed ASC"                       ''
     res = modDatabase.$myConn.Exec(sql, "Active")
   Else
+    If rblocat.Value = True Then
+      xunion = ""
+      xorder = " ORDER BY fldbed ASC"
+    Else If rbtriage.Value = True Then
+      xunion = " inner join tblencounter on tbldepartmentbed.fldencounterval=tblencounter.fldencounterval"
+      xorder = " ORDER BY FIELD(tblencounter.fldheight, '0', '65280', '16776960', '16711680') DESC"
+    Endif
+
     If rball.Value = True Then
-      sql = "select " & xFldList.Join(",") & " from tbldepartmentbed where flddept=&1 and (fldstatus IS NULL or fldstatus<>&2)" & xencid & xcolor & $RepoStr & " ORDER BY fldbed ASC"                       ''
+      If modBasic.$ClinDepartFormat = "Service" Then
+        sql = "select " & xFldList.Join(",") & " from tbldepartmentbed" & xunion & " where (tbldepartmentbed.fldservice=&1 or tbldepartmentbed.fldaddservice=&1) and (tbldepartmentbed.fldstatus IS NULL or tbldepartmentbed.fldstatus<>&2)" & xencid & xcolor & $RepoStr & xorder                       ''
+      Else
+        sql = "select " & xFldList.Join(",") & " from tbldepartmentbed" & xunion & " where tbldepartmentbed.flddept=&1 and (tbldepartmentbed.fldstatus IS NULL or tbldepartmentbed.fldstatus<>&2)" & xencid & xcolor & $RepoStr & xorder                       ''
+      Endif
       res = modDatabase.$myConn.Exec(sql, cmbdept.Text, "Inactive")
     Else
       If modBasic.$ClinDepartFormat = "Service" Then
-        sql = "select " & xFldList.Join(",") & " from tbldepartmentbed where fldencounterval like &1 and (fldservice=&2 or fldaddservice=&2)" & xencid & xcolor & $RepoStr & "ORDER BY fldbed ASC"
+        sql = "select " & xFldList.Join(",") & " from tbldepartmentbed" & xunion & " where tbldepartmentbed.fldencounterval like &1 and (tbldepartmentbed.fldservice=&2 or tbldepartmentbed.fldaddservice=&2)" & xencid & xcolor & $RepoStr & xorder
       Else
-        sql = "select " & xFldList.Join(",") & " from tbldepartmentbed where fldencounterval like &1 and flddept=&2" & xencid & xcolor & $RepoStr & "ORDER BY fldbed ASC"                       ''
+        sql = "select " & xFldList.Join(",") & " from tbldepartmentbed" & xunion & " where tbldepartmentbed.fldencounterval like &1 and tbldepartmentbed.flddept=&2" & xencid & xcolor & $RepoStr & xorder                       ''
       Endif
       res = modDatabase.$myConn.Exec(sql, "%", cmbdept.Text)
     Endif
@@ -278,9 +304,55 @@ Private Function GetGridViewValue(Column As Integer, xVariable As Variant) As Va
   Else If Column = 8 Then
     xxx = modPatient.PatientDiagnoCurrentList(xVariable).Join(gb.NewLine)
   Else If Column = 9 Then
-    xxx = modGeneral.GetUserFullName(modPatient.GetAttendingConsultant(xVariable))
+    If chkshowdepart.Value = True Then
+      xxx = modGeneral.GetUserFullName(modPatient.GetAttendingConsultant(xVariable))
+    Else
+      xxx = ""
+    Endif
   Else If Column = 10 Then
-    xxx = GetPatientIndexing(xVariable)
+    If chkshowdepart.Value = True Then
+      xxx = GetPatientIndexing(xVariable)
+    Else
+      xxx = ""
+    Endif
+
+  Else If Column = 11 Then
+    If chkshowstatus.Value = True Then
+      xxx = GetClinStatusIcon(modClinSub.GetMedicineClinStaus(xVariable))
+    Else
+      xxx = ""
+    Endif
+  Else If Column = 12 Then
+    If chkshowstatus.Value = True Then
+      xxx = GetClinStatusIcon(modClinSub.GetLabClinStaus(xVariable))
+    Else
+      xxx = ""
+    Endif
+  Else If Column = 13 Then
+    If chkshowstatus.Value = True Then
+      xxx = GetClinStatusIcon(modClinSub.GetRadioClinStaus(xVariable))
+    Else
+      xxx = ""
+    Endif
+  Else If Column = 14 Then
+    If chkshowstatus.Value = True Then
+      xxx = GetClinStatusIcon(modClinSub.GetDeviceClinStaus(xVariable))
+    Else
+      xxx = ""
+    Endif
+  Else If Column = 15 Then
+    If chkshowstatus.Value = True Then
+      xxx = GetClinStatusIcon(modClinSub.GetFluidsClinStaus(xVariable))
+    Else
+      xxx = ""
+    Endif
+  Else If Column = 16 Then
+    If chkshowstatus.Value = True Then
+      xxx = GetClinStatusIcon(modClinSub.GetEquipClinStaus(xVariable))
+    Else
+      xxx = ""
+    Endif
+
   Else
     xxx = xVariable
   Endif
@@ -294,6 +366,24 @@ Private Function GetGridViewValue(Column As Integer, xVariable As Variant) As Va
   Endif
 
   Return xxx
+
+End
+
+Private Function GetClinStatusIcon(sVal As Integer) As String
+
+  Dim xicon As String
+
+  If sVal = 0 Then
+    xicon = "/" &/ Application.Root &/ "icons/null.svg"
+  Else If sVal = 1 Then
+    xicon = "/" &/ Application.Root &/ "icons/coll5.png"
+  Else If sVal = 2 Then
+    xicon = "/" &/ Application.Root &/ "icons/coll6.png"
+  Else If sVal = 3 Then
+    xicon = "/" &/ Application.Root &/ "icons/coll4.png"
+  Endif
+
+  Return xicon
 
 End
 
@@ -405,20 +495,55 @@ Private Sub ResizeGrid()
 
   With GridView1
     .Columns[0].Width = CStr(10 * modBasic.$AppWidthRatio) & "px"
-    .Columns[1].Width = CStr(35 * modBasic.$AppWidthRatio) & "px"
-    .Columns[2].Width = CStr(35 * modBasic.$AppWidthRatio) & "px"
+    If chkshowdepart.Value = True Then
+      .Columns[1].Hidden = False
+      .Columns[2].Hidden = False
+      .Columns[1].Width = CStr(35 * modBasic.$AppWidthRatio) & "px"
+      .Columns[2].Width = CStr(35 * modBasic.$AppWidthRatio) & "px"
+    Else
+      .Columns[1].Hidden = True
+      .Columns[2].Hidden = True
+    Endif
     .Columns[3].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
     .Columns[4].Width = CStr(115 * modBasic.$AppWidthRatio) & "px"
     .Columns[5].Width = CStr(200 * modBasic.$AppWidthRatio) & "px"
     .Columns[6].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
     .Columns[7].Hidden = True
     .Columns[8].Width = CStr(200 * modBasic.$AppWidthRatio) & "px"
-    .Columns[9].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
-    .Columns[10].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
-    If cmbdept.Text = "Unallocated" Then
-      .Columns[11].Hidden = True
+    If chkshowdepart.Value = True Then
+      .Columns[9].Hidden = False
+      .Columns[10].Hidden = False
+      .Columns[9].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
+      .Columns[10].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
     Else
-      .Columns[11].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
+      .Columns[9].Hidden = True
+      .Columns[10].Hidden = True
+    Endif
+    If chkshowstatus.Value = True Then
+      .Columns[11].Hidden = False
+      .Columns[12].Hidden = False
+      .Columns[13].Hidden = False
+      .Columns[14].Hidden = False
+      .Columns[15].Hidden = False
+      .Columns[16].Hidden = False
+      .Columns[11].Width = CStr(40 * modBasic.$AppWidthRatio) & "px"
+      .Columns[12].Width = CStr(40 * modBasic.$AppWidthRatio) & "px"
+      .Columns[13].Width = CStr(40 * modBasic.$AppWidthRatio) & "px"
+      .Columns[14].Width = CStr(40 * modBasic.$AppWidthRatio) & "px"
+      .Columns[15].Width = CStr(40 * modBasic.$AppWidthRatio) & "px"
+      .Columns[16].Width = CStr(40 * modBasic.$AppWidthRatio) & "px"
+    Else
+      .Columns[11].Hidden = True
+      .Columns[12].Hidden = True
+      .Columns[13].Hidden = True
+      .Columns[14].Hidden = True
+      .Columns[15].Hidden = True
+      .Columns[16].Hidden = True
+    Endif
+    If cmbdept.Text = "Unallocated" Then
+      .Columns[17].Hidden = True
+    Else
+      .Columns[17].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
     Endif
 
     .Columns[3].Text = "Bed"
@@ -430,8 +555,19 @@ Private Sub ResizeGrid()
       .Columns[6].Text = "Age/Sex"
     Endif
     .Columns[8].Text = "Diagnosis"
-    .Columns[9].Text = "Consult"
-    .Columns[10].Text = "Indexing"
+    If chkshowdepart.Value = True Then
+      .Columns[9].Text = "Consultant"
+      .Columns[10].Text = "Indexing"
+    Endif
+
+    If chkshowstatus.Value = True Then
+      .Columns[11].Text = "Drugs"
+      .Columns[12].Text = "Labs"
+      .Columns[13].Text = "Radio"
+      .Columns[14].Text = "Device"
+      .Columns[15].Text = "Fluid"
+      .Columns[16].Text = "Equip"
+    Endif
 
     If $newColumn.Count Then
       For i = 0 To $newColumn.Count - 1
@@ -465,10 +601,14 @@ Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableDat
       Data.Background = modPatient.GetPatientColor($rData[$aMyFields[Column]])
     Endif
   Else If Column = 1 Then
-    Data.Html = modString.GetImageForHTMLGrid(GetOxygenIcon($rData[$aMyFields[Column]]), CStr(25 * modBasic.$AppWidthRatio) & "px", "auto")
+    If chkshowdepart.Value = True Then
+      Data.Html = modString.GetImageForHTMLGrid(GetOxygenIcon($rData[$aMyFields[Column]]), CStr(25 * modBasic.$AppWidthRatio) & "px", "auto")
+    Endif
     Data.Text = ""
   Else If Column = 2 Then
-    Data.Html = modString.GetImageForHTMLGrid(GetVentilatorIcon($rData[$aMyFields[Column]]), CStr(25 * modBasic.$AppWidthRatio) & "px", "auto")
+    If chkshowdepart.Value = True Then
+      Data.Html = modString.GetImageForHTMLGrid(GetVentilatorIcon($rData[$aMyFields[Column]]), CStr(25 * modBasic.$AppWidthRatio) & "px", "auto")
+    Endif
     Data.Text = ""
   Else If Column = 5 Then
     Data.Html = GetGridViewValue(Column, $rData[$aMyFields[Column]])
@@ -480,6 +620,38 @@ Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableDat
     Data.Text = GetGridViewValue(Column, $rData[$aMyFields[Column]])
   Else If Column = 10 Then
     Data.Html = GetGridViewValue(Column, $rData[$aMyFields[Column]])
+
+  Else If Column = 11 Then
+    If chkshowstatus.Value = True Then
+      Data.Html = modString.GetImageForHTMLGrid(GetGridViewValue(Column, $rData[$aMyFields[Column]]), CStr(25 * modBasic.$AppWidthRatio) & "px", "auto")
+      Data.Text = ""
+    Endif
+  Else If Column = 12 Then
+    If chkshowstatus.Value = True Then
+      Data.Html = modString.GetImageForHTMLGrid(GetGridViewValue(Column, $rData[$aMyFields[Column]]), CStr(25 * modBasic.$AppWidthRatio) & "px", "auto")
+      Data.Text = ""
+    Endif
+  Else If Column = 13 Then
+    If chkshowstatus.Value = True Then
+      Data.Html = modString.GetImageForHTMLGrid(GetGridViewValue(Column, $rData[$aMyFields[Column]]), CStr(25 * modBasic.$AppWidthRatio) & "px", "auto")
+      Data.Text = ""
+    Endif
+  Else If Column = 14 Then
+    If chkshowstatus.Value = True Then
+      Data.Html = modString.GetImageForHTMLGrid(GetGridViewValue(Column, $rData[$aMyFields[Column]]), CStr(25 * modBasic.$AppWidthRatio) & "px", "auto")
+      Data.Text = ""
+    Endif
+  Else If Column = 15 Then
+    If chkshowstatus.Value = True Then
+      Data.Html = modString.GetImageForHTMLGrid(GetGridViewValue(Column, $rData[$aMyFields[Column]]), CStr(25 * modBasic.$AppWidthRatio) & "px", "auto")
+      Data.Text = ""
+    Endif
+  Else If Column = 16 Then
+    If chkshowstatus.Value = True Then
+      Data.Html = modString.GetImageForHTMLGrid(GetGridViewValue(Column, $rData[$aMyFields[Column]]), CStr(25 * modBasic.$AppWidthRatio) & "px", "auto")
+      Data.Text = ""
+    Endif
+
   Else
     If Column > $SSQLFields.Count - 1 Then
       Data.Html = modString.TextToHTML(GetGridViewValue(Column, $rData[$aMyFields[Column]]))
@@ -538,7 +710,7 @@ End
 ' End
 
 ''================= REPORTS ==========================
-Public Sub btnnutrition_Click()
+Public Sub mnunutrition_Click()
 
   Dim xPath As String
   Dim encList As String[]
@@ -563,7 +735,7 @@ Public Sub btnnutrition_Click()
 
 End
 
-Public Sub btnprogress_Click()
+Public Sub mnuprogress_Click()
 
   Dim xPath As String
   Dim encList As String[]
@@ -579,7 +751,7 @@ Public Sub btnprogress_Click()
 
 End
 
-Public Sub btnnoteall_Click()
+Public Sub mnunoteall_Click()
 
   Dim xPath As String
   Dim encList As String[]
@@ -595,7 +767,7 @@ Public Sub btnnoteall_Click()
 
 End
 
-Public Sub btnvitalall_Click()
+Public Sub mnuvitalall_Click()
 
   Dim xPath As String
   Dim encList As String[]

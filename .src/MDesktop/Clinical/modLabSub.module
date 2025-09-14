@@ -596,6 +596,61 @@ Public Function FillQuantiTestChart(sCanvas As String, encid As String, strHead 
 
 End
 
+Public Function FillQuantiTestChartHistory(sCanvas As String, patno As String, strHead As String, strUnit As String, Optional sHour As Integer) As String
+
+  ' Dim maxval As Float
+  ' Dim minval As Float
+  ' Dim normval As Float
+  ' Dim xlimit As Float[]
+  Dim sql As String
+  Dim res As Result
+  Dim firDate As Date
+
+  Dim pointsArr_x As String[]
+  Dim pointsArr_y As Float[]
+
+  Dim xcoll As Collection
+  Dim sPath As String
+
+  pointsArr_x = New String[]
+  pointsArr_y = New Float[]
+
+  If sHour Then
+    firDate = DateAdd(Now(), gb.Hour, 0 - sHour)
+    sql = "select fldid,fldencounterval,fldtime_sample,fldtestid,fldreportquanti,fldtestunit,fldmethod from tblpatlabtest where fldencounterval in(select fldencounterval from tblencounter where fldpatientval=&1) and fldtestid=&2 and fldtest_type=&3 and (fldstatus=&4 or fldstatus=&5) and fldtime_sample>=&6 ORDER BY fldtime_sample"               ''
+    res = modDatabase.$myConn.Exec(sql, patno, strHead, "Quantitative", "Reported", "Verified", firDate)
+  Else
+    sql = "select fldid,fldencounterval,fldtime_sample,fldtestid,fldreportquanti,fldtestunit,fldmethod from tblpatlabtest where fldencounterval in(select fldencounterval from tblencounter where fldpatientval=&1) and fldtestid=&2 and fldtest_type=&3 and (fldstatus=&4 or fldstatus=&5) ORDER BY fldtime_sample"
+    res = modDatabase.$myConn.Exec(sql, patno, strHead, "Quantitative", "Reported", "Verified")
+  Endif
+  If res.Available Then
+    ' xlimit = modLabTest.LabBothLimitValue(strHead, encid, strUnit)
+    ' minval = xlimit[0]
+    ' maxval = xlimit[1]
+    ' normval = modLabTest.LabNormalValue(strHead, encid, strUnit)
+
+    For Each res
+      If sHour Then
+        If sHour < 25 Then
+          pointsArr_x.Add(Format(res["fldtime_sample"], "hh:nn"))
+        Else
+          pointsArr_x.Add(Format(res["fldtime_sample"], "dd hh:nn"))
+        Endif
+      Else
+        pointsArr_x.Add(Format(res["fldtime_sample"], "mm-dd hh:nn"))
+      Endif
+      pointsArr_y.Add(modLabTest.GetLabQuantiValueAll(res["fldencounterval"], res["fldtestid"], res["fldreportquanti"], res["fldtestunit"], res["fldmethod"], strUnit))
+    Next
+    xcoll = modChartJS.GetHTMLChartScript("line", strHead, pointsArr_x, pointsArr_y)
+    sPath = "new Chart(\"" & sCanvas & "\", " & JSON.Encode(xcoll) & ")"
+  Else
+    sPath = ""
+  Endif
+
+  Return sPath
+
+End
+
 ''---------------------- List for sampling -------------------------------
 Public Function GetLabExtraColumnName(sItem As String) As String
 

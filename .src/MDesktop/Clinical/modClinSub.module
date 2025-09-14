@@ -472,6 +472,62 @@ Public Function FillQuantiExamChart(sCanvas As String, encid As String, strHead 
 
 End
 
+Public Function FillQuantiExamChartHistory(sCanvas As String, patNo As String, strHead As String, Optional sHour As Integer) As String
+
+  ' Dim maxval As Float
+  ' Dim minval As Float
+  ' Dim normval As Float
+  ' Dim xlimit As Float[]
+
+  Dim sql As String
+  Dim rData As Result
+  Dim firDate As Date
+
+  Dim pointsArr_x As String[]
+  Dim pointsArr_y As Float[]
+
+  Dim xcoll As Collection
+  Dim sPath As String
+
+  pointsArr_x = New String[]
+  pointsArr_y = New Float[]
+
+  If sHour Then
+    firDate = DateAdd(Now(), gb.Hour, 0 - sHour)
+    sql = "select fldrepquanti,fldtime from tblpatientexam where fldencounterval in(select fldencounterval from tblencounter where fldpatientval=&1) and fldhead=&2 and fldtype=&3 and fldsave=&4 and fldtime>=&5 ORDER BY fldtime"
+    rData = modDatabase.$myConn.Exec(sql, patNo, strHead, "Quantitative", True, firDate)
+  Else
+    sql = "select fldrepquanti,fldtime from tblpatientexam where fldencounterval in(select fldencounterval from tblencounter where fldpatientval=&1) and fldhead=&2 and fldtype=&3 and fldsave=&4 ORDER BY fldtime"
+    rData = modDatabase.$myConn.Exec(sql, patNo, strHead, "Quantitative", True)
+  Endif
+  If rData.Available Then
+    ' xlimit = modClinic.GetBothQuantiExamVal(strHead, encid)
+    ' minval = xlimit[0]
+    ' maxval = xlimit[1]
+    ' normval = modClinic.GetNormalQuantiExamVal(strHead, encid)
+
+    For Each rData
+      If sHour Then
+        If sHour < 25 Then
+          pointsArr_x.Add(Format(rData["fldtime"], "hh:nn"))
+        Else
+          pointsArr_x.Add(Format(rData["fldtime"], "dd hh:nn"))
+        Endif
+      Else
+        pointsArr_x.Add(Format(rData["fldtime"], "mm-dd hh:nn"))
+      Endif
+      pointsArr_y.Add(rData["fldrepquanti"])
+    Next
+    xcoll = modChartJS.GetHTMLChartScript("line", strHead, pointsArr_x, pointsArr_y)
+    sPath = "new Chart(\"" & sCanvas & "\", " & JSON.Encode(xcoll) & ")"
+  Else
+    sPath = ""
+  Endif
+
+  Return sPath
+
+End
+
 ' ' ''-----------------------------------------------------------------------------------------------------------
 ' ' Public Sub DrawClinicalCharts_SetA(drw As PictureBox, encid As String, strItem As String)
 ' '

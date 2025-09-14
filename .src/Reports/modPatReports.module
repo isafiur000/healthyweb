@@ -2322,11 +2322,18 @@ Public Function OPDRequestMedString(encid As String, sType As String) As String
   Dim i As Integer
   Dim xRowVal As Collection
   Dim colLst As String[]
+  Dim k As Integer
+  Dim strItem As String[]
 
   xFinal = New Variant[]
 
+  strItem = ["Registered", "Admitted", "Recorded", "Follow Up", "Refer(OPD)", "LAMA(OPD)", "Death(OPD)"]
+  For k = 0 To strItem.Count - 1
+    strItem[k] = "'" & strItem[k] & "'"
+  Next
+
   i = 1
-  rs = modDatabase.$myConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,flditemtype,(fldqtydisp-fldqtyret) as fldqtydisp,flddirection,fldstarttime from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and (fldstatus=&3 or fldstatus=&4 or fldstatus=&5 or fldstatus=&6 or fldstatus=&7 or fldstatus=&8) and fldorder=&9 and fldsave_order=&{10} and fldlevel=&{11} and fldcurval=&{12}", encid, sType, "Registered", "Admitted", "Recorded", "Follow Up", "Refer(OPD)", "Death(OPD)", "Request", False, "Requested", "Continue")                 ''
+  rs = modDatabase.$myConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,flditemtype,(fldqtydisp-fldqtyret) as fldqtydisp,flddirection,fldstarttime from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and fldstatus in(" & strItem.Join(",") & ") and fldorder=&3 and fldsave_order=&4 and fldlevel=&5 and fldcurval=&6", encid, sType, "Request", False, "Requested", "Continue")                 ''
   If rs.Available = True Then
     If sType = "Medicines" Then
       If modBasic.$ShowDayMesStartReport = "Yes" Then

@@ -27,9 +27,12 @@ Public Sub _new(sTable As String)
       btnselectuser.Visible = False
     Endif
     $showList = modBasic.$ClinConsultationList
+    dtsort.Value = Now()
   Else If $sTable = "tblopvisit" Then
     Me.Title = "OPD Visit List"
     $showList = modBasic.$ClinOPVisitList
+    dtsort.Value = DateAdd(Now(), gb.Day, -1)
+    txtrange.Value = 1
   Endif
 
   If MMain.$WebReport = "Multiple" Then
@@ -93,7 +96,6 @@ Public Sub _new(sTable As String)
     WebContainer1.Visible = True
     WebContainer16.Visible = True
   Endif
-  dtsort.Value = Now()
 
   $structExamList = modMedicine.FillClinicalSubClass("Physician Examinations")
   FillCustomMenu()
@@ -101,7 +103,7 @@ Public Sub _new(sTable As String)
   FillExamMenu()
   modSettings.ShowCheckBox(chkdate, "OPDPatientList/SelectDate")
   rbmetric.Value = True
-  rbconsult.Value = True
+  rbdate.Value = True
   If cmbdept.Text Then
     btnrefresh_Click()
   Endif
@@ -348,8 +350,10 @@ Private Function ExecuteQuery(xFldList As String[]) As Result
   Else
     If rbname.Value = True Then
       xcolor = db.Subst(" and tblencounter.fldheight=&1", CStr(ToolButton1.Background))
-    Else If rbconsult.Value = True Then
+    Else If rbdate.Value = True Then
       xcolor = " and " & $sTable & "." & "fldencounterval in(select fldencounterval from tblencounter where " & db.Subst("fldheight=&1)", CStr(ToolButton1.Background))
+    Else If rbtriage.Value = True Then
+      xcolor = db.Subst(" and tblencounter.fldheight=&1", CStr(ToolButton1.Background))
     Endif
   Endif
 
@@ -375,10 +379,14 @@ Private Function ExecuteQuery(xFldList As String[]) As Result
     xpreun = "("
     xunion = " inner join tblencounter on " & $sTable & "." & "fldencounterval=tblencounter.fldencounterval) inner join tblpatientinfo on tblencounter.fldpatientval=tblpatientinfo.fldpatientval"
     xorder = " ORDER BY tblpatientinfo.fldptnamefir"
-  Else If rbconsult.Value = True Then
+  Else If rbdate.Value = True Then
     xpreun = ""
     xunion = ""
     xorder = " ORDER BY " & $sTable & "." & "fldconsulttime"
+  Else If rbtriage.Value = True Then
+    xpreun = ""
+    xunion = " inner join tblencounter on " & $sTable & "." & "fldencounterval=tblencounter.fldencounterval"
+    xorder = " ORDER BY FIELD(tblencounter.fldheight, '0', '65280', '16776960', '16711680') DESC"
   Endif
   $RepoStr = modDataRepo.GetWhereStringRepo(cmblocation.Text, cmbvalue.Text, $sTable)
   If chkdate.Value = True Then
@@ -528,11 +536,13 @@ Private Sub ResizeGrid()
     .Columns[6].Width = CStr(175 * modBasic.$AppWidthRatio) & "px"
     If chkshowdepart.Value = True Then
       If $sTable = "tblconsult" Then
+        .Columns[7].Hidden = False
         .Columns[7].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
       Else If $sTable = "tblopvisit" Then
         .Columns[7].Hidden = True
       Endif
       If cmbdept.Text = "%" Then
+        .Columns[8].Hidden = False
         .Columns[8].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
       Else
         .Columns[8].Hidden = True
@@ -540,6 +550,7 @@ Private Sub ResizeGrid()
       If chkdate.Value = True Then
         .Columns[9].Hidden = True
       Else
+        .Columns[9].Hidden = False
         .Columns[9].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
       Endif
     Else
@@ -550,6 +561,12 @@ Private Sub ResizeGrid()
     .Columns[10].Hidden = True
 
     If chkshowstatus.Value = True Then
+      .Columns[11].Hidden = False
+      .Columns[12].Hidden = False
+      .Columns[13].Hidden = False
+      .Columns[14].Hidden = False
+      .Columns[15].Hidden = False
+      .Columns[16].Hidden = False
       .Columns[11].Width = CStr(40 * modBasic.$AppWidthRatio) & "px"
       .Columns[12].Width = CStr(40 * modBasic.$AppWidthRatio) & "px"
       .Columns[13].Width = CStr(40 * modBasic.$AppWidthRatio) & "px"
@@ -571,10 +588,10 @@ Private Sub ResizeGrid()
     .Columns[6].Text = "Diagnosis"
     If chkshowdepart.Value = True Then
       If $sTable = "tblconsult" Then
-        .Columns[7].Text = "Consult"
+        .Columns[7].Text = "Consultant"
       Endif
       If cmbdept.Text = "%" Then
-        .Columns[8].Text = "Depart"
+        .Columns[8].Text = "Department"
       Endif
       If chkdate.Value = False Then
         .Columns[9].Text = "DateTime"
