@@ -1,5 +1,6 @@
 ' Gambas class file
 
+Private $sTable As String
 Private $LockType As String
 Private $BillVariable As String
 
@@ -10,12 +11,13 @@ Private $UserGrp As String
 Private $CompGrp As String
 Private $CompLst As String[]
 
-Public Sub _new(Optional sLockType As String, Optional sBillVariable As String)
+Public Sub _new(Optional sLockType As String, Optional sBillVariable As String, Optional sTable As String)
 
   If sLockType Then
     $LockType = sLockType
     $BillVariable = sBillVariable
   Endif
+  $sTable = sTable
   LockParameter()
 
 End
@@ -29,7 +31,11 @@ Private Sub LockParameter()
   Select modHelpVariable.$LogInCategory
     Case "Cashier", "Dispensar"
       If modBasic.$ViewLockInvoice = "User" Then
-        $xvarsql = db.Subst(" and flduserid like &1", modBasic.$lbluser)
+        If $sTable Then
+          $xvarsql = db.Subst(" and " & $sTable & ".flduserid like &1", modBasic.$lbluser)
+        Else
+          $xvarsql = db.Subst(" and flduserid like &1", modBasic.$lbluser)
+        Endif
         $FootComment = modBasic.$lbluser
         $UserGrp = modBasic.$lbluser
         $CompGrp = "%"
@@ -38,12 +44,20 @@ Private Sub LockParameter()
         For i = 0 To compLst.Count - 1
           compLst[i] = "'" & compLst[i] & "'"
         Next
-        $xvarsql = " and fldcomp in(" & compLst.Join(",") & ")"
+        If $sTable Then
+          $xvarsql = " and " & $sTable & ".fldcomp in(" & compLst.Join(",") & ")"
+        Else
+          $xvarsql = " and fldcomp in(" & compLst.Join(",") & ")"
+        Endif
         $FootComment = modBasic.$branch
         $UserGrp = "%"
         $CompLst = modBasic.$branchList.Copy()
       Else If modBasic.$ViewLockInvoice = "Location" Then
-        $xvarsql = db.Subst(" and fldcomp like &1", modBasic.$compID)
+        If $sTable Then
+          $xvarsql = db.Subst(" and " & $sTable & ".fldcomp like &1", modBasic.$compID)
+        Else
+          $xvarsql = db.Subst(" and fldcomp like &1", modBasic.$compID)
+        Endif
         $FootComment = modBasic.$compID
         $UserGrp = "%"
         $CompGrp = modBasic.$compID
@@ -56,7 +70,11 @@ Private Sub LockParameter()
 
     Case Else  ''for account
       If $LockType = "User" Then
-        $xvarsql = db.Subst(" and flduserid like &1", $BillVariable)
+        If $sTable Then
+          $xvarsql = db.Subst(" and " & $sTable & ".flduserid like &1", $BillVariable)
+        Else
+          $xvarsql = db.Subst(" and flduserid like &1", $BillVariable)
+        Endif
         $FootComment = $BillVariable
         $UserGrp = $BillVariable
         $CompGrp = "%"
@@ -66,12 +84,20 @@ Private Sub LockParameter()
         For i = 0 To compLst.Count - 1
           compLst[i] = "'" & compLst[i] & "'"
         Next
-        $xvarsql = " and fldcomp in(" & compLst.Join(",") & ")"
+        If $sTable Then
+          $xvarsql = " and " & $sTable & ".fldcomp in(" & compLst.Join(",") & ")"
+        Else
+          $xvarsql = " and fldcomp in(" & compLst.Join(",") & ")"
+        Endif
         $FootComment = $BillVariable
         $UserGrp = "%"
         $CompLst = aList.Copy()
       Else If $LockType = "Location" Then
-        $xvarsql = db.Subst(" and fldcomp like &1", $BillVariable)
+        If $sTable Then
+          $xvarsql = db.Subst(" and " & $sTable & ".fldcomp like &1", $BillVariable)
+        Else
+          $xvarsql = db.Subst(" and fldcomp like &1", $BillVariable)
+        Endif
         $FootComment = $BillVariable
         $UserGrp = "%"
         $CompGrp = $BillVariable

@@ -1432,7 +1432,7 @@ Public Function CheckLastSalesItemDate(xitem As String, xPatientNum As String, x
   Dim xdate As Date
 
   If modBasic.$SalesHistoryAlert Then
-    res = modDatabase.$myConn.Limit(2).Exec("select fldtime,(flditemqty-fldretqty) as qty from tblpatbilling where fldencounterval in(select fldencounterval from tblencounter where fldpatientval=&1) and flditemname=&2 and fldsave=&3 and flddisctype like &4 and fldtime IS NOT NULL and flditemqty>fldretqty ORDER BY fldtime DESC", xPatientNum, xitem, True, sPackage)
+    res = modDatabase.$myConn.Limit(2).Exec("select t1.fldtime as fldtime,(t1.flditemqty-t1.fldretqty) as qty from tblpatbilling as t1 inner join tblencounter as t2 ON t1.fldencounterval=t2.fldencounterval where t2.fldpatientval=&1 and t1.flditemname=&2 and t1.fldsave=&3 and t1.flddisctype like &4 and t1.fldtime IS NOT NULL and t1.flditemqty>t1.fldretqty ORDER BY t1.fldtime DESC", xPatientNum, xitem, True, sPackage)
     If res.Available Then
       Select modBasic.$SalesHistoryAlert
         Case "Patient No", "Patient Code", "Data Repo"
@@ -1444,7 +1444,7 @@ Public Function CheckLastSalesItemDate(xitem As String, xPatientNum As String, x
       Select modBasic.$SalesHistoryAlert
         Case "Patient Code", "Data Repo"
           If xPatientCode Then
-            res1 = modDatabase.$myConn.Limit(2).Exec("select fldtime,(flditemqty-fldretqty) as qty from tblpatbilling where fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where fldptcode=&1)) and flditemname=&2 and fldsave=&3 and flddisctype like &4 and fldtime IS NOT NULL and flditemqty>fldretqty ORDER BY fldtime DESC", xPatientCode, xitem, True, sPackage)
+            res1 = modDatabase.$myConn.Limit(2).Exec("select t1.fldtime as fldtime,(t1.flditemqty-t1.fldretqty) as qty from (tblpatbilling as t1 inner join tblencounter as t2 ON t1.fldencounterval=t2.fldencounterval) inner join tblpatientinfo as t3 ON t2.fldpatientval=t3.fldpatientval where t3.fldptcode=&1 and t1.flditemname=&2 and t1.fldsave=&3 and t1.flddisctype like &4 and t1.fldtime IS NOT NULL and t1.flditemqty>t1.fldretqty ORDER BY t1.fldtime DESC", xPatientCode, xitem, True, sPackage)
             If res1.Available Then
               res1.MoveFirst
               xdate = res1["fldtime"]
@@ -1457,7 +1457,7 @@ Public Function CheckLastSalesItemDate(xitem As String, xPatientNum As String, x
     If Not xdate Then
       If modBasic.$SalesHistoryAlert = "Data Repo" Then
         If modDatabase.$repoConn.Opened = True Then
-          res2 = modDatabase.$repoConn.Limit(2).Exec("select fldtime,(flditemqty-fldretqty) as qty,fldhospcode from tblpatbilling where fldencounterval in(select fldencounterval from tblencounter where fldpatientval=&1) and flditemname=&2 and fldsave=&3 and flddisctype like &4 and fldtime IS NOT NULL and flditemqty>fldretqty ORDER BY fldtime DESC", xPatientNum, xitem, True, sPackage)
+          res2 = modDatabase.$repoConn.Limit(2).Exec("select t1.fldtime as fldtime,(t1.flditemqty-t1.fldretqty) as qty,t1.fldhospcode as fldhospcode from tblpatbilling as t1 inner join tblencounter as t2 ON t1.fldencounterval=t2.fldencounterval where t2.fldpatientval=&1 and t1.flditemname=&2 and t1.fldsave=&3 and t1.flddisctype like &4 and t1.fldtime IS NOT NULL and t1.flditemqty>t1.fldretqty ORDER BY t1.fldtime DESC", xPatientNum, xitem, True, sPackage)
           If res2.Available Then
             res2.MoveFirst
             xdate = res2["fldtime"]

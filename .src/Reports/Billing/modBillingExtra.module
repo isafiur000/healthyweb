@@ -790,7 +790,7 @@ Public Function ServiceInvoiceSummaryCashCredit(sCateg As String, $con As Connec
   Else
     xbilling = "tblpatbilling"
   Endif
-  RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
+  RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation, "t2")
   $BillingReport = New CReportHTML([("PARTICULARS"), ("CREDIT"), ("CASH"), ("DISCOUNT"), ("TAX"), ("TOTAL")], "", "")
   $BillingReport.UserData.Add("GROUP SUMMARY REPORT", "PARAM1")
   $BillingReport.UserData.Add("DATE: " & modReportVar.GetDateTimeReport(dt1, gb.MediumDate) & " TO " & modReportVar.GetDateTimeReport(dt2, gb.MediumDate), "PARAM2")
@@ -802,9 +802,9 @@ Public Function ServiceInvoiceSummaryCashCredit(sCateg As String, $con As Connec
   tot = 0
   lst = modNonMedical.GetGroupNameAccount()
   For Each xx In lst
-    res2 = $con.Exec("select SUM(flditemrate*flditemqty) as itemtot from " & xbilling & " where flditemname in(select flditemname from tblreportgroup where fldgroup=&1) and fldbillno in(select fldbillno from " & sTable & " where fldtime>=&2 and fldtime<=&3) and fldsave=&4 and fldbilltype=&5" & RepoStr, xx, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, "Credit")
-    res3 = $con.Exec("select SUM(flditemrate*flditemqty) as itemtot from " & xbilling & " where flditemname in(select flditemname from tblreportgroup where fldgroup=&1) and fldbillno in(select fldbillno from " & sTable & " where fldtime>=&2 and fldtime<=&3) and fldsave=&4 and fldbilltype=&5" & RepoStr, xx, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, "Cash")
-    res4 = $con.Exec("select SUM(flddiscamt) as dsc,SUM(fldtaxamt) as tax,SUM(fldditemamt) as tot from " & xbilling & " where flditemname in(select flditemname from tblreportgroup where fldgroup=&1) and fldbillno in(select fldbillno from " & sTable & " where fldtime>=&2 and fldtime<=&3) and fldsave=&4" & RepoStr, xx, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True)
+    res2 = $con.Exec("select SUM(t1.flditemrate*t1.flditemqty) as itemtot from " & xbilling & " AS t1 inner join " & sTable & " AS t2 on t1.fldbillno=t2.fldbillno where t1.flditemname in(select flditemname from tblreportgroup where fldgroup=&1) and t2.fldtime>=&2 and t2.fldtime<=&3 and t1.fldsave=&4 and t1.fldbilltype=&5" & RepoStr, xx, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, "Credit")
+    res3 = $con.Exec("select SUM(t1.flditemrate*t1.flditemqty) as itemtot from " & xbilling & " AS t1 inner join " & sTable & " AS t2 on t1.fldbillno=t2.fldbillno where t1.flditemname in(select flditemname from tblreportgroup where fldgroup=&1) and t2.fldtime>=&2 and t2.fldtime<=&3 and t1.fldsave=&4 and t1.fldbilltype=&5" & RepoStr, xx, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, "Cash")
+    res4 = $con.Exec("select SUM(t1.flddiscamt) as dsc,SUM(t1.fldtaxamt) as tax,SUM(t1.fldditemamt) as tot from " & xbilling & " AS t1 inner join " & sTable & " AS t2 on t1.fldbillno=t2.fldbillno where t1.flditemname in(select flditemname from tblreportgroup where fldgroup=&1) and t2.fldtime>=&2 and t2.fldtime<=&3 and t1.fldsave=&4" & RepoStr, xx, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True)
 
     xcrdt = 0
     xcash = 0
@@ -854,9 +854,9 @@ Public Function ServiceInvoiceSummaryCashCredit(sCateg As String, $con As Connec
   Next
 
   ''not grouped
-  res2 = $con.Exec("select SUM(flditemrate*flditemqty) as itemtot from " & xbilling & " where flditemname not in(select flditemname from tblreportgroup) and fldbillno in(select fldbillno from " & sTable & " where fldtime>=&1 and fldtime<=&2) and fldsave=&3 and fldbilltype=&4" & RepoStr, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, "Credit")
-  res3 = $con.Exec("select SUM(flditemrate*flditemqty) as itemtot from " & xbilling & " where flditemname not in(select flditemname from tblreportgroup) and fldbillno in(select fldbillno from " & sTable & " where fldtime>=&1 and fldtime<=&2) and fldsave=&3 and fldbilltype=&4" & RepoStr, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, "Cash")
-  res4 = $con.Exec("select SUM(flddiscamt) as dsc,SUM(fldtaxamt) as tax,SUM(fldditemamt) as tot from " & xbilling & " where flditemname not in(select flditemname from tblreportgroup) and fldbillno in(select fldbillno from " & sTable & " where fldtime>=&1 and fldtime<=&2) and fldsave=&3" & RepoStr, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True)
+  res2 = $con.Exec("select SUM(t1.flditemrate*t1.flditemqty) as itemtot from " & xbilling & " AS t1 inner join " & sTable & " AS t2 on t1.fldbillno=t2.fldbillno where t1.flditemname not in(select flditemname from tblreportgroup) and t2.fldtime>=&1 and t2.fldtime<=&2 and t1.fldsave=&3 and t1.fldbilltype=&4" & RepoStr, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, "Credit")
+  res3 = $con.Exec("select SUM(t1.flditemrate*t1.flditemqty) as itemtot from " & xbilling & " AS t1 inner join " & sTable & " AS t2 on t1.fldbillno=t2.fldbillno where t1.flditemname not in(select flditemname from tblreportgroup) and t2.fldtime>=&1 and t2.fldtime<=&2 and t1.fldsave=&3 and t1.fldbilltype=&4" & RepoStr, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, "Cash")
+  res4 = $con.Exec("select SUM(t1.flddiscamt) as dsc,SUM(t1.fldtaxamt) as tax,SUM(t1.fldditemamt) as tot from " & xbilling & " AS t1 inner join " & sTable & " AS t2 on t1.fldbillno=t2.fldbillno where t1.flditemname not in(select flditemname from tblreportgroup) and t2.fldtime>=&1 and t2.fldtime<=&2 and t1.fldsave=&3" & RepoStr, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True)
 
   xcrdt = 0
   xcash = 0

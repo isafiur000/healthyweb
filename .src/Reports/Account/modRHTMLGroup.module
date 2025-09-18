@@ -15,12 +15,12 @@ Private Sub AddExtraInforGroupBothReport($con As Connection, dt1 As Date, dt2 As
   Dim RepoStr As String
   Dim subt As Integer
 
-  RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
-  yextra = " and flditemname NOT IN(select flditemname from tblreportgroup)"
+  RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation, "t1")
+  yextra = " and t1.flditemname NOT IN(select flditemname from tblreportgroup)"
   If sInvoiced = True Then
-    res4 = $con.Exec("select " & modNonMedical.CashCreditBillSQL() & " from " & $tblpatbilling & " where fldbillno in(select fldbillno from " & $tblpatbilldetail & " where fldtime>=&1 and fldtime<=&2 and fldcomp like &4) and fldsave=&3 and fldbillingmode like &5 and flddisctype like &6 and fldbilltype like &7" & yextra & RepoStr, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sDept, sDisc, sBillType)
+    res4 = $con.Exec("select " & modNonMedical.CashCreditBillSQL("t1") & " from " & $tblpatbilling & " AS t1 inner join " & $tblpatbilldetail & " AS t2 ON t1.fldbillno=t2.fldbillno where t2.fldtime>=&1 and t2.fldtime<=&2 and t2.fldcomp like &4 and t1.fldsave=&3 and t1.fldbillingmode like &5 and t1.flddisctype like &6 and t1.fldbilltype like &7" & yextra & RepoStr, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sDept, sDisc, sBillType)
   Else
-    res4 = $con.Exec("select " & modNonMedical.CashCreditBillSQL() & " from " & $tblpatbilling & " where fldtime>=&1 and fldtime<=&2 and fldsave=&3 and fldcomp like &4 and fldbillingmode like &5 and flddisctype like &6 and fldbilltype like &7" & yextra & RepoStr, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sDept, sDisc, sBillType)
+    res4 = $con.Exec("select " & modNonMedical.CashCreditBillSQL("t1") & " from " & $tblpatbilling & " AS t1 where t1.fldtime>=&1 and t1.fldtime<=&2 and t1.fldsave=&3 and t1.fldcomp like &4 and t1.fldbillingmode like &5 and t1.flddisctype like &6 and t1.fldbilltype like &7" & yextra & RepoStr, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sDept, sDisc, sBillType)
   Endif
   If res4.Available Then
     xitm = 0
@@ -106,7 +106,7 @@ Public Function ServiceGroupSummaryReport($con As Connection, dt1 As Date, dt2 A
   Dim xcash As Float
   Dim RepoStr As String
 
-  RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
+  RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation, "t1")
   $BillingReport = New CReportHTML([("PARTICULARS"), ("COUNT"), ("GROSS"), ("DISCOUNT"), ("TAX"), ("CREDIT"), ("CASH")], "", "")
   $BillingReport.UserData.Add(" COMP: " & sComp & " RATE: " & sDept & " SCHEME: " & sDisc, "PARAM1")
   $BillingReport.UserData.Add("DATE: " & modReportVar.GetDateTimeReport(dt1, gb.MediumDate) & " TO " & modReportVar.GetDateTimeReport(dt2, gb.MediumDate), "PARAM2")
@@ -119,9 +119,9 @@ Public Function ServiceGroupSummaryReport($con As Connection, dt1 As Date, dt2 A
   acash = 0
   For Each xx In lst
     If sInvoiced = True Then
-      res4 = $con.Exec("select SUM(flditemqty) as itemcnt," & modNonMedical.CashCreditBillSQL() & " from " & $tblpatbilling & " where flditemname in(select flditemname from tblreportgroup where fldgroup=&1) and fldbillno in(select fldbillno from " & $tblpatbilldetail & " where fldtime>=&2 and fldtime<=&3 and fldcomp like &5) and fldsave=&4 and fldbillingmode like &6 and flddisctype like &7" & RepoStr, xx, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sDept, sDisc)
+      res4 = $con.Exec("select SUM(t1.flditemqty) as itemcnt," & modNonMedical.CashCreditBillSQL("t1") & " from " & $tblpatbilling & " AS t1 inner join " & $tblpatbilldetail & " AS t2 ON t1.fldbillno=t2.fldbillno where t1.flditemname in(select flditemname from tblreportgroup where fldgroup=&1) and t2.fldtime>=&2 and t2.fldtime<=&3 and t2.fldcomp like &5 and t1.fldsave=&4 and t1.fldbillingmode like &6 and t1.flddisctype like &7" & RepoStr, xx, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sDept, sDisc)
     Else
-      res4 = $con.Exec("select SUM(flditemqty) as itemcnt," & modNonMedical.CashCreditBillSQL() & " from " & $tblpatbilling & " where flditemname in(select flditemname from tblreportgroup where fldgroup=&1) and fldtime>=&2 and fldtime<=&3 and fldsave=&4 and fldcomp like &5 and fldbillingmode like &6 and flddisctype like &7" & RepoStr, xx, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sDept, sDisc)
+      res4 = $con.Exec("select SUM(t1.flditemqty) as itemcnt," & modNonMedical.CashCreditBillSQL("t1") & " from " & $tblpatbilling & " AS t1 where t1.flditemname in(select flditemname from tblreportgroup where fldgroup=&1) and t1.fldtime>=&2 and t1.fldtime<=&3 and t1.fldsave=&4 and t1.fldcomp like &5 and t1.fldbillingmode like &6 and t1.flddisctype like &7" & RepoStr, xx, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sDept, sDisc)
     Endif
     xcnt = 0
     xitm = 0
@@ -218,7 +218,7 @@ Public Function ServiceGroupDetailReport($con As Connection, dt1 As Date, dt2 As
   Dim RepoStr As String
   Dim i As Integer
 
-  RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
+  RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation, "t1")
   $BillingReport = New CReportHTML([("SNO"), ("PARTICULARS"), ("RATE"), ("QTY"), ("GROSS"), ("DISCOUNT"), ("TAX"), ("CREDIT"), ("CASH")], "", "")
   $BillingReport.UserData.Add("COMP: " & sComp & " RATE: " & sDept & " SCHEME: " & sDisc, "PARAM1")
   $BillingReport.UserData.Add("DATE: " & modReportVar.GetDateTimeReport(dt1, gb.MediumDate) & " TO " & modReportVar.GetDateTimeReport(dt2, gb.MediumDate), "PARAM2")
@@ -239,9 +239,9 @@ Public Function ServiceGroupDetailReport($con As Connection, dt1 As Date, dt2 As
     gcash = 0
     i = 1
     If sInvoiced = True Then
-      res1 = $con.Exec("select flditemname,avg(flditemrate) as rate,SUM(flditemqty) as qnty," & modNonMedical.CashCreditBillSQL() & " from " & $tblpatbilling & " where fldbillno in(select fldbillno from " & $tblpatbilldetail & " where fldtime>=&1 and fldtime<=&2 and fldcomp like &5) and flditemname in(select flditemname from tblreportgroup where fldgroup=&3) and fldsave=&4 and fldbillingmode like &6 and flddisctype like &7" & RepoStr & " GROUP BY flditemname", modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), xx, True, sComp, sDept, sDisc)
+      res1 = $con.Exec("select t1.flditemname as flditemname,avg(t1.flditemrate) as rate,SUM(t1.flditemqty) as qnty," & modNonMedical.CashCreditBillSQL("t1") & " from " & $tblpatbilling & " AS t1 inner join " & $tblpatbilldetail & " AS t2 ON t1.fldbillno=t2.fldbillno where t2.fldtime>=&1 and t2.fldtime<=&2 and t2.fldcomp like &5 and t1.flditemname in(select flditemname from tblreportgroup where fldgroup=&3) and t1.fldsave=&4 and t1.fldbillingmode like &6 and t1.flddisctype like &7" & RepoStr & " GROUP BY t1.flditemname", modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), xx, True, sComp, sDept, sDisc)
     Else
-      res1 = $con.Exec("select flditemname,avg(flditemrate) as rate,SUM(flditemqty) as qnty," & modNonMedical.CashCreditBillSQL() & " from " & $tblpatbilling & " where fldtime>=&1 and fldtime<=&2 and flditemname in(select flditemname from tblreportgroup where fldgroup=&3) and fldsave=&4 and fldcomp like &5 and fldbillingmode like &6 and flddisctype like &7" & RepoStr & " GROUP BY flditemname", modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), xx, True, sComp, sDept, sDisc)
+      res1 = $con.Exec("select t1.flditemname as flditemname,avg(t1.flditemrate) as rate,SUM(t1.flditemqty) as qnty," & modNonMedical.CashCreditBillSQL("t1") & " from " & $tblpatbilling & " AS t1 where t1.fldtime>=&1 and t1.fldtime<=&2 and t1.flditemname in(select flditemname from tblreportgroup where fldgroup=&3) and t1.fldsave=&4 and t1.fldcomp like &5 and t1.fldbillingmode like &6 and t1.flddisctype like &7" & RepoStr & " GROUP BY t1.flditemname", modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), xx, True, sComp, sDept, sDisc)
     Endif
     If res1.Available = True Then
       For Each res1
@@ -388,7 +388,7 @@ Public Function ServiceGroupDateReport($con As Connection, dt1 As Date, dt2 As D
   Dim yregist As String
   Dim RepoStr As String
 
-  RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
+  RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation, "t1")
   $BillingReport = New CReportHTML([("PARTICULARS"), ("QTY"), ("GROSS"), ("DISCOUNT"), ("TAX"), ("CREDIT"), ("CASH")], "", "")
   $BillingReport.UserData.Add("COMP: " & sComp & " RATE: " & sDept & " SCHEME: " & sDisc, "PARAM1")
   $BillingReport.UserData.Add("DATE: " & modReportVar.GetDateTimeReport(dt1, gb.MediumDate) & " TO " & modReportVar.GetDateTimeReport(dt2, gb.MediumDate), "PARAM2")
@@ -454,12 +454,12 @@ Public Function ServiceGroupDateReport($con As Connection, dt1 As Date, dt2 As D
       If sDisc = "%" Then
         yregist = ""
       Else
-        yregist = " and flddisctype like &8"
+        yregist = " and t1.flddisctype like &8"
       Endif
       If sInvoiced = True Then
-        res1 = $con.Exec("select SUM(flditemqty) as qnty," & modNonMedical.CashCreditBillSQL() & " from " & $tblpatbilling & " where flditemname like &1 and fldbillno in(select fldbillno from " & $tblpatbilldetail & " where fldtime>=&2 and fldtime<=&3 and fldcomp like &6) and flditemname in(select flditemname from tblreportgroup where fldgroup=&4) and fldsave=&5 and fldbillingmode like &7" & yregist & RepoStr, "%", xfirdate, xlasdate, xx, True, sComp, sDept, sDisc)
+        res1 = $con.Exec("select SUM(t1.flditemqty) as qnty," & modNonMedical.CashCreditBillSQL("t1") & " from " & $tblpatbilling & " AS t1 inner join " & $tblpatbilldetail & " AS t2 ON t1.fldbillno=t2.fldbillno where t1.flditemname like &1 and t2.fldtime>=&2 and t2.fldtime<=&3 and t2.fldcomp like &6 and t1.flditemname in(select flditemname from tblreportgroup where fldgroup=&4) and t1.fldsave=&5 and t1.fldbillingmode like &7" & yregist & RepoStr, "%", xfirdate, xlasdate, xx, True, sComp, sDept, sDisc)
       Else
-        res1 = $con.Exec("select SUM(flditemqty) as qnty," & modNonMedical.CashCreditBillSQL() & " from " & $tblpatbilling & " where flditemname like &1 and fldtime>=&2 and fldtime<=&3 and flditemname in(select flditemname from tblreportgroup where fldgroup=&4) and fldsave=&5 and fldcomp like &6 and fldbillingmode like &7" & yregist & RepoStr, "%", xfirdate, xlasdate, xx, True, sComp, sDept, sDisc)
+        res1 = $con.Exec("select SUM(t1.flditemqty) as qnty," & modNonMedical.CashCreditBillSQL("t1") & " from " & $tblpatbilling & " AS t1 where t1.flditemname like &1 and t1.fldtime>=&2 and t1.fldtime<=&3 and t1.flditemname in(select flditemname from tblreportgroup where fldgroup=&4) and t1.fldsave=&5 and t1.fldcomp like &6 and t1.fldbillingmode like &7" & yregist & RepoStr, "%", xfirdate, xlasdate, xx, True, sComp, sDept, sDisc)
       Endif
       qty = 0
       gitm = 0
@@ -588,7 +588,7 @@ Public Function GetGroupSUmmaryReportFormat($con As Connection, dt1 As Date, dt2
   Dim pcash As Float
   Dim RepoStr As String
 
-  RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
+  RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation, "t1")
   $BillingReport = New CReportHTML([("PARTICULARS"), ("GROSS"), ("DISCOUNT"), ("TAX"), ("CREDIT"), ("CASH")], "", "")
   $BillingReport.UserData.Add("GROUP REPORT BY " & sOption & " COMP: " & sComp & " RATE: " & sBillMode & " SCHEME: " & sDisc, "PARAM1")
   $BillingReport.UserData.Add("DATE: " & modReportVar.GetDateTimeReport(dt1, gb.MediumDate) & " TO " & modReportVar.GetDateTimeReport(dt2, gb.MediumDate), "PARAM2")
@@ -597,9 +597,9 @@ Public Function GetGroupSUmmaryReportFormat($con As Connection, dt1 As Date, dt2
   xfield = modRHTMLSummary.GetFieldServiceSummary(sOption)
 
   If sInvoiced = True Then
-    res = $con.Exec(Subst("select distinct(&1) as col from " & $tblpatbilling, xfield) & " where fldbillno in(select fldbillno from " & $tblpatbilldetail & " where fldtime>=&1 and fldtime<=&2 and fldcomp like &4) and fldsave=&3 and fldbillingmode like &5 and flddisctype like &6 and fldbilltype like &7" & RepoStr, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sBillMode, sDisc, sBillType)
+    res = $con.Exec(Subst("select distinct(t1.&1) as col from " & $tblpatbilling, xfield) & " AS t1 inner join " & $tblpatbilldetail & " AS t2 ON t1.fldbillno=t2.fldbillno where t2.fldtime>=&1 and t2.fldtime<=&2 and t2.fldcomp like &4 and t1.fldsave=&3 and t1.fldbillingmode like &5 and t1.flddisctype like &6 and t1.fldbilltype like &7" & RepoStr, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sBillMode, sDisc, sBillType)
   Else
-    res = $con.Exec(Subst("select distinct(&1) as col from " & $tblpatbilling, xfield) & " where fldtime>=&1 and fldtime<=&2 and fldsave=&3 and fldcomp like &4 and fldbillingmode like &5 and flddisctype like &6 and fldbilltype like &7" & RepoStr, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sBillMode, sDisc, sBillType)
+    res = $con.Exec(Subst("select distinct(t1.&1) as col from " & $tblpatbilling, xfield) & " AS t1 where t1.fldtime>=&1 and t1.fldtime<=&2 and t1.fldsave=&3 and t1.fldcomp like &4 and t1.fldbillingmode like &5 and t1.flddisctype like &6 and t1.fldbilltype like &7" & RepoStr, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sBillMode, sDisc, sBillType)
   Endif
   xList = modControlSub.GetDirectFillresultNoNull(res)
   xList.Add("Null")
@@ -622,19 +622,19 @@ Public Function GetGroupSUmmaryReportFormat($con As Connection, dt1 As Date, dt2
       If sDisc = "%" And If sBillType = "%" Then
         yregist = ""
       Else
-        yregist = " and flddisctype like &7 and fldbilltype like &8"
+        yregist = " and t1.flddisctype like &7 and t1.fldbilltype like &8"
       Endif
       If xType = "Null" Then
         If sInvoiced = True Then
-          res2 = $con.Exec("select " & modNonMedical.CashCreditBillSQL() & " from " & $tblpatbilling & " where flditemname in(select flditemname from tblreportgroup where fldgroup=&1) and fldbillno in(select fldbillno from " & $tblpatbilldetail & " where fldtime>=&2 and fldtime<=&3 and fldcomp like &5) and fldsave=&4 and fldbillingmode like &6" & yregist & " and " & xfield & " IS NULL" & RepoStr, grpName, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sBillMode, sDisc, sBillType)
+          res2 = $con.Exec("select " & modNonMedical.CashCreditBillSQL("t1") & " from " & $tblpatbilling & " AS t1 inner join " & $tblpatbilldetail & " AS t2 ON t1.fldbillno=t2.fldbillno where t1.flditemname in(select flditemname from tblreportgroup where fldgroup=&1) and t2.fldtime>=&2 and t2.fldtime<=&3 and t2.fldcomp like &5 and t1.fldsave=&4 and t1.fldbillingmode like &6" & yregist & " and t1." & xfield & " IS NULL" & RepoStr, grpName, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sBillMode, sDisc, sBillType)
         Else
-          res2 = $con.Exec("select " & modNonMedical.CashCreditBillSQL() & " from " & $tblpatbilling & " where flditemname in(select flditemname from tblreportgroup where fldgroup=&1) and fldtime>=&2 and fldtime<=&3 and fldsave=&4 and fldcomp like &5 and fldbillingmode like &6" & yregist & " and " & xfield & " IS NULL" & RepoStr, grpName, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sBillMode, sDisc, sBillType)
+          res2 = $con.Exec("select " & modNonMedical.CashCreditBillSQL("t1") & " from " & $tblpatbilling & " AS t1 where t1.flditemname in(select flditemname from tblreportgroup where fldgroup=&1) and t1.fldtime>=&2 and t1.fldtime<=&3 and t1.fldsave=&4 and t1.fldcomp like &5 and t1.fldbillingmode like &6" & yregist & " and t1." & xfield & " IS NULL" & RepoStr, grpName, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sBillMode, sDisc, sBillType)
         Endif
       Else
         If sInvoiced = True Then
-          res2 = $con.Exec("select " & modNonMedical.CashCreditBillSQL() & " from " & $tblpatbilling & " where flditemname in(select flditemname from tblreportgroup where fldgroup=&1) and fldbillno in(select fldbillno from " & $tblpatbilldetail & " where fldtime>=&2 and fldtime<=&3 and fldcomp like &5) and fldsave=&4 and fldbillingmode like &6" & yregist & " and " & xfield & "=&9" & RepoStr, grpName, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sBillMode, sDisc, sBillType, xType)
+          res2 = $con.Exec("select " & modNonMedical.CashCreditBillSQL("t1") & " from " & $tblpatbilling & " AS t1 inner join " & $tblpatbilldetail & " AS t2 ON t1.fldbillno=t2.fldbillno where t1.flditemname in(select flditemname from tblreportgroup where fldgroup=&1) and t2.fldtime>=&2 and t2.fldtime<=&3 and t2.fldcomp like &5 and t1.fldsave=&4 and t1.fldbillingmode like &6" & yregist & " and t1." & xfield & "=&9" & RepoStr, grpName, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sBillMode, sDisc, sBillType, xType)
         Else
-          res2 = $con.Exec("select " & modNonMedical.CashCreditBillSQL() & " from " & $tblpatbilling & " where flditemname in(select flditemname from tblreportgroup where fldgroup=&1) and fldtime>=&2 and fldtime<=&3 and fldsave=&4 and fldcomp like &5 and fldbillingmode like &6" & yregist & " and " & xfield & "=&9" & RepoStr, grpName, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sBillMode, sDisc, sBillType, xType)
+          res2 = $con.Exec("select " & modNonMedical.CashCreditBillSQL("t1") & " from " & $tblpatbilling & " AS t1 where t1.flditemname in(select flditemname from tblreportgroup where fldgroup=&1) and t1.fldtime>=&2 and t1.fldtime<=&3 and t1.fldsave=&4 and t1.fldcomp like &5 and t1.fldbillingmode like &6" & yregist & " and t1." & xfield & "=&9" & RepoStr, grpName, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sBillMode, sDisc, sBillType, xType)
         Endif
       Endif
       If res2.Available Then
@@ -738,11 +738,11 @@ Private Sub AddExtraInforGroupreport($con As Connection, dt1 As Date, dt2 As Dat
   Dim RepoStr As String
 
   RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
-  yextra = " and flditemname NOT IN(select flditemname from tblreportgroup)"
+  yextra = " and t1.flditemname NOT IN(select flditemname from tblreportgroup)"
   If sInvoiced = True Then
-    res4 = $con.Exec("select SUM(flditemrate*flditemqty) as itemtot,SUM(flddiscamt) as dsc,SUM(fldtaxamt) as tax,SUM(fldditemamt) as tot from " & $tblpatbilling & " where fldbillno in(select fldbillno from " & $tblpatbilldetail & " where fldtime>=&1 and fldtime<=&2 and fldcomp like &4) and fldsave=&3 and fldbillingmode like &5 and flddisctype like &6 and fldbilltype like &7" & yextra & RepoStr, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sDept, sDisc, sBillType)
+    res4 = $con.Exec("select SUM(t1.flditemrate*t1.flditemqty) as itemtot,SUM(t1.flddiscamt) as dsc,SUM(t1.fldtaxamt) as tax,SUM(t1.fldditemamt) as tot from " & $tblpatbilling & " AS t1 inner join " & $tblpatbilldetail & " AS t2 ON t1.fldbillno=t2.fldbillno where t2.fldtime>=&1 and t2.fldtime<=&2 and t2.fldcomp like &4 and t1.fldsave=&3 and t1.fldbillingmode like &5 and t1.flddisctype like &6 and t1.fldbilltype like &7" & yextra & RepoStr, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sDept, sDisc, sBillType)
   Else
-    res4 = $con.Exec("select SUM(flditemrate*flditemqty) as itemtot,SUM(flddiscamt) as dsc,SUM(fldtaxamt) as tax,SUM(fldditemamt) as tot from " & $tblpatbilling & " where fldtime>=&1 and fldtime<=&2 and fldsave=&3 and fldcomp like &4 and fldbillingmode like &5 and flddisctype like &6 and fldbilltype like &7" & yextra & RepoStr, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sDept, sDisc, sBillType)
+    res4 = $con.Exec("select SUM(t1.flditemrate*t1.flditemqty) as itemtot,SUM(t1.flddiscamt) as dsc,SUM(t1.fldtaxamt) as tax,SUM(t1.fldditemamt) as tot from " & $tblpatbilling & " AS t1 where t1.fldtime>=&1 and t1.fldtime<=&2 and t1.fldsave=&3 and t1.fldcomp like &4 and t1.fldbillingmode like &5 and t1.flddisctype like &6 and t1.fldbilltype like &7" & yextra & RepoStr, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sDept, sDisc, sBillType)
   Endif
   If res4.Available Then
     xitm = 0
@@ -817,7 +817,7 @@ Public Function ServiceGroupSummaryCashCredit($con As Connection, dt1 As Date, d
   Dim xmode As String
   Dim RepoStr As String
 
-  RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
+  RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation, "t1")
   $BillingReport = New CReportHTML([("PARTICULARS"), ("CREDIT"), ("CASH"), ("DISCOUNT"), ("TAX"), ("TOTAL")], "", "")
   $BillingReport.UserData.Add("COMP: " & sComp & " RATE: " & sDept & " SCHEME: " & sDisc, "PARAM1")
   $BillingReport.UserData.Add("DATE: " & modReportVar.GetDateTimeReport(dt1, gb.MediumDate) & " TO " & modReportVar.GetDateTimeReport(dt2, gb.MediumDate), "PARAM2")
@@ -829,21 +829,21 @@ Public Function ServiceGroupSummaryCashCredit($con As Connection, dt1 As Date, d
   tot = 0
   lst = modNonMedical.GetGroupNameAccount()
   For Each xx In lst
-    xmode = " and fldbilltype=&8"
+    xmode = " and t1.fldbilltype=&8"
     If sInvoiced = True Then
-      res2 = $con.Exec("select SUM(flditemrate*flditemqty) as itemtot from " & $tblpatbilling & " where flditemname in(select flditemname from tblreportgroup where fldgroup=&1) and fldbillno in(select fldbillno from " & $tblpatbilldetail & " where fldtime>=&2 and fldtime<=&3 and fldcomp like &5) and fldsave=&4 and fldbillingmode like &6 and flddisctype like &7" & xmode & RepoStr, xx, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sDept, sDisc, "Credit")
+      res2 = $con.Exec("select SUM(t1.flditemrate*t1.flditemqty) as itemtot from " & $tblpatbilling & " AS t1 inner join " & $tblpatbilldetail & " AS t2 ON t1.fldbillno=t2.fldbillno where t1.flditemname in(select flditemname from tblreportgroup where fldgroup=&1) and t2.fldtime>=&2 and t2.fldtime<=&3 and t2.fldcomp like &5 and t1.fldsave=&4 and t1.fldbillingmode like &6 and t1.flddisctype like &7" & xmode & RepoStr, xx, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sDept, sDisc, "Credit")
     Else
-      res2 = $con.Exec("select SUM(flditemrate*flditemqty) as itemtot from " & $tblpatbilling & " where flditemname in(select flditemname from tblreportgroup where fldgroup=&1) and fldtime>=&2 and fldtime<=&3 and fldsave=&4 and fldcomp like &5 and fldbillingmode like &6 and flddisctype like &7" & xmode & RepoStr, xx, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sDept, sDisc, "Credit")
+      res2 = $con.Exec("select SUM(t1.flditemrate*t1.flditemqty) as itemtot from " & $tblpatbilling & " AS t1 where t1.flditemname in(select flditemname from tblreportgroup where fldgroup=&1) and t1.fldtime>=&2 and t1.fldtime<=&3 and t1.fldsave=&4 and t1.fldcomp like &5 and t1.fldbillingmode like &6 and t1.flddisctype like &7" & xmode & RepoStr, xx, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sDept, sDisc, "Credit")
     Endif
     If sInvoiced = True Then
-      res3 = $con.Exec("select SUM(flditemrate*flditemqty) as itemtot from " & $tblpatbilling & " where flditemname in(select flditemname from tblreportgroup where fldgroup=&1) and fldbillno in(select fldbillno from " & $tblpatbilldetail & " where fldtime>=&2 and fldtime<=&3 and fldcomp like &5) and fldsave=&4 and fldbillingmode like &6 and flddisctype like &7" & xmode & RepoStr, xx, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sDept, sDisc, "Cash")
+      res3 = $con.Exec("select SUM(t1.flditemrate*t1.flditemqty) as itemtot from " & $tblpatbilling & " AS t1 inner join " & $tblpatbilldetail & " AS t2 ON t1.fldbillno=t2.fldbillno where t1.flditemname in(select flditemname from tblreportgroup where fldgroup=&1) and t2.fldtime>=&2 and t2.fldtime<=&3 and t2.fldcomp like &5 and t1.fldsave=&4 and t1.fldbillingmode like &6 and t1.flddisctype like &7" & xmode & RepoStr, xx, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sDept, sDisc, "Cash")
     Else
-      res3 = $con.Exec("select SUM(flditemrate*flditemqty) as itemtot from " & $tblpatbilling & " where flditemname in(select flditemname from tblreportgroup where fldgroup=&1) and fldtime>=&2 and fldtime<=&3 and fldsave=&4 and fldcomp like &5 and fldbillingmode like &6 and flddisctype like &7" & xmode & RepoStr, xx, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sDept, sDisc, "Cash")
+      res3 = $con.Exec("select SUM(t1.flditemrate*t1.flditemqty) as itemtot from " & $tblpatbilling & " AS t1 where t1.flditemname in(select flditemname from tblreportgroup where fldgroup=&1) and t1.fldtime>=&2 and t1.fldtime<=&3 and t1.fldsave=&4 and t1.fldcomp like &5 and t1.fldbillingmode like &6 and t1.flddisctype like &7" & xmode & RepoStr, xx, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sDept, sDisc, "Cash")
     Endif
     If sInvoiced = True Then
-      res4 = $con.Exec("select SUM(flddiscamt) as dsc,SUM(fldtaxamt) as tax,SUM(fldditemamt) as tot from " & $tblpatbilling & " where flditemname in(select flditemname from tblreportgroup where fldgroup=&1) and fldbillno in(select fldbillno from " & $tblpatbilldetail & " where fldtime>=&2 and fldtime<=&3 and fldcomp like &5) and fldsave=&4 and fldbillingmode like &6 and flddisctype like &7" & RepoStr, xx, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sDept, sDisc)
+      res4 = $con.Exec("select SUM(t1.flddiscamt) as dsc,SUM(t1.fldtaxamt) as tax,SUM(t1.fldditemamt) as tot from " & $tblpatbilling & " AS t1 inner join " & $tblpatbilldetail & " AS t2 ON t1.fldbillno=t2.fldbillno where t1.flditemname in(select flditemname from tblreportgroup where fldgroup=&1) and t2.fldtime>=&2 and t2.fldtime<=&3 and t2.fldcomp like &5 and t1.fldsave=&4 and t1.fldbillingmode like &6 and t1.flddisctype like &7" & RepoStr, xx, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sDept, sDisc)
     Else
-      res4 = $con.Exec("select SUM(flddiscamt) as dsc,SUM(fldtaxamt) as tax,SUM(fldditemamt) as tot from " & $tblpatbilling & " where flditemname in(select flditemname from tblreportgroup where fldgroup=&1) and fldtime>=&2 and fldtime<=&3 and fldsave=&4 and fldcomp like &5 and fldbillingmode like &6 and flddisctype like &7" & RepoStr, xx, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sDept, sDisc)
+      res4 = $con.Exec("select SUM(t1.flddiscamt) as dsc,SUM(t1.fldtaxamt) as tax,SUM(t1.fldditemamt) as tot from " & $tblpatbilling & " AS t1 where t1.flditemname in(select flditemname from tblreportgroup where fldgroup=&1) and t1.fldtime>=&2 and t1.fldtime<=&3 and t1.fldsave=&4 and t1.fldcomp like &5 and t1.fldbillingmode like &6 and t1.flddisctype like &7" & RepoStr, xx, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sDept, sDisc)
     Endif
     xcrdt = 0
     xcash = 0
@@ -927,7 +927,7 @@ Public Function ServiceGroupSingleReport($con As Connection, dt1 As Date, dt2 As
   Dim xdsc As Float
   Dim RepoStr As String
 
-  RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
+  RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation, "t1")
   $BillingReport = New CReportHTML([("PARTICULARS"), ("RATE"), ("QTY"), ("GROSS"), ("DISCOUNT"), ("TAX"), ("NET")], "", "")
   $BillingReport.UserData.Add("GROUP SUMMARY REPORT : " & sGroup & " COMP: " & sComp & " RATE: " & sDept & " SCHEME: " & sDisc, "PARAM1")
   $BillingReport.UserData.Add("DATE: " & modReportVar.GetDateTimeReport(dt1, gb.MediumDate) & " TO " & modReportVar.GetDateTimeReport(dt2, gb.MediumDate), "PARAM2")
@@ -937,9 +937,9 @@ Public Function ServiceGroupSingleReport($con As Connection, dt1 As Date, dt2 As
   gtax = 0
   xtot = 0
   If sInvoiced = True Then
-    res1 = $con.Exec("select flditemname,avg(flditemrate) as rate,SUM(flditemqty) as qnty,SUM(flditemrate*flditemqty) as itemtot,SUM(flddiscamt) as dsc,SUM(fldtaxamt) as tax,SUM(fldditemamt) as tot from " & $tblpatbilling & " where fldbillno in(select fldbillno from " & $tblpatbilldetail & " where fldtime>=&1 and fldtime<=&2 and fldcomp like &6) and flditemname in(select flditemname from tblreportgroup where fldgroup=&3) and fldsave=&4 and fldbillingmode like &5 and flddisctype like &7 and fldbilltype like &8" & RepoStr & " GROUP BY flditemname", modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), sGroup, True, sDept, sComp, sDisc, sBillType)    '
+    res1 = $con.Exec("select t1.flditemname as flditemname,avg(t1.flditemrate) as rate,SUM(t1.flditemqty) as qnty,SUM(t1.flditemrate*t1.flditemqty) as itemtot,SUM(t1.flddiscamt) as dsc,SUM(t1.fldtaxamt) as tax,SUM(t1.fldditemamt) as tot from " & $tblpatbilling & " AS t1 inner join " & $tblpatbilldetail & " AS t2 ON t1.fldbillno=t2.fldbillno where t2.fldtime>=&1 and t2.fldtime<=&2 and t2.fldcomp like &6 and t1.flditemname in(select flditemname from tblreportgroup where fldgroup=&3) and t1.fldsave=&4 and t1.fldbillingmode like &5 and t1.flddisctype like &7 and t1.fldbilltype like &8" & RepoStr & " GROUP BY t1.flditemname", modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), sGroup, True, sDept, sComp, sDisc, sBillType)    '
   Else
-    res1 = $con.Exec("select flditemname,avg(flditemrate) as rate,SUM(flditemqty) as qnty,SUM(flditemrate*flditemqty) as itemtot,SUM(flddiscamt) as dsc,SUM(fldtaxamt) as tax,SUM(fldditemamt) as tot from " & $tblpatbilling & " where fldtime>=&1 and fldtime<=&2 and flditemname in(select flditemname from tblreportgroup where fldgroup=&3) and fldsave=&4 and fldbillingmode like &5 and fldcomp like &6 and flddisctype like &7 and fldbilltype like &8" & RepoStr & " GROUP BY flditemname", modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), sGroup, True, sDept, sComp, sDisc, sBillType)
+    res1 = $con.Exec("select t1.flditemname as flditemname,avg(t1.flditemrate) as rate,SUM(t1.flditemqty) as qnty,SUM(t1.flditemrate*t1.flditemqty) as itemtot,SUM(t1.flddiscamt) as dsc,SUM(t1.fldtaxamt) as tax,SUM(t1.fldditemamt) as tot from " & $tblpatbilling & " AS t1 where t1.fldtime>=&1 and t1.fldtime<=&2 and t1.flditemname in(select flditemname from tblreportgroup where fldgroup=&3) and t1.fldsave=&4 and t1.fldbillingmode like &5 and t1.fldcomp like &6 and t1.flddisctype like &7 and t1.fldbilltype like &8" & RepoStr & " GROUP BY t1.flditemname", modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), sGroup, True, sDept, sComp, sDisc, sBillType)
   Endif
 
   If res1.Available = True Then
@@ -1039,7 +1039,7 @@ Public Function ServiceGroupDateReportSingle($con As Connection, dt1 As Date, dt
   Dim yregist As String
   Dim RepoStr As String
 
-  RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
+  RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation, "t1")
   $BillingReport = New CReportHTML([("PARTICULARS"), ("RATE"), ("QTY"), ("GROSS"), ("DISCOUNT"), ("TAX"), ("NET")], "", "")
   $BillingReport.UserData.Add("GROUP ITEM REPORT: " & sItem & " COMP: " & sComp & " RATE: " & sDept & " SCHEME: " & sDisc, "PARAM1")
   $BillingReport.UserData.Add("DATE: " & modReportVar.GetDateTimeReport(dt1, gb.MediumDate) & " TO " & modReportVar.GetDateTimeReport(dt2, gb.MediumDate), "PARAM2")
@@ -1095,9 +1095,9 @@ Public Function ServiceGroupDateReportSingle($con As Connection, dt1 As Date, dt
     $BillingReport.AddSection(modString.HTMLBlankSpace(3) & chapdate, True)
 
     If sInvoiced = True Then
-      res = $con.Exec("select distinct(flditemname) from tblreportgroup where fldgroup=&1 and flditemname in(select flditemname from " & $tblpatbilling & " where fldbillno in(select fldbillno from " & $tblpatbilldetail & " where fldtime>=&2 and fldtime<=&3 and fldcomp like &6) and fldsave=&4 and fldbillingmode like &5 and flddisctype like &7)" & RepoStr & " ORDER BY flditemname ASC", sItem, xfirdate, xlasdate, True, sDept, sComp, sDisc)
+      res = $con.Exec("select distinct(t3.flditemname) from (tblreportgroup AS t3 inner join " & $tblpatbilling & " AS t1 on t3.flditemname=t1.flditemname) inner join " & $tblpatbilldetail & " AS t2 ON t1.fldbillno=t2.fldbillno where t3.fldgroup=&1 and t2.fldtime>=&2 and t2.fldtime<=&3 and t2.fldcomp like &6 and t1.fldsave=&4 and t1.fldbillingmode like &5 and t1.flddisctype like &7" & RepoStr & " ORDER BY t3.flditemname ASC", sItem, xfirdate, xlasdate, True, sDept, sComp, sDisc)
     Else
-      res = $con.Exec("select distinct(flditemname) from tblreportgroup where fldgroup=&1 and flditemname in(select flditemname from " & $tblpatbilling & " where fldtime>=&2 and fldtime<=&3 and fldsave=&4 and fldbillingmode like &5 and fldcomp like &6 and flddisctype like &7)" & RepoStr & " ORDER BY flditemname ASC", sItem, xfirdate, xlasdate, True, sDept, sComp, sDisc)
+      res = $con.Exec("select distinct(t3.flditemname) from tblreportgroup AS t3 inner join " & $tblpatbilling & " AS t1 on t3.flditemname=t1.flditemname where t3.fldgroup=&1 and t1.fldtime>=&2 and t1.fldtime<=&3 and t1.fldsave=&4 and t1.fldbillingmode like &5 and t1.fldcomp like &6 and t1.flddisctype like &7" & RepoStr & " ORDER BY t3.flditemname ASC", sItem, xfirdate, xlasdate, True, sDept, sComp, sDisc)
     Endif
 
     gitm = 0
@@ -1108,14 +1108,17 @@ Public Function ServiceGroupDateReportSingle($con As Connection, dt1 As Date, dt
       For Each res
 
         If sDisc = "%" Then
-          yregist = ""
+          If sInvoiced = True Then
+            res1 = $con.Exec("select avg(t1.flditemrate) as rate,SUM(t1.flditemqty) as qnty,SUM(t1.flditemrate*t1.flditemqty) as itemtot,SUM(t1.flddiscamt) as dsc,SUM(t1.fldtaxamt) as tax,SUM(t1.fldditemamt) as tot from " & $tblpatbilling & " AS t1 inner join " & $tblpatbilldetail & " AS t2 ON t1.fldbillno=t2.fldbillno where t1.flditemname=&1 and t2.fldtime>=&2 and t2.fldtime<=&3 and t2.fldcomp like &7 and t1.flditemname in(select flditemname from tblreportgroup where fldgroup=&4) and t1.fldsave=&5 and t1.fldbillingmode like &6" & RepoStr, res["flditemname"], xfirdate, xlasdate, sItem, True, sDept, sComp, sDisc)
+          Else
+            res1 = $con.Exec("select avg(t1.flditemrate) as rate,SUM(t1.flditemqty) as qnty,SUM(t1.flditemrate*t1.flditemqty) as itemtot,SUM(t1.flddiscamt) as dsc,SUM(t1.fldtaxamt) as tax,SUM(t1.fldditemamt) as tot from " & $tblpatbilling & " AS t1 where t1.flditemname=&1 and t1.fldtime>=&2 and t1.fldtime<=&3 and t1.flditemname in(select flditemname from tblreportgroup where fldgroup=&4) and t1.fldsave=&5 and t1.fldbillingmode like &6 and t1.fldcomp like &7" & RepoStr, res["flditemname"], xfirdate, xlasdate, sItem, True, sDept, sComp, sDisc)
+          Endif
         Else
-          yregist = " and fldencounterval in(select fldencounterval from tblencounter where flddisctype like &8)"
-        Endif
-        If sInvoiced = True Then
-          res1 = $con.Exec("select avg(flditemrate) as rate,SUM(flditemqty) as qnty,SUM(flditemrate*flditemqty) as itemtot,SUM(flddiscamt) as dsc,SUM(fldtaxamt) as tax,SUM(fldditemamt) as tot from " & $tblpatbilling & " where flditemname=&1 and fldbillno in(select fldbillno from " & $tblpatbilldetail & " where fldtime>=&2 and fldtime<=&3 and fldcomp like &7) and flditemname in(select flditemname from tblreportgroup where fldgroup=&4) and fldsave=&5 and fldbillingmode like &6" & yregist & RepoStr, res["flditemname"], xfirdate, xlasdate, sItem, True, sDept, sComp, sDisc)
-        Else
-          res1 = $con.Exec("select avg(flditemrate) as rate,SUM(flditemqty) as qnty,SUM(flditemrate*flditemqty) as itemtot,SUM(flddiscamt) as dsc,SUM(fldtaxamt) as tax,SUM(fldditemamt) as tot from " & $tblpatbilling & " where flditemname=&1 and fldtime>=&2 and fldtime<=&3 and flditemname in(select flditemname from tblreportgroup where fldgroup=&4) and fldsave=&5 and fldbillingmode like &6 and fldcomp like &7" & yregist & RepoStr, res["flditemname"], xfirdate, xlasdate, sItem, True, sDept, sComp, sDisc)
+          If sInvoiced = True Then
+            res1 = $con.Exec("select avg(t1.flditemrate) as rate,SUM(t1.flditemqty) as qnty,SUM(t1.flditemrate*t1.flditemqty) as itemtot,SUM(t1.flddiscamt) as dsc,SUM(t1.fldtaxamt) as tax,SUM(t1.fldditemamt) as tot from (" & $tblpatbilling & " AS t1 inner join " & $tblpatbilldetail & " AS t2 ON t1.fldbillno=t2.fldbillno) inner join tblencounter AS t3 ON t1.fldencounterval=t3.fldencounterval where t1.flditemname=&1 and t2.fldtime>=&2 and t2.fldtime<=&3 and t2.fldcomp like &7 and t1.flditemname in(select flditemname from tblreportgroup where fldgroup=&4) and t1.fldsave=&5 and t1.fldbillingmode like &6 and t3.flddisctype like &8" & RepoStr, res["flditemname"], xfirdate, xlasdate, sItem, True, sDept, sComp, sDisc)
+          Else
+            res1 = $con.Exec("select avg(t1.flditemrate) as rate,SUM(t1.flditemqty) as qnty,SUM(t1.flditemrate*t1.flditemqty) as itemtot,SUM(t1.flddiscamt) as dsc,SUM(t1.fldtaxamt) as tax,SUM(t1.fldditemamt) as tot from " & $tblpatbilling & " AS t1 inner join tblencounter AS t3 ON t1.fldencounterval=t3.fldencounterval where t1.flditemname=&1 and t1.fldtime>=&2 and t1.fldtime<=&3 and t1.flditemname in(select flditemname from tblreportgroup where fldgroup=&4) and t1.fldsave=&5 and t1.fldbillingmode like &6 and t1.fldcomp like &7 and t3.flddisctype like &8" & RepoStr, res["flditemname"], xfirdate, xlasdate, sItem, True, sDept, sComp, sDisc)
+          Endif
         Endif
         rte = 0
         qty = 0
@@ -1240,16 +1243,16 @@ Public Function GetGroupSUmmaryEntryFormat($con As Connection, dt1 As Date, dt2 
   Dim ptot As Float
   Dim RepoStr As String
 
-  RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
+  RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation, "t1")
   $BillingReport = New CReportHTML([("PARTICULARS"), ("GROSS"), ("DISCOUNT"), ("TAX"), ("NET")], "", "")
   $BillingReport.UserData.Add("GROUP REPORT BY Entry", "PARAM1")
   $BillingReport.UserData.Add("DATE: " & modReportVar.GetDateTimeReport(dt1, gb.MediumDate) & " TO " & modReportVar.GetDateTimeReport(dt2, gb.MediumDate) & " COMP: " & sComp & " Plan: " & sBillMode & " Disc: " & sDisc, "PARAM2")
   grpList = modNonMedical.GetGroupNameAccount()
 
   If sInvoiced = True Then
-    res = $con.Exec("select distinct(fldadmitlocat) as col from tblencounter where fldencounterval in(select fldencounterval from " & $tblpatbilling & " where fldbillno in(select fldbillno from " & $tblpatbilldetail & " where fldtime>=&1 and fldtime<=&2 and fldcomp like &4) and fldsave=&3 and fldbillingmode like &5 and flddisctype like &6 and fldbilltype like &7)" & RepoStr, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sBillMode, sDisc, sBillType)
+    res = $con.Exec("select distinct(t3.fldadmitlocat) as col from (tblencounter AS t3 inner join " & $tblpatbilling & " AS t1 ON t3.fldencounterval=t1.fldencounterval) inner join " & $tblpatbilldetail & " AS t2 ON t1.fldbillno=t2.fldbillno where t2.fldtime>=&1 and t2.fldtime<=&2 and t2.fldcomp like &4 and t1.fldsave=&3 and t1.fldbillingmode like &5 and t1.flddisctype like &6 and t1.fldbilltype like &7" & RepoStr, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sBillMode, sDisc, sBillType)
   Else
-    res = $con.Exec("select distinct(fldadmitlocat) as col from tblencounter where fldencounterval in(select fldencounterval from " & $tblpatbilling & " where fldtime>=&1 and fldtime<=&2 and fldsave=&3 and fldcomp like &4 and fldbillingmode like &5 and flddisctype like &6 and fldbilltype like &7)" & RepoStr, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sBillMode, sDisc, sBillType)
+    res = $con.Exec("select distinct(t3.fldadmitlocat) as col from tblencounter AS t3 inner join " & $tblpatbilling & " AS t1 ON t3.fldencounterval=t1.fldencounterval where t1.fldtime>=&1 and t1.fldtime<=&2 and t1.fldsave=&3 and t1.fldcomp like &4 and t1.fldbillingmode like &5 and t1.flddisctype like &6 and t1.fldbilltype like &7" & RepoStr, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sBillMode, sDisc, sBillType)
   Endif
   xList = modControlSub.GetDirectFillresultNoNull(res)
   xList.Add("Null")
@@ -1270,21 +1273,19 @@ Public Function GetGroupSUmmaryEntryFormat($con As Connection, dt1 As Date, dt2 
       If sDisc = "%" And If sBillType = "%" Then
         yregist = ""
       Else
-        yregist = " and flddisctype like &7 and fldbilltype like &8"
+        yregist = " and t1.flddisctype like &7 and t1.fldbilltype like &8"
       Endif
       If xType = "Null" Then
-        xfield = " and fldencounterval in(select fldencounterval from tblencounter where fldadmitlocat IS NULL)"
         If sInvoiced = True Then
-          res2 = $con.Exec("select SUM(flditemrate*flditemqty) as itemtot,SUM(flddiscamt) as flddiscamt,SUM(fldtaxamt) as fldtaxamt,SUM(fldditemamt) as fldditemamt from " & $tblpatbilling & " where flditemname in(select flditemname from tblreportgroup where fldgroup=&1) and fldbillno in(select fldbillno from " & $tblpatbilldetail & " where fldtime>=&2 and fldtime<=&3 and fldcomp like &5) and fldsave=&4 and fldbillingmode like &6" & yregist & xfield & RepoStr, grpName, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sBillMode, sDisc, sBillType)
+          res2 = $con.Exec("select SUM(t1.flditemrate*t1.flditemqty) as itemtot,SUM(t1.flddiscamt) as flddiscamt,SUM(t1.fldtaxamt) as fldtaxamt,SUM(t1.fldditemamt) as fldditemamt from (" & $tblpatbilling & " AS t1 inner join " & $tblpatbilldetail & " AS t2 ON t1.fldbillno=t2.fldbillno) inner join tblencounter AS t3 on t1.fldencounterval=t3.fldencounterval where t1.flditemname in(select flditemname from tblreportgroup where fldgroup=&1) and t2.fldtime>=&2 and t2.fldtime<=&3 and t2.fldcomp like &5 and t1.fldsave=&4 and t1.fldbillingmode like &6" & yregist & " and t3.fldadmitlocat IS NULL" & RepoStr, grpName, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sBillMode, sDisc, sBillType)
         Else
-          res2 = $con.Exec("select SUM(flditemrate*flditemqty) as itemtot,SUM(flddiscamt) as flddiscamt,SUM(fldtaxamt) as fldtaxamt,SUM(fldditemamt) as fldditemamt from " & $tblpatbilling & " where flditemname in(select flditemname from tblreportgroup where fldgroup=&1) and fldtime>=&2 and fldtime<=&3 and fldsave=&4 and fldcomp like &5 and fldbillingmode like &6" & yregist & xfield & RepoStr, grpName, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sBillMode, sDisc, sBillType)
+          res2 = $con.Exec("select SUM(t1.flditemrate*t1.flditemqty) as itemtot,SUM(t1.flddiscamt) as flddiscamt,SUM(t1.fldtaxamt) as fldtaxamt,SUM(t1.fldditemamt) as fldditemamt from " & $tblpatbilling & " AS t1 inner join tblencounter AS t3 on t1.fldencounterval=t3.fldencounterval where t1.flditemname in(select flditemname from tblreportgroup where fldgroup=&1) and t1.fldtime>=&2 and t1.fldtime<=&3 and t1.fldsave=&4 and t1.fldcomp like &5 and t1.fldbillingmode like &6" & yregist & " and t3.fldadmitlocat IS NULL" & RepoStr, grpName, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sBillMode, sDisc, sBillType)
         Endif
       Else
-        xfield = " and fldencounterval in(select fldencounterval from tblencounter where fldadmitlocat=&9)"
         If sInvoiced = True Then
-          res2 = $con.Exec("select SUM(flditemrate*flditemqty) as itemtot,SUM(flddiscamt) as flddiscamt,SUM(fldtaxamt) as fldtaxamt,SUM(fldditemamt) as fldditemamt from " & $tblpatbilling & " where flditemname in(select flditemname from tblreportgroup where fldgroup=&1) and fldbillno in(select fldbillno from " & $tblpatbilldetail & " where fldtime>=&2 and fldtime<=&3 and fldcomp like &5) and fldsave=&4 and fldbillingmode like &6" & yregist & xfield & RepoStr, grpName, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sBillMode, sDisc, sBillType, xType)
+          res2 = $con.Exec("select SUM(t1.flditemrate*t1.flditemqty) as itemtot,SUM(t1.flddiscamt) as flddiscamt,SUM(t1.fldtaxamt) as fldtaxamt,SUM(t1.fldditemamt) as fldditemamt from (" & $tblpatbilling & " AS t1 inner join " & $tblpatbilldetail & " AS t2 ON t1.fldbillno=t2.fldbillno) inner join tblencounter AS t3 on t1.fldencounterval=t3.fldencounterval where t1.flditemname in(select flditemname from tblreportgroup where fldgroup=&1) and t2.fldtime>=&2 and t2.fldtime<=&3 and t2.fldcomp like &5 and t1.fldsave=&4 and t1.fldbillingmode like &6" & yregist & " and t3.fldadmitlocat=&9" & RepoStr, grpName, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sBillMode, sDisc, sBillType, xType)
         Else
-          res2 = $con.Exec("select SUM(flditemrate*flditemqty) as itemtot,SUM(flddiscamt) as flddiscamt,SUM(fldtaxamt) as fldtaxamt,SUM(fldditemamt) as fldditemamt from " & $tblpatbilling & " where flditemname in(select flditemname from tblreportgroup where fldgroup=&1) and fldtime>=&2 and fldtime<=&3 and fldsave=&4 and fldcomp like &5 and fldbillingmode like &6" & yregist & xfield & RepoStr, grpName, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sBillMode, sDisc, sBillType, xType)
+          res2 = $con.Exec("select SUM(t1.flditemrate*t1.flditemqty) as itemtot,SUM(t1.flddiscamt) as flddiscamt,SUM(t1.fldtaxamt) as fldtaxamt,SUM(t1.fldditemamt) as fldditemamt from " & $tblpatbilling & " AS t1 inner join tblencounter AS t3 on t1.fldencounterval=t3.fldencounterval where t1.flditemname in(select flditemname from tblreportgroup where fldgroup=&1) and t1.fldtime>=&2 and t1.fldtime<=&3 and t1.fldsave=&4 and t1.fldcomp like &5 and t1.fldbillingmode like &6" & yregist & " and t3.fldadmitlocat=&9" & RepoStr, grpName, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), True, sComp, sBillMode, sDisc, sBillType, xType)
         Endif
       Endif
       If res2.Available Then

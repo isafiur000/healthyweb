@@ -2,7 +2,7 @@
 
 Private $xvarsql As String
 Private $FootComment As String
-' Private $ProgressBar1 As ProgressBar
+Private $ProgressBar1 As ProgressBar
 
 Public $UserGrp As String
 Public $CompGrp As String
@@ -40,7 +40,7 @@ Private Sub GetFooterMsg($BillingReport As CReportHTML, sLocaType As String, sLo
 
 End
 
-Public Function GetBillDiscountDifference(sFormat As String, $con As Connection, bill1 As Variant, bill2 As Variant, sType As String, sUser As String, sComp As String, billtype As String, sLocaType As String, sLocation As String, $tblpatbilling As String, $tblpatbilldetail As String) As Float
+Private Function GetBillDiscountDifference(sFormat As String, $con As Connection, bill1 As Variant, bill2 As Variant, sType As String, sUser As String, sComp As String, billtype As String, sLocaType As String, sLocation As String, $tblpatbilling As String, $tblpatbilldetail As String) As Float
 
   Dim bilid1 As Variant
   Dim bilid2 As Variant
@@ -52,23 +52,23 @@ Public Function GetBillDiscountDifference(sFormat As String, $con As Connection,
   Dim xitm As Float
   Dim RepoStr As String
 
-  RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
+  RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation, "t2")
   If sFormat = "Date" Then
     bilid1 = bill1
     bilid2 = bill2
-    xfld = "fldtime"
+    xfld = "t2.fldtime"
   Else
     bilid1 = modNonMedical.GetBillIDFromBillNo(bill1, $tblpatbilldetail)
     bilid2 = modNonMedical.GetBillIDFromBillNo(bill2, $tblpatbilldetail)
-    xfld = "fldid"
+    xfld = "t2.fldid"
   Endif
 
   If sType = "Discount" Then
-    res = $con.Exec("select SUM(flddiscountamt) as tot from " & $tblpatbilldetail & " where " & xfld & ">=&1 and " & xfld & "<=&2 and flduserid like &3 and fldcomp like &4 and fldbilltype like &5" & RepoStr, bilid1, bilid2, sUser, sComp, billtype)
-    res1 = $con.Exec("select SUM(flddiscamt) as biltot from " & $tblpatbilling & " where fldbillno in(select fldbillno from " & $tblpatbilldetail & " where " & xfld & ">=&1 and " & xfld & "<=&2 and flduserid like &3 and fldcomp like &4 and fldbilltype like &5)" & RepoStr, bilid1, bilid2, sUser, sComp, billtype)
+    res = $con.Exec("select SUM(t2.flddiscountamt) as tot from " & $tblpatbilldetail & " AS t2 where " & xfld & ">=&1 and " & xfld & "<=&2 and t2.flduserid like &3 and t2.fldcomp like &4 and t2.fldbilltype like &5" & RepoStr, bilid1, bilid2, sUser, sComp, billtype)
+    res1 = $con.Exec("select SUM(t1.flddiscamt) as biltot from " & $tblpatbilling & " AS t1 inner join " & $tblpatbilldetail & " AS t2 ON t1.fldbillno=t2.fldbillno where " & xfld & ">=&1 and " & xfld & "<=&2 and t2.flduserid like &3 and t2.fldcomp like &4 and t2.fldbilltype like &5" & RepoStr, bilid1, bilid2, sUser, sComp, billtype)
   Else If sType = "Tax" Then
-    res = $con.Exec("select SUM(fldtaxamt) as tot from " & $tblpatbilldetail & " where " & xfld & ">=&1 and " & xfld & "<=&2 and flduserid like &3 and fldcomp like &4 and fldbilltype like &5" & RepoStr, bilid1, bilid2, sUser, sComp, billtype)
-    res1 = $con.Exec("select SUM(fldtaxamt) as biltot from " & $tblpatbilling & " where fldbillno in(select fldbillno from " & $tblpatbilldetail & " where " & xfld & ">=&1 and " & xfld & "<=&2 and flduserid like &3 and fldcomp like &4 and fldbilltype like &5)" & RepoStr, bilid1, bilid2, sUser, sComp, billtype)
+    res = $con.Exec("select SUM(t2.fldtaxamt) as tot from " & $tblpatbilldetail & " AS t2 where " & xfld & ">=&1 and " & xfld & "<=&2 and t2.flduserid like &3 and t2.fldcomp like &4 and t2.fldbilltype like &5" & RepoStr, bilid1, bilid2, sUser, sComp, billtype)
+    res1 = $con.Exec("select SUM(t1.fldtaxamt) as biltot from " & $tblpatbilling & " AS t1 inner join " & $tblpatbilldetail & " AS t2 ON t1.fldbillno=t2.fldbillno where " & xfld & ">=&1 and " & xfld & "<=&2 and t2.flduserid like &3 and t2.fldcomp like &4 and t2.fldbilltype like &5" & RepoStr, bilid1, bilid2, sUser, sComp, billtype)
   Endif
   If res.Available Then
     If res["tot"] Then
@@ -95,7 +95,7 @@ Public Function GetBillDiscountDifference(sFormat As String, $con As Connection,
 End
 
 ''multiple comp
-Public Function GetBillDiscountDifferenceMulti(sFormat As String, $con As Connection, bill1 As Variant, bill2 As Variant, sType As String, sUser As String, aCompLst As String[], billtype As String, sLocaType As String, sLocation As String, $tblpatbilling As String, $tblpatbilldetail As String) As Float
+Private Function GetBillDiscountDifferenceMulti(sFormat As String, $con As Connection, bill1 As Variant, bill2 As Variant, sType As String, sUser As String, aCompLst As String[], billtype As String, sLocaType As String, sLocation As String, $tblpatbilling As String, $tblpatbilldetail As String) As Float
 
   Dim bilid1 As Variant
   Dim bilid2 As Variant
@@ -109,15 +109,15 @@ Public Function GetBillDiscountDifferenceMulti(sFormat As String, $con As Connec
   Dim xitm As Float
   Dim RepoStr As String
 
-  RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
+  RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation, "t2")
   If sFormat = "Date" Then
     bilid1 = bill1
     bilid2 = bill2
-    xfld = "fldtime"
+    xfld = "t2.fldtime"
   Else
     bilid1 = modNonMedical.GetBillIDFromBillNo(bill1, $tblpatbilldetail)
     bilid2 = modNonMedical.GetBillIDFromBillNo(bill2, $tblpatbilldetail)
-    xfld = "fldid"
+    xfld = "t2.fldid"
   Endif
 
   sCompLst = aCompLst.Copy()
@@ -125,11 +125,11 @@ Public Function GetBillDiscountDifferenceMulti(sFormat As String, $con As Connec
     sCompLst[i] = "'" & sCompLst[i] & "'"
   Next
   If sType = "Discount" Then
-    res = $con.Exec("select SUM(flddiscountamt) as tot from " & $tblpatbilldetail & " where " & xfld & ">=&1 and " & xfld & "<=&2 and flduserid like &3 and fldcomp in(" & sCompLst.Join(",") & ") and fldbilltype like &4" & RepoStr, bilid1, bilid2, sUser, billtype)
-    res1 = $con.Exec("select SUM(flddiscamt) as biltot from " & $tblpatbilling & " where fldbillno in(select fldbillno from " & $tblpatbilldetail & " where " & xfld & ">=&1 and " & xfld & "<=&2 and flduserid like &3 and fldcomp in(" & sCompLst.Join(",") & ") and fldbilltype like &4)" & RepoStr, bilid1, bilid2, sUser, billtype)
+    res = $con.Exec("select SUM(t2.flddiscountamt) as tot from " & $tblpatbilldetail & " AS t2 where " & xfld & ">=&1 and " & xfld & "<=&2 and t2.flduserid like &3 and t2.fldcomp in(" & sCompLst.Join(",") & ") and t2.fldbilltype like &4" & RepoStr, bilid1, bilid2, sUser, billtype)
+    res1 = $con.Exec("select SUM(t1.flddiscamt) as biltot from " & $tblpatbilling & " AS t1 inner join " & $tblpatbilldetail & " AS t2 ON t1.fldbillno=t2.fldbillno where " & xfld & ">=&1 and " & xfld & "<=&2 and t2.flduserid like &3 and t2.fldcomp in(" & sCompLst.Join(",") & ") and t2.fldbilltype like &4" & RepoStr, bilid1, bilid2, sUser, billtype)
   Else If sType = "Tax" Then
-    res = $con.Exec("select SUM(fldtaxamt) as tot from " & $tblpatbilldetail & " where " & xfld & ">=&1 and " & xfld & "<=&2 and flduserid like &3 and fldcomp in(" & sCompLst.Join(",") & ") and fldbilltype like &4" & RepoStr, bilid1, bilid2, sUser, billtype)
-    res1 = $con.Exec("select SUM(fldtaxamt) as biltot from " & $tblpatbilling & " where fldbillno in(select fldbillno from " & $tblpatbilldetail & " where " & xfld & ">=&1 and " & xfld & "<=&2 and flduserid like &3 and fldcomp in(" & sCompLst.Join(",") & ") and fldbilltype like &4)" & RepoStr, bilid1, bilid2, sUser, billtype)
+    res = $con.Exec("select SUM(t2.fldtaxamt) as tot from " & $tblpatbilldetail & " AS t2 where " & xfld & ">=&1 and " & xfld & "<=&2 and t2.flduserid like &3 and t2.fldcomp in(" & sCompLst.Join(",") & ") and t2.fldbilltype like &4" & RepoStr, bilid1, bilid2, sUser, billtype)
+    res1 = $con.Exec("select SUM(t1.fldtaxamt) as biltot from " & $tblpatbilling & " AS t1 inner join " & $tblpatbilldetail & " AS t2 ON t1.fldbillno=t2.fldbillno where " & xfld & ">=&1 and " & xfld & "<=&2 and t2.flduserid like &3 and t2.fldcomp in(" & sCompLst.Join(",") & ") and t2.fldbilltype like &4" & RepoStr, bilid1, bilid2, sUser, billtype)
   Endif
   If res.Available Then
     If res["tot"] Then
@@ -968,15 +968,15 @@ Public Function GetInvoiceReportBillingRangeGroupDetail($BillingReport As CRepor
   sComp = $CompGrp
   sCompLst = $CompLst
 
-  RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
+  RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation, "t2")
   If sFormat = "Date" Then
     bilid1 = bill1
     bilid2 = bill2
-    xfld = "fldtime"
+    xfld = "t2.fldtime"
   Else
     bilid1 = modNonMedical.GetBillIDFromBillNo(bill1, $tblpatbilldetail)
     bilid2 = modNonMedical.GetBillIDFromBillNo(bill2, $tblpatbilldetail)
-    xfld = "fldid"
+    xfld = "t2.fldid"
   Endif
 
   If bilid1 And If bilid2 Then
@@ -1043,7 +1043,7 @@ Public Function GetInvoiceReportBillingRangeGroupDetail($BillingReport As CRepor
     acash = 0
     acrdt = 0
     accList = New String[]
-    res1 = $con.Exec("select distinct(fldbankname) as col from " & $tblpatbilldetail & " where " & xfld & ">=&1 and " & xfld & "<=&2 and fldbankname like &3" & GetLockString() & RepoStr, bilid1, bilid2, "%")
+    res1 = $con.Exec("select distinct(t2.fldbankname) as col from " & $tblpatbilldetail & " AS t2 where " & xfld & ">=&1 and " & xfld & "<=&2 and t2.fldbankname like &3" & GetLockString() & RepoStr, bilid1, bilid2, "%")
     If res1.Available Then
       accList.Insert(res1.All("col"))
     Endif
@@ -1061,9 +1061,9 @@ Public Function GetInvoiceReportBillingRangeGroupDetail($BillingReport As CRepor
       ''if group name found
       For Each grpname In grpList
         If xacc = "NULL" Then
-          res2 = $con.Exec("select " & modNonMedical.CashCreditBillSQL() & " from " & $tblpatbilling & " where flditemname in(select flditemname from tblreportgroup where fldgroup like &1) and fldbillno in(select fldbillno from " & $tblpatbilldetail & " where " & xfld & ">=&2 and " & xfld & "<=&3 and fldbankname IS NULL" & GetLockString() & RepoStr & ")", grpname, bilid1, bilid2)
+          res2 = $con.Exec("select " & modNonMedical.CashCreditBillSQL("t1") & " from " & $tblpatbilling & " AS t1 inner join " & $tblpatbilldetail & " AS t2 ON t1.fldbillno=t2.fldbillno where t1.flditemname in(select flditemname from tblreportgroup where fldgroup like &1) and " & xfld & ">=&2 and " & xfld & "<=&3 and t2.fldbankname IS NULL" & GetLockString() & RepoStr, grpname, bilid1, bilid2)
         Else
-          res2 = $con.Exec("select " & modNonMedical.CashCreditBillSQL() & " from " & $tblpatbilling & " where flditemname in(select flditemname from tblreportgroup where fldgroup like &1) and fldbillno in(select fldbillno from " & $tblpatbilldetail & " where " & xfld & ">=&2 and " & xfld & "<=&3 and fldbankname=&4" & GetLockString() & RepoStr & ")", grpname, bilid1, bilid2, xacc)
+          res2 = $con.Exec("select " & modNonMedical.CashCreditBillSQL("t1") & " from " & $tblpatbilling & " AS t1 inner join " & $tblpatbilldetail & " AS t2 ON t1.fldbillno=t2.fldbillno where t1.flditemname in(select flditemname from tblreportgroup where fldgroup like &1) and " & xfld & ">=&2 and " & xfld & "<=&3 and t2.fldbankname=&4" & GetLockString() & RepoStr, grpname, bilid1, bilid2, xacc)
         Endif
         If res2.Available Then
           xdue = 0
@@ -1109,9 +1109,9 @@ Public Function GetInvoiceReportBillingRangeGroupDetail($BillingReport As CRepor
 
       ''if group name not found
       If xacc = "NULL" Then
-        res3 = $con.Exec("select " & modNonMedical.CashCreditBillSQL() & " from " & $tblpatbilling & " where flditemname not in(select flditemname from tblreportgroup) and fldbillno in(select fldbillno from " & $tblpatbilldetail & " where " & xfld & ">=&1 and " & xfld & "<=&2 and fldbankname IS NULL" & GetLockString() & RepoStr & ")", bilid1, bilid2)
+        res3 = $con.Exec("select " & modNonMedical.CashCreditBillSQL("t1") & " from " & $tblpatbilling & " AS t1 inner join " & $tblpatbilldetail & " AS t2 ON t1.fldbillno=t2.fldbillno where t1.flditemname not in(select flditemname from tblreportgroup) and " & xfld & ">=&1 and " & xfld & "<=&2 and t2.fldbankname IS NULL" & GetLockString() & RepoStr, bilid1, bilid2)
       Else
-        res3 = $con.Exec("select " & modNonMedical.CashCreditBillSQL() & " from " & $tblpatbilling & " where flditemname not in(select flditemname from tblreportgroup) and fldbillno in(select fldbillno from " & $tblpatbilldetail & " where " & xfld & ">=&1 and " & xfld & "<=&2 and fldbankname=&3" & GetLockString() & RepoStr & ")", bilid1, bilid2, xacc)
+        res3 = $con.Exec("select " & modNonMedical.CashCreditBillSQL("t1") & " from " & $tblpatbilling & " AS t1 inner join " & $tblpatbilldetail & " AS t2 ON t1.fldbillno=t2.fldbillno where t1.flditemname not in(select flditemname from tblreportgroup) and " & xfld & ">=&1 and " & xfld & "<=&2 and t2.fldbankname=&3" & GetLockString() & RepoStr, bilid1, bilid2, xacc)
       Endif
       If res3.Available Then
         xdue = 0
@@ -1291,15 +1291,15 @@ Public Function GetInvoiceReportBillingRangeGroupBrief($BillingReport As CReport
   sComp = $CompGrp
   sCompLst = $CompLst
 
-  RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
+  RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation, "t2")
   If sFormat = "Date" Then
     bilid1 = bill1
     bilid2 = bill2
-    xfld = "fldtime"
+    xfld = "t2.fldtime"
   Else
     bilid1 = modNonMedical.GetBillIDFromBillNo(bill1, $tblpatbilldetail)
     bilid2 = modNonMedical.GetBillIDFromBillNo(bill2, $tblpatbilldetail)
-    xfld = "fldid"
+    xfld = "t2.fldid"
   Endif
 
   If bilid1 And If bilid2 Then
@@ -1369,7 +1369,7 @@ Public Function GetInvoiceReportBillingRangeGroupBrief($BillingReport As CReport
 
     ''if group name found
     For Each grpname In grpList
-      res2 = $con.Exec("select " & modNonMedical.CashCreditBillSQL() & " from " & $tblpatbilling & " where flditemname in(select flditemname from tblreportgroup where fldgroup like &1) and fldbillno in(select fldbillno from " & $tblpatbilldetail & " where " & xfld & ">=&2 and " & xfld & "<=&3" & GetLockString() & RepoStr & ")", grpname, bilid1, bilid2)
+      res2 = $con.Exec("select " & modNonMedical.CashCreditBillSQL("t1") & " from " & $tblpatbilling & " AS t1 inner join " & $tblpatbilldetail & " AS t2 ON t1.fldbillno=t2.fldbillno where t1.flditemname in(select flditemname from tblreportgroup where fldgroup like &1) and " & xfld & ">=&2 and " & xfld & "<=&3" & GetLockString() & RepoStr, grpname, bilid1, bilid2)
       If res2.Available Then
         xdue = 0
         xcash = 0
@@ -1413,7 +1413,7 @@ Public Function GetInvoiceReportBillingRangeGroupBrief($BillingReport As CReport
     Next
 
     ''if group name not found
-    res3 = $con.Exec("select " & modNonMedical.CashCreditBillSQL() & " from " & $tblpatbilling & " where flditemname not in(select flditemname from tblreportgroup) and fldbillno in(select fldbillno from " & $tblpatbilldetail & " where " & xfld & ">=&1 and " & xfld & "<=&2" & GetLockString() & RepoStr & ")", bilid1, bilid2)
+    res3 = $con.Exec("select " & modNonMedical.CashCreditBillSQL("t1") & " from " & $tblpatbilling & " AS t1 inner join " & $tblpatbilldetail & " AS t2 ON t1.fldbillno=t2.fldbillno where t1.flditemname not in(select flditemname from tblreportgroup) and " & xfld & ">=&1 and " & xfld & "<=&2" & GetLockString() & RepoStr, bilid1, bilid2)
     If res3.Available Then
       xdue = 0
       xcash = 0
@@ -1570,15 +1570,15 @@ Public Function GetInvoiceReportBillingRangeLocation($BillingReport As CReportHT
   sComp = $CompGrp
   sCompLst = $CompLst
 
-  RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
+  RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation, "t2")
   If sFormat = "Date" Then
     bilid1 = bill1
     bilid2 = bill2
-    xfld = "fldtime"
+    xfld = "t2.fldtime"
   Else
     bilid1 = modNonMedical.GetBillIDFromBillNo(bill1, $tblpatbilldetail)
     bilid2 = modNonMedical.GetBillIDFromBillNo(bill2, $tblpatbilldetail)
-    xfld = "fldid"
+    xfld = "t2.fldid"
   Endif
 
   If bilid1 And If bilid2 Then
@@ -1642,7 +1642,7 @@ Public Function GetInvoiceReportBillingRangeLocation($BillingReport As CReportHT
 
       grpList = modGeneral.GetDepartmentAllList(xdept)
       For Each grpname In grpList
-        res2 = $con.Exec("select " & modNonMedical.CashCreditBillSQL() & " from " & $tblpatbilling & " where fldcurrlocat=&1 and fldcurrlocat in(select flddept from tbldepartment where fldcateg like &2) and fldbillno in(select fldbillno from " & $tblpatbilldetail & " where " & xfld & ">=&3 and " & xfld & "<=&4" & GetLockString() & RepoStr & ")", grpname, xdept, bilid1, bilid2)
+        res2 = $con.Exec("select " & modNonMedical.CashCreditBillSQL("t1") & " from " & $tblpatbilling & " AS t1 inner join " & $tblpatbilldetail & " AS t2 ON t1.fldbillno=t2.fldbillno where t1.fldcurrlocat=&1 and t1.fldcurrlocat in(select flddept from tbldepartment where fldcateg like &2) and " & xfld & ">=&3 and " & xfld & "<=&4" & GetLockString() & RepoStr, grpname, xdept, bilid1, bilid2)
         If res2.Available Then
           xdue = 0
           xcrdt = 0
@@ -1714,7 +1714,7 @@ Public Function GetInvoiceReportBillingRangeLocation($BillingReport As CReportHT
     Next
 
     ''null department in tblpatbilling
-    res4 = $con.Exec("select " & modNonMedical.CashCreditBillSQL() & " from " & $tblpatbilling & " where (fldcurrlocat IS NULL OR fldcurrlocat NOT IN(select flddept from tbldepartment)) and fldbillno in(select fldbillno from " & $tblpatbilldetail & " where " & xfld & ">=&1 and " & xfld & "<=&2" & GetLockString() & RepoStr & ")", bilid1, bilid2)
+    res4 = $con.Exec("select " & modNonMedical.CashCreditBillSQL("t1") & " from " & $tblpatbilling & " AS t1 inner join " & $tblpatbilldetail & " AS t2 ON t1.fldbillno=t2.fldbillno where (t1.fldcurrlocat IS NULL OR t1.fldcurrlocat NOT IN(select flddept from tbldepartment)) and " & xfld & ">=&1 and " & xfld & "<=&2" & GetLockString() & RepoStr, bilid1, bilid2)
     If res4.Available Then
       xdue = 0
       xcrdt = 0
@@ -2022,10 +2022,10 @@ Public Function GetInvoiceReportBillingRangeCashCredit($BillingReport As CReport
   Dim qramt As Float
 
   RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
-  ' If MMain.$IsGUIApp = True Then
-  '   $ProgressBar1 = modAppSupport.FindWorkProgressBar(modHelpVariable.$LogInCategory)
-  '   $ProgressBar1.Tag = "Const"
-  ' Endif
+  If MMain.$IsGUIApp = True Then
+    $ProgressBar1 = modAppSupport.FindWorkProgressBar(modHelpVariable.$LogInCategory)
+    $ProgressBar1.Tag = "Const"
+  Endif
 
   If sFormat = "Date" Then
     bilid1 = bill1
@@ -2297,10 +2297,10 @@ Public Function GetInvoiceReportBillingRangeCashCredit($BillingReport As CReport
       $BillingReport.Add(asx)
       asx.Clear()
 
-      ' If MMain.$IsGUIApp = True Then
-      '   $ProgressBar1.Value = p / res1.Count
-      '   Wait
-      ' Endif
+      If MMain.$IsGUIApp = True Then
+        $ProgressBar1.Value = p / res1.Count
+        Wait
+      Endif
       p = p + 1
     Next
 
@@ -2367,10 +2367,10 @@ Public Function GetInvoiceReportDetailByMismatch($BillingReport As CReportHTML, 
   Endif
 
   If bilid1 And If bilid2 Then
-    ' If MMain.$IsGUIApp = True Then
-    '   $ProgressBar1 = modAppSupport.FindWorkProgressBar(modHelpVariable.$LogInCategory)
-    '   $ProgressBar1.Tag = "Const"
-    ' Endif
+    If MMain.$IsGUIApp = True Then
+      $ProgressBar1 = modAppSupport.FindWorkProgressBar(modHelpVariable.$LogInCategory)
+      $ProgressBar1.Tag = "Const"
+    Endif
 
     netotal = 0
     nettax = 0
@@ -2390,7 +2390,7 @@ Public Function GetInvoiceReportDetailByMismatch($BillingReport As CReportHTML, 
       disc = 0
       acrdt = 0
       acash = 0
-      res1 = $con.Exec("select SUM(fldditemamt) as itemtot,SUM(flddiscamt) as disctot,SUM(fldtaxamt) as taxtot,SUM((REPLACE(REPLACE(tblpatbilling.fldbilltype , 'Cash', 0), 'Credit', 100) - COALESCE(tblpatbilling.fldcashincredit, 0)) * tblpatbilling.fldditemamt / 100) as xcredit,SUM((REPLACE(REPLACE(tblpatbilling.fldbilltype , 'Cash', 100), 'Credit', 0) + COALESCE(tblpatbilling.fldcashincredit, 0)) * tblpatbilling.fldditemamt / 100) as xcash from " & $tblpatbilling & " where fldbillno=&1" & RepoStr, res["fldbillno"])
+      res1 = $con.Exec("select SUM(fldditemamt) as itemtot,SUM(flddiscamt) as disctot,SUM(fldtaxamt) as taxtot," & modNonMedical.CashCreditSQL($tblpatbilling) & " from " & $tblpatbilling & " where fldbillno=&1" & RepoStr, res["fldbillno"])
       If res1["itemtot"] Then
         totl = res1["itemtot"]
       Endif
@@ -2442,10 +2442,10 @@ Public Function GetInvoiceReportDetailByMismatch($BillingReport As CReportHTML, 
         asx.Clear()
       Endif
 
-      ' If MMain.$IsGUIApp = True Then
-      '   $ProgressBar1.Value = (res.Index + 1) / res.Count
-      '   Wait
-      ' Endif
+      If MMain.$IsGUIApp = True Then
+        $ProgressBar1.Value = (res.Index + 1) / res.Count
+        Wait
+      Endif
     Next
 
     With asx
@@ -2498,10 +2498,10 @@ Public Function GetInvoiceReportBillingRangeCashSource($BillingReport As CReport
   Dim RepoStr As String
 
   RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
-  ' If MMain.$IsGUIApp = True Then
-  '   $ProgressBar1 = modAppSupport.FindWorkProgressBar(modHelpVariable.$LogInCategory)
-  '   $ProgressBar1.Tag = "Const"
-  ' Endif
+  If MMain.$IsGUIApp = True Then
+    $ProgressBar1 = modAppSupport.FindWorkProgressBar(modHelpVariable.$LogInCategory)
+    $ProgressBar1.Tag = "Const"
+  Endif
 
   bilid1 = bill1
   bilid2 = bill2
@@ -2613,10 +2613,10 @@ Public Function GetInvoiceReportBillingRangeCashSource($BillingReport As CReport
       $BillingReport.Add(asx)
       asx.Clear()
 
-      ' If MMain.$IsGUIApp = True Then
-      '   $ProgressBar1.Value = p / res1.Count
-      '   Wait
-      ' Endif
+      If MMain.$IsGUIApp = True Then
+        $ProgressBar1.Value = p / res1.Count
+        Wait
+      Endif
       p = p + 1
     Next
 
@@ -2680,15 +2680,15 @@ Public Function GetInvoiceReportGroupsSummarySpecial($BillingReport As CReportHT
     xList[i] = "'" & xList[i] & "'"
   Next
 
-  RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
+  RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation, "t2")
   If sFormat = "Date" Then
     bilid1 = bill1
     bilid2 = bill2
-    xfld = "fldtime"
+    xfld = "t2.fldtime"
   Else
     bilid1 = modNonMedical.GetBillIDFromBillNo(bill1, $tblpatbilldetail)
     bilid2 = modNonMedical.GetBillIDFromBillNo(bill2, $tblpatbilldetail)
-    xfld = "fldid"
+    xfld = "t2.fldid"
   Endif
 
   If bilid1 And If bilid2 Then
@@ -2701,7 +2701,7 @@ Public Function GetInvoiceReportGroupsSummarySpecial($BillingReport As CReportHT
 
     ''if group name found
     For Each grpname In grpList
-      res2 = $con.Exec("select " & modNonMedical.CashCreditBillSQL() & " from " & $tblpatbilling & " where flditemname in(select flditemname from tblreportgroup where fldgroup like &1) and fldbillno in(select fldbillno from " & $tblpatbilldetail & " where " & xfld & ">=&2 and " & xfld & "<=&3 and fldcomp in(" & xList.Join(",") & ")" & RepoStr & ")", grpname, bilid1, bilid2)
+      res2 = $con.Exec("select " & modNonMedical.CashCreditBillSQL("t1") & " from " & $tblpatbilling & " AS t1 inner join " & $tblpatbilldetail & " AS t2 ON t1.fldbillno=t2.fldbillno where t1.flditemname in(select flditemname from tblreportgroup where fldgroup like &1) and " & xfld & ">=&2 and " & xfld & "<=&3 and t2.fldcomp in(" & xList.Join(",") & ")" & RepoStr, grpname, bilid1, bilid2)
       If res2.Available Then
         xdue = 0
         xtax = 0
@@ -2744,7 +2744,7 @@ Public Function GetInvoiceReportGroupsSummarySpecial($BillingReport As CReportHT
     Next
 
     ''if group name not found
-    res3 = $con.Exec("select " & modNonMedical.CashCreditBillSQL() & " from " & $tblpatbilling & " where flditemname not in(select flditemname from tblreportgroup) and fldbillno in(select fldbillno from " & $tblpatbilldetail & " where " & xfld & ">=&1 and " & xfld & "<=&2 and fldcomp in(" & xList.Join(",") & ")" & RepoStr & ")", bilid1, bilid2)
+    res3 = $con.Exec("select " & modNonMedical.CashCreditBillSQL("t1") & " from " & $tblpatbilling & " AS t1 inner join " & $tblpatbilldetail & " AS t2 ON t1.fldbillno=t2.fldbillno where t1.flditemname not in(select flditemname from tblreportgroup) and " & xfld & ">=&1 and " & xfld & "<=&2 and t2.fldcomp in(" & xList.Join(",") & ")" & RepoStr, bilid1, bilid2)
     If res3.Available Then
       xdue = 0
       xtax = 0

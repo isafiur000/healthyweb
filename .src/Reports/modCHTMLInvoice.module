@@ -333,7 +333,7 @@ Public Function BillDepartmentWise($con As Connection, billno As String, encid A
   aldisc = 0
   alcrdt = 0
   alcash = 0
-  res = $con.Exec("select " & modNonMedical.CashCreditBillTableSQL() & ",tblreportgroup.fldgroup as fldgroup from tblpatbilling inner join tblreportgroup on tblpatbilling.flditemname=tblreportgroup.flditemname where tblpatbilling.fldbillno=&1 GROUP BY tblreportgroup.fldgroup", billno)
+  res = $con.Exec("select " & modNonMedical.CashCreditBillSQL() & ",tblreportgroup.fldgroup as fldgroup from tblpatbilling inner join tblreportgroup on tblpatbilling.flditemname=tblreportgroup.flditemname where tblpatbilling.fldbillno=&1 GROUP BY tblreportgroup.fldgroup", billno)
   If res.Available Then
     i = 1
     For Each res
@@ -2420,7 +2420,7 @@ Public Function GetSummaryInvoiceContentBetweenUser($con As Connection, bill1 As
       dsc = 0
       tot = 0
       If bilid1 And If bilid2 Then
-        rex = $con.Exec("select distinct(flditemname) as flditemname from " & $tblpatbilling & " where fldbillno in(select fldbillno from " & $tblpatbilldetail & " where fldid>=&1 and fldid<=&2 and flduserid like &3 and fldcomp like &4 and fldbilltype like &5)", bilid1, bilid2, sUser, sComp, xbillType)
+        rex = $con.Exec("select distinct(t1.flditemname) as flditemname from " & $tblpatbilling & " AS t1 inner join " & $tblpatbilldetail & " AS t2 ON t1.fldbillno=t2.fldbillno where t2.fldid>=&1 and t2.fldid<=&2 and t2.flduserid like &3 and t2.fldcomp like &4 and t2.fldbilltype like &5", bilid1, bilid2, sUser, sComp, xbillType)
         If rex.Available Then
           $BillingReport.AddChapter(xbillType & " Invoice")
           i = 1
@@ -2430,7 +2430,7 @@ Public Function GetSummaryInvoiceContentBetweenUser($con As Connection, bill1 As
             atax = 0
             adisc = 0
             atot = 0
-            rex2 = $con.Exec("select SUM(flditemqty) as cnum,SUM(fldditemamt) as itemtot,SUM(flddiscamt) as disctot,SUM(fldtaxamt) as taxtot from " & $tblpatbilling & " where fldbillno in(select fldbillno from " & $tblpatbilldetail & " where flduserid like &1 and fldid>=&2 and fldid<=&3 and fldcomp like &5 and fldbilltype=&6) and flditemname=&4", sUser, bilid1, bilid2, rex["flditemname"], sComp, xbillType)                  ''
+            rex2 = $con.Exec("select SUM(t1.flditemqty) as cnum,SUM(t1.fldditemamt) as itemtot,SUM(t1.flddiscamt) as disctot,SUM(t1.fldtaxamt) as taxtot from " & $tblpatbilling & " AS t1 inner join " & $tblpatbilldetail & " AS t2 ON t1.fldbillno=t2.fldbillno where t2.flduserid like &1 and t2.fldid>=&2 and t2.fldid<=&3 and t2.fldcomp like &5 and t2.fldbilltype=&6 and t1.flditemname=&4", sUser, bilid1, bilid2, rex["flditemname"], sComp, xbillType)                  ''
             If rex2.Available Then
               If rex2["cnum"] Then
                 anum = rex2["cnum"]
@@ -3635,7 +3635,7 @@ Public Function ExportInvoiceDepartments($con As Connection, sType As String, dt
     $BillingReport.Add(asx)
     asx.Clear()
     ' $ProgressBar1.Value = (res.Index + 1) / res.Count
-    ' Wait
+    Wait
     i = i + 1
   Next
 
