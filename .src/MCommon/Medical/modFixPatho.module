@@ -1,46 +1,88 @@
 ' Gambas module file
 
-Public $SymptomCategory As Collection
+Public $SymptomMasterVar As Variant[]
+Public $SymptomCompVar As Variant[]
+Public $ExaminationCompVar As Variant[]
 
 Public $TriageExamCol As String[]
 Public $TriageTestCol As String[]
 Public $TriageSympCol As String[]
 
-Public Function GetSYmptomCategoryFromName(sSymp As String) As String
+Public Sub LoadSymptomsMasterData(sCon As Connection)
 
   Dim res As Result
-  Dim xx As String
+  Dim sColl As Collection
 
-  xx = modHelpVariable.GetCollectionValue($SymptomCategory, sSymp, modBasic.$AppCachePathologyConstants)
-  If Not xx Then
-    res = modDatabase.$medConn.Exec("select fldcategory from tblsymptoms where fldsymptom=&1", sSymp)
-    If res.Available Then
-      If res["fldcategory"] Then
-        xx = res["fldcategory"]
-        If modBasic.$AppCachePathologyConstants = "Yes" Then
-          $SymptomCategory.Add(xx, sSymp)
-        Endif
-      Else
-        xx = ""
-      Endif
-    Else
-      xx = ""
-    Endif
+  $SymptomMasterVar = New Variant[]
+  res = sCon.Exec("select fldsymptom,fldcategory,fldcode,fldsymdetail from tblsymptoms")     ''
+  If res.Available Then
+    For Each res
+      sColl = New Collection
+      sColl.Add(res["fldsymptom"], "fldsymptom")
+      sColl.Add(res["fldcategory"], "fldcategory")
+      sColl.Add(res["fldcode"], "fldcode")
+      sColl.Add(res["fldsymdetail"], "fldsymdetail")
+      $SymptomMasterVar.Add(sColl)
+    Next
   Endif
-  Return xx
 
 End
 
-Public Function GetSymptomWithCategory(sExamList As String[]) As String[]
+Public Sub LoadSymptomsCompwiseData(sCon As Connection)
 
-  Dim xx As String
-  Dim xval As String[]
+  Dim res As Result
+  Dim sColl As Collection
 
-  xval = New String[]
-  For Each xx In sExamList
-    xval.Add(GetSYmptomCategoryFromName(xx) & "|" & xx)
+  $SymptomCompVar = New Variant[]
+  res = sCon.Exec("select fldsymptom,fldtype,fldflag from tblcomplaints where fldcomp=&1 or fldcomp=&2", modBasic.$compID, "%")     ''
+  If res.Available Then
+    For Each res
+      sColl = New Collection
+      sColl.Add(res["fldsymptom"], "fldsymptom")
+      sColl.Add(res["fldtype"], "fldtype")
+      sColl.Add(res["fldflag"], "fldflag")
+      $SymptomCompVar.Add(sColl)
+    Next
+  Endif
+
+End
+
+Public Function GetFlaggedSymptomGroup() As String[]
+
+  Dim aColl As Collection
+  Dim xList As String[]
+
+  xList = New String[]
+  For Each aColl In $SymptomCompVar
+    If aColl["fldflag"] = True Then
+      If xList.Exist(aColl["fldtype"] & "|" & aColl["fldsymptom"]) = False Then
+        xList.Add(aColl["fldtype"] & "|" & aColl["fldsymptom"])
+      Endif
+    Endif
   Next
-  Return xval
+
+  Return xList
+
+End
+
+Public Sub LoadExamsCompwiseData(sCon As Connection)
+
+  Dim res As Result
+  Dim sColl As Collection
+
+  $ExaminationCompVar = New Variant[]
+  res = sCon.Exec("select fldcategory,fldexamid,fldsysconst,fldtype,fldflag from tblcompexam where fldcomp=&1 or fldcomp=&2", modBasic.$compID, "%")     ''
+  If res.Available Then
+    For Each res
+      sColl = New Collection
+      sColl.Add(res["fldcategory"], "fldcategory")
+      sColl.Add(res["fldexamid"], "fldexamid")
+      sColl.Add(res["fldsysconst"], "fldsysconst")
+      sColl.Add(res["fldtype"], "fldtype")
+      sColl.Add(res["fldflag"], "fldflag")
+      $ExaminationCompVar.Add(sColl)
+    Next
+  Endif
 
 End
 

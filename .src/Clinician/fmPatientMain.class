@@ -1066,7 +1066,7 @@ Private Sub ShowAllTabs()
     ' ' lbldtmonitor.Text = modPatient.GetDayDiffAdmission(Trim(txtencid.Text), dtmonitor.Value)
     ' ' If modBasic.$ItemListFormat = "GridView" Then
     ' ' Else
-    ' '   cmbmonexam.List = modBasic.$ClinNursingComp
+    ' '   cmbmonexam.List = modString.GetListFromCompareVariant(modFixPatho.$ExaminationCompVar, "fldexamid", "fldcategory", "Nursing Examinations", True)
     ' ' Endif
     ' ' ShowMonitoring()
     ' Else If TabStrip1.Index = 5 Then
@@ -1974,9 +1974,11 @@ End
 Public Sub mnudiscexam_Click()
 
   Dim hForm As FmTriage
+  Dim xList As String[]
 
-  If txtencid.Text
-    If modBasic.$ClinDischargeComp And If modBasic.$ClinDischargeComp.Count Then
+  If txtencid.Text Then
+    xList = modString.GetListFromCompareVariant(modFixPatho.$ExaminationCompVar, "fldexamid", "fldcategory", "Discharge Examinations", True)
+    If xList And If xList.Count Then
       hForm = New FmTriage("Discharge Examinations", Trim(txtencid.Text))
       hForm.ShowModal
     Endif
@@ -2447,8 +2449,10 @@ End
 Public Sub mnucompexam_Click()
 
   ' Dim hForm As FmTPR
+  ' Dim xList As String[]
 
-  ' hForm = New FmTPR(Trim(txtencid.Text), modBasic.$ClinEssentialComp)
+  ' xList = modString.GetListFromCompareVariant(modFixPatho.$ExaminationCompVar, "fldexamid", "fldcategory", "Essential Examinations", True)
+  ' hForm = New FmTPR(Trim(txtencid.Text), xList)
   ' hForm.ShowModal()
 
 End
@@ -2672,7 +2676,7 @@ Public Sub btnaddsymplist_Click()
   Dim hForm As FmMultiComplaints
 
   If modBasic.$SelectMultiSymptoms = "Yes" Then
-    xlist = modBasic.$ClinComplaintComp
+    xlist = modString.GetListFromVariant(modFixPatho.$SymptomCompVar, "fldsymptom", True)
     If xlist.Count Then
       aList = GridListView("Select Presenting Complaints", xlist)
       If aList And If aList.Count Then
@@ -2708,7 +2712,7 @@ Public Sub cmbsymptom_Completion(Text As String)
   Dim xallLst As String[]
   Dim xList As String[]
 
-  xallLst = modBasic.$ClinComplaintComp
+  xallLst = modString.GetListFromVariant(modFixPatho.$SymptomCompVar, "fldsymptom", True)
   If xallLst And If xallLst.Count Then
     xList = modString.SelectStringArrayToText(Text, xallLst, False)
     cmbsymptom.CompleteWith(xList)
@@ -2721,7 +2725,7 @@ Public Sub btncompList_Click()
   Dim xlist As String[]
 
   If modBasic.$ClinCategoryGrid = "Yes" Then
-    xlist = modBasic.$ClinComplaintCompGrouped
+    xlist = modString.GetDualListFromVariant(modFixPatho.$SymptomCompVar, "fldtype", "fldsymptom", True)
     If xlist.Count Then
       cmbsymptom.Text = GridViewGroup("Select Presenting Complaints", xlist, modMisc.LockBoolean(modBasic.$LockSymptomList))
       If modBasic.$TabletModeEnable = "Yes" Then
@@ -2730,7 +2734,7 @@ Public Sub btncompList_Click()
       Endif
     Endif
   Else
-    xlist = modBasic.$ClinComplaintComp
+    xlist = modString.GetListFromVariant(modFixPatho.$SymptomCompVar, "fldsymptom", True)
     If xlist.Count Then
       cmbsymptom.Text = GridViewNew("Select Presenting Complaints", xlist, modMisc.LockBoolean(modBasic.$LockSymptomList))
       If modBasic.$TabletModeEnable = "Yes" Then
@@ -3113,7 +3117,7 @@ Public Sub cmbfinding_Completion(Text As String)
   Dim xallLst As String[]
   Dim xList As String[]
 
-  xallLst = modBasic.$ClinFindingComp
+  xallLst = modString.GetListFromCompareVariant(modFixPatho.$ExaminationCompVar, "fldexamid", "fldcategory", "Physician Examinations", True)
   If xallLst And If xallLst.Count Then
     xList = modString.SelectStringArrayToText(Text, xallLst, False)
     cmbfinding.CompleteWith(xList)
@@ -3132,7 +3136,7 @@ Public Sub btnfindList_Click()
       GetSelectedFindingControl()
     Endif
   Else
-    xlist = modBasic.$ClinFindingComp
+    xlist = modString.GetListFromCompareVariant(modFixPatho.$ExaminationCompVar, "fldexamid", "fldcategory", "Physician Examinations", True)
     If xlist.Count Then
       cmbfinding.Text = GridViewNew("Select Clinical Findings", xlist, modMisc.LockBoolean(modBasic.$LockExamList))
       GetSelectedFindingControl()
@@ -3918,20 +3922,24 @@ Public Sub ColumnView1_Select()
   If ColumnView1.Selection.Count Then
     If ColumnView1.Current.Image = "icons/coll4.png" Then
       xindex = ColumnView1[ColumnView1.Current.Key][3]
-      res = modDatabase.$myConn.Exec("select fldid,flditem,fldreportquali,flddetail from tblexamgeneral where fldid=&1", xindex)
-      If res.Available Then
-        cmbnote.Text = res["flditem"]
-        txtnoteid.Value = res["fldid"]
-        txtimpression.Text = res["fldreportquali"]
-        txtnote.RichText = res["flddetail"]
-        If $sTatus = "Admitted" Then
-          btnoteadd.Enabled = True
+
+      If chknoteedit.Value = True Then
+        res = modDatabase.$myConn.Exec("select fldid,flditem,fldreportquali,flddetail from tblexamgeneral where fldid=&1", xindex)
+        If res.Available Then
+          cmbnote.Text = res["flditem"]
+          txtnoteid.Value = res["fldid"]
+          txtimpression.Text = res["fldreportquali"]
+          txtnote.RichText = res["flddetail"]
+          If $sTatus = "Admitted" Then
+            btnoteadd.Enabled = True
+          Else
+            btnoteadd.Enabled = False
+          Endif
         Else
-          btnoteadd.Enabled = False
+          btnoteadd.Enabled = True
         Endif
-      Else
-        btnoteadd.Enabled = True
       Endif
+
     Endif
   Endif
 
@@ -6298,5 +6306,23 @@ End
 Public Sub btnattexpert_Click()
 
   txtplanfinal.RichText = txtplanfinal.RichText & DictionaryVIew(modBasic.$dictadvPath)
+
+End
+
+Public Sub btnclearhistory_Click()
+
+  txthistory.RichText = ""
+
+End
+
+Public Sub btnclearnote_Click()
+
+  txtnote.RichText = ""
+
+End
+
+Public Sub btnclearexpert_Click()
+
+  txtplanfinal.RichText = ""
 
 End

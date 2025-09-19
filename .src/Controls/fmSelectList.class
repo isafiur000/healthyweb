@@ -60,6 +60,7 @@ Private Sub ShowFilledList()
 
   Dim sql As String
   Dim res As Result
+  Dim asx As String[]
 
   Select $typ
     Case "No Discount List"
@@ -72,8 +73,12 @@ Private Sub ShowFilledList()
       res = modDatabase.$myConn.Exec(sql, $itemName)
     Case "Complaints List"
       $tbl = "tblcomplaints"
-      sql = "select fldsymptom as col from tblcomplaints where fldcomp=&1 ORDER BY fldsymptom"
-      res = modDatabase.$myConn.Exec(sql, $itemName)
+      asx = Split($itemName, "|")
+      If asx.Count = 2 Then
+        res = modDatabase.$myConn.Exec("select fldsymptom as col from tblcomplaints where fldcomp=&1 and fldtype=&2", asx[0], asx[1])
+      Else
+        res = modDatabase.$myConn.Exec("select fldsymptom as col from tblcomplaints where fldcomp=&1", $itemName)
+      Endif
     Case "Essential Examinations", "Physician Examinations", "Nursing Examinations", "Triage Examinations", "Discharge Examinations"
       $tbl = "tblcompexam"
       sql = "select fldexamid as col from tblcompexam where fldcomp=&1 and fldcategory=&2 ORDER BY fldexamid"
@@ -87,6 +92,7 @@ Public Sub btnsave_Click()
 
   Dim res As Result
   Dim i As Integer
+  Dim asx As String[]
 
   For i = 0 To lstfirst.List.Count - 1
     If lstfirst.IsSelected(i) = True Then
@@ -108,11 +114,12 @@ Public Sub btnsave_Click()
             res["fldtime"] = Now()
             res["fldcomp"] = modBasic.$compID
           Case "Complaints List"
+            asx = Split($itemName, "|")
             res = modDatabase.$myConn.Create("tblcomplaints")
-            res["fldtype"] = cmbcategory.Text
+            res["fldtype"] = asx[1]
             res["fldsymptom"] = lstfirst.List[i]
             res["fldflag"] = False
-            res["fldcomp"] = $itemName
+            res["fldcomp"] = asx[0]
           Case "Essential Examinations", "Physician Examinations", "Nursing Examinations", "Triage Examinations", "Discharge Examinations"
             res["fldtype"] = cmbcategory.Text
             res["fldcategory"] = $typ

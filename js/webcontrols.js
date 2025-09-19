@@ -1,5 +1,6 @@
 var $AutoTextComoleteList = [];
 var drawPad;
+var qrvalue;
 
 function richtextformat(command, value) {
   document.execCommand(command, false, value);
@@ -180,10 +181,10 @@ function sendImageData(key, sData) {
   var form = new FormData();
 
   form.append('data', sData);
-  
+
   xhr.upload.onload = function() {
-  alert('Upload finished successfully.');
-	};
+    alert('Upload finished successfully.');
+  };
 
   xhr.open('POST', $root + '/upload:' + key, true);
   xhr.send(form);
@@ -208,3 +209,28 @@ function uploadSketchPadAsImage() {
   return r
 }
 
+//QR Scan
+function domReady(fn) {
+  if (
+      document.readyState === "complete" ||
+    document.readyState === "interactive"
+    ) {
+    setTimeout(fn, 1000);
+    } else {
+    document.addEventListener("DOMContentLoaded", fn);
+  }
+}
+
+domReady(function () {
+    // If found you qr code
+    function onScanSuccess(decodeText, decodeResult) {
+      qrvalue = decodeText, decodeResult;
+      //alert("You QR String is : " + qrvalue);
+    }
+
+    let htmlscanner = new Html5QrcodeScanner(
+      "my-qr-reader",
+      { fps: 10, qrbos: 250 }
+    );
+    htmlscanner.render(onScanSuccess);
+});

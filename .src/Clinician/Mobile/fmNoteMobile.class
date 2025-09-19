@@ -1,14 +1,19 @@
 ' Gambas class file
 
 Private $doa As Date
-Private $sColl As Collection
+
+Private $rData As Result
+Private $aMyFields As String[]
+Private $sType As String
 
 Public Sub _new(encid As String)
 
   txtencid.Text = encid
   modGeneralMain.GetOpenModalForm(Me)
   cmbnote.List = ["Progress Note", "Clinicians Note", "Nurses Note", "Transfer Note"]
-  rbnurses.Value = True
+  rbclinician.Value = True
+  $sType = "Clinicians Note"
+
   If txtencid.Text Then
     btnshow_Click()
   Else
@@ -68,85 +73,94 @@ Public Sub btnclose_Click()
 
 End
 
+Public Sub rbclinician_Click()
+
+  $sType = "Clinicians Note"
+
+End
+
+Public Sub rbnurses_Click()
+
+  $sType = "Nurses Note"
+
+End
+
+Public Sub rbtransfer_Click()
+
+  $sType = "Transfer Note"
+
+End
+
+Public Sub rbprogress_Click()
+
+  $sType = "Progress Note"
+
+End
+
+Public Sub rbpatient_Click()
+
+  $sType = "Patient Note"
+
+End
+
 Public Sub btnshownote_Click()
 
-  FillTreeView()
+  $rData = modDatabase.$myConn.Exec("select Date(fldtime) as flddate,Date(fldtime) as flddate from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and flditem=&3 and fldtime>=&4 and fldtime<=&5 GROUP BY flddate ORDER BY flddate DESC", Trim(txtencid.Text), "Notes", $sType, modDate.StartSqlDate($doa), modDate.EndSqlDate(Now()))                          ''
+  $aMyFields = New String[]
+  modGridView.ReadSmallData(WebTable1, $rData, $aMyFields)
 
-End
-
-Private Sub FillTreeView()
-
-  Dim dtList As Date[]
-  Dim xdate As Date
-  Dim res As Result
-  Dim xType As String
-  Dim Column As Integer
-
-  Dim xdata As String
-  Dim pic2 As String
-  Dim pic3 As String
-
-  pic2 = "icons/coll2.png"
-  pic3 = "icons/coll4.png"
-
-  If rbprogress.Value = True Then
-    xType = "Progress Note"
-  Else If rbclinician.Value = True Then
-    xType = "Clinicians Note"
-  Else If rbnurses.Value = True Then
-    xType = "Nurses Note"
-  Else If rbtransfer.Value = True Then
-    xType = "Transfer Note"
-  Else If rbpatient.Value = True Then
-    xType = "Patient Note"
-  Endif
-
-  dtList = modDate.GetDateArrayBetween($doa, Now())
-  dtList.Sort(gb.Descent)
-  ColumnView1.Clear()
-  ColumnView1.Columns.Count = 3
-  With ColumnView1
-    .Columns[0].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
-    .Columns[1].Width = CStr(400 * modBasic.$AppWidthRatio) & "px"
-    .Columns[2].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
-
-    .Columns[0].Text = "Time"
-    .Columns[1].Text = "Description"
-    .Columns[2].Text = "User"
+  With WebTable1
+    .Columns[0].Expand = True
+    .Columns[1].Hidden = True
   End With
 
-  $sColl = New Collection
-  For Each xdate In dtList
-    res = modDatabase.$myConn.Exec("select fldreportquali,flddetail,flduserid,fldtime from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and flditem=&3 and fldtime>=&4 and fldtime<=&5 ORDER BY fldtime DESC", Trim(txtencid.Text), "Notes", xType, modDate.StartSqlDate(xdate), modDate.EndSqlDate(xdate))                          ''
-    If res.Available Then
-      ColumnView1.Add(CStr(xdate), modReportVar.GetDateTimeReport(xdate, gb.MediumDate), pic2)
+End
 
-      Column = 0
-      For Each res
-        xdata = ""
-        If res["flddetail"] Then
-          xdata = res["flddetail"]
-        Endif
-        If res["fldreportquali"] Then
-          xdata = xdata & "<br><b>IMPRESSION:</b>" & res["fldreportquali"]
-        Endif
-        $sColl.Add(xdata, CStr(xdate) & ":" & CStr(Column))
-        ColumnView1.Add(CStr(xdate) & ":" & CStr(Column), modReportVar.GetDateTimeReport(res["fldtime"], gb.ShortTime), pic3, CStr(xdate))
-        ' ' ColumnView1[CStr(xdate) & ":" & CStr(Column)][1] = xdata
-        ColumnView1[CStr(xdate) & ":" & CStr(Column)][2] = res["flduserid"]
-        Column = Column + 1
-      Next
+Public Sub WebTable1_Data(Row As Integer, Column As Integer, Data As WebTableData)
 
-    Endif
-  Next
+  $rData.MoveTo(Row)
+  modGridView.GridViewDecoration(Data, Row)
+  If Column = 0 Then
+    Data.Text = modReportVar.GetDateTimeReport($rData[$aMyFields[Column]], gb.MediumDate)
+  Else
+    Data.Text = $rData[$aMyFields[Column]]
+  Endif
 
 End
 
-Public Sub ColumnView1_Data(Index As String, Column As Integer, Data As WebTreeData)
+Public Sub WebTable1_Select()
 
-  If Column = 1 Then
-    Data.Html = $sColl[Index]
+  If WebTable1.Selection.Count Then
+    $rData.MoveTo(WebTable1.Selection[0])
+    GetNoteData($sType, $rData["flddate"])
   Endif
+
+End
+
+Private Sub GetNoteData(xType As String, xdate As Date)
+
+  Dim res As Result
+  Dim xdata As String
+  Dim xList As String[]
+
+  xList = New String[]
+  res = modDatabase.$myConn.Exec("select fldreportquali,flddetail,flduserid,fldtime from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and flditem=&3 and fldtime>=&4 and fldtime<=&5 ORDER BY fldtime DESC", Trim(txtencid.Text), "Notes", xType, modDate.StartSqlDate(xdate), modDate.EndSqlDate(xdate))                          ''
+  If res.Available Then
+    xList.Add("<b>DATE : " & modReportVar.GetDateTimeReport(xdate, gb.MediumDate) & "</b><br>")
+
+    For Each res
+      xdata = ""
+      If res["flddetail"] Then
+        xdata = res["flddetail"]
+      Endif
+      If res["fldreportquali"] Then
+        xdata = xdata & "<br><b>" & res["fldreportquali"] & "</b>"
+      Endif
+      xList.Add("<p>[" & modReportVar.GetDateTimeReport(res["fldtime"], gb.ShortTime) & "] " & xdata & "</p><br>")
+    Next
+
+  Endif
+  WebHtml1.Html = modString.GetUniColumnTableFromList(xList)
 
 End
 
@@ -172,5 +186,11 @@ End
 Public Sub btnattnote_Click()
 
   txtnote.RichText = txtnote.RichText & DictionaryVIew(modBasic.$dictadvPath)
+
+End
+
+Public Sub btnclear_Click()
+
+  txtnote.RichText = ""
 
 End

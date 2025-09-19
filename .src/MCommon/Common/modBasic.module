@@ -823,17 +823,8 @@ Public $GenericMedName As String[]   'modmedicine GetGenericMedList()
 Public $ClinBodyFluidAll As String[]  'modmedicine  GetBodyFluidList()
 Public $IPDDepartmentsAll As String[]  ' modGeneral.GetDepartmentWithBedList()
 Public $IPDServDepartments As String[]
-Public $ClinComplaintComp As String[]
-Public $ClinFindingComp As String[]
-Public $ClinEssentialComp As String[]
-Public $ClinNursingComp As String[]
-Public $ClinTriageComp As String[]
-Public $ClinDischargeComp As String[]
 
-Public $ClinComplaintCompFlag As String[]
 Public $ClinFindingCompFlag As String[]
-
-Public $ClinComplaintCompGrouped As String[]
 Public $ClinFindingCompGrouped As String[]
 Public $ClinDiagnoChapterGrouped As String[]
 Public $ClinDiagnoSelectGrouped As String[]
@@ -2590,31 +2581,21 @@ End
 
 Public Sub LoadClinicalExtras()
 
-  Dim xcompl As String[]
+  Dim xList As String[]
   Dim xfindg As String[]
 
-  $ClinNursingComp = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldexamid) as col from tblcompexam where (fldcomp=&1 or fldcomp=&2) and fldcategory=&3", modBasic.$compID, "%", "Nursing Examinations"))
-  $ClinEssentialComp = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldexamid) as col from tblcompexam where (fldcomp=&1 or fldcomp=&2) and fldcategory=&3", modBasic.$compID, "%", "Essential Examinations"))
-  $ClinTriageComp = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldexamid) as col from tblcompexam where (fldcomp=&1 or fldcomp=&2) and fldcategory=&3", modBasic.$compID, "%", "Triage Examinations"))
-  $ClinDischargeComp = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldexamid) as col from tblcompexam where (fldcomp=&1 or fldcomp=&2) and fldcategory=&3", modBasic.$compID, "%", "Discharge Examinations"))
+  modFixPatho.LoadExamsCompwiseData(modDatabase.$myConn)
+  modFixPatho.LoadSymptomsMasterData(modDatabase.$myConn)
+  modFixPatho.LoadSymptomsCompwiseData(modDatabase.$myConn)
 
-  $ClinFindingComp = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldexamid) as col from tblcompexam where (fldcomp=&1 or fldcomp=&2) and fldcategory=&3", modBasic.$compID, "%", "Physician Examinations"))
-  $ClinFindingCompGrouped = modFixClinic.GetExamWithCategory(modBasic.$ClinFindingComp)
+  xList = modString.GetListFromCompareVariant(modFixPatho.$ExaminationCompVar, "fldexamid", "fldcategory", "Physician Examinations", True)
+  $ClinFindingCompGrouped = modFixClinic.GetExamWithCategory(xList)
 
   xfindg = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldexamid) as col from tblcompexam where (fldcomp=&1 or fldcomp=&2) and fldcategory=&3 and fldflag=&4", modBasic.$compID, "%", "Physician Examinations", True))
   If xfindg Then
     xfindg.Sort()
   Endif
   $ClinFindingCompFlag = modFixClinic.GetExamWithCategory(xfindg)
-
-  $ClinComplaintComp = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldsymptom) as col from tblcomplaints where (fldcomp=&1 or fldcomp=&2)", modBasic.$compID, "%"))                           ''
-  $ClinComplaintCompGrouped = modFixPatho.GetSymptomWithCategory(modBasic.$ClinComplaintComp)
-
-  xcompl = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldsymptom) as col from tblcomplaints where (fldcomp=&1 or fldcomp=&2) and fldflag=&3", modBasic.$compID, "%", True))
-  If xcompl Then
-    xcompl.Sort()
-  Endif
-  $ClinComplaintCompFlag = modFixPatho.GetSymptomWithCategory(xcompl)
 
 End
 
