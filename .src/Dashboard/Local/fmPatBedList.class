@@ -1,0 +1,488 @@
+' Gambas class file
+
+Export
+
+Private $sTable As String
+Private $wdFactor As Float
+
+Private $SQLFields As String[]
+Private $Headers As String[]
+Private $GridVar1 As Variant[]
+Private $GridVar2 As Variant[]
+
+Static Public Sub _init()
+
+  Env["GB_WEB_GUI_DEBUG"] = "1"
+  modHelpVariable.GetSessionParam()
+
+End
+
+Public Sub _new()
+
+  Dim xdef As String
+  Dim xwid As String
+  Dim xfont As String
+
+  Me.AddHeader("<meta name='viewport' content='width=device-width, initial-scale=1'>")
+  Me.AddHeader("<link rel=\"stylesheet\" href=\"" & modPrint.GetHTTPReferer() & "://" & modHelpVariable.$HostPath & "/css/" & Application.Name & ".css" & "\">")
+  Me.AddJavascriptFile("js/jquery.min.js")
+  Me.AddJavascriptFile("js/webcontrols.js")
+  WebForm.Debug = True
+
+  modHelpVariable.MakeWorkingDir()
+  modHelpVariable.CreateWorkingDir()
+  modHelpVariable.SetAppConfigFile()
+
+  xfont = modSettings.ShowSettingFromFIle("Application/ApplicationFont")
+  If xfont Then
+    Me.Font = xfont
+  Endif
+
+  WebImage1.Image = modPrint.GetFixedWebURL(modHelpVariable.$appetcFolder &/ "header-logo.png")
+  WebImage2.Image = modPrint.GetFixedWebURL(modHelpVariable.$appetcFolder &/ "header.jpg")
+  WebHtml2.Html = "<small>Developed By: D Code Technology Pvt Ltd, Kathmandu</small>"
+
+  cmbcategory.List = ["Consult", "OPVisit", "Indoor"]
+  modSettings.ShowCheckBox(chkshowstatus, "PatientDashBoard/ShowStatusIcons")
+  xdef = modSettings.ShowSettingFromFIle("PatientDashBoard/Sorting")
+  If xdef And If xdef = "Triage" Then
+    rbtriage.Value = True
+  Else
+    rbdate.Value = True
+  Endif
+
+  xwid = modSettings.ShowSettingFromFIle("PatientDashBoard/WidthFactor")
+  If xwid Then
+    $wdFactor = CFloat(xwid)
+  Else
+    $wdFactor = 1
+  Endif
+  rbtriage.Value = True
+
+End
+
+Public Sub WebForm_Close()
+
+  Session.Abandon()
+  Try modDatabase.$syConn.Close()
+  Try modDatabase.$myConn.Close()
+  modExternal.DeleteFolderRecursive("/tmp" &/ modHelpVariable.AppName &/ "docs" &/ modHelpVariable.$SessionCode)
+  modExternal.DeleteFolderRecursive(modHelpVariable.AppCacheDir)
+
+End
+
+Public Sub cmbcategory_Click()
+
+  If cmbcategory.Text = "Indoor" Then
+    rbdate.Text = "Bed"
+    lbldate.Visible = False
+    txtrange.Visible = False
+  Else
+    rbdate.Text = "Date"
+    lbldate.Visible = True
+    txtrange.Visible = True
+  Endif
+
+End
+
+Public Sub btnrefresh_Click()
+
+  If Not modDatabase.$syConn Or If Not modDatabase.$syConn.Opened Then
+    modHelpVariable.ConnectionDashboard()
+    modGeneralMain.EnableCollectionCache()
+  Endif
+  If modDatabase.$syConn.Opened = True Then
+    If cmbcategory.Text And If cmbdepart.Text Then
+      FillBedGrid()
+      If chkrefresh.Value = True Then
+        Timer1.Enabled = True
+      Else
+        Timer1.Enabled = False
+      Endif
+    Endif
+  Endif
+
+End
+
+Public Sub Timer1_Timer()
+
+  If Second(Now()) = 10 Then
+    If cmbcategory.Text And If cmbdepart.Text Then
+      FillBedGrid()
+    Endif
+  Endif
+
+End
+
+Private Function GetFieldsList() As String[]
+
+  Dim xFieldLst As String[]
+  Dim j As Integer
+
+  If $sTable = "tblconsult" Then
+    xFieldLst = ["fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldflag", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval"]
+  Else If $sTable = "tblopvisit" Then
+    xFieldLst = ["fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldflag", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval"]
+  Else If $sTable = "tbldepartmentbed" Then
+    xFieldLst = ["fldencounterval", "fldbed", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval"]
+  Endif
+
+  For j = 0 To xFieldLst.Count - 1
+    xFieldLst[j] = $sTable & "." & xFieldLst[j]
+  Next
+  $SQLFields = xFieldLst.Copy()
+
+  Return xFieldLst
+
+End
+
+Private Sub FillBedGrid()
+
+  Dim sql As String
+  Dim res As Result
+  Dim xFldList As String[]
+
+  Dim Row As Integer
+  Dim Column As Integer
+  Dim xGridVar1 As Variant[]
+  Dim xGridVar2 As Variant[]
+  Dim sColl As Collection
+  Dim ref As ResultField
+
+  Dim xorder As String
+  Dim xunion As String
+
+  If cmbcategory.Text = "Consult" Then
+    $sTable = "tblconsult"
+  Else If cmbcategory.Text = "OPVisit" Then
+    $sTable = "tblopvisit"
+  Else If cmbcategory.Text = "Indoor" Then
+    $sTable = "tbldepartmentbed"
+  Endif
+
+  xFldList = GetFieldsList()
+  Select $sTable
+    Case "tblconsult", "tblopvisit"
+      $Headers = ["TRG", "ENCID", "NAME", "AGE/SEX", "ATTEND", "DRUGS", "LABS", "RADIO", "DEVICE", "FLUID", "EQUIP"]
+      If rbdate.Value = True Then
+        xunion = ""
+        xorder = " ORDER BY " & $sTable & "." & "fldconsulttime"
+      Else If rbtriage.Value = True Then
+        xunion = " inner join tblencounter on " & $sTable & "." & "fldencounterval=tblencounter.fldencounterval"
+        xorder = " ORDER BY FIELD(tblencounter.fldheight, '0', '65280', '16776960', '16711680') DESC"
+      Endif
+      sql = Subst("select &1 from &2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldconsulttime>=&1 and " & $sTable & "." & "fldconsulttime<=&2 and " & $sTable & "." & "fldstatus=&3 and " & $sTable & "." & "fldconsultname=&4" & xorder   ''
+      res = modDatabase.$syConn.Exec(sql, modDate.StartSqlDate(DateAdd(Now(), gb.Day, 0 - txtrange.Value)), modDate.EndSqlDate(Now()), "Planned", cmbdepart.Text)
+
+    Case "tbldepartmentbed"
+      $Headers = ["TRG", "BEDNO", "ENCID", "NAME", "AGE/SEX", "DRUGS", "LABS", "RADIO", "DEVICE", "FLUID", "EQUIP"]
+      If rbdate.Value = True Then
+        xunion = ""
+        xorder = " ORDER BY fldbed ASC"
+      Else If rbtriage.Value = True Then
+        xunion = " inner join tblencounter on tbldepartmentbed.fldencounterval=tblencounter.fldencounterval"
+        xorder = " ORDER BY FIELD(tblencounter.fldheight, '0', '65280', '16776960', '16711680') DESC"
+      Endif
+      sql = "select " & xFldList.Join(",") & " from tbldepartmentbed" & xunion & " where tbldepartmentbed.fldencounterval like &1 and tbldepartmentbed.flddept=&2" & xorder
+      res = modDatabase.$syConn.Exec(sql, "%", cmbdepart.Text)
+  End Select
+
+  xGridVar1 = New Variant[]
+  xGridVar2 = New Variant[]
+  Row = 0
+  For Each res
+    sColl = New Collection
+    Column = 0
+    For Each ref In res.Fields
+      sColl.Add(res[ref.Name], $Headers[Column])
+      Column = Column + 1
+    Next
+
+    If Row < 20 Then
+      xGridVar1.Add(sColl)
+    Else
+      xGridVar2.Add(sColl)
+    Endif
+    Row = Row + 1
+  Next
+
+  GetGridViewOne(xGridVar1)
+  GetGridViewTwo(xGridVar2)
+
+End
+
+Private Sub GetGridViewOne(xGridVar As Variant[])
+
+  $GridVar1 = xGridVar
+  GridView1.Count = $GridVar1.Count
+  GridView1.Columns.Count = $SQLFields.Count
+  ResizeGrid(GridView1)
+
+End
+
+Private Sub GetGridViewTwo(xGridVar As Variant[])
+
+  $GridVar2 = xGridVar
+  GridView2.Count = $GridVar2.Count
+  GridView2.Columns.Count = $Headers.Count
+  ResizeGrid(GridView2)
+
+End
+
+Private Sub ResizeGrid(xGridView As WebTable)
+
+  Dim Column As Integer
+
+  With xGridView
+    .Columns[0].Width = CStr(35) & "px"
+    Select $sTable
+      Case "tblconsult", "tblopvisit"
+        .Columns[1].Width = CStr(125 * $wdFactor) & "px"
+        .Columns[2].Width = CStr(175 * $wdFactor) & "px"
+        .Columns[3].Width = CStr(100 * $wdFactor) & "px"
+        .Columns[4].Width = CStr(50 * $wdFactor) & "px"
+      Case "tbldepartmentbed"
+        .Columns[1].Width = CStr(125 * $wdFactor) & "px"
+        .Columns[2].Width = CStr(125 * $wdFactor) & "px"
+        .Columns[3].Width = CStr(175 * $wdFactor) & "px"
+        .Columns[4].Width = CStr(100 * $wdFactor) & "px"
+    End Select
+
+    .Columns[1].Text = $Headers[1]
+    .Columns[2].Text = $Headers[2]
+    .Columns[3].Text = $Headers[3]
+    .Columns[4].Text = $Headers[4]
+
+    If chkshowstatus.Value = True Then
+      .Columns[5].Width = CStr(50 * $wdFactor) & "px"
+      .Columns[6].Width = CStr(50 * $wdFactor) & "px"
+      .Columns[7].Width = CStr(50 * $wdFactor) & "px"
+      .Columns[8].Width = CStr(50 * $wdFactor) & "px"
+      .Columns[9].Width = CStr(50 * $wdFactor) & "px"
+      .Columns[10].Width = CStr(50 * $wdFactor) & "px"
+
+      .Columns[5].Text = $Headers[5]
+      .Columns[6].Text = $Headers[6]
+      .Columns[7].Text = $Headers[7]
+      .Columns[8].Text = $Headers[8]
+      .Columns[9].Text = $Headers[9]
+      .Columns[10].Text = $Headers[10]
+    Else
+      .Columns[5].Hidden = True
+      .Columns[6].Hidden = True
+      .Columns[7].Hidden = True
+      .Columns[8].Hidden = True
+      .Columns[9].Hidden = True
+      .Columns[10].Hidden = True
+    Endif
+
+  End With
+
+End
+
+Private Function GetIconPath(xVariable As Variant) As String
+
+  Dim xxx As String
+
+  If IsNull(xVariable) Then
+    xxx = "/" &/ Application.Root &/ "icons/unchecked.png"
+  Else
+    If xVariable = True Then
+      xxx = "/" &/ Application.Root &/ "icons/checked.png"
+    Else If xVariable = False Then
+      xxx = "/" &/ Application.Root &/ "icons/coll5.png"
+    Endif
+  Endif
+
+  Return xxx
+
+End
+
+Private Function GetClinStatusIcon(sVal As Integer) As String
+
+  Dim xicon As String
+
+  If sVal = 0 Then
+    xicon = "/" &/ Application.Root &/ "icons/null.svg"
+  Else If sVal = 1 Then
+    xicon = "/" &/ Application.Root &/ "icons/coll5.png"
+  Else If sVal = 2 Then
+    xicon = "/" &/ Application.Root &/ "icons/coll6.png"
+  Else If sVal = 3 Then
+    xicon = "/" &/ Application.Root &/ "icons/coll4.png"
+  Endif
+
+  Return xicon
+
+End
+
+Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  modGridView.GridViewDecoration(Data, Row)
+  If Column = 0 Then
+    Data.Text = ""
+    Data.Background = modPatient.GetPatientColor($GridVar1[Row][$Headers[Column]])
+  Else If Column = 1 Then
+    Data.Text = $GridVar1[Row][$Headers[Column]]
+
+  Else If Column = 2 Then
+    If $sTable = "tbldepartmentbed" Then
+      Data.Text = $GridVar1[Row][$Headers[Column]]
+    Else
+      Data.Html = "<b>" & modPatient.GetPatientNameByEnc($GridVar1[Row][$Headers[Column]], modDatabase.$syConn) & "</b><br>" & "<small>" & modPatient.ShowDiscountCategEnc($GridVar1[Row][$Headers[Column]]) & "</small>"
+    Endif
+
+  Else If Column = 3 Then
+    If $sTable = "tbldepartmentbed" Then
+      Data.Html = "<b>" & modPatient.GetPatientNameByEnc($GridVar1[Row][$Headers[Column]], modDatabase.$syConn) & "</b><br>" & "<small>" & modPatient.ShowDiscountCategEnc($GridVar1[Row][$Headers[Column]]) & "</small>"
+    Else
+      Data.Html = modPatient.GetPatientAgeString($GridVar1[Row][$Headers[Column]], Now()) & "<br>" & modPatient.GetPatientSex($GridVar1[Row][$Headers[Column]], modDatabase.$syConn)
+    Endif
+
+  Else If Column = 4 Then
+    If $sTable = "tbldepartmentbed" Then
+      Data.Html = modPatient.GetPatientAgeString($GridVar1[Row][$Headers[Column]], Now()) & "<br>" & modPatient.GetPatientSex($GridVar1[Row][$Headers[Column]], modDatabase.$syConn)
+    Else
+      Data.Html = modString.GetImageForHTMLGrid(GetIconPath($GridVar1[Row][$Headers[Column]]), CStr(25 * $wdFactor) & "px", "auto")
+    Endif
+
+  Else If Column = 5 Then
+    If chkshowstatus.Value = True Then
+      Data.Html = modString.GetImageForHTMLGrid(GetClinStatusIcon(modClinSub.GetMedicineClinStaus($GridVar1[Row][$Headers[Column]])), CStr(25 * $wdFactor) & "px", "auto")
+    Else
+      Data.Text = ""
+    Endif
+
+  Else If Column = 6 Then
+    If chkshowstatus.Value = True Then
+      Data.Html = modString.GetImageForHTMLGrid(GetClinStatusIcon(modClinSub.GetLabClinStaus($GridVar1[Row][$Headers[Column]])), CStr(25 * $wdFactor) & "px", "auto")
+    Else
+      Data.Text = ""
+    Endif
+
+  Else If Column = 7 Then
+    If chkshowstatus.Value = True Then
+      Data.Html = modString.GetImageForHTMLGrid(GetClinStatusIcon(modClinSub.GetRadioClinStaus($GridVar1[Row][$Headers[Column]])), CStr(25 * $wdFactor) & "px", "auto")
+    Else
+      Data.Text = ""
+    Endif
+
+  Else If Column = 8 Then
+    If chkshowstatus.Value = True Then
+      Data.Html = modString.GetImageForHTMLGrid(GetClinStatusIcon(modClinSub.GetDeviceClinStaus($GridVar1[Row][$Headers[Column]])), CStr(25 * $wdFactor) & "px", "auto")
+    Else
+      Data.Text = ""
+    Endif
+
+  Else If Column = 9 Then
+    If chkshowstatus.Value = True Then
+      Data.Html = modString.GetImageForHTMLGrid(GetClinStatusIcon(modClinSub.GetFluidsClinStaus($GridVar1[Row][$Headers[Column]])), CStr(25 * $wdFactor) & "px", "auto")
+    Else
+      Data.Text = ""
+    Endif
+
+  Else If Column = 10 Then
+    If chkshowstatus.Value = True Then
+      Data.Html = modString.GetImageForHTMLGrid(GetClinStatusIcon(modClinSub.GetEquipClinStaus($GridVar1[Row][$Headers[Column]])), CStr(25 * $wdFactor) & "px", "auto")
+    Else
+      Data.Text = ""
+    Endif
+
+  Endif
+
+End
+
+Public Sub GridView2_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  modGridView.GridViewDecoration(Data, Row)
+  If Column = 0 Then
+    Data.Text = ""
+    Data.Background = modPatient.GetPatientColor($GridVar2[Row][$Headers[Column]])
+
+  Else If Column = 1 Then
+    Data.Text = $GridVar2[Row][$Headers[Column]]
+
+  Else If Column = 2 Then
+    If $sTable = "tbldepartmentbed" Then
+      Data.Text = $GridVar2[Row][$Headers[Column]]
+    Else
+      Data.Html = "<b>" & modPatient.GetPatientNameByEnc($GridVar2[Row][$Headers[Column]], modDatabase.$syConn) & "</b><br>" & "<small>" & modPatient.ShowDiscountCategEnc($GridVar2[Row][$Headers[Column]]) & "</small>"
+    Endif
+
+  Else If Column = 3 Then
+    If $sTable = "tbldepartmentbed" Then
+      Data.Html = "<b>" & modPatient.GetPatientNameByEnc($GridVar2[Row][$Headers[Column]], modDatabase.$syConn) & "</b><br>" & "<small>" & modPatient.ShowDiscountCategEnc($GridVar2[Row][$Headers[Column]]) & "</small>"
+    Else
+      Data.Html = modPatient.GetPatientAgeString($GridVar2[Row][$Headers[Column]], Now()) & "<br>" & modPatient.GetPatientSex($GridVar2[Row][$Headers[Column]], modDatabase.$syConn)
+    Endif
+
+  Else If Column = 4 Then
+    If $sTable = "tbldepartmentbed" Then
+      Data.Html = modPatient.GetPatientAgeString($GridVar2[Row][$Headers[Column]], Now()) & "<br>" & modPatient.GetPatientSex($GridVar2[Row][$Headers[Column]], modDatabase.$syConn)
+    Else
+      Data.Html = modString.GetImageForHTMLGrid(GetIconPath($GridVar2[Row][$Headers[Column]]), CStr(25 * $wdFactor) & "px", "auto")
+    Endif
+
+  Else If Column = 5 Then
+    If chkshowstatus.Value = True Then
+      Data.Html = modString.GetImageForHTMLGrid(GetClinStatusIcon(modClinSub.GetMedicineClinStaus($GridVar2[Row][$Headers[Column]])), CStr(25 * $wdFactor) & "px", "auto")
+    Else
+      Data.Text = ""
+    Endif
+
+  Else If Column = 6 Then
+    If chkshowstatus.Value = True Then
+      Data.Html = modString.GetImageForHTMLGrid(GetClinStatusIcon(modClinSub.GetLabClinStaus($GridVar2[Row][$Headers[Column]])), CStr(25 * $wdFactor) & "px", "auto")
+    Else
+      Data.Text = ""
+    Endif
+
+  Else If Column = 7 Then
+    If chkshowstatus.Value = True Then
+      Data.Html = modString.GetImageForHTMLGrid(GetClinStatusIcon(modClinSub.GetRadioClinStaus($GridVar2[Row][$Headers[Column]])), CStr(25 * $wdFactor) & "px", "auto")
+    Else
+      Data.Text = ""
+    Endif
+
+  Else If Column = 8 Then
+    If chkshowstatus.Value = True Then
+      Data.Html = modString.GetImageForHTMLGrid(GetClinStatusIcon(modClinSub.GetDeviceClinStaus($GridVar2[Row][$Headers[Column]])), CStr(25 * $wdFactor) & "px", "auto")
+    Else
+      Data.Text = ""
+    Endif
+
+  Else If Column = 9 Then
+    If chkshowstatus.Value = True Then
+      Data.Html = modString.GetImageForHTMLGrid(GetClinStatusIcon(modClinSub.GetFluidsClinStaus($GridVar2[Row][$Headers[Column]])), CStr(25 * $wdFactor) & "px", "auto")
+    Else
+      Data.Text = ""
+    Endif
+
+  Else If Column = 10 Then
+    If chkshowstatus.Value = True Then
+      Data.Html = modString.GetImageForHTMLGrid(GetClinStatusIcon(modClinSub.GetEquipClinStaus($GridVar2[Row][$Headers[Column]])), CStr(25 * $wdFactor) & "px", "auto")
+    Else
+      Data.Text = ""
+    Endif
+
+  Endif
+
+End
+
+' Public Sub chkshowstatus_Click()
+'
+'   modSettings.EnterCheckSetting(chkshowstatus, "PatientDashBoard/ShowStatusIcons")
+'
+' End
+'
+' Public Sub rbdate_Click()
+'
+'   modSettings.SaveSettingsToFile("PatientDashBoard/Sorting", "Date")
+'
+' End
+'
+' Public Sub rbtriage_Click()
+'
+'   modSettings.SaveSettingsToFile("PatientDashBoard/Sorting", "Triage")
+'
+' End
