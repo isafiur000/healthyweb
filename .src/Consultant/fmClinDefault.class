@@ -1,20 +1,19 @@
 ' Gambas class file
 
+Private $FixedFormats As String[] = ["Common", "Claim Code", "Accident SSF", "Medical SSF", "MedExtra SSF", "Critical SSF", "Staff List"]
 Private $OptionList As Variant[]
 Private xGridData As Variant[]
 
 Public Sub _new()
 
-  cmbcategory.List = ["History", "Discharge"]
-  cmbformat.List = ["Common", "Format A", "Format B", "Format C", "Claim Code", "Accident SSF", "Medical SSF", "MedExtra SSF", "Critical SSF", "Staff List"]
+  rbhistory.Value = True
+  LoadFormats()
 
 End
 
-Public Sub cmbcategory_Click()
+Public Sub btnclose_Click()
 
-  If cmbcategory.Text Then
-    txtsubtest.List = GetVariableList()
-  Endif
+  Me.Close()
 
 End
 
@@ -22,9 +21,9 @@ Private Function GetDefTable() As String
 
   Dim sTable As String
 
-  If cmbcategory.Text = "History" Then
+  If rbhistory.Text Then
     sTable = "tblhistory"
-  Else If cmbcategory.Text = "Discharge" Then
+  Else If rbdischarge.Value Then
     sTable = "tbldischarge"
   Endif
 
@@ -32,44 +31,111 @@ Private Function GetDefTable() As String
 
 End
 
-Private Function GetVariableList() As String[]
+Private Function GetFormatList(sTable As String) As String[]
 
-  Dim xxx As String[]
-  Dim xList As String[]
-  Dim xfinal As String[]
+  Dim res As Result
+  Dim sList As String[]
 
-  xxx = New String[]
-  If cmbcategory.Text = "History" Then
-    xxx.Add("History of Illness")
-    xList = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tblhistory where fldcomp like &1", modBasic.$compID))
-    If xList.Count Then
-      xxx.Insert(xList)
-    Else
-      xxx.Insert(modMedicine.GetDefaultClinHistories())
-    Endif
-
-  Else If cmbcategory.Text = "Discharge" Then
-    xList = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tbldischarge where fldcomp like &1", modBasic.$compID))
-    If xList.Count Then
-      xxx.Insert(xList)
-    Else
-      xxx.Insert(["Condition of Discharge", "Advice on Discharge"])
-    Endif
+  sList = $FixedFormats.Copy()
+  res = modDatabase.$syConn.Exec(Subst("select distinct(fldformat) as col from &1", sTable))
+  If res.Available Then
+    For Each res
+      If sList.Exist(res["col"]) = False Then
+        sList.Add(res["col"])
+      Endif
+    Next
   Endif
 
-  xfinal = modString.BinaryDistinctStringArray(xxx)
-  Return xfinal
+  Return sList
 
 End
 
-Public Sub btnrefresh_Click()
+Public Sub rbhistory_Click()
+
+  LoadFormats()
+
+End
+
+Public Sub rbdischarge_Click()
+
+  LoadFormats()
+
+End
+
+Private Sub LoadFormats()
+
+  Dim sTable As String
+
+  sTable = GetDefTable()
+  If sTable Then
+    cmbformat.List = GetFormatList(sTable)
+  Endif
+
+End
+
+Private Sub ShowParameters()
+
+  Dim xxx As String[]
+  Dim xList As String[]
+
+  xxx = New String[]
+  If cmbformat.Text Then
+    If rbhistory.Value Then
+      xxx.Add("History of Illness")
+      xList = modControlSub.GetDirectFillresultNoNull(modDatabase.$myConn.Exec("select flditem as col from tblhistory where fldformat like &1", cmbformat.Text))
+    Else If rbdischarge.Value Then
+      xList = modControlSub.GetDirectFillresultNoNull(modDatabase.$myConn.Exec("select flditem as col from tbldischarge where fldformat like &1", cmbformat.Text))
+    Endif
+    xxx.Insert(xList)
+    ListBox1.List = xxx
+  Endif
+
+End
+
+Public Sub btnshow_Click()
+
+  ShowParameters()
+
+End
+
+Public Sub btnaddtest_Click()
+
+  Dim sTable As String
+  Dim res1 As Result
+
+  If txtsubtest.Text And If cmbformat.Text Then
+    sTable = GetDefTable()
+    If sTable Then
+      res1 = modDatabase.$medConn.Create(sTable)
+      res1["flditem"] = Trim(txtsubtest.Text)
+      res1["fldformat"] = cmbformat.Text
+      res1["flddetail"] = ""
+      res1["fldoptions"] = ""
+      res1.Update()
+      ShowParameters()
+      Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+      txtsubtest.Text = ""
+    Endif
+  Endif
+
+End
+
+Public Sub ListBox1_Select()
+
+  $OptionList = New Variant[]
+  ShowItemOptions()
+
+End
+
+''------------------ Show Option Grid ----------------------
+Private Sub ShowItemOptions()
 
   Dim res As Result
   Dim xVar As Variant[]
 
   $OptionList = New Variant[]
-  If txtsubtest.Text Then
-    res = modDatabase.$myConn.Exec(Subst("select fldid,flddetail,fldoptions from &1", GetDefTable()) & " where flditem=&1 and fldcomp=&2 and fldformat like &3", txtsubtest.Text, modBasic.$compID, cmbformat.Text)             ''
+  If ListBox1.Text Then
+    res = modDatabase.$myConn.Exec(Subst("select fldid,flddetail,fldoptions from &1", GetDefTable()) & " where flditem=&1 and fldformat like &2", ListBox1.Text, cmbformat.Text)
     If res.Available Then
       res.MoveFirst
       txtdetail.RichText = res["flddetail"]
@@ -77,66 +143,52 @@ Public Sub btnrefresh_Click()
         Try xVar = JSON.Decode(res["fldoptions"])
         If xVar Then
           $OptionList = xVar
-          SetOptionGrid()
         Endif
       Endif
     Else
       txtdetail.RichText = ""
-      GridView1.Clear()
     Endif
   Endif
+  SetOptionGrid()
   WebTabPanel1.Enabled = True
 
 End
 
-Public Sub btnBrOK_Click()
+Private Sub SetOptionGrid()
 
-  Dim res As Result
-  Dim res1 As Result
-
-  If cmbcategory.Text And If txtsubtest.Text And If cmbformat.Text Then
-    res = modDatabase.$medConn.Edit(GetDefTable(), "flditem=&1 and fldcomp=&2 and fldformat like &3", Trim(txtsubtest.Text), modBasic.$compID, cmbformat.Text)
-    If res.Available Then
-      res["flddetail"] = txtdetail.RichText
-      res["fldoptions"] = JSON.Encode($OptionList)
-      res.Update()
-      Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information updated", modBasic.$BalloonDelay))
-    Else
-      res1 = modDatabase.$medConn.Create(GetDefTable())
-      res1["flditem"] = Trim(txtsubtest.Text)
-      res1["fldformat"] = cmbformat.Text
-      res1["flddetail"] = txtdetail.RichText
-      res1["fldoptions"] = JSON.Encode($OptionList)
-      res1["fldcomp"] = modBasic.$compID
-      res1.Update()
-      Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
-    Endif
-  Endif
-  txtsubtest.SetFocus
-
-End
-
-Public Sub btnBrCancel_Click()
-
-  If cmbcategory.Text Then
-    modDatabase.$medConn.Delete(GetDefTable(), "flditem=&1 and fldcomp=&2 and fldformat=&3", Trim(txtsubtest.Text), modBasic.$compID, cmbformat.Text)
-    txtdetail.RichText = ""
-    txtsubtest.Text = ""
-    cmbformat.Text = ""
-    GridView1.Clear()
-    $OptionList = New Variant[]
-    Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information deleted", modBasic.$BalloonDelay))
+  GridView1.Clear()
+  GridView1.Columns.Count = 2
+  If $OptionList.Count Then
+    GridView1.Count = $OptionList.Count
+    LoadVariableToGrid($OptionList, GridView1)
+  Else
+    GridView1.Count = 0
   Endif
 
+  With GridView1
+    .Columns[0].Width = CStr(200 * modBasic.$AppWidthRatio) & "px"
+    .Columns[1].Width = CStr(300 * modBasic.$AppWidthRatio) & "px"
+
+    .Columns[0].Text = "Variable"
+    .Columns[1].Text = "Values"
+  End With
+
 End
 
-Public Sub txtsubtest_LostFocus()
+Private Sub LoadVariableToGrid(xFinal As Variant[], xGridView As WebTable)
 
-  txtsubtest.Text = String.UCaseFirst(txtsubtest.Text)
+  xGridData = xFinal
+  xGridView.SetFocus
 
 End
 
-''-------------------------- Options --------------
+Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  modGridView.GridViewDecoration(Data, Row)
+  Data.Text = xGridData[Row][CStr(Column)]
+
+End
+
 Public Sub btnaddoption_Click()
 
   Dim sColl As Collection
@@ -162,43 +214,49 @@ Public Sub btndeloption_Click()
 
 End
 
-Private Sub SetOptionGrid()
+'-------------------------- Main procedures ---------------------
+Public Sub btnBrOK_Click()
 
-  GridView1.Clear()
-  If $OptionList.Count Then
-    GridView1.Columns.Count = 2
-    GridView1.Count = $OptionList.Count
-    LoadVariableToGrid($OptionList, GridView1)
+  Dim res As Result
+  Dim res1 As Result
 
-    With GridView1
-      .Columns[0].Width = CStr(200 * modBasic.$AppWidthRatio) & "px"
-      .Columns[1].Width = CStr(300 * modBasic.$AppWidthRatio) & "px"
+  If ListBox1.Text And If cmbformat.Text Then
+    res = modDatabase.$medConn.Edit(GetDefTable(), "flditem=&1 and fldformat like &2", ListBox1.Text, cmbformat.Text)
+    If res.Available Then
+      res["flddetail"] = txtdetail.RichText
+      res["fldoptions"] = JSON.Encode($OptionList)
+      res.Update()
+      Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information updated", modBasic.$BalloonDelay))
+    Else
+      res1 = modDatabase.$medConn.Create(GetDefTable())
+      res1["flditem"] = ListBox1.Text
+      res1["fldformat"] = cmbformat.Text
+      res1["flddetail"] = txtdetail.RichText
+      res1["fldoptions"] = JSON.Encode($OptionList)
+      res1.Update()
+      Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+    Endif
+  Endif
+  txtsubtest.SetFocus
 
-      .Columns[0].Text = "Variable"
-      .Columns[1].Text = "Values"
-    End With
+End
 
+Public Sub btnBrCancel_Click()
+
+  If ListBox1.Text And If cmbformat.Text Then
+    modDatabase.$medConn.Delete(GetDefTable(), "flditem=&1 and fldformat=&2", ListBox1.Text, cmbformat.Text)
+    txtdetail.RichText = ""
+    ShowParameters()
+    GridView1.Clear()
+    $OptionList = New Variant[]
+    Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information deleted", modBasic.$BalloonDelay))
   Endif
 
 End
 
-Private Sub LoadVariableToGrid(xFinal As Variant[], xGridView As WebTable)
+Public Sub txtsubtest_LostFocus()
 
-  xGridData = xFinal
-  xGridView.SetFocus
-
-End
-
-Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableData)
-
-  modGridView.GridViewDecoration(Data, Row)
-  Data.Text = xGridData[Row][CStr(Column)]
-
-End
-
-Public Sub btnclose_Click()
-
-  Me.Close()
+  txtsubtest.Text = String.UCaseFirst(txtsubtest.Text)
 
 End
 
@@ -212,27 +270,25 @@ Public Sub btndefaultlist_Click()
   Dim res1 As Result
 
   For Each xItem In xList
-    res = modDatabase.$medConn.Edit("tblhistory", "flditem=&1 and fldcomp=&2", xItem, modBasic.$compID)
+    res = modDatabase.$medConn.Edit("tblhistory", "flditem=&1 and fldformat=&2", xItem, "Common")
     If Not res.Available Then
       res1 = modDatabase.$medConn.Create("tblhistory")
       res1["flditem"] = xItem
       res1["fldformat"] = "Common"
       res1["flddetail"] = ""
       res1["fldoptions"] = ""
-      res1["fldcomp"] = modBasic.$compID
       res1.Update()
     Endif
   Next
 
   For Each yItem In yList
-    res = modDatabase.$medConn.Edit("tbldischarge", "flditem=&1 and fldcomp=&2", yItem, modBasic.$compID)
+    res = modDatabase.$medConn.Edit("tbldischarge", "flditem=&1 and fldformat=&2", yItem, "Common")
     If Not res.Available Then
       res1 = modDatabase.$medConn.Create("tbldischarge")
       res1["flditem"] = yItem
       res1["fldformat"] = "Common"
       res1["flddetail"] = ""
       res1["fldoptions"] = ""
-      res1["fldcomp"] = modBasic.$compID
       res1.Update()
     Endif
   Next
@@ -250,27 +306,25 @@ Public Sub btnclaim_Click()
   Dim res1 As Result
 
   For Each xItem In xList
-    res = modDatabase.$medConn.Edit("tblhistory", "flditem=&1 and fldcomp=&2", xItem, modBasic.$compID)
+    res = modDatabase.$medConn.Edit("tblhistory", "flditem=&1 and fldformat=&2", xItem, "Claim Code")
     If Not res.Available Then
       res1 = modDatabase.$medConn.Create("tblhistory")
       res1["flditem"] = xItem
       res1["fldformat"] = "Claim Code"
       res1["flddetail"] = ""
       res1["fldoptions"] = ""
-      res1["fldcomp"] = modBasic.$compID
       res1.Update()
     Endif
   Next
 
   For Each yItem In yList
-    res = modDatabase.$medConn.Edit("tbldischarge", "flditem=&1 and fldcomp=&2", yItem, modBasic.$compID)
+    res = modDatabase.$medConn.Edit("tbldischarge", "flditem=&1 and fldformat=&2", yItem, "Claim Code")
     If Not res.Available Then
       res1 = modDatabase.$medConn.Create("tbldischarge")
       res1["flditem"] = yItem
       res1["fldformat"] = "Claim Code"
       res1["flddetail"] = ""
       res1["fldoptions"] = ""
-      res1["fldcomp"] = modBasic.$compID
       res1.Update()
     Endif
   Next

@@ -1,10 +1,11 @@
 ' Gambas class file
 
+Private $billReference As String
+
 Public Sub _new(encid As String)
 
   txtencid.Text = encid
   modGeneralMain.GetOpenModalForm(Me)
-  cmbhistory.List = GetHistoryList()
   If txtencid.Text Then
     btnshow_Click()
   Else
@@ -32,7 +33,9 @@ Public Sub btnshow_Click()
 
   If txtencid.Text Then
     txtname.Text = modPatient.GetPatientNameByEnc(Trim(txtencid.Text))
+    $billReference = modNonMedical.GetFixedReference(txtencid.Text)
     txtgencomplaint.RichText = modPatPatho.ShowSelectedHistoryValue(Trim(txtencid.Text), "General Complaints")
+    cmbhistory.List = GetHistoryList()
     If modBasic.$TabletModeEnable = "Yes" Then
     Else
       txtgencomplaint.SetFocus
@@ -49,7 +52,7 @@ Private Function GetHistoryList() As String[]
 
   xList = New String[]
   xList.Add("History of Illness")
-  xnew = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tblhistory where fldcomp like &1", modBasic.$compID))
+  xnew = modMedicine.GetClinHistoryList($billReference)
   If xnew And If xnew.Count Then
     xList.Insert(xnew)
   Else

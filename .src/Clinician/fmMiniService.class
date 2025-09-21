@@ -286,9 +286,12 @@ Private Sub InsertClinicService(sCateg As String, sItem As String, sQty As Float
 
 End
 
-Private Sub SavePartialEntry(res As Result)
+Private Sub SavePartialEntry(res As Result, Optional advReceipt As String)
 
   res["fldstatus"] = "Done"
+  If advReceipt Then
+    res["fldextracol"] = advReceipt
+  Endif
   res["fldsave"] = True
   res["flduserid"] = modBasic.$lbluser
   res["fldtime"] = Now()
@@ -303,37 +306,46 @@ Public Sub btnsave_Click()
   Dim xform As String
   Dim res As Result
   Dim xauto As String
+  Dim xadv As String
 
   res = modDatabase.$myConn.Edit("tblpatbilling", "fldencounterval=&1 and fldsave=&2 and fldprint=&3 and fldordcomp like &4 and fldstatus=&5 and (flditemtype=&6 or flditemtype=&7 or flditemtype=&8)", $encid, False, False, modBasic.$compID, "Punched", "General Services", "Procedures", "Other Items")                 ''
-  For Each res
-    xform = modNonMedical.GetServiceKeyFromCategory(res["flditemtype"])
-    If xform = "Service" Then
-      xauto = modBasic.$AutoBillService
-    Else If xform = "Procedure" Then
-      xauto = modBasic.$AutoBillProcedure
-    Else If xform = "Others" Then
-      xauto = modBasic.$AutoBillOthers
-    Endif
-
-    If xauto = "Standard" Then
-      If modNonMedical.AllowPreCheckDeposit($encid, res["fldditemamt"], cmbdisctype.Text) = True Then
-        SavePartialEntry(res)
-      Endif
-    Else If xauto = "Full" Then
-      If modNonMedical.AllowPreEntryWithDeposit($encid, xform, res["fldditemamt"], cmbdisctype.Text) = True Then
-        SavePartialEntry(res)
-      Endif
+  If res.Available Then
+    If modBasic.$AutoBillAdvReceipt = "Enable" Then
+      xadv = modBillLock.AdvanceReceiptString("Advance Receipt")
     Else
-      If modBasic.$AutoBillSaveZero = "Yes" And If res["flditemrate"] = 0 Then
-        SavePartialEntry(res)
-      Else If modBasic.$AutoBillSaveZero = "Yes" And If res["flddiscper"] = 100 Then
-        SavePartialEntry(res)
-      Else If modBasic.$AutoBillSaveFullCredit = "Yes" And If res["fldbilltype"] = "Credit" And If res["fldcashincredit"] = 0 Then
-        SavePartialEntry(res)
-      Endif
+      xadv = ""
     Endif
 
-  Next
+    For Each res
+      xform = modNonMedical.GetServiceKeyFromCategory(res["flditemtype"])
+      If xform = "Service" Then
+        xauto = modBasic.$AutoBillService
+      Else If xform = "Procedure" Then
+        xauto = modBasic.$AutoBillProcedure
+      Else If xform = "Others" Then
+        xauto = modBasic.$AutoBillOthers
+      Endif
+
+      If xauto = "Standard" Then
+        If modNonMedical.AllowPreCheckDeposit($encid, res["fldditemamt"], cmbdisctype.Text) = True Then
+          SavePartialEntry(res, xadv)
+        Endif
+      Else If xauto = "Full" Then
+        If modNonMedical.AllowPreEntryWithDeposit($encid, xform, res["fldditemamt"], cmbdisctype.Text) = True Then
+          SavePartialEntry(res, xadv)
+        Endif
+      Else
+        If modBasic.$AutoBillSaveZero = "Yes" And If res["flditemrate"] = 0 Then
+          SavePartialEntry(res, xadv)
+        Else If modBasic.$AutoBillSaveZero = "Yes" And If res["flddiscper"] = 100 Then
+          SavePartialEntry(res, xadv)
+        Else If modBasic.$AutoBillSaveFullCredit = "Yes" And If res["fldbilltype"] = "Credit" And If res["fldcashincredit"] = 0 Then
+          SavePartialEntry(res, xadv)
+        Endif
+      Endif
+
+    Next
+  Endif
   FillLabtable()
   CompleteGrid()
 

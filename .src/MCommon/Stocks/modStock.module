@@ -1,15 +1,284 @@
 ' Gambas module file
 
-Public $ItemStorageCodeData As Collection
-Public $ItemStockNameData As Collection
-Public $ItemStockBatchData As Collection
-Public $ItemStockExpData As Collection
-Public $ItemStockMRPData As Collection
+Public $StockCurrData As Collection
 
 Public $SurgiNameFromStock As Collection
 Public $ExtraNameFromStock As Collection
 
 Private $CostCalcLevel As Integer = 10
+
+Public Sub GetCurrStockDataColl(stockno As Long, sCon As Connection)
+
+  Dim res As Result
+  Dim sColl As Collection
+
+  If $StockCurrData.Exist(CStr(stockno)) = False Then
+    res = sCon.Exec("SELECT fldstockid,fldcategory,fldbatch,fldexpiry,fldcost,fldsellpr,fldmrp,fldcomp,fldcode,fldpast FROM tblentry WHERE fldstockno=&1", stockno)     ''
+    If res.Available Then
+      sColl = New Collection
+      sColl.Add(res["fldstockid"], "fldstockid")
+      sColl.Add(res["fldcategory"], "fldcategory")
+      sColl.Add(res["fldbatch"], "fldbatch")
+      sColl.Add(res["fldexpiry"], "fldexpiry")
+      sColl.Add(res["fldcost"], "fldcost")
+      sColl.Add(res["fldsellpr"], "fldsellpr")
+      sColl.Add(res["fldmrp"], "fldmrp")
+      sColl.Add(res["fldcomp"], "fldcomp")
+      sColl.Add(res["fldcode"], "fldcode")
+      sColl.Add(res["fldpast"], "fldpast")
+
+      ''add to collection
+      $StockCurrData.Add(sColl, CStr(stockno))
+    Endif
+  Endif
+
+End
+
+Public Function GetStockNameFromStockno(stockno As Integer, Optional sCon As Connection) As String
+
+  Dim res As Result
+  Dim xx As String
+  Dim $con As Connection
+
+  If sCon Then
+    $con = sCon
+  Else
+    $con = modDatabase.$myConn
+  Endif
+
+  If stockno Then
+    GetCurrStockDataColl(stockno, $con)
+    If $StockCurrData.Exist(CStr(stockno)) Then
+      xx = $StockCurrData[CStr(stockno)]["fldstockid"]
+    Else
+      res = $con.Exec("select fldstockid from tblentry where fldstockno=&1", stockno)
+      If res.Available Then
+        If res["fldstockid"] Then
+          xx = res["fldstockid"]
+        Else
+          xx = ""
+        Endif
+      Else
+        xx = ""
+      Endif
+    Endif
+
+  Else
+    xx = ""
+  Endif
+  Return xx
+
+End
+
+Public Function GetBatchFromStockNo(txtstockno As Long, Optional sCon As Connection) As String
+
+  Dim batch As String
+  Dim res As Result
+  Dim $con As Connection
+
+  If sCon Then
+    $con = sCon
+  Else
+    $con = modDatabase.$myConn
+  Endif
+
+  If txtstockno Then
+    GetCurrStockDataColl(txtstockno, $con)
+    If $StockCurrData.Exist(CStr(txtstockno)) Then
+      batch = $StockCurrData[CStr(txtstockno)]["fldbatch"]
+    Else
+      res = $con.Exec("select fldbatch from tblentry where fldstockno=&1", txtstockno)
+      If res.Available Then
+        If res["fldbatch"] Then
+          batch = res["fldbatch"]
+        Else
+          batch = ""
+        Endif
+      Else
+        batch = ""
+      Endif
+    Endif
+
+  Else
+    batch = ""
+  Endif
+  Return batch
+
+End
+
+Public Function GetMaxRPFromStockNo(txtstockno As Long, Optional sCon As Connection) As Float
+
+  Dim xmrp As Float
+  Dim res As Result
+  Dim $con As Connection
+
+  If sCon Then
+    $con = sCon
+  Else
+    $con = modDatabase.$myConn
+  Endif
+
+  If txtstockno Then
+    GetCurrStockDataColl(txtstockno, $con)
+    If $StockCurrData.Exist(CStr(txtstockno)) Then
+      If $StockCurrData[CStr(txtstockno)]["fldmrp"] Then
+        xmrp = $StockCurrData[CStr(txtstockno)]["fldmrp"]
+      Else
+        xmrp = 0
+      Endif
+    Else
+      res = $con.Exec("select fldmrp from tblentry where fldstockno=&1", txtstockno)
+      If res.Available Then
+        If res["fldmrp"] Then
+          xmrp = res["fldmrp"]
+        Else
+          xmrp = 0
+        Endif
+      Else
+        xmrp = 0
+      Endif
+    Endif
+
+  Else
+    xmrp = 0
+  Endif
+  Return xmrp
+
+End
+
+Public Function GetExpiryFromStockNo(txtstockno As Long, Optional sCon As Connection) As Date
+
+  Dim expiry As Date
+  Dim res As Result
+  Dim $con As Connection
+
+  If sCon Then
+    $con = sCon
+  Else
+    $con = modDatabase.$myConn
+  Endif
+
+  If txtstockno Then
+    GetCurrStockDataColl(txtstockno, $con)
+    If $StockCurrData.Exist(CStr(txtstockno)) Then
+      expiry = $StockCurrData[CStr(txtstockno)]["fldexpiry"]
+    Else
+      res = $con.Exec("select fldexpiry from tblentry where fldstockno=&1", txtstockno)
+      If res.Available Then
+        If res["fldexpiry"] Then
+          expiry = res["fldexpiry"]
+        Else
+          expiry = ""
+        Endif
+      Else
+        expiry = ""
+      Endif
+    Endif
+
+  Else
+    expiry = ""
+  Endif
+  Return expiry
+
+End
+
+Public Function GetCurrCostPriceByStockNo(stockno As Long, Optional sCon As Connection) As Float
+
+  Dim res As Result
+  Dim xx As Float
+  Dim $con As Connection
+
+  If sCon Then
+    $con = sCon
+  Else
+    $con = modDatabase.$myConn
+  Endif
+
+  If stockno Then
+    GetCurrStockDataColl(stockno, $con)
+    If $StockCurrData.Exist(CStr(stockno)) Then
+      If $StockCurrData[CStr(stockno)]["fldcost"] Then
+        xx = $StockCurrData[CStr(stockno)]["fldcost"]
+      Else
+        xx = 0
+      Endif
+    Else
+      res = $con.Exec("select fldcost from tblentry where fldstockno=&1", stockno)
+      If res.Available Then
+        If res["fldcost"] Then
+          xx = Round(res["fldcost"], -2)
+        Else
+          xx = 0
+        Endif
+      Else
+        xx = 0
+      Endif
+    Endif
+
+  Else
+    xx = 0
+  Endif
+
+  Return xx
+
+End
+
+Public Function GetStorageCodeFromStockNo(stockno As Integer, Optional sCon As Connection) As String
+
+  Dim res As Result
+  Dim xx As String
+  Dim $con As Connection
+
+  If sCon Then
+    $con = sCon
+  Else
+    $con = modDatabase.$myConn
+  Endif
+
+  If stockno Then
+    GetCurrStockDataColl(stockno, $con)
+    If $StockCurrData.Exist(CStr(stockno)) Then
+      xx = $StockCurrData[CStr(stockno)]["fldcode"]
+    Else
+      res = $con.Exec("select fldcode from tblentry where fldstockno=&1", stockno)
+      If res.Available Then
+        If res["fldcode"] Then
+          xx = res["fldcode"]
+        Else
+          xx = ""
+        Endif
+      Else
+        xx = ""
+      Endif
+    Endif
+
+  Else
+    xx = ""
+  Endif
+  Return xx
+
+End
+
+''do not cache it
+Public Function GetCurrSellingPriceByStockNo(stockno As Long) As Float
+
+  Dim res As Result
+  Dim xx As Float
+
+  res = modDatabase.$myConn.Exec("select fldsellpr from tblentry where fldstockno=&1", stockno)
+  If res.Available Then
+    If res["fldsellpr"] Then
+      xx = Round(res["fldsellpr"], -2)
+    Else
+      xx = 0
+    Endif
+  Else
+    xx = 0
+  Endif
+
+  Return xx
+
+End
 
 'NOTE:------------------------ RESULT For DATA Fill ---------------------------
 'USE FOR LOADIMG Medicine/Surgical LIST (purchase/Dispensing) ''use at ComboBox1_KeyRelease() For purchase Of all active items / updating outorder / e - prescription
@@ -757,35 +1026,6 @@ Public Function FillMedicinesPrescribingComboResult(txtroute As String, BrandOrG
 End
 
 'NOTE: -------------------------------------- stock related functions -------------------------------------------
-Public Function GetStorageCodeFromStockNo(stockno As Integer) As String
-
-  Dim res As Result
-  Dim xx As String
-
-  If stockno Then
-    xx = modHelpVariable.GetCollectionValue($ItemStorageCodeData, CStr(stockno), modBasic.$AppCacheInventoryParameters)
-    If Not xx Then
-      res = modDatabase.$myConn.Exec("select fldcode from tblentry where fldstockno=&1", stockno)
-      If res.Available Then
-        If res["fldcode"] Then
-          xx = res["fldcode"]
-          If modBasic.$AppCacheInventoryParameters = "Yes" Then
-            $ItemStorageCodeData.Add(xx, CStr(stockno))
-          Endif
-        Else
-          xx = ""
-        Endif
-      Else
-        xx = ""
-      Endif
-    Endif
-
-  Else
-    xx = ""
-  Endif
-  Return xx
-
-End
 
 Public Function GetStorageCodeFromStockName(stockid As String) As String
 
@@ -938,133 +1178,6 @@ Public Function GetItemStockNo(txtstockid As String, txtbatch As String, txtcomp
 
   Return stockno
   ''don't catch error
-
-End
-
-Public Function GetStockNameFromStockno(stockno As Integer) As String
-
-  Dim res As Result
-  Dim xx As String
-
-  If stockno Then
-    xx = modHelpVariable.GetCollectionValue($ItemStockNameData, CStr(stockno), modBasic.$AppCacheInventoryParameters)
-    If Not xx Then
-      res = modDatabase.$myConn.Exec("select fldstockid from tblentry where fldstockno=&1", stockno)
-      If res.Available Then
-        If res["fldstockid"] Then
-          xx = res["fldstockid"]
-          If modBasic.$AppCacheInventoryParameters = "Yes" Then
-            $ItemStockNameData.Add(xx, CStr(stockno))
-          Endif
-        Else
-          xx = ""
-        Endif
-      Else
-        xx = ""
-      Endif
-    Endif
-
-  Else
-    xx = ""
-  Endif
-  Return xx
-
-End
-
-Public Function GetBatchFromStockNo(txtstockno As Long) As String
-
-  Dim batch As String
-  Dim res As Result
-
-  If txtstockno Then
-    batch = modHelpVariable.GetCollectionValue($ItemStockBatchData, CStr(txtstockno), modBasic.$AppCacheInventoryParameters)
-    If Not batch Then
-      res = modDatabase.$myConn.Exec("select fldbatch from tblentry where fldstockno=&1", txtstockno)
-      If res.Available Then
-        If res["fldbatch"] Then
-          batch = res["fldbatch"]
-          If modBasic.$AppCacheInventoryParameters = "Yes" Then
-            $ItemStockBatchData.Add(batch, CStr(txtstockno))
-          Endif
-        Else
-          batch = ""
-        Endif
-      Else
-        batch = ""
-      Endif
-    Endif
-
-  Else
-    batch = ""
-  Endif
-  Return batch
-
-End
-
-Public Function GetMaxRPFromStockNo(txtstockno As Long) As Float
-
-  Dim yy As Variant
-  Dim xmrp As Float
-  Dim res As Result
-
-  If txtstockno Then
-    yy = modHelpVariable.GetCollectionValue($ItemStockMRPData, CStr(txtstockno), modBasic.$AppCacheInventoryParameters)
-    If yy Then
-      xmrp = CFloat(yy)
-    Else
-      xmrp = 0
-    Endif
-
-    If Not xmrp Then
-      res = modDatabase.$myConn.Exec("select fldmrp from tblentry where fldstockno=&1", txtstockno)
-      If res.Available Then
-        If res["fldmrp"] Then
-          xmrp = res["fldmrp"]
-          If modBasic.$AppCacheInventoryParameters = "Yes" Then
-            $ItemStockMRPData.Add(xmrp, CStr(txtstockno))
-          Endif
-        Else
-          xmrp = 0
-        Endif
-      Else
-        xmrp = 0
-      Endif
-    Endif
-
-  Else
-    xmrp = 0
-  Endif
-  Return xmrp
-
-End
-
-Public Function GetExpiryFromStockNo(txtstockno As Long) As Date
-
-  Dim expiry As Date
-  Dim res As Result
-
-  If txtstockno Then
-    expiry = modHelpVariable.GetCollectionValue($ItemStockExpData, CStr(txtstockno), modBasic.$AppCacheInventoryParameters)
-    If Not expiry Then
-      res = modDatabase.$myConn.Exec("select fldexpiry from tblentry where fldstockno=&1", txtstockno)
-      If res.Available Then
-        If res["fldexpiry"] Then
-          expiry = res["fldexpiry"]
-          If modBasic.$AppCacheInventoryParameters = "Yes" Then
-            $ItemStockExpData.Add(expiry, CStr(txtstockno))
-          Endif
-        Else
-          expiry = ""
-        Endif
-      Else
-        expiry = ""
-      Endif
-    Endif
-
-  Else
-    expiry = ""
-  Endif
-  Return expiry
 
 End
 
@@ -1321,46 +1434,6 @@ End
 ' '   Return xx
 ' '
 ' ' End
-
-Public Function GetCurrCostPriceByStockNo(stockno As Long) As Float
-
-  Dim res As Result
-  Dim xx As Float
-
-  res = modDatabase.$myConn.Exec("select fldcost from tblentry where fldstockno=&1", stockno)
-  If res.Available Then
-    If res["fldcost"] Then
-      xx = Round(res["fldcost"], -2)
-    Else
-      xx = 0
-    Endif
-  Else
-    xx = 0
-  Endif
-
-  Return xx
-
-End
-
-Public Function GetCurrSellingPriceByStockNo(stockno As Long) As Float
-
-  Dim res As Result
-  Dim xx As Float
-
-  res = modDatabase.$myConn.Exec("select fldsellpr from tblentry where fldstockno=&1", stockno)
-  If res.Available Then
-    If res["fldsellpr"] Then
-      xx = Round(res["fldsellpr"], -2)
-    Else
-      xx = 0
-    Endif
-  Else
-    xx = 0
-  Endif
-
-  Return xx
-
-End
 
 Public Function GetSellingPriceByStockNo(stockno As Long, billMode As String) As Float
 

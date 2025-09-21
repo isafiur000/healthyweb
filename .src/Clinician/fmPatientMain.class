@@ -534,16 +534,7 @@ Private Function NoteTakingTypeList() As String[]
     Case "Absconder"
       aList = New String[]
     Case "Discharged", "LAMA", "Refer", "Death"
-      If modBasic.$ClinHistoryDischarge = "Selected" Then
-        Select $billReference
-          Case "Claim Code", "Accident SSF", "Medical SSF", "MedExtra SSF", "Critical SSF", "Staff List"
-            xList = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tbldischarge where fldcomp like &1 and fldformat=&2", modBasic.$compID, $billReference))
-          Case Else
-            xList = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tbldischarge where fldcomp like &1 and fldformat=&2", modBasic.$compID, "Common"))
-        End Select
-      Else
-        xList = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tbldischarge where fldcomp like &1", modBasic.$compID))
-      Endif
+      xList = modMedicine.GetClinDischargeList($billReference)
       If xList And If xList.Count Then
         aList = xList
       Else
@@ -566,16 +557,7 @@ Private Function GetHistoryList() As String[]
   xList = New String[]
   xList.Add("General Complaints")
   xList.Add("History of Illness")
-  If modBasic.$ClinHistoryDischarge = "Selected" Then
-    Select $billReference
-      Case "Claim Code", "Accident SSF", "Medical SSF", "MedExtra SSF", "Critical SSF", "Staff List"
-        xnew = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tblhistory where fldcomp like &1 and fldformat=&2", modBasic.$compID, $billReference))
-      Case Else
-        xnew = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tblhistory where fldcomp like &1 and fldformat=&2", modBasic.$compID, "Common"))
-    End Select
-  Else
-    xnew = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tblhistory where fldcomp like &1", modBasic.$compID))
-  Endif
+  xnew = modMedicine.GetClinHistoryList($billReference)
   If xnew And If xnew.Count Then
     xList.Insert(xnew)
   Else
@@ -613,7 +595,7 @@ Private Sub BasicInfoPatient()
       modJavaScript.SetSelect2Combo(cmbsympunit)
     Endif
     GetDefaultBillingmodes()
-    txthistorylabel.List = GetHistoryList()
+    cmbinpathistory.List = GetHistoryList()
     cmbnote.List = NoteTakingTypeList()
     If $sTatus = "Admitted" Then
       cmbnotetype.List = ["All Types", "Progress Note", "Clinicians Note", "Nurses Note", "Transfer Note", "Patient Note"]
@@ -2977,12 +2959,12 @@ Public Sub tlbtnhistory_Click()
     xboolean = False
   Endif
 
-  If txthistorylabel.Text Then
+  If cmbinpathistory.Text Then
     If txthistory.Text Then
-      If txthistorylabel.Text = "Initial Planning" Or If txthistorylabel.Text = "Final Planning" Then
-        modPatientGeneral.AddExamGeneralQualiData(Trim(txtencid.Text), "Notes", txthistorylabel.Text, txthistory.KeyList.Join(";"), txthistory.RichText, xboolean)
+      If cmbinpathistory.Text = "Initial Planning" Or If cmbinpathistory.Text = "Final Planning" Then
+        modPatientGeneral.AddExamGeneralQualiData(Trim(txtencid.Text), "Notes", cmbinpathistory.Text, txthistory.KeyList.Join(";"), txthistory.RichText, xboolean)
       Else
-        modPatientGeneral.AddExamGeneralQualiData(Trim(txtencid.Text), "History", txthistorylabel.Text, txthistory.KeyList.Join(";"), txthistory.RichText, xboolean)
+        modPatientGeneral.AddExamGeneralQualiData(Trim(txtencid.Text), "History", cmbinpathistory.Text, txthistory.KeyList.Join(";"), txthistory.RichText, xboolean)
       Endif
       Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
     Endif
@@ -2998,7 +2980,7 @@ End
 '
 ' End
 
-Public Sub txthistorylabel_Click()
+Public Sub cmbinpathistory_Click()
 
   btnshowhistory_Click()
 
@@ -3006,11 +2988,11 @@ End
 
 Public Sub btnshowhistory_Click()
 
-  If txthistorylabel.Text Then
-    If txthistorylabel.Text = "Initial Planning" Or If txthistorylabel.Text = "Final Planning" Then
-      txthistory.RichText = modPatPatho.ShowSelectedNotes(Trim(txtencid.Text), txthistorylabel.Text)
+  If cmbinpathistory.Text Then
+    If cmbinpathistory.Text = "Initial Planning" Or If cmbinpathistory.Text = "Final Planning" Then
+      txthistory.RichText = modPatPatho.ShowSelectedNotes(Trim(txtencid.Text), cmbinpathistory.Text)
     Else
-      txthistory.RichText = modPatPatho.ShowSelectedHistoryValue(Trim(txtencid.Text), txthistorylabel.Text)
+      txthistory.RichText = modPatPatho.ShowSelectedHistoryValue(Trim(txtencid.Text), cmbinpathistory.Text)
     Endif
   Endif
 
@@ -6206,8 +6188,8 @@ End
 ''-----------------database
 Public Sub btndatahistory_Click()
 
-  If txthistorylabel.Text Then
-    txthistory.RichText = AddHistory("History", txthistorylabel.Text)
+  If cmbinpathistory.Text Then
+    txthistory.RichText = AddHistory("History", cmbinpathistory.Text)
   Endif
 
 End
@@ -6233,8 +6215,8 @@ End
 ''--------------- pen
 Public Sub btnpanhistory_Click()
 
-  If txthistorylabel.Text Then
-    txthistory.RichText = txthistory.RichText & Space(1) & modFillContainer.GetExtraTextArea(txthistorylabel.Text, txthistory.Text)
+  If cmbinpathistory.Text Then
+    txthistory.RichText = txthistory.RichText & Space(1) & modFillContainer.GetExtraTextArea(cmbinpathistory.Text, txthistory.Text)
   Endif
 
 End

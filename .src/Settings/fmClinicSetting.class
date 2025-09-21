@@ -11,8 +11,7 @@ Public Sub _new()
   cmbdeptlock.List = ["Yes", "No"]
   cmbdoctorlock.List = ["Yes", "No"]
   cmblockproced.List = ["Yes", "No"]
-  cmbbedrelease.List = ["Enable", "Disable"]
-  cmbbedfreeon.List = ["Discharge", "Clearance"]
+
   cmbdeparttype.List = ["Location", "Service"]
   cmbsympscale.List = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec("select fldexamid as col from tblexam where fldoption=&1 and fldstatus=&2", "Clinical Scale", "Active"))        ''
 
@@ -32,14 +31,19 @@ Public Sub _new()
   xList = modControlSub.GetDirectFillresultNoNull(modDatabase.$myConn.Exec("select distinct(flddept) as col from tbldeptexam"))
   cmbdefopdexam.List = xList
   cmbdefipdexam.List = xList
-  cmbconsultlist.List = ["Paid", "All"]
-  cmbopvisitlist.List = ["Paid", "All"]
-  cmbclinforms.List = ["Paid", "All"]
 
   cmbdiagnoOPDdef.List = modBasic.$ClinDiagnoChapterGrouped
   cmbdiagnoERdef.List = modBasic.$ClinDiagnoChapterGrouped
   cmbdischdiagno.List = ["Yes", "No"]
   cmbopdoutdiagno.List = ["Provisional", "Final"]
+  cmbdefhistory.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldformat) as col from tblhistory"))
+  cmbdefdisch.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldformat) as col from tbldischarge"))
+
+  cmbbedrelease.List = ["Enable", "Disable"]
+  cmbbedfreeon.List = ["Discharge", "Clearance"]
+  cmbconsultlist.List = ["Paid", "All"]
+  cmbopvisitlist.List = ["Paid", "All"]
+  cmbclinforms.List = ["Paid", "All"]
 
   cmbtelemed.List = ["Partial", "Complete", "Disable"]
   cmbvideopass.List = ["Enable", "Disable"]
@@ -62,22 +66,18 @@ Public Sub btnshowsetting_Click()
     ShowDataEntry()
     GetClinActivity()
     ShowOutcomeSett()
+    ManageSettings()
     ShowTelemedicineSett()
     ShowUserAccessRestriction()
   Endif
 
 End
 
-''----------------------------- General settings -----------------------------
-Private Sub GeneralSettings()
+''--------------------------- Manage ----------------------------------
+Private Sub ManageSettings()
 
   Dim xbedhold As String
 
-  cmbdeptdefault.Text = modGlobalSetting.ShowSettingFromDBAny("IPClinic/FixedDepartment", cmbtarget.Text)
-  cmbdeptlock.Text = modGlobalSetting.ShowSettingFromDBAny("IPClinic/LockToOwnDepartment", cmbtarget.Text)
-  cmbdoctorlock.Text = modGlobalSetting.ShowSettingFromDBAny("IPClinic/LockToOwnConsultant", cmbtarget.Text)
-  cmblockproced.Text = modGlobalSetting.ShowSettingFromDBAny("IPClinic/LockToOwnProcedures", cmbtarget.Text)
-  cmbdeparttype.Text = modGlobalSetting.ShowSettingFromDBAny("IPClinic/DepartmentType", cmbtarget.Text)
   cmbbedrelease.Text = modGlobalSetting.ShowSettingFromDBAny("IPClinic/MidBedRelease", cmbtarget.Text)
   cmbbedfreeon.Text = modGlobalSetting.ShowSettingFromDBAny("IPClinic/BedReleaseEvent", cmbtarget.Text)
   xbedhold = modGlobalSetting.ShowSettingFromDBAny("IPClinic/BedHoldingDuration", cmbtarget.Text)
@@ -86,6 +86,63 @@ Private Sub GeneralSettings()
   Else
     txtholdbed.Value = 0
   Endif
+
+  cmbconsultlist.Text = modGlobalSetting.ShowSettingFromDBAny("ClinicForms/ConsultationList", cmbtarget.Text)
+  cmbopvisitlist.Text = modGlobalSetting.ShowSettingFromDBAny("ClinicForms/OPVisitList", cmbtarget.Text)
+  cmbclinforms.Text = modGlobalSetting.ShowSettingFromDBAny("ClinicForms/PatientForms", cmbtarget.Text)
+
+End
+
+Public Sub btnbedrelease_Click()
+
+  modGlobalSetting.SaveSettingToDB("IPClinic/MidBedRelease", cmbbedrelease.Text, cmbtarget.Text)
+  Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+
+End
+
+Public Sub btnbedfreeon_Click()
+
+  modGlobalSetting.SaveSettingToDB("IPClinic/BedReleaseEvent", cmbbedfreeon.Text, cmbtarget.Text)
+  Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+
+End
+
+Public Sub btnholdbed_Click()
+
+  modGlobalSetting.SaveSettingToDB("IPClinic/BedHoldingDuration", CStr(txtholdbed.Value), cmbtarget.Text)
+  Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+
+End
+
+Public Sub btnconsultlist_Click()
+
+  modGlobalSetting.SaveSettingToDB("ClinicForms/ConsultationList", cmbconsultlist.Text, cmbtarget.Text)
+  Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+
+End
+
+Public Sub btnopvisitlist_Click()
+
+  modGlobalSetting.SaveSettingToDB("ClinicForms/OPVisitList", cmbopvisitlist.Text, cmbtarget.Text)
+  Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+
+End
+
+Public Sub btnclinforms_Click()
+
+  modGlobalSetting.SaveSettingToDB("ClinicForms/PatientForms", cmbclinforms.Text, cmbtarget.Text)
+  Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+
+End
+
+''----------------------------- General settings -----------------------------
+Private Sub GeneralSettings()
+
+  cmbdeptdefault.Text = modGlobalSetting.ShowSettingFromDBAny("IPClinic/FixedDepartment", cmbtarget.Text)
+  cmbdeptlock.Text = modGlobalSetting.ShowSettingFromDBAny("IPClinic/LockToOwnDepartment", cmbtarget.Text)
+  cmbdoctorlock.Text = modGlobalSetting.ShowSettingFromDBAny("IPClinic/LockToOwnConsultant", cmbtarget.Text)
+  cmblockproced.Text = modGlobalSetting.ShowSettingFromDBAny("IPClinic/LockToOwnProcedures", cmbtarget.Text)
+  cmbdeparttype.Text = modGlobalSetting.ShowSettingFromDBAny("IPClinic/DepartmentType", cmbtarget.Text)
 
   cmbsympscale.Text = modGlobalSetting.ShowSettingFromDBAny("IPClinic/SymptomCauseScale", cmbtarget.Text)
 
@@ -133,27 +190,6 @@ Public Sub btndeparttype_Click()
 
 End
 
-Public Sub btnbedrelease_Click()
-
-  modGlobalSetting.SaveSettingToDB("IPClinic/MidBedRelease", cmbbedrelease.Text, cmbtarget.Text)
-  Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
-
-End
-
-Public Sub btnbedfreeon_Click()
-
-  modGlobalSetting.SaveSettingToDB("IPClinic/BedReleaseEvent", cmbbedfreeon.Text, cmbtarget.Text)
-  Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
-
-End
-
-Public Sub btnholdbed_Click()
-
-  modGlobalSetting.SaveSettingToDB("IPClinic/BedHoldingDuration", CStr(txtholdbed.Value), cmbtarget.Text)
-  Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
-
-End
-
 ''--------------------------------- Activity ------------------------
 Private Sub GetClinActivity()
 
@@ -170,10 +206,8 @@ Private Sub GetClinActivity()
 
   cmbdefopdexam.Text = modGlobalSetting.ShowSettingFromDBAny("ClinicForms/OPDExaminations", cmbtarget.Text)
   cmbdefipdexam.Text = modGlobalSetting.ShowSettingFromDBAny("ClinicForms/IPDExaminations", cmbtarget.Text)
-
-  cmbconsultlist.Text = modGlobalSetting.ShowSettingFromDBAny("ClinicForms/ConsultationList", cmbtarget.Text)
-  cmbopvisitlist.Text = modGlobalSetting.ShowSettingFromDBAny("ClinicForms/OPVisitList", cmbtarget.Text)
-  cmbclinforms.Text = modGlobalSetting.ShowSettingFromDBAny("ClinicForms/PatientForms", cmbtarget.Text)
+  cmbdefhistory.Text = modGlobalSetting.ShowSettingFromDBAny("ClinicForms/HistoryFormat", cmbtarget.Text)
+  cmbdefdisch.Text = modGlobalSetting.ShowSettingFromDBAny("ClinicForms/DischargeFormat", cmbtarget.Text)
 
 End
 
@@ -212,23 +246,16 @@ Public Sub btndefipdexam_Click()
 
 End
 
-Public Sub btnconsultlist_Click()
+Public Sub btndefhistory_Click()
 
-  modGlobalSetting.SaveSettingToDB("ClinicForms/ConsultationList", cmbconsultlist.Text, cmbtarget.Text)
+  modGlobalSetting.SaveSettingToDB("ClinicForms/HistoryFormat", cmbdefhistory.Text, cmbtarget.Text)
   Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
 
 End
 
-Public Sub btnopvisitlist_Click()
+Public Sub btndefdisch_Click()
 
-  modGlobalSetting.SaveSettingToDB("ClinicForms/OPVisitList", cmbopvisitlist.Text, cmbtarget.Text)
-  Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
-
-End
-
-Public Sub btnclinforms_Click()
-
-  modGlobalSetting.SaveSettingToDB("ClinicForms/PatientForms", cmbclinforms.Text, cmbtarget.Text)
+  modGlobalSetting.SaveSettingToDB("ClinicForms/DischargeFormat", cmbdefdisch.Text, cmbtarget.Text)
   Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
 
 End
@@ -432,19 +459,22 @@ Public Sub btnsettall_Click()
   xList.Add("IPClinic/LockToOwnConsultant")
   xList.Add("IPClinic/LockToOwnProcedures")
   xList.Add("IPClinic/DepartmentType")
+  xList.Add("IPClinic/SymptomCauseScale")
+
   xList.Add("IPClinic/MidBedRelease")
   xList.Add("IPClinic/BedReleaseEvent")
   xList.Add("IPClinic/BedHoldingDuration")
-  xList.Add("IPClinic/SymptomCauseScale")
+  xList.Add("ClinicForms/ConsultationList")
+  xList.Add("ClinicForms/OPVisitList")
+  xList.Add("ClinicForms/PatientForms")
 
   xList.Add("IPClinic/TriageColorValue")
   xList.Add("IPClinic/VitalsInterval")
   xList.Add("IPClinic/RestrictToDoseTime")
   xList.Add("ClinicForms/OPDExaminations")
   xList.Add("ClinicForms/IPDExaminations")
-  xList.Add("ClinicForms/ConsultationList")
-  xList.Add("ClinicForms/OPVisitList")
-  xList.Add("ClinicForms/PatientForms")
+  xList.Add("ClinicForms/HistoryFormat")
+  xList.Add("ClinicForms/DischargeFormat")
 
   xList.Add("ClinicForms/ExamList_Lock")
   xList.Add("ClinicForms/SymptomList_Lock")
@@ -525,6 +555,14 @@ Public Sub WebButtonL6_Click()
 
 End
 
+Public Sub WebButtonL7_Click()
+
+  GetNormalButtons()
+  IconPanel1.Index = 6
+  WebButtonL7.Background = Color.LightGray
+
+End
+
 Private Sub GetNormalButtons()
 
   WebButtonL1.Background = Color.Default
@@ -533,6 +571,7 @@ Private Sub GetNormalButtons()
   WebButtonL4.Background = Color.Default
   WebButtonL5.Background = Color.Default
   WebButtonL6.Background = Color.Default
+  WebButtonL7.Background = Color.Default
 
 End
 
