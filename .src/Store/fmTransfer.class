@@ -41,7 +41,6 @@ Public Sub _new()
   Endif
   rbtrans.Value = True
   chkselall.Value = True
-  ShowTransferGrid()
 
 End
 
@@ -52,6 +51,14 @@ Public Sub WebForm_Open()
 End
 
 Public Sub mnublank_Click()
+
+End
+
+Public Sub btnshow_Click()
+
+  If cmbcompsent.Text Then
+    ShowTransferGrid()
+  Endif
 
 End
 
@@ -88,12 +95,6 @@ Private Sub AdjustGrid(GridView1x As WebTable)
     .Columns[14].Text = "Request"
     .Columns[15].Text = "Comment"
   End With
-
-End
-
-Public Sub mnurequest_Click()
-
-  ShowTransferGrid()
 
 End
 
@@ -544,7 +545,7 @@ Private Sub ShowTransferGrid()
 
   Dim xtot As Float
 
-  $rData = modDatabase.$myConn.Exec("select fldid,fldstockno,fldoldstockno,fldfromentrytime,fldstockid,fldstockno,fldstockno,fldcategory,fldqty,fldnetcost,fldtocomp,fldfromuser,fldreference,fldlockcomp,fldrequest,fldcomment from tbltransfer where fldfromcomp=&1 and fldsav=&2 ORDER BY fldid DESC", modBasic.$compID, False)
+  $rData = modDatabase.$myConn.Exec("select fldid,fldstockno,fldoldstockno,fldfromentrytime,fldstockid,fldstockno,fldstockno,fldcategory,fldqty,fldnetcost,fldtocomp,fldfromuser,fldreference,fldlockcomp,fldrequest,fldcomment from tbltransfer where fldfromcomp=&1 and fldsav=&2 and fldtocomp=&3 ORDER BY fldid DESC", modBasic.$compID, False, cmbcompsent.Text)
   $aMyFields = New String[]
   modGridView.ReadSmallData(GridView1, $rData, $aMyFields)
   AdjustGrid(GridView1)
@@ -591,7 +592,9 @@ Public Sub mnuedit_Click()
       res = modDatabase.$myConn.Edit("tbltransfer", "fldid=&1 and fldsav=&2", $rData["fldid"], False)
       res["fldqty"] = xval
       res.Update
-      ShowTransferGrid()
+      If cmbcompsent.Text Then
+        ShowTransferGrid()
+      Endif
     Endif
   Endif
 
@@ -602,7 +605,9 @@ Public Sub mnudel_Click()
   If GridView1.Selection.Count Then
     $rData.MoveTo(GridView1.Selection[0])
     modDatabase.$myConn.Delete("tbltransfer", "fldid=&1 and fldsav=&2", $rData["fldid"], False)
-    ShowTransferGrid()
+    If cmbcompsent.Text Then
+      ShowTransferGrid()
+    Endif
   Endif
 
 End
@@ -651,7 +656,9 @@ Private Sub FirstSaveItems()
 
       Endif
     Next
-    ShowTransferGrid()
+    If cmbcompsent.Text Then
+      ShowTransferGrid()
+    Endif
   Endif
 
 Catch

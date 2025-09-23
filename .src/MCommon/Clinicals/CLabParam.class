@@ -35,6 +35,7 @@ Private Sub CalculateParam()
   Dim sql As String
   Dim sqstr As String
   Dim res As Result
+  Dim xkey As String
 
   Dim xLimit As Float
   Dim yLimit As Float
@@ -42,62 +43,137 @@ Private Sub CalculateParam()
   Dim minLimit As Float
   Dim maxLimit As Float
 
-  If Not $sMethod Or If $sMethod = "Regular" Then
-    sqstr = ""
+  If Not $sMethod Then
+    $sMethod = "Regular"
+  Endif
+
+  modLabTest.LoadPatTestParameters($sTest, $gender, $agegr, $sMethod)
+  xkey = $sTest & "|" & $gender & "|" & $agegr & "|" & $sMethod
+  If modLabTest.$LabQueryValueColl.Exist(xkey) Then
+    If $sUnit = "Metric" Then
+      If modLabTest.$LabQueryValueColl[xkey]["fldconvfactor"] Then
+        ConvFactor = modLabTest.$LabQueryValueColl[xkey]["fldconvfactor"]
+      Else
+        ConvFactor = 1
+      Endif
+      If modLabTest.$LabQueryValueColl[xkey]["fldmetunit"] Then
+        LabUnit = modLabTest.$LabQueryValueColl[xkey]["fldmetunit"]
+      Else
+        LabUnit = ""
+      Endif
+      If modLabTest.$LabQueryValueColl[xkey]["fldminimum"] Then
+        xLimit = modLabTest.$LabQueryValueColl[xkey]["fldminimum"]
+      Else
+        xLimit = 0
+      Endif
+      If modLabTest.$LabQueryValueColl[xkey]["fldmaximum"] Then
+        yLimit = modLabTest.$LabQueryValueColl[xkey]["fldmaximum"]
+      Else
+        yLimit = 0
+      Endif
+      If modLabTest.$LabQueryValueColl[xkey]["fldmetlow"] Then
+        minLimit = modLabTest.$LabQueryValueColl[xkey]["fldmetlow"]
+      Else
+        minLimit = 0
+      Endif
+      If modLabTest.$LabQueryValueColl[xkey]["fldmethigh"] Then
+        maxLimit = modLabTest.$LabQueryValueColl[xkey]["fldmethigh"]
+      Else
+        maxLimit = 0
+      Endif
+
+    Else If $sUnit = "SI" Then
+      If modLabTest.$LabQueryValueColl[xkey]["fldconvfactor"] Then
+        ConvFactor = modLabTest.$LabQueryValueColl[xkey]["fldconvfactor"]
+      Else
+        ConvFactor = 1
+      Endif
+      If modLabTest.$LabQueryValueColl[xkey]["fldsiunit"] Then
+        LabUnit = modLabTest.$LabQueryValueColl[xkey]["fldsiunit"]
+      Else
+        LabUnit = ""
+      Endif
+      If modLabTest.$LabQueryValueColl[xkey]["fldminimum"] Then
+        xLimit = modLabTest.$LabQueryValueColl[xkey]["fldminimum"]
+      Else
+        xLimit = 0
+      Endif
+      If modLabTest.$LabQueryValueColl[xkey]["fldmaximum"] Then
+        yLimit = modLabTest.$LabQueryValueColl[xkey]["fldmaximum"]
+      Else
+        yLimit = 0
+      Endif
+      If modLabTest.$LabQueryValueColl[xkey]["fldsilow"] Then
+        minLimit = modLabTest.$LabQueryValueColl[xkey]["fldsilow"]
+      Else
+        minLimit = 0
+      Endif
+      If modLabTest.$LabQueryValueColl[xkey]["fldsihigh"] Then
+        maxLimit = modLabTest.$LabQueryValueColl[xkey]["fldsihigh"]
+      Else
+        maxLimit = 0
+      Endif
+
+    Endif
+
   Else
-    sqstr = " and fldmethod=&6"
-  Endif
+    If $sMethod = "Regular" Then
+      sqstr = ""
+    Else
+      sqstr = " and fldmethod=&6"
+    Endif
+    If $sUnit = "Metric" Then
+      sql = "select fldconvfactor,fldminimum,fldmaximum,fldmetunit as xunit,fldmetlow as xlow,fldmethigh as xhigh from tbltestlimit where fldtestid=&1 and (fldptsex=&2 or fldptsex=&3) and (fldagegroup=&4 or fldagegroup=&5)" & sqstr
+    Else If $sUnit = "SI" Then
+      sql = "select fldconvfactor,fldminimum,fldmaximum,fldsiunit as xunit,fldsilow as xlow,fldsihigh as xhigh from tbltestlimit where fldtestid=&1 and (fldptsex=&2 or fldptsex=&3) and (fldagegroup=&4 or fldagegroup=&5)" & sqstr
+    Endif
+    res = modDatabase.$medConn.Exec(sql, $sTest, $gender, "Both Sex", $agegr, "All Age", $sMethod)
 
-  If $sUnit = "Metric" Then
-    sql = "select fldconvfactor,fldminimum,fldmaximum,fldmetunit as xunit,fldmetlow as xlow,fldmethigh as xhigh from tbltestlimit where fldtestid=&1 and (fldptsex=&2 or fldptsex=&3) and (fldagegroup=&4 or fldagegroup=&5)" & sqstr
-  Else If $sUnit = "SI" Then
-    sql = "select fldconvfactor,fldminimum,fldmaximum,fldsiunit as xunit,fldsilow as xlow,fldsihigh as xhigh from tbltestlimit where fldtestid=&1 and (fldptsex=&2 or fldptsex=&3) and (fldagegroup=&4 or fldagegroup=&5)" & sqstr
-  Endif
-  res = modDatabase.$medConn.Exec(sql, $sTest, $gender, "Both Sex", $agegr, "All Age", $sMethod)
+    If res.Available = True Then
+      res.MoveFirst
+      If res["fldconvfactor"] Then
+        ConvFactor = res["fldconvfactor"]
+      Else
+        ConvFactor = 1
+      Endif
 
-  If res.Available = True Then
-    res.MoveFirst
-    If res["fldconvfactor"] Then
-      ConvFactor = res["fldconvfactor"]
+      If res["xunit"] Then
+        LabUnit = res["xunit"]
+      Else
+        LabUnit = ""
+      Endif
+
+      If res["fldminimum"] Then
+        xLimit = res["fldminimum"]
+      Else
+        xLimit = 0
+      Endif
+      If res["fldmaximum"] Then
+        yLimit = res["fldmaximum"]
+      Else
+        yLimit = 0
+      Endif
+
+      If res["xlow"] Then
+        minLimit = res["xlow"]
+      Else
+        minLimit = 0
+      Endif
+      If res["xhigh"] Then
+        maxLimit = res["xhigh"]
+      Else
+        maxLimit = 0
+      Endif
+
     Else
       ConvFactor = 1
-    Endif
-
-    If res["xunit"] Then
-      LabUnit = res["xunit"]
-    Else
       LabUnit = ""
-    Endif
-
-    If res["fldminimum"] Then
-      xLimit = res["fldminimum"]
-    Else
       xLimit = 0
-    Endif
-    If res["fldmaximum"] Then
-      yLimit = res["fldmaximum"]
-    Else
       yLimit = 0
-    Endif
-
-    If res["xlow"] Then
-      minLimit = res["xlow"]
-    Else
       minLimit = 0
-    Endif
-    If res["xhigh"] Then
-      maxLimit = res["xhigh"]
-    Else
       maxLimit = 0
     Endif
 
-  Else
-    ConvFactor = 1
-    LabUnit = ""
-    xLimit = 0
-    yLimit = 0
-    minLimit = 0
-    maxLimit = 0
   Endif
 
   If $sUnit = "Metric" Then

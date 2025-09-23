@@ -6,6 +6,7 @@ Private $ACLedger As String
 Private $ACReference As String
 Private $PatStatus As String
 Private $LockToComp As Boolean
+Private $PastAmt As Float
 
 Private $QRProvider As String
 Private $AdvReceiptNo As String
@@ -13,7 +14,7 @@ Private $QRString As String
 Private $QRCodeID As String
 Private $TransDone As String
 
-Public Sub _new(encid As String, sbillType As String, xLedger As String, xRefNo As String, xStatus As String, xLockComp As String)
+Public Sub _new(encid As String, sbillType As String, xLedger As String, xRefNo As String, xStatus As String, xLockComp As String, xpastAmt As Float)
 
   $encid = encid
   $billtype = sbillType
@@ -21,6 +22,7 @@ Public Sub _new(encid As String, sbillType As String, xLedger As String, xRefNo 
   $ACReference = xRefNo
   $PatStatus = xStatus
   $LockToComp = xLockComp
+  $PastAmt = xpastAmt
   $QRProvider = modSettings.ShowSettingFromFIle("QRScan/Provider")
 
   $TransDone = ""
@@ -179,10 +181,10 @@ Private Sub SaveAdvancePayment(scheq As String, sbank As String)
         Next
       Endif
 
-      xtotal = due + tax - disc
+      xtotal = due + tax - disc + $PastAmt
 
       If xtotal Then
-        modBillings.InsertAdvRecptDetail(modDatabase.$myConn, $encid, $billno, $billtype, due, tax, disc, xtotal, xtotal, scheq, sbank, $PatStatus, "QR Scan", "Pending")
+        modBillings.InsertAdvRecptDetail(modDatabase.$myConn, $encid, $billno, $billtype, due, tax, disc, (due + tax - disc), xtotal, scheq, sbank, $PatStatus, "QR Scan", "Pending")
 
         If $QRProvider = "nepalpay" Then
           hForm1 = New CQRNepalPay($encid, $billno, xtotal, $billtype, modNonMedical.GetLedgerAccountCode(sbank))

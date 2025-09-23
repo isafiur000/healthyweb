@@ -74,13 +74,29 @@ End
 
 Public Sub txtsearch_Change()
 
+  txtsearchname.Text = ""
+  GetUserList()
+
+End
+
+Public Sub txtsearchname_Change()
+
+  txtsearch.Text = ""
   GetUserList()
 
 End
 
 Public Sub GetUserList()
 
-  $rData = modDatabase.$myConn.Exec("select flduserid,fldstatus,fldusername from tbluser where lower(flduserid) like &1 ORDER BY flduserid ASC", LCase(txtsearch.Text) & "%")
+  If txtsearch.Text Or If txtsearchname.Text Then
+    If txtsearch.Text Then
+      $rData = modDatabase.$myConn.Exec("select flduserid,fldstatus,fldusername from tbluser where lower(flduserid) like &1", LCase(txtsearch.Text) & "%")
+    Else If txtsearchname.Text Then
+      $rData = modDatabase.$myConn.Exec("select flduserid,fldstatus,fldusername from tbluser where lower(fldusername) like &1", LCase(txtsearchname.Text) & "%")
+    Endif
+  Else
+    $rData = modDatabase.$myConn.Exec("select flduserid,fldstatus,fldusername from tbluser")
+  Endif
   $aMyFields = New String[]
   modGridView.ReadSmallData(GridView1, $rData, $aMyFields)
   With GridView1
@@ -116,21 +132,6 @@ Private Function GetStatusBool(sVal As String) As Boolean
     xx = True
   Endif
   Return xx
-
-End
-
-Public Sub btnshow_Click()
-
-  If GridView1.Selection.Count Then
-    $rData.MoveTo(GridView1.Selection[0])
-    chkpass.Enabled = False
-    chkroot.Enabled = False
-    txtpassword.Password = True
-    txtroot.Password = True
-    ShowUserDetail($rData["flduserid"])
-    btnOK.Text = "Add"
-    btnChange.Text = "Edit"
-  Endif
 
 End
 

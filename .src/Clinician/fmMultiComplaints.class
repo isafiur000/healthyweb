@@ -3,7 +3,7 @@
 Private $encid As String
 Private $ItemList As String[]
 Private $ItemListFlag As String[]
-Private $sCategoryList As String[]
+Private $FlagLst As String[]
 Private $sValueList As String[]
 
 Private aWebPanel As New Object[100]
@@ -28,26 +28,112 @@ Public Sub _new(encid As String)
 
   $encid = encid
   modGeneralMain.GetOpenModalForm(Me)
-  rbfixed.Value = True
-  rbfixed_Click()
+  $FlagLst = modFixPatho.GetFlaggedSymptomGroup()
+  rbgroup.Value = True
+  rbgroup_Click()
 
 End
 
 Public Sub rbfixed_Click()
 
-  $ItemList = modString.GetDualListFromVariant(modFixPatho.$SymptomCompVar, "fldtype", "fldsymptom", True)
-  $ItemListFlag = modFixPatho.GetFlaggedSymptomGroup()
+  $ItemList = New String[]
+  $ItemList = modString.GetDualListFromVariant(modFixPatho.$SymptomMasterVar, "fldcategory", "fldsymptom", True)
+  $ItemListFlag = New String[]
   GetItemListData()
-  ListBox1.List = $sCategoryList
 
 End
 
 Public Sub rbgroup_Click()
 
+  $ItemList = New String[]
   $ItemList = modString.GetDualListFromVariant(modFixPatho.$SymptomCompVar, "fldtype", "fldsymptom", True)
-  $ItemListFlag = modFixPatho.GetFlaggedSymptomGroup()
+  $ItemListFlag = $FlagLst
   GetItemListData()
-  ListBox1.List = $sCategoryList
+
+End
+
+Private Sub GetItemListData()
+
+  Dim categLst As String[]
+  Dim xx As String
+  Dim asx As String[]
+  Dim xval As String[]
+
+  categLst = New String[]
+  If rbgroup.Value = True Then
+    categLst.Add("Flagged")
+  Endif
+  xval = New String[]
+  For Each xx In $ItemList
+    If xx Then
+      asx = Split(xx, "|")
+
+      If asx[0] Then
+        If categLst.Count = 0 Then
+          categLst.Add(asx[0])
+        Else
+          If categLst.Exist(asx[0]) = False Then
+            categLst.Add(asx[0])
+          Endif
+        Endif
+      Endif
+
+    Endif
+  Next
+  ListBox1.List = categLst
+
+End
+
+Public Sub btnshowall_Click()
+
+  SHowComplaints()
+
+End
+
+Private Sub SHowComplaints()
+
+  Dim xval As String[]
+  Dim xx As String
+  Dim asx As String[]
+
+  Try $sValueList.Clear()
+  Try Frame1.DeleteChildren()
+
+  xval = New String[]
+  If ListBox1.Text = "Flagged" Then
+    For Each xx In $ItemListFlag
+      If xx Then
+        asx = Split(xx, "|")
+        If xval.Count = 0 Then
+          xval.Add(asx[1])
+        Else
+          If xval.Exist(asx[1]) = False Then
+            xval.Add(asx[1])
+          Endif
+        Endif
+      Endif
+    Next
+
+  Else
+    For Each xx In $ItemList
+      If xx Then
+        asx = Split(xx, "|")
+        If asx[0] = ListBox1.Text Then
+          If xval.Count = 0 Then
+            xval.Add(asx[1])
+          Else
+            If xval.Exist(asx[1]) = False Then
+              xval.Add(asx[1])
+            Endif
+          Endif
+        Endif
+      Endif
+    Next
+
+  Endif
+
+  $sValueList = xval
+  LoadControls()
 
 End
 
@@ -178,7 +264,7 @@ Private Sub LoadControls()
         .Height = "2em"
         .ReadOnly = False
         .Visible = False
-        .List = ["Both Side", "Left Side", "Right Side", "On/Off"]
+        .List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select fldsubsymptom as col from tblsubsymptoms where fldsymptom=&1", $sValueList[i]))
         .Tag = i
       End With
 
@@ -225,88 +311,6 @@ Public Sub IndexCheck_Click()
     aWebFrame[i].Visible = False
     bComboBox[i].Visible = False
   Endif
-
-End
-
-Private Sub GetItemListData()
-
-  Dim xx As String
-  Dim asx As String[]
-  Dim xval As String[]
-
-  $sCategoryList = New String[]
-  $sCategoryList.Add("Flagged")
-  xval = New String[]
-  For Each xx In $ItemList
-    If xx Then
-      asx = Split(xx, "|")
-
-      If asx[0] Then
-        If $sCategoryList.Count = 0 Then
-          $sCategoryList.Add(asx[0])
-        Else
-          If $sCategoryList.Exist(asx[0]) = False Then
-            $sCategoryList.Add(asx[0])
-          Endif
-        Endif
-      Endif
-
-    Endif
-  Next
-  ListBox1.List = $sCategoryList
-
-End
-
-Private Sub SHowComplaints()
-
-  Dim xval As String[]
-  Dim xx As String
-  Dim asx As String[]
-
-  Try $sValueList.Clear()
-  Try Frame1.DeleteChildren()
-
-  xval = New String[]
-  If ListBox1.Text = "Flagged" Then
-    For Each xx In $ItemListFlag
-      If xx Then
-        asx = Split(xx, "|")
-        If xval.Count = 0 Then
-          xval.Add(asx[1])
-        Else
-          If xval.Exist(asx[1]) = False Then
-            xval.Add(asx[1])
-          Endif
-        Endif
-      Endif
-    Next
-
-  Else
-    For Each xx In $ItemList
-      If xx Then
-        asx = Split(xx, "|")
-        If asx[0] = ListBox1.Text Then
-          If xval.Count = 0 Then
-            xval.Add(asx[1])
-          Else
-            If xval.Exist(asx[1]) = False Then
-              xval.Add(asx[1])
-            Endif
-          Endif
-        Endif
-      Endif
-    Next
-
-  Endif
-
-  $sValueList = xval
-  LoadControls()
-
-End
-
-Public Sub btnshowall_Click()
-
-  SHowComplaints()
 
 End
 

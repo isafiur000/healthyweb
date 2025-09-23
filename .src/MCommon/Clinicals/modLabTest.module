@@ -1,5 +1,7 @@
 ' Gambas module file
 
+Public $LabQueryValueColl As Collection
+
 Public $LabIDUnitReference As Collection
 Public $LabIDUnitAccepTRange As Collection
 Public $LabIDUnitUnitString As Collection
@@ -7,6 +9,51 @@ Public $LabIDUnitUnitString As Collection
 Public $LabIDEncounter As Collection
 Public $LabIDTestName As Collection
 Public $LabIDTestMethod As Collection
+
+Public Sub LoadPatTestParameters(strTest As String, xgender As String, agegroup As String, sMethod As String)
+
+  Dim xkey As String
+  Dim res As Result
+  Dim sql As String
+  Dim sqstr As String
+  Dim sColl As Collection
+
+  If Not sMethod Then
+    sMethod = "Regular"
+  Endif
+
+  xkey = strTest & "|" & xgender & "|" & agegroup & "|" & sMethod
+  If $LabQueryValueColl.Exist(xkey) = False Then
+    If sMethod = "Regular" Then
+      sqstr = ""
+    Else
+      sqstr = " and fldmethod=&6"
+    Endif
+    sql = "SELECT fldminimum,fldmaximum,fldsensitivity,fldspecificity,fldconvfactor,fldsinormal,fldsihigh,fldsilow,fldsiunit,fldmetnormal,fldmethigh,fldmetlow,fldmetunit FROM tbltestlimit WHERE fldtestid=&1 and (fldptsex=&2 or fldptsex=&3) and (fldagegroup=&4 or fldagegroup=&5)" & sqstr
+    res = modDatabase.$medConn.Exec(sql, strTest, xgender, "Both Sex", agegroup, "All Age", sMethod)
+    If res.Available Then
+      res.MoveFirst
+      sColl = New Collection
+      sColl.Add(res["fldminimum"], "fldminimum")
+      sColl.Add(res["fldmaximum"], "fldmaximum")
+      sColl.Add(res["fldsensitivity"], "fldsensitivity")
+      sColl.Add(res["fldspecificity"], "fldspecificity")
+      sColl.Add(res["fldconvfactor"], "fldconvfactor")
+      sColl.Add(res["fldsinormal"], "fldsinormal")
+      sColl.Add(res["fldsihigh"], "fldsihigh")
+      sColl.Add(res["fldsilow"], "fldsilow")
+      sColl.Add(res["fldsiunit"], "fldsiunit")
+      sColl.Add(res["fldmetnormal"], "fldmetnormal")
+      sColl.Add(res["fldmethigh"], "fldmethigh")
+      sColl.Add(res["fldmetlow"], "fldmetlow")
+      sColl.Add(res["fldmetunit"], "fldmetunit")
+
+      ''add to collection
+      $LabQueryValueColl.Add(sColl, xkey)
+    Endif
+  Endif
+
+End
 
 ''------------------------------------- Procedure by patient ----------------------------------------------------------
 Public Function UniLabValueList(encid As String, sTest As String) As String[]
@@ -264,33 +311,73 @@ Public Function LabBothLimitValue(strTest As String, encid As String, strUnit As
   Dim sqstr As String
   Dim xval As Float[]
 
-  If Not sMethod Or If sMethod = "Regular" Then
-    sqstr = ""
-  Else
-    sqstr = " and fldmethod=&6"
+  Dim xgender As String
+  Dim agegroup As String
+  Dim xkey As String
+
+  xgender = modPatient.GetPatientSex(encid)
+  agegroup = modPatient.GetAgeGroupFIxed(encid, Now())
+
+  If Not sMethod Then
+    sMethod = "Regular"
   Endif
 
-  If strUnit = "Metric" Then
-    sql = "select fldmetlow as xlow,fldmethigh as xhigh from tbltestlimit where fldtestid=&1 and (fldptsex=&2 or fldptsex=&3) and (fldagegroup=&4 or fldagegroup=&5)" & sqstr
-  Else If strUnit = "SI" Then
-    sql = "select fldsilow as xlow,fldsihigh as xhigh from tbltestlimit where fldtestid=&1 and (fldptsex=&2 or fldptsex=&3) and (fldagegroup=&4 or fldagegroup=&5)" & sqstr
-  Endif
-  rs = modDatabase.$medConn.Exec(sql, strTest, modPatient.GetPatientSex(encid), "Both Sex", modPatient.GetAgeGroupFIxed(encid, Now()), "All Age", sMethod)
-  If rs.Available = True Then
-    rs.MoveFirst
-    If rs["xlow"] Then
-      minLimit = rs["xlow"]
+  LoadPatTestParameters(strTest, xgender, agegroup, sMethod)
+  xkey = strTest & "|" & xgender & "|" & agegroup & "|" & sMethod
+  If $LabQueryValueColl.Exist(xkey) Then
+    If strUnit = "Metric" Then
+      If $LabQueryValueColl[xkey]["fldmetlow"] Then
+        minLimit = $LabQueryValueColl[xkey]["fldmetlow"]
+      Else
+        minLimit = 0
+      Endif
+      If $LabQueryValueColl[xkey]["fldmethigh"] Then
+        maxLimit = $LabQueryValueColl[xkey]["fldmethigh"]
+      Else
+        maxLimit = 0
+      Endif
+    Else If strUnit = "SI" Then
+      If $LabQueryValueColl[xkey]["fldsilow"] Then
+        minLimit = $LabQueryValueColl[xkey]["fldsilow"]
+      Else
+        minLimit = 0
+      Endif
+      If $LabQueryValueColl[xkey]["fldsihigh"] Then
+        maxLimit = $LabQueryValueColl[xkey]["fldsihigh"]
+      Else
+        maxLimit = 0
+      Endif
+    Endif
+
+  Else
+    If sMethod = "Regular" Then
+      sqstr = ""
+    Else
+      sqstr = " and fldmethod=&6"
+    Endif
+    If strUnit = "Metric" Then
+      sql = "select fldmetlow as xlow,fldmethigh as xhigh from tbltestlimit where fldtestid=&1 and (fldptsex=&2 or fldptsex=&3) and (fldagegroup=&4 or fldagegroup=&5)" & sqstr
+    Else If strUnit = "SI" Then
+      sql = "select fldsilow as xlow,fldsihigh as xhigh from tbltestlimit where fldtestid=&1 and (fldptsex=&2 or fldptsex=&3) and (fldagegroup=&4 or fldagegroup=&5)" & sqstr
+    Endif
+    rs = modDatabase.$medConn.Exec(sql, strTest, xgender, "Both Sex", agegroup, "All Age", sMethod)
+    If rs.Available = True Then
+      rs.MoveFirst
+      If rs["xlow"] Then
+        minLimit = rs["xlow"]
+      Else
+        minLimit = 0
+      Endif
+      If rs["xhigh"] Then
+        maxLimit = rs["xhigh"]
+      Else
+        maxLimit = 0
+      Endif
     Else
       minLimit = 0
-    Endif
-    If rs["xhigh"] Then
-      maxLimit = rs["xhigh"]
-    Else
       maxLimit = 0
     Endif
-  Else
-    minLimit = 0
-    maxLimit = 0
+
   Endif
 
   xval = [minLimit, maxLimit]
@@ -404,27 +491,57 @@ Public Function LabNormalValue(strTest As String, encid As String, strUnit As St
   Dim NormalLimit As Float
   Dim sqstr As String
 
-  If Not sMethod Or If sMethod = "Regular" Then
-    sqstr = ""
-  Else
-    sqstr = " and fldmethod=&6"
+  Dim xgender As String
+  Dim agegroup As String
+  Dim xkey As String
+
+  xgender = modPatient.GetPatientSex(encid)
+  agegroup = modPatient.GetAgeGroupFIxed(encid, Now())
+
+  If Not sMethod Then
+    sMethod = "Regular"
   Endif
 
-  If strUnit = "Metric" Then
-    sql = "select fldmetnormal as xnormal from tbltestlimit where fldtestid=&1 and (fldptsex=&2 or fldptsex=&3) and (fldagegroup=&4 or fldagegroup=&5)" & sqstr
-  Else If strUnit = "SI" Then
-    sql = "select fldsinormal as xnormal from tbltestlimit where fldtestid=&1 and (fldptsex=&2 or fldptsex=&3) and (fldagegroup=&4 or fldagegroup=&5)" & sqstr
-  Endif
-  rs = modDatabase.$medConn.Exec(sql, strTest, modPatient.GetPatientSex(encid), "Both Sex", modPatient.GetAgeGroupFIxed(encid, Now()), "All Age", sMethod)
-  If rs.Available = True Then
-    rs.MoveFirst
-    If rs["xnormal"] Then
-      NormalLimit = rs["xnormal"]
+  LoadPatTestParameters(strTest, xgender, agegroup, sMethod)
+  xkey = strTest & "|" & xgender & "|" & agegroup & "|" & sMethod
+  If $LabQueryValueColl.Exist(xkey) Then
+    If strUnit = "Metric" Then
+      If $LabQueryValueColl[xkey]["fldmetnormal"] Then
+        NormalLimit = $LabQueryValueColl[xkey]["fldmetnormal"]
+      Else
+        NormalLimit = 0
+      Endif
+    Else If strUnit = "SI" Then
+      If $LabQueryValueColl[xkey]["fldsinormal"] Then
+        NormalLimit = $LabQueryValueColl[xkey]["fldsinormal"]
+      Else
+        NormalLimit = 0
+      Endif
+    Endif
+
+  Else
+    If sMethod = "Regular" Then
+      sqstr = ""
+    Else
+      sqstr = " and fldmethod=&6"
+    Endif
+    If strUnit = "Metric" Then
+      sql = "select fldmetnormal as xnormal from tbltestlimit where fldtestid=&1 and (fldptsex=&2 or fldptsex=&3) and (fldagegroup=&4 or fldagegroup=&5)" & sqstr
+    Else If strUnit = "SI" Then
+      sql = "select fldsinormal as xnormal from tbltestlimit where fldtestid=&1 and (fldptsex=&2 or fldptsex=&3) and (fldagegroup=&4 or fldagegroup=&5)" & sqstr
+    Endif
+    rs = modDatabase.$medConn.Exec(sql, strTest, xgender, "Both Sex", agegroup, "All Age", sMethod)
+    If rs.Available = True Then
+      rs.MoveFirst
+      If rs["xnormal"] Then
+        NormalLimit = rs["xnormal"]
+      Else
+        NormalLimit = 0
+      Endif
     Else
       NormalLimit = 0
     Endif
-  Else
-    NormalLimit = 0
+
   Endif
 
   Return NormalLimit
@@ -442,29 +559,56 @@ Public Function GetLabAcceptableRange(strTest As String, encid As String, strUni
   Dim xval As Float[]
   Dim xconv As Float
 
-  If Not sMethod Or If sMethod = "Regular" Then
-    sqstr = ""
-  Else
-    sqstr = " and fldmethod=&6"
+  Dim xgender As String
+  Dim agegroup As String
+  Dim xkey As String
+
+  xgender = modPatient.GetPatientSex(encid)
+  agegroup = modPatient.GetAgeGroupFIxed(encid, Now())
+
+  If Not sMethod Then
+    sMethod = "Regular"
   Endif
 
-  sql = "select fldminimum,fldmaximum from tbltestlimit where fldtestid=&1 and (fldptsex=&2 or fldptsex=&3) and (fldagegroup=&4 or fldagegroup=&5)" & sqstr
-  rs = modDatabase.$medConn.Exec(sql, strTest, modPatient.GetPatientSex(encid), "Both Sex", modPatient.GetAgeGroupFIxed(encid, Now()), "All Age", sMethod)
-  If rs.Available = True Then
-    rs.MoveFirst
-    If rs["fldminimum"] Then
-      LowerLimit = rs["fldminimum"]
+  LoadPatTestParameters(strTest, xgender, agegroup, sMethod)
+  xkey = strTest & "|" & xgender & "|" & agegroup & "|" & sMethod
+  If $LabQueryValueColl.Exist(xkey) Then
+    If $LabQueryValueColl[xkey]["fldminimum"] Then
+      LowerLimit = $LabQueryValueColl[xkey]["fldminimum"]
     Else
       LowerLimit = 0
     Endif
-    If rs["fldmaximum"] Then
-      UpperLimit = rs["fldmaximum"]
+    If $LabQueryValueColl[xkey]["fldmaximum"] Then
+      UpperLimit = $LabQueryValueColl[xkey]["fldmaximum"]
     Else
       UpperLimit = 0
     Endif
+
   Else
-    LowerLimit = 0
-    UpperLimit = 0
+    If sMethod = "Regular" Then
+      sqstr = ""
+    Else
+      sqstr = " and fldmethod=&6"
+    Endif
+    sql = "select fldminimum,fldmaximum from tbltestlimit where fldtestid=&1 and (fldptsex=&2 or fldptsex=&3) and (fldagegroup=&4 or fldagegroup=&5)" & sqstr
+    rs = modDatabase.$medConn.Exec(sql, strTest, xgender, "Both Sex", agegroup, "All Age", sMethod)
+    If rs.Available = True Then
+      rs.MoveFirst
+      If rs["fldminimum"] Then
+        LowerLimit = rs["fldminimum"]
+      Else
+        LowerLimit = 0
+      Endif
+      If rs["fldmaximum"] Then
+        UpperLimit = rs["fldmaximum"]
+      Else
+        UpperLimit = 0
+      Endif
+    Else
+      LowerLimit = 0
+      UpperLimit = 0
+    Endif
+
   Endif
 
   If strUnit = "Metric" Then
@@ -522,23 +666,45 @@ Private Function LabQuantiTableValue(sField As String, strTest As String, encid 
   Dim svalue As Float
   Dim sqstr As String
 
-  If Not sMethod Or If sMethod = "Regular" Then
-    sqstr = ""
-  Else
-    sqstr = " and fldmethod=&6"
+  Dim xgender As String
+  Dim agegroup As String
+  Dim xkey As String
+
+  xgender = modPatient.GetPatientSex(encid)
+  agegroup = modPatient.GetAgeGroupFIxed(encid, Now())
+
+  If Not sMethod Then
+    sMethod = "Regular"
   Endif
 
-  sql = Subst("select &1 as xfld from tbltestlimit", sField) & " where fldtestid=&1 and (fldptsex=&2 or fldptsex=&3) and (fldagegroup=&4 or fldagegroup=&5)" & sqstr
-  rs = modDatabase.$medConn.Exec(sql, strTest, modPatient.GetPatientSex(encid), "Both Sex", modPatient.GetAgeGroupFIxed(encid, Now()), "All Age", sMethod)
-  If rs.Available = True Then
-    rs.MoveFirst
-    If rs["xfld"] Then
-      svalue = rs["xfld"]
+  LoadPatTestParameters(strTest, xgender, agegroup, sMethod)
+  xkey = strTest & "|" & xgender & "|" & agegroup & "|" & sMethod
+  If $LabQueryValueColl.Exist(xkey) Then
+    If $LabQueryValueColl[xkey][sField] Then
+      svalue = $LabQueryValueColl[xkey][sField]
     Else
       svalue = 0
     Endif
+
   Else
-    svalue = 0
+    If sMethod = "Regular" Then
+      sqstr = ""
+    Else
+      sqstr = " and fldmethod=&6"
+    Endif
+    sql = Subst("select &1 as xfld from tbltestlimit", sField) & " where fldtestid=&1 and (fldptsex=&2 or fldptsex=&3) and (fldagegroup=&4 or fldagegroup=&5)" & sqstr
+    rs = modDatabase.$medConn.Exec(sql, strTest, xgender, "Both Sex", agegroup, "All Age", sMethod)
+    If rs.Available = True Then
+      rs.MoveFirst
+      If rs["xfld"] Then
+        svalue = rs["xfld"]
+      Else
+        svalue = 0
+      Endif
+    Else
+      svalue = 0
+    Endif
+
   Endif
 
   If svalue = 0 Then
@@ -591,23 +757,45 @@ Public Function LabConversionValue(encid As String, strTest As String, Optional 
   Dim ConvFactor As Float
   Dim sqstr As String
 
-  If Not sMethod Or If sMethod = "Regular" Then
-    sqstr = ""
-  Else
-    sqstr = " and fldmethod=&6"
+  Dim xgender As String
+  Dim agegroup As String
+  Dim xkey As String
+
+  xgender = modPatient.GetPatientSex(encid)
+  agegroup = modPatient.GetAgeGroupFIxed(encid, Now())
+
+  If Not sMethod Then
+    sMethod = "Regular"
   Endif
 
-  ssl = "select fldconvfactor from tbltestlimit where fldtestid=&1 and (fldptsex=&2 or fldptsex=&3) and (fldagegroup=&4 or fldagegroup=&5)" & sqstr
-  rs = modDatabase.$medConn.Exec(ssl, strTest, modPatient.GetPatientSex(encid), "Both Sex", modPatient.GetAgeGroupFIxed(encid, Now()), "All Age", sMethod)
-  If rs.Available = True Then
-    rs.MoveFirst
-    If rs["fldconvfactor"] Then
-      ConvFactor = rs["fldconvfactor"]
+  LoadPatTestParameters(strTest, xgender, agegroup, sMethod)
+  xkey = strTest & "|" & xgender & "|" & agegroup & "|" & sMethod
+  If $LabQueryValueColl.Exist(xkey) Then
+    If $LabQueryValueColl[xkey]["fldconvfactor"] Then
+      ConvFactor = $LabQueryValueColl[xkey]["fldconvfactor"]
     Else
       ConvFactor = 1
     Endif
+
   Else
-    ConvFactor = 1
+    If sMethod = "Regular" Then
+      sqstr = ""
+    Else
+      sqstr = " and fldmethod=&6"
+    Endif
+    ssl = "select fldconvfactor from tbltestlimit where fldtestid=&1 and (fldptsex=&2 or fldptsex=&3) and (fldagegroup=&4 or fldagegroup=&5)" & sqstr
+    rs = modDatabase.$medConn.Exec(ssl, strTest, xgender, "Both Sex", agegroup, "All Age", sMethod)
+    If rs.Available = True Then
+      rs.MoveFirst
+      If rs["fldconvfactor"] Then
+        ConvFactor = rs["fldconvfactor"]
+      Else
+        ConvFactor = 1
+      Endif
+    Else
+      ConvFactor = 1
+    Endif
+
   Endif
 
   Return ConvFactor
@@ -622,27 +810,57 @@ Public Function LabTestUnit(strTest As String, encid As String, strUnit As Strin
   Dim LabUnit As String
   Dim sqstr As String
 
-  If Not sMethod Or If sMethod = "Regular" Then
-    sqstr = ""
-  Else
-    sqstr = " and fldmethod=&6"
+  Dim xgender As String
+  Dim agegroup As String
+  Dim xkey As String
+
+  xgender = modPatient.GetPatientSex(encid)
+  agegroup = modPatient.GetAgeGroupFIxed(encid, Now())
+
+  If Not sMethod Then
+    sMethod = "Regular"
   Endif
 
-  If strUnit = "Metric" Then
-    ssl = "select fldmetunit as xunit from tbltestlimit where fldtestid=&1 and (fldptsex=&2 or fldptsex=&3) and (fldagegroup=&4 or fldagegroup=&5)" & sqstr
-  Else If strUnit = "SI" Then
-    ssl = "select fldsiunit as xunit from tbltestlimit where fldtestid=&1 and (fldptsex=&2 or fldptsex=&3) and (fldagegroup=&4 or fldagegroup=&5)" & sqstr
-  Endif
-  rs = modDatabase.$medConn.Exec(ssl, strTest, modPatient.GetPatientSex(encid), "Both Sex", modPatient.GetAgeGroupFIxed(encid, Now()), "All Age", sMethod)
-  If rs.Available = True Then
-    rs.MoveFirst
-    If rs["xunit"] Then
-      LabUnit = rs["xunit"]
+  LoadPatTestParameters(strTest, xgender, agegroup, sMethod)
+  xkey = strTest & "|" & xgender & "|" & agegroup & "|" & sMethod
+  If $LabQueryValueColl.Exist(xkey) Then
+    If strUnit = "Metric" Then
+      If $LabQueryValueColl[xkey]["fldmetunit"] Then
+        LabUnit = $LabQueryValueColl[xkey]["fldmetunit"]
+      Else
+        LabUnit = ""
+      Endif
+    Else If strUnit = "SI" Then
+      If $LabQueryValueColl[xkey]["fldsiunit"] Then
+        LabUnit = $LabQueryValueColl[xkey]["fldsiunit"]
+      Else
+        LabUnit = ""
+      Endif
+    Endif
+
+  Else
+    If sMethod = "Regular" Then
+      sqstr = ""
+    Else
+      sqstr = " and fldmethod=&6"
+    Endif
+    If strUnit = "Metric" Then
+      ssl = "select fldmetunit as xunit from tbltestlimit where fldtestid=&1 and (fldptsex=&2 or fldptsex=&3) and (fldagegroup=&4 or fldagegroup=&5)" & sqstr
+    Else If strUnit = "SI" Then
+      ssl = "select fldsiunit as xunit from tbltestlimit where fldtestid=&1 and (fldptsex=&2 or fldptsex=&3) and (fldagegroup=&4 or fldagegroup=&5)" & sqstr
+    Endif
+    rs = modDatabase.$medConn.Exec(ssl, strTest, xgender, "Both Sex", agegroup, "All Age", sMethod)
+    If rs.Available = True Then
+      rs.MoveFirst
+      If rs["xunit"] Then
+        LabUnit = rs["xunit"]
+      Else
+        LabUnit = ""
+      Endif
     Else
       LabUnit = ""
     Endif
-  Else
-    LabUnit = ""
+
   Endif
 
   Return LabUnit
@@ -2250,7 +2468,7 @@ Private Function GetSensiValue(testid As Long, subtestid As Long, sIndex As Stri
 
 End
 
-''-----Observation with Position -----------------------
+''---------------- Position wise value -------------------
 Public Function GetCurrTesValuePos(sPos As String, encid As String, strTest As String, Optional sUnit As String) As Variant
 
   Dim sql As String
