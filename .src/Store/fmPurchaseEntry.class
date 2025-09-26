@@ -521,9 +521,9 @@ Private Sub AddNewEntry(StockNo As Long, stockid As String, ItemCategory As Stri
     res["fldexpiry"] = modDate.StartSqlDate(dtexpiry.Value)
     res["fldqty"] = 0
     res["fldstatus"] = modStock.ItemSaleStatus(stockid, modBasic.$compID)
-    res["fldcost"] = txtnetcost.Value
-    res["fldsellpr"] = txtnewsell.Value
-    res["fldmrp"] = txtmrp.Value
+    res["fldcost"] = 0
+    res["fldsellpr"] = 0
+    res["fldmrp"] = 0
     res["fldsav"] = False
     res["fldcategory"] = ItemCategory
     res["fldcomp"] = modBasic.$compID
@@ -897,7 +897,7 @@ Public Sub mnusqve_Click()
     If chkall.Value = False Then
       If Message.Question(("Do you want to save selected entries?"), ("No"), ("Yes")) = 2 Then
 
-        res1 = modDatabase.$myConn.Exec("select fldid,fldpurtype,fldpurdate,fldbillno,fldsuppname,fldcategory,fldstockno,fldstockid,fldmrp,fldtotalcost,fldtotalqty,fldnetcost from tblpurchase where fldpurtype=&1 and fldbillno=&2 and fldsuppname=&3 and fldcomp=&4 and fldsav=&5", cmbtype.Text, Trim(txtbillno.Text), cmbvendor.Text, modBasic.$compID, True)
+        res1 = modDatabase.$myConn.Exec("select fldid,fldpurtype,fldpurdate,fldbillno,fldsuppname,fldcategory,fldstockno,fldstockid,fldmrp,fldtotalcost,fldtotalqty,fldnetcost,fldsellprice from tblpurchase where fldpurtype=&1 and fldbillno=&2 and fldsuppname=&3 and fldcomp=&4 and fldsav=&5", cmbtype.Text, Trim(txtbillno.Text), cmbvendor.Text, modBasic.$compID, True)
         If res1.Available Then
           idLock = modBillLock.LockTableForID("Purchase")
           If idLock = True Then
@@ -934,11 +934,12 @@ Public Sub mnusqve_Click()
               'for each entry in purchase table
               For Each res1
                 'add to tblentry
-                If res1["fldnetcost"] Then
-                  modStockSub.AddToExistEntryCost(res1["fldstockno"], res1["fldtotalqty"], modBasic.$compID, res1["fldnetcost"])
-                Else
-                  modStockSub.AddToExistEntry(res1["fldstockno"], res1["fldtotalqty"], modBasic.$compID)
-                Endif
+                modStockSub.AddToExistEntryPurchaseCost(res1["fldstockno"], res1["fldtotalqty"], modBasic.$compID, res1["fldsellprice"], res1["fldnetcost"], res1["fldmrp"])
+                ' If res1["fldnetcost"] Then
+                '   modStockSub.AddToExistEntryCost(res1["fldstockno"], res1["fldtotalqty"], modBasic.$compID, res1["fldnetcost"])
+                ' Else
+                '   modStockSub.AddToExistEntry(res1["fldstockno"], res1["fldtotalqty"], modBasic.$compID)
+                ' Endif
                 'add reference to entry in purchase table and make sav=0
                 res2 = modDatabase.$myConn.Edit("tblpurchase", "fldid=&1", res1["fldid"])
                 res2["fldsav"] = False

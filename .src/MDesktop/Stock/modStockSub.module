@@ -1,5 +1,25 @@
 ' Gambas module file
 
+Private Sub UpdateStockOutOrder(xStockID As String, sComp As String, xQTY As Float, xTotal As Float, xStatus As String)
+
+  If xQTY > 0 Then
+    If xTotal = xQTY Then
+      UpdateSockOrderRetn(xStockID, sComp)
+    Endif
+
+  Else
+    If xTotal = 0 Then
+      UpdateSockOrderSale(xStockID, sComp)
+    Else
+      If xStatus = 0 Then
+        UpdateSockOrderSale(xStockID, sComp)
+      Endif
+    Endif
+
+  Endif
+
+End
+
 Public Sub AddToExistEntry(stockno As Long, qty As Float, sComp As String)
 
   Dim res As Result
@@ -16,21 +36,70 @@ Public Sub AddToExistEntry(stockno As Long, qty As Float, sComp As String)
   res["xyz"] = False
   res.Update()
 
-  If qty > 0 Then
-    If xnew = qty Then
-      UpdateSockOrderRetn(res["fldstockid"], sComp)
-    Endif
+  UpdateStockOutOrder(res["fldstockid"], sComp, qty, xnew, res["fldstatus"])
 
-  Else
-    If xnew = 0 Then
-      UpdateSockOrderSale(res["fldstockid"], sComp)
-    Else
-      If res["fldstatus"] = 0 Then
-        UpdateSockOrderSale(res["fldstockid"], sComp)
-      Endif
-    Endif
+  ' If qty > 0 Then
+  '   If xnew = qty Then
+  '     UpdateSockOrderRetn(res["fldstockid"], sComp)
+  '   Endif
+  '
+  ' Else
+  '   If xnew = 0 Then
+  '     UpdateSockOrderSale(res["fldstockid"], sComp)
+  '   Else
+  '     If res["fldstatus"] = 0 Then
+  '       UpdateSockOrderSale(res["fldstockid"], sComp)
+  '     Endif
+  '   Endif
+  '
+  ' Endif
+  'dont catch error. allow to roll back
 
+End
+
+Public Sub AddToExistEntryPurchaseCost(stockno As Long, qty As Float, sComp As String, sellPrice As Float, sNetCost As Float, sMRP As Float)
+
+  Dim res As Result
+  Dim xnew As Float
+
+  res = modDatabase.$myConn.Edit("tblentry", "fldstockno=&1 and fldcomp=&2", stockno, sComp)
+  xnew = res["fldqty"] + qty
+
+  res["fldqty"] = xnew
+  If xnew = 0 Then
+    res["fldstatus"] = 0
   Endif
+  If Not res["fldcost"] Then
+    res["fldcost"] = sNetCost
+  Endif
+  If Not res["fldsellpr"] Then
+    res["fldsellpr"] = sellPrice
+  Endif
+  If Not res["fldmrp"] Then
+    res["fldmrp"] = sMRP
+  Endif
+
+  res["fldsav"] = True
+  res["xyz"] = False
+  res.Update()
+
+  UpdateStockOutOrder(res["fldstockid"], sComp, qty, xnew, res["fldstatus"])
+
+  ' If qty > 0 Then
+  '   If xnew = qty Then
+  '     UpdateSockOrderRetn(res["fldstockid"], sComp)
+  '   Endif
+  '
+  ' Else
+  '   If xnew = 0 Then
+  '     UpdateSockOrderSale(res["fldstockid"], sComp)
+  '   Else
+  '     If res["fldstatus"] = 0 Then
+  '       UpdateSockOrderSale(res["fldstockid"], sComp)
+  '     Endif
+  '   Endif
+  '
+  ' Endif
   'dont catch error. allow to roll back
 
 End
@@ -52,21 +121,23 @@ Public Sub AddToExistEntryCost(stockno As Long, qty As Float, sComp As String, s
   res["xyz"] = False
   res.Update()
 
-  If qty > 0 Then
-    If xnew = qty Then
-      UpdateSockOrderRetn(res["fldstockid"], sComp)
-    Endif
+  UpdateStockOutOrder(res["fldstockid"], sComp, qty, xnew, res["fldstatus"])
 
-  Else
-    If xnew = 0 Then
-      UpdateSockOrderSale(res["fldstockid"], sComp)
-    Else
-      If res["fldstatus"] = 0 Then
-        UpdateSockOrderSale(res["fldstockid"], sComp)
-      Endif
-    Endif
-
-  Endif
+  ' If qty > 0 Then
+  '   If xnew = qty Then
+  '     UpdateSockOrderRetn(res["fldstockid"], sComp)
+  '   Endif
+  '
+  ' Else
+  '   If xnew = 0 Then
+  '     UpdateSockOrderSale(res["fldstockid"], sComp)
+  '   Else
+  '     If res["fldstatus"] = 0 Then
+  '       UpdateSockOrderSale(res["fldstockid"], sComp)
+  '     Endif
+  '   Endif
+  '
+  ' Endif
   'dont catch error. allow to roll back
 
 End
