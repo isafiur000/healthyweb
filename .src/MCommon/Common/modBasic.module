@@ -79,7 +79,7 @@ Public $SearchBothSide As Boolean
 Public $ErrorLastString As String
 Public $TabletModeEnable As String
 Public $RichtextResizeRow As String
-Public $AutoRefreshEnable As String
+Public $AutoRichTextMode As String
 Public $DefaultViewPath As String
 Public $DefaultViewShell As String
 
@@ -160,6 +160,7 @@ Public $UploadLocalrepo As String
 Public $ReportingPopUp As String
 Public $CSVDelimiter As String
 Public $DataAnalysis As String
+Public $AITextSupport As String
 
 ''barcode settings
 Public $BarCodeFormatString As String
@@ -531,6 +532,9 @@ Public $SerialClear As String
 Public $ShowStorage As String
 Public $HideStorage As String
 
+''Audio Recording
+Public $AudioRecFormat As String
+
 ''Global Clinic
 Public $ClinicDisableCompo As String[]
 Public $FixedDepartment As String
@@ -804,8 +808,10 @@ Public $CamThreshold As Integer
 Public $CamOutputMode As String
 
 ''Cloud AI parameters
-Public $CloudAIURL As String
-Public $CloudAIModel As String
+Public $CloudAIURL_Gen As String
+Public $CloudAIModel_Gen As String
+Public $CloudAIURL_Trans As String
+Public $CloudAIModel_Trans As String
 Public $CloudAIKey As String
 Public $CloudAIClinQuery As String[]
 Public $CloudAIDrugQuery As String[]
@@ -829,7 +835,6 @@ Public $ClinBodyFluidAll As String[]  'modmedicine  GetBodyFluidList()
 Public $IPDDepartmentsAll As String[]  ' modGeneral.GetDepartmentWithBedList()
 Public $IPDServDepartments As String[]
 
-Public $ClinFindingCompFlag As String[]
 Public $ClinFindingCompGrouped As String[]
 Public $ClinDiagnoChapterGrouped As String[]
 Public $ClinDiagnoSelectGrouped As String[]
@@ -1077,7 +1082,7 @@ Public Sub LoadGeneralVariables()
   $PatRepoAutoSync = modGlobalSetting.ShowSettingFromDB("Repository/AutoSync")
 
   $TabletModeEnable = modSettings.ShowSettingFromFIle("GeneralSettings/EnableTabletMode")
-  $AutoRefreshEnable = modSettings.ShowSettingFromFIle("GeneralSettings/EnableAutoRefresh")
+  $AutoRichTextMode = modSettings.ShowSettingFromFIle("GeneralSettings/EnableAutoRichText")
   $AutoEncPrefix = modSettings.ShowSettingFromFIle("GeneralSettings/AutoEncounterPrefix")
   $AutoEncSuffix = modSettings.ShowSettingFromFIle("GeneralSettings/AutoEncounterSuffix")
   $AutoReadNotice = modSettings.ShowSettingFromFIle("GeneralSettings/ReadNotification")
@@ -1106,6 +1111,8 @@ Public Sub LoadGeneralVariables()
   $ReportingPopUp = modSettings.ShowSettingFromFIle("GeneralSettings/ReportingOutput")
   $CSVDelimiter = modSettings.ShowSettingFromFIle("GeneralSettings/CSVDelimiter")
   $DataAnalysis = modSettings.ShowSettingFromFIle("GeneralSettings/DataAnalysis")
+  $AITextSupport = modSettings.ShowSettingFromFIle("GeneralSettings/AITextSupport")
+  GetAudioRecording()
 
   xbaloon = modSettings.ShowSettingFromFIle("GeneralSettings/BalloonDelay")
   If xbaloon Then
@@ -2234,6 +2241,13 @@ Public Sub MedicineDoseSetting()
 
 End
 
+''Audio Recording
+Public Sub GetAudioRecording()
+
+  $AudioRecFormat = modSettings.ShowSettingFromFIle("AudioRecording/Format")
+
+End
+
 ''for inventory
 Public Sub InventorySettings()
 
@@ -2591,7 +2605,6 @@ End
 Public Sub LoadClinicalExtras()
 
   Dim xList As String[]
-  Dim xfindg As String[]
 
   modFixPatho.LoadExamsCompwiseData(modDatabase.$myConn)
   modFixPatho.LoadSymptomsMasterData(modDatabase.$myConn)
@@ -2599,12 +2612,6 @@ Public Sub LoadClinicalExtras()
 
   xList = modString.GetListFromCompareVariant(modFixPatho.$ExaminationCompVar, "fldexamid", "fldcategory", "Physician Examinations", True)
   $ClinFindingCompGrouped = modFixClinic.GetExamWithCategory(xList)
-
-  xfindg = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldexamid) as col from tblcompexam where (fldcomp=&1 or fldcomp=&2) and fldcategory=&3 and fldflag=&4", modBasic.$compID, "%", "Physician Examinations", True))
-  If xfindg Then
-    xfindg.Sort()
-  Endif
-  $ClinFindingCompFlag = modFixClinic.GetExamWithCategory(xfindg)
 
 End
 
@@ -2648,8 +2655,12 @@ Public Sub CloudAISettings()
   Dim xPath As String
   Dim yPath As String
 
-  $CloudAIURL = modSettings.ShowSettingFromFIle("CloudAI/API_URL")
-  $CloudAIModel = modSettings.ShowSettingFromFIle("CloudAI/Modality")
+  $CloudAIURL_Gen = modSettings.ShowSettingFromFIle("CloudAI/GenerativeAPI_URL")
+  $CloudAIModel_Gen = modSettings.ShowSettingFromFIle("CloudAI/GenerativeModel")
+
+  $CloudAIURL_Trans = modSettings.ShowSettingFromFIle("CloudAI/TranscriptionAPI_URL")
+  $CloudAIModel_Trans = modSettings.ShowSettingFromFIle("CloudAI/TranscriptionModel")
+
   $CloudAIKey = modSettings.ShowSettingFromFIle("CloudAI/API_Key")
 
   xPath = modSettings.ShowSettingFromFIle("CloudAI/Clinic_QueryList")

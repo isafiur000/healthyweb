@@ -36,16 +36,7 @@ Private $rOutRes As Result
 Private $aOutFields As String[]
 Private $rPlanRes As Result
 Private $aPlanFields As String[]
-' ' Private $rData As Result
-' ' Private $aMyFields As String[]
-' ' Private $rMonRes As Result
-' ' Private $aMonFields As String[]
-' ' Private $rMexamRes As Result
-' ' Private $aMexamFields As String[]
-' ' Private $rNoteRes As Result
-' ' Private $aNoteFields As String[]
-' ' Private $rPlanRes As Result
-' ' Private $aPlanFields As String[]
+
 Private $rRoutRes As Result
 Private $aRoutFields As String[]
 Private $rStatRes As Result
@@ -88,11 +79,11 @@ Public Sub _new(encid As String)
     Case Else
       pnltelemed.Visible = False
   End Select
-  cmbsympunit.List = ["Hours", "Days", "Weeks", "Months", "Years", "Episodes"]
-  cmbsymdura.List = ["Both Side", "Left Side", "Right Side", "On/Off"]
-  cmburgency.List = ["Urgent", "Normal"]
 
   $ExamLst = modMedicine.FillClinicalSubClass("InPatient")
+  cmbsympunit.List = ["Hours", "Days", "Weeks", "Months", "Years", "Episodes"]
+  cmburgency.List = ["Urgent", "Normal"]
+
   $UserRestrict = modBasic.$ClinicDisableCompo
   modLabSub.DisplayDefaultTestUnit(rbsi, rbmetric)
   xlocat = modSettings.ShowSettingFromFIle("ClinicForms/ImpressionList")
@@ -1532,7 +1523,7 @@ Public Sub mnuexam_Click()
   Dim hForm As FmVital
 
   If txtencid.Text
-    hForm = New FmVital(Trim(txtencid.Text))
+    hForm = New FmVital(Trim(txtencid.Text), "widesize-popupform")
     hForm.ShowModal
     txtcolor.Background = modPatient.GetPatientColor(Trim(txtencid.Text))
   Endif
@@ -1935,6 +1926,7 @@ Public Sub mnuabsconder_Click()
       If Message.Question(("Patient information will be locked.<br> <b>Do you want to mark as Absconder?</b>"), ("No"), ("Yes")) = 2 Then
         modDatabase.$myConn.Begin
         xmsg = modBillings.ExitPatientWithBillingOfBed(Trim(txtencid.Text))
+        modPatientSub.SetAbsconderProfile($PatientNum, "Absconder", "Active")
         modPatientSub.UpdateCurrentStatus(Trim(txtencid.Text), "Absconder", "")
         modDatabase.$myConn.Commit
         If xmsg Then
@@ -2740,6 +2732,9 @@ End
 
 Public Sub cmbsympunit_Click()
 
+  If cmbsymptom.Text Then
+    cmbsymdura.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select fldsubsymptom as col from tblsubsymptoms where fldsymptom=&1", cmbsymptom.Text))
+  Endif
   If cmbsympunit.Text Then
     cmbsymdura.SetFocus
   Endif
@@ -2960,7 +2955,7 @@ Public Sub tlbtnhistory_Click()
 
   If cmbinpathistory.Text Then
     If txthistory.Text Then
-      If cmbinpathistory.Text = "Initial Planning" Or If cmbinpathistory.Text = "Final Planning" Then
+      If cmbinpathistory.Text = "Initial Planning" Or If cmbinpathistory.Text = "Expert Planning" Then
         modPatientGeneral.AddExamGeneralQualiData(Trim(txtencid.Text), "Notes", cmbinpathistory.Text, txthistory.KeyList.Join(";"), txthistory.RichText, xboolean)
       Else
         modPatientGeneral.AddExamGeneralQualiData(Trim(txtencid.Text), "History", cmbinpathistory.Text, txthistory.KeyList.Join(";"), txthistory.RichText, xboolean)
@@ -2988,7 +2983,7 @@ End
 Public Sub btnshowhistory_Click()
 
   If cmbinpathistory.Text Then
-    If cmbinpathistory.Text = "Initial Planning" Or If cmbinpathistory.Text = "Final Planning" Then
+    If cmbinpathistory.Text = "Initial Planning" Or If cmbinpathistory.Text = "Expert Planning" Then
       txthistory.RichText = modPatPatho.ShowSelectedNotes(Trim(txtencid.Text), cmbinpathistory.Text)
     Else
       txthistory.RichText = modPatPatho.ShowSelectedHistoryValue(Trim(txtencid.Text), cmbinpathistory.Text)
@@ -5357,7 +5352,7 @@ Public Sub mnuessenexam_Click()
   Dim hForm As FmMultiChart
 
   If txtencid.Text Then
-    xx = modClinic.GetFullVitalList(Trim(txtencid.Text))
+    xx = modString.GetListFromCompareVariant(modFixPatho.$ExaminationCompVar, "fldexamid", "fldcategory", "Essential Examinations", True)
     yy = New String[]
     hForm = New FmMultiChart(Trim(txtencid.Text), xx, yy, modLabSub.GetTestUnitFromButton(rbsi, rbmetric))
     hForm.ShowModal
@@ -5882,7 +5877,7 @@ Private Sub ShowPlanningFinal()
 
   Dim xexptAr As String[]
 
-  xexptAr = modPatPatho.ShowSelectedNoteUser(Trim(txtencid.Text), "Final Planning")
+  xexptAr = modPatPatho.ShowSelectedNoteUser(Trim(txtencid.Text), "Expert Planning")
   If xexptAr And If xexptAr.Count Then
     txtplanfinal.RichText = xexptAr[0]
     lblfinaluser.Text = xexptAr[1]
@@ -5901,7 +5896,7 @@ Public Sub btnplanfinal_Click()
   Endif
 
   If txtplanfinal.Text Then
-    modPatientGeneral.AddExamGeneralQualiData(Trim(txtencid.Text), "Notes", "Final Planning", txtplanfinal.KeyList.Join(";"), txtplanfinal.RichText, xboolean)
+    modPatientGeneral.AddExamGeneralQualiData(Trim(txtencid.Text), "Notes", "Expert Planning", txtplanfinal.KeyList.Join(";"), txtplanfinal.RichText, xboolean)
     Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
   Endif
 
@@ -6177,7 +6172,7 @@ Public Sub btngetfeed_Click()
   Endif
 
   If txtfeedback.Text Then
-    modPatientGeneral.AddExamGeneralQualiData(Trim(txtencid.Text), "Notes", "Final Planning", txtfeedback.KeyList.Join(";"), txtfeedback.RichText, xboolean)
+    modPatientGeneral.AddExamGeneralQualiData(Trim(txtencid.Text), "Notes", "Expert Planning", txtfeedback.KeyList.Join(";"), txtfeedback.RichText, xboolean)
     ShowPlanningFinal()
     Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
   Endif
@@ -6207,7 +6202,7 @@ End
 
 Public Sub btndataexpert_Click()
 
-  txtplanfinal.RichText = AddHistory("Discharge", "Final Planning")
+  txtplanfinal.RichText = AddHistory("Discharge", "Expert Planning")
 
 End
 
@@ -6236,7 +6231,7 @@ End
 
 Public Sub btnpanexpert_Click()
 
-  txtplanfinal.RichText = txtplanfinal.RichText & Space(1) & modFillContainer.GetExtraTextArea("Final Planning", txtplanfinal.Text)
+  txtplanfinal.RichText = txtplanfinal.RichText & Space(1) & modFillContainer.GetExtraTextArea("Expert Planning", txtplanfinal.Text)
 
 End
 

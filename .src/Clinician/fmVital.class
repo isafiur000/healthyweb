@@ -4,17 +4,27 @@ Private $encid As String
 Private $rData As Result
 Private $aMyFields As String[]
 Private xFinal As Variant[]
-Private $ExamList As String[]
+Private $sVitalsVar As Variant[]
 
-Public Sub _new(encid As String)
+Private $sType As String
+Private $sSysCons As String
+Private $sOption As String
+
+Public Sub _new(encid As String, sWidth As String)
 
   $encid = encid
   modGeneralMain.GetOpenModalForm(Me)
+  WebContainer8.Class = sWidth
+  If sWidth Then
+    btnclose.Visible = True
+  Else
+    btnclose.Visible = False
+  Endif
 
   txtpatientname.Text = modPatient.GetPatientNameByEnc($encid)
   txtcolor.Background = modPatient.GetPatientColorStatic($encid)
-  $ExamList = modClinic.GetFullVitalList($encid)
-  ListBox1.List = $ExamList
+  $sVitalsVar = modPathoSub.GetAllEssentialExams($encid)
+  ListBox1.List = modString.GetListFromVariant($sVitalsVar, "ExamName", True)
 
 End
 
@@ -56,43 +66,50 @@ Private Sub ShowVitalExamEntry()
 
   Dim sType As String
   Dim xlimit As Float[]
+  Dim sColl As Collection
 
   txtexamval.Value = 0
-  txtexamval.Tag = ""
   txtquali.Clear
   txtquali.Text = ""
+  $sType = ""
+  $sSysCons = ""
+  $sOption = ""
 
-  sType = modFixClinic.GetExaminationType(ListBox1.Text)
-  If sType = "Quantitative" Then
-    txtquali.Enabled = False
-    btnselquali.Enabled = False
-    txtexamval.Enabled = True
-
-    xlimit = modClinic.GetBothQuantiExamVal(ListBox1.Text, $encid)
-    txtmin.Value = xlimit[0]
-    txtmax.Value = xlimit[1]
-    lblunit.Text = modClinic.GetExamUnit(ListBox1.Text, $encid)
-
-  Else
-    txtquali.Enabled = True
-    btnselquali.Enabled = True
-    txtexamval.Enabled = False
-    lblunit.Text = ""
-
-    txtquali.Tag = modFixClinic.GetExamtOptionType(ListBox1.Text)
-    If txtquali.Tag = "Single Selection" Or If txtquali.Tag = "Dichotomous" Then
-      txtquali.List = modAllExam.SelectExamOptionList("Exam", ListBox1.Text)
+  For Each sColl In $sVitalsVar
+    If sColl["ExamName"] = ListBox1.Text Then
+      $sType = sColl["DataType"]
+      $sSysCons = sColl["SysConstant"]
+      $sOption = sColl["OptionType"]
+      If sColl["DataType"] = "Quantitative" Then
+        txtquali.Visible = False
+        btnselquali.Visible = False
+        txtexamval.Visible = True
+        lblunit.Visible = True
+        xlimit = modClinic.GetBothQuantiExamVal(sColl["ExamName"], $encid)
+        txtmin.Value = xlimit[0]
+        txtmax.Value = xlimit[1]
+        lblunit.Text = modClinic.GetExamUnit(sColl["ExamName"], $encid)
+      Else If sColl["DataType"] = "Qualitative" Then
+        txtquali.Visible = True
+        btnselquali.Visible = True
+        txtexamval.Visible = False
+        lblunit.Visible = False
+        lblunit.Text = ""
+        If sColl["OptionType"] = "Single Selection" Or If sColl["OptionType"] = "Dichotomous" Then
+          txtquali.List = modAllExam.SelectExamOptionList("Exam", sColl["ExamName"])
+        Endif
+      Endif
+      ShowExamGrid(sColl["ExamName"])
+      Break
     Endif
-
-  Endif
-  ShowExamGrid(ListBox1.Text)
+  Next
 
   If modBasic.$TabletModeEnable = "Yes" Then
   Else
-    If sType = "Quantitative" Then
+    If $sType = "Quantitative" Then
       txtexamval.SetFocus
       Me.Exec("$_(" & JS(txtexamval.Name & ":entry") & ").select()")
-    Else If sType = "Qualitative" Then
+    Else If $sType = "Qualitative" Then
       txtquali.SetFocus
     Endif
   Endif
@@ -113,8 +130,7 @@ Private Sub ShowDetails()
   If Not txtquali.Text Then
     If ListBox1.Text Then
 
-      xType = txtquali.Tag
-      If xType = "Clinical Scale" Then
+      If $sOption = "Clinical Scale" Then
         xscle = modExamOption.GetClinScalePopUp("Exam", ListBox1.Text)
         If xscle Then
           txtexamval.Value = CFloat(xscle[0])
@@ -122,7 +138,7 @@ Private Sub ShowDetails()
           txtexamval.Enabled = True
           txtquali.Enabled = False
         Endif
-      Else If xType = "Visual Input" Then
+      Else If $sOption = "Visual Input" Then
         txtquali.Text = modExamOption.GetVisualDataExamVal(ListBox1.Text)
       Endif
 
@@ -149,18 +165,8 @@ End
 
 Public Sub btnsave_Click()
 
-  Dim sType As String
-  Dim xsys As String
-  Dim OptionType As String
-  Dim hForm As CGetExamParam
-
   If ListBox1.Text Then
-    hForm = New CGetExamParam(ListBox1.Text, "Exam")
-    sType = hForm.GetExamDataType()
-    xsys = hForm.GetExamConstant()
-    OptionType = hForm.GetExamOption()
-
-    If sType = "Quantitative" Then
+    If $sType = "Quantitative" Then
       If txtmin.Value = 0 And If txtmax.Value = 0 Then
         chkabnormal.Value = False
       Else
@@ -170,23 +176,21 @@ Public Sub btnsave_Click()
           chkabnormal.Value = False
         Endif
       Endif
-      modClinSub.AddQuantiData($encid, "", ListBox1.Text, OptionType, txtexamval.Value, chkabnormal.Value, "Essential Examinations", xsys)
+      modClinSub.AddQuantiData($encid, "", ListBox1.Text, $sOption, txtexamval.Value, chkabnormal.Value, "Essential Examinations", $sSysCons)
       ' FillVitalExamChart(PictureBox1, $encid, lblexamname.Text)
 
-    Else If sType = "Qualitative" Then
+    Else If $sType = "Qualitative" Then
       If txtquali Then
-        modClinSub.AddClinicExam($encid, "", ListBox1.Text, OptionType, txtquali.Text, txtexamval.Value, chkabnormal.Value, "Essential Examinations", xsys, "Regular")
+        modClinSub.AddClinicExam($encid, "", ListBox1.Text, $sOption, txtquali.Text, txtexamval.Value, chkabnormal.Value, "Essential Examinations", $sSysCons, "Regular")
       Endif
     Endif
     ShowExamGrid(ListBox1.Text)
-    FillDailyGrid()
+    ' FillDailyGrid()
     txtquali.Text = ""
-    txtquali.Tag = ""
     If txtquali.List.Count Then
       txtquali.Clear()
     Endif
     txtexamval.Value = 0
-    txtexamval.Tag = ""
     lblunit.Text = ""
 
   Endif
@@ -261,22 +265,21 @@ Public Sub btnedit_Click()
 
   If GridView1.Selection.Count Then
     $rData.MoveTo(GridView1.Selection[0])
-    sType = modFixClinic.GetExaminationType($rData["fldhead"])
-    If sType = "Quantitative" Then
+
+    If $sType = "Quantitative" Then
       xlimit = modClinic.GetBothQuantiExamVal($rData["fldhead"], $encid)
       xquantival = GetQuantiValues("Exam", $encid, $rData["fldhead"], xlimit[0], xlimit[1], modClinic.GetExamValueByID($rData["fldid"]))                                       '
       If xquantival Then
         modClinSub.UpdateQuantiData($rData["fldid"], xquantival[0], xquantival[1])
         ' FillVitalExamChart(PictureBox1, $encid, lblexamname.Text)
       Endif
-    Else If sType = "Qualitative" Then
-      xType = modFixClinic.GetExamtOptionType($rData["fldhead"])
-      If xType = "Clinical Scale" Then
+    Else If $sType = "Qualitative" Then
+      If $sOption = "Clinical Scale" Then
         yqualival = modExamOption.GetClinScalePopUp("Exam", $rData["fldhead"])
         If yqualival Then
           modClinSub.UpdateQualiQuantiData($rData["fldid"], yqualival[1], CFloat(yqualival[0]), False)
         Endif
-      Else If xType = "RichText Area" Then
+      Else If $sOption = "RichText Area" Then
         yqualival = GetQualiRich($rData["fldhead"], modClinic.GetExamValueString($encid, $rData["fldid"], False), "Exam")
         If yqualival Then                                  '
           modClinSub.UpdateQualiData($rData["fldid"], yqualival[0], yqualival[1], yqualival[2])
@@ -330,16 +333,16 @@ Private Sub FillDailyGrid()
   xlast = modDate.StartSqlHour(DateAdd(Now(), gb.Hour, 1))
 
   GridView2.Clear()
-  GridView2.Count = $ExamList.Count
+  GridView2.Count = $sVitalsVar.Count
   GridView2.Columns.Count = DateDiff(xfir, xlast, gb.Hour) + 1
 
   For i = 0 To GridView2.Count - 1
     xRowVal = New Collection
     For j = 0 To GridView2.Columns.Count - 1
       If j = 0 Then
-        xRowVal.Add($ExamList[i], CStr(j))
+        xRowVal.Add($sVitalsVar[i]["ExamName"], CStr(j))
       Else
-        xRowVal.Add(GetExamValueByDate($encid, $ExamList[i], DateAdd(xfir, gb.Hour, j)), CStr(j))
+        xRowVal.Add(GetExamValueByDate($encid, $sVitalsVar[i]["ExamName"], DateAdd(xfir, gb.Hour, j)), CStr(j))
       Endif
     Next
     xFinal.Add(xRowVal)

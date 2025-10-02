@@ -1,0 +1,61 @@
+' Gambas class file
+
+Private $sAudio As String
+Private $xResponse As String
+Private $xAnswer As String
+
+Private $sModel As String
+Private $ApiURL As String
+Private $ApiKey As String
+
+Public Sub _new(sModel As String, sAudio As String)
+
+  $sModel = sModel
+  $sAudio = sAudio
+
+  $ApiURL = modBasic.$CloudAIURL_Trans
+  $ApiKey = modBasic.$CloudAIKey
+
+  ExecuteAPI()
+  GetValues()
+
+End
+
+Private Sub ExecuteAPI()
+
+  Dim acmd As String
+  Dim xurl As String
+  Dim xhead1 As String
+  Dim xhead2 As String
+
+  xurl = $ApiURL
+  xhead1 = "Content-Type: multipart/form-data"
+  xhead2 = "Authorization: Bearer " & $ApiKey
+
+  acmd = "curl " & xurl & " -H " & Quote(xhead1) & " -H " & Quote(xhead2) & " -F model=" & $sModel & " -F file='@" & $sAudio & "'"    ''
+  modBasic.DebugAPIString(Replace("Execute " & acmd, $ApiKey, "****"))
+  Shell acmd To $xResponse
+  modBasic.DebugAPIString("Response: " & $xResponse)
+
+End
+
+Private Sub GetValues()
+
+  Dim xResColl As Collection
+
+  If $xResponse Then
+    Try xResColl = JSON.Decode($xResponse)
+    If xResColl Then
+      $xAnswer = xResColl["text"]
+    Else
+      Message.Warning("Error in getting data", "OK")
+    Endif
+  Endif
+
+End
+
+Public Function GetAPIAnswer() As String
+
+  Return $xAnswer
+
+End

@@ -45,16 +45,8 @@ Private $sTable As String
 Private $sType As String
 Private $idList As String[]
 ''Arrays
-Private $xType As String[]
-Private $xOption As String[]
-Private $xitem As String[]
-Private $xOpList As String[]
-Private $xSysCons As String[]
-Private $xCritVal As Float[]
-
+Private $sExamVar As Variant[]
 Private AppFactor As Float
-' Private $ItemList As String[]
-' Private $ItemListFlag As String[]
 Private $compPhysiExamVar As Variant[]
 
 Private $enableControl As Boolean
@@ -77,9 +69,6 @@ Public Sub _new(encid As String, sTable As String, sType As String)
   Else If $sType = "All" Then
     $compPhysiExamVar = GetPhysicianExamVariant()
     cmbcategory.List = modString.GetListFromVariant($compPhysiExamVar, "fldgroupname", True)
-    ' $ItemList = modBasic.$ClinFindingCompGrouped
-    ' $ItemListFlag = modBasic.$ClinFindingCompFlag
-    ' GetItemListData()
   Endif
 
   xoption = modSettings.ShowSettingFromFIle("EntrySetting/AutoDisplayOptions")
@@ -164,13 +153,9 @@ Private Sub LoadFormData()
   Dim xopList As String[]
   Dim xSysCons As String
   Dim xcritval As Float
+  Dim aColl As Collection
 
-  $xType = New String[]
-  $xOption = New String[]
-  $xitem = New String[]
-  $xOpList = New String[]
-  $xSysCons = New String[]
-  $xCritVal = New Float[]
+  $sExamVar = New Variant[]
 
   For Each idx In $idList
     If $sType = "All" Then
@@ -219,35 +204,26 @@ Private Sub LoadFormData()
 
     Endif
 
-    $xitem.Add(xitem)
-    If xType Then
-      $xType.Add(xType)
-    Else
-      $xType.Add("__")
-    Endif
-    If xOption Then
-      $xOption.Add(xOption)
-    Else
-      $xOption.Add("__")
-    Endif
+    aColl = New Collection
+    aColl.Add(xitem, "ExamName")
+    aColl.Add(xType, "DataType")
+    aColl.Add(xOption, "OptionType")
     If xopList And If xopList.Count Then
-      $xOpList.Add(xopList.Join(";"))
+      aColl.Add(xopList.Join(";"), "OptionList")
     Else
-      $xOpList.Add("__")
+      aColl.Add("", "OptionList")
     Endif
-    If xSysCons Then
-      $xSysCons.Add(xSysCons)
-    Else
-      $xSysCons.Add("__")
-    Endif
+    aColl.Add(xSysCons, "SysConstant")
     If xcritval Then
-      $xCritVal.Add(xcritval)
+      aColl.Add(xcritval, "CritValue")
     Else
-      $xCritVal.Add(0)
+      aColl.Add(0, "CritValue")
     Endif
+    $sExamVar.Add(aColl)
+
   Next
 
-  For i = 0 To $xitem.Count - 1
+  For i = 0 To $sExamVar.Count - 1
     If i < 49 Then
 
       aWebRowAll[i] = New WebContainer(Frame1)
@@ -257,7 +233,7 @@ Private Sub LoadFormData()
       aIndexLabel[i] = New WebLabel(aWebFrame[i])
       aNameLabel[i] = New WebHtml(aWebFrame[i])
 
-      If $xType[i] = "Quantitative" Then
+      If $sExamVar[i]["DataType"] = "Quantitative" Then
         aWebPanel[i] = New WebContainer(aWebRowAll[i])
         aAbnormCheck[i] = New WebCheckBox(aWebPanel[i])
 
@@ -272,11 +248,11 @@ Private Sub LoadFormData()
         aWebBottom[i] = New WebContainer(Frame1)
         aValSlider[i] = New WebSlider(aWebBottom[i]) As "SliderGroup"
       Else
-        Select $xOption[i]
-          Case "Sys Constant", "Multiple Selection", "Date Time", "BS Date", "Single Selection", "Dichotomous", "Quantitative", "Qualitative", "Clinical Scale"
+        Select $sExamVar[i]["OptionType"]
+          Case "Sys Constant", "Multiple Selection", "Date Time", "BS Date", "Single Selection", "Dichotomous", "Quantitative", "Qualitative", "Clinical Scale", "Calculated", "ImageValue"
             aWebPanel[i] = New WebContainer(aWebRowAll[i])
             aAbnormCheck[i] = New WebCheckBox(aWebPanel[i])
-            Select $xOption[i]
+            Select $sExamVar[i]["OptionType"]
               Case "Sys Constant"
                 aGenTextArea[i] = New WebTextArea(aWebPanel[i])
               Case "Multiple Selection"
@@ -311,7 +287,7 @@ Private Sub LoadFormData()
             aWebPanel[i] = New WebContainer(aWebRowAll[i])
             aWideRowAll[i] = New WebContainer(Frame1)
             aAbnormCheck[i] = New WebCheckBox(aWideRowAll[i])
-            Select $xOption[i]
+            Select $sExamVar[i]["OptionType"]
               Case "Text Table"
                 aGridView[i] = New WebTable(aWideRowAll[i])
               Case "Left and Right"
@@ -343,10 +319,10 @@ Private Sub DIsplayTextForm()
   Dim aCrlower As Float
   Dim aCrupper As Float
 
-  For i = 0 To $xitem.Count - 1
+  For i = 0 To $sExamVar.Count - 1
     If i < 49 Then
 
-      If $xType[i] = "Quantitative" Then
+      If $sExamVar[i]["DataType"] = "Quantitative" Then
         With aWebRowAll[i]
           .Arrangement = Arrange.Row
         End With
@@ -354,7 +330,7 @@ Private Sub DIsplayTextForm()
           .Visible = False
         End With
       Else
-        Select $xOption[i]
+        Select $sExamVar[i]["OptionType"]
           Case "Sys Constant", "Multiple Selection", "Date Time", "BS Date", "Single Selection", "Dichotomous", "Quantitative", "Qualitative", "Clinical Scale", "Calculated", "ImageValue"
             With aWebRowAll[i]
               .Arrangement = Arrange.Row
@@ -379,7 +355,7 @@ Private Sub DIsplayTextForm()
 
       ''create index label
       With aIndexLabel[i]
-        .Width = "10%"
+        .Width = "2em"
         .Height = "2em"
         .Text = i + 1
         .Visible = False
@@ -389,17 +365,17 @@ Private Sub DIsplayTextForm()
       With aNameLabel[i]
         .Expand = True
         .Font = "bold"
-        .Text = "<p>" & $xitem[i] & "</p>"
+        .Text = "<p>" & $sExamVar[i]["ExamName"] & "</p>"
         .Tag = i
       End With
 
-      If $xType[i] = "Quantitative" Then
+      If $sExamVar[i]["DataType"] = "Quantitative" Then
         With aWebPanel[i]
           .Arrangement = Arrange.Horizontal
           .Class = "size-tablet less-container-margin"
         End With
       Else
-        Select $xOption[i]
+        Select $sExamVar[i]["OptionType"]
           Case "Sys Constant", "Multiple Selection", "Date Time", "BS Date", "Single Selection", "Dichotomous", "Quantitative", "Qualitative", "Clinical Scale", "Calculated", "ImageValue"
             With aWebPanel[i]
               .Arrangement = Arrange.Horizontal
@@ -412,9 +388,9 @@ Private Sub DIsplayTextForm()
         End Select
       Endif
 
-      If $xType[i] = "Quantitative" Then
-        xlimit = modClinic.GetBothQuantiExamVal($xitem[i], $encid)
-        xcrit = $xCritVal[i]
+      If $sExamVar[i]["DataType"] = "Quantitative" Then
+        xlimit = modClinic.GetBothQuantiExamVal($sExamVar[i]["ExamName"], $encid)
+        xcrit = $sExamVar[i]["CritValue"]
         If xcrit Then
           aCrlower = xlimit[0] - xcrit * (xlimit[1] - xlimit[0])
           aCrupper = xlimit[1] + xcrit * (xlimit[1] - xlimit[0])
@@ -514,7 +490,7 @@ Private Sub DIsplayTextForm()
         End With
 
         ''create observation entry
-        If $xOption[i] = "Multiple Selection" Then
+        If $sExamVar[i]["OptionType"] = "Multiple Selection" Then
           With aListBox[i]
             .Width = "75%"
             .Height = CStr(2 * Slider1.Value) & "em"
@@ -523,24 +499,24 @@ Private Sub DIsplayTextForm()
             .Tag = i
           End With
 
-        Else If $xOption[i] = "Single Selection" Then
+        Else If $sExamVar[i]["OptionType"] = "Single Selection" Then
           With aComboBox[i]
             .Width = "75%"
             .Height = "2em"
             .ReadOnly = False
-            .List = Split($xOpList[i], ";")
+            .List = Split($sExamVar[i]["OptionList"], ";")
             .Tag = i
           End With
 
-        Else If $xOption[i] = "Dichotomous" Then
+        Else If $sExamVar[i]["OptionType"] = "Dichotomous" Then
           With aDichoValue[i]
             .Width = "75%"
             .Height = "2em"
-            .List = Split($xOpList[i], ";")
+            .List = Split($sExamVar[i]["OptionList"], ";")
             .Tag = i
           End With
 
-        Else If $xOption[i] = "Date Time" Then
+        Else If $sExamVar[i]["OptionType"] = "Date Time" Then
           With aDateBox[i]
             .Width = "65%"
             .Height = "2em"
@@ -554,7 +530,7 @@ Private Sub DIsplayTextForm()
             .Tag = i
           End With
 
-        Else If $xOption[i] = "BS Date" Then
+        Else If $sExamVar[i]["OptionType"] = "BS Date" Then
           With aDateBox[i]
             .Width = "65%"
             .Height = "2em"
@@ -568,7 +544,7 @@ Private Sub DIsplayTextForm()
             .Tag = i
           End With
 
-        Else If $xOption[i] = "Clinical Scale" Then
+        Else If $sExamVar[i]["OptionType"] = "Clinical Scale" Then
           With aTextArea[i]
             .Width = "55%"
             .Height = CStr(2 * Slider1.Value) & "em"
@@ -581,7 +557,7 @@ Private Sub DIsplayTextForm()
             .Tag = i
           End With
 
-        Else If $xOption[i] = "Quantitative" Then
+        Else If $sExamVar[i]["OptionType"] = "Quantitative" Then
           With aValueBox[i]
             .Width = "6em"
             .Height = "2em"
@@ -603,7 +579,7 @@ Private Sub DIsplayTextForm()
             .Text = "Null"
           End With
 
-        Else If $xOption[i] = "ImageValue" Then
+        Else If $sExamVar[i]["OptionType"] = "ImageValue" Then
           With aButtonBox[i]
             .Expand = True
             .Height = "2em"
@@ -612,9 +588,9 @@ Private Sub DIsplayTextForm()
             .Tag = i
           End With
 
-        Else If $xOption[i] = "Calculated" Then
-          If $xSysCons[i] Then
-            asx = modString.SplitValueText($xSysCons[i])
+        Else If $sExamVar[i]["OptionType"] = "Calculated" Then
+          If $sExamVar[i]["SysConstant"] Then
+            asx = modString.SplitValueText($sExamVar[i]["SysConstant"])
           Else
             asx = ["", ""]
           Endif
@@ -643,15 +619,15 @@ Private Sub DIsplayTextForm()
             .Text = "Null"
           End With
 
-        Else If $xOption[i] = "Qualitative" Then
+        Else If $sExamVar[i]["OptionType"] = "Qualitative" Then
           With aLineText[i]
             .Width = "75%"
             .Height = "2em"
             .Tag = i
           End With
 
-        Else If $xOption[i] = "Text Table" Then
-          ' DisplayAgegrid(Split($xOpList[i], ";"), "", aGridView[i])
+        Else If $sExamVar[i]["OptionType"] = "Text Table" Then
+          ' DisplayAgegrid(Split($sExamVar[i]["OptionList"], ";"), "", aGridView[i])
           With aGridView[i]
             ' .Width = "75%"
             .Expand = True
@@ -660,7 +636,7 @@ Private Sub DIsplayTextForm()
             .Tag = i
           End With
 
-        Else If $xOption[i] = "Left and Right" Then
+        Else If $sExamVar[i]["OptionType"] = "Left and Right" Then
           With aLeftRight[i]
             ' .Width = "75%"
             .Expand = True
@@ -668,7 +644,7 @@ Private Sub DIsplayTextForm()
             .Tag = i
           End With
 
-        Else If $xOption[i] = "RichText Area" Then
+        Else If $sExamVar[i]["OptionType"] = "RichText Area" Then
           With aHTMLText[i]
             ' .Width = "75%"
             .Expand = True
@@ -762,10 +738,10 @@ Private Function GetCalculateValue(sLine As String) As Float
   Dim xval As Float
 
   If sLine Then
-    For i = 0 To $xitem.Count - 1
+    For i = 0 To $sExamVar.Count - 1
       If aValueBox[i] Then
-        If (String.InStr(sLine, $xitem[i]) > 0) Then                                   ''
-          sLine = Replace(sLine, "{" & $xitem[i] & "}", CStr(aValueBox[i].Value))
+        If (String.InStr(sLine, $sExamVar[i]["ExamName"]) > 0) Then                                   ''
+          sLine = Replace(sLine, "{" & $sExamVar[i]["ExamName"] & "}", CStr(aValueBox[i].Value))
         Endif
       Endif
     Next
@@ -846,69 +822,69 @@ Private Sub FillGenExams(sTable As String)
   Dim i As Integer
   ' Dim xval As String
 
-  For i = 0 To $xitem.Count - 1
+  For i = 0 To $sExamVar.Count - 1
     If i < 49 Then
-      If $xType[i] = "Quantitative" Then
+      If $sExamVar[i]["DataType"] = "Quantitative" Then
         If aQuantiBox[i].Value Then
-          modClinSub.AddQuantiData($encid, "", $xitem[i], $xOption[i], aQuantiBox[i].Value, aAbnormCheck[i].Value, sTable, $xSysCons[i])
+          modClinSub.AddQuantiData($encid, "", $sExamVar[i]["ExamName"], $sExamVar[i]["OptionType"], aQuantiBox[i].Value, aAbnormCheck[i].Value, sTable, $sExamVar[i]["SysConstant"])
         Endif
       Else
-        If $xOption[i] = "Multiple Selection" Then
+        If $sExamVar[i]["OptionType"] = "Multiple Selection" Then
           If aListBox[i].Count Then
-            modClinSub.AddQualiData($encid, "", $xitem[i], $xOption[i], aListBox[i].List.Join(gb.NewLine), aAbnormCheck[i].Value, sTable, $xSysCons[i])
+            modClinSub.AddQualiData($encid, "", $sExamVar[i]["ExamName"], $sExamVar[i]["OptionType"], aListBox[i].List.Join(gb.NewLine), aAbnormCheck[i].Value, sTable, $sExamVar[i]["SysConstant"])
           Endif
-        Else If $xOption[i] = "Text Table" Then
-          ' xval = GetTableData(Split($xOpList[i]), aGridView[i])
+        Else If $sExamVar[i]["OptionType"] = "Text Table" Then
+          ' xval = GetTableData(Split($sExamVar[i]["OptionList"]), aGridView[i])
           ' If xval Then
-          '   modClinSub.AddQualiData($encid, "", $xitem[i],$xOption[i], modString.GetTableFormatFromText(xval), aAbnormCheck[i].Value, sTable, $xSysCons[i])
+          '   modClinSub.AddQualiData($encid, "", $sExamVar[i]["ExamName"], $sExamVar[i]["OptionType"], modString.GetTableFormatFromText(xval), aAbnormCheck[i].Value, sTable, $sExamVar[i]["SysConstant"])
           ' Endif
-        Else If $xOption[i] = "Single Selection" Then
+        Else If $sExamVar[i]["OptionType"] = "Single Selection" Then
           If aComboBox[i].Text Then
-            modClinSub.AddQualiData($encid, "", $xitem[i], $xOption[i], aComboBox[i].Text, aAbnormCheck[i].Value, sTable, $xSysCons[i])
+            modClinSub.AddQualiData($encid, "", $sExamVar[i]["ExamName"], $sExamVar[i]["OptionType"], aComboBox[i].Text, aAbnormCheck[i].Value, sTable, $sExamVar[i]["SysConstant"])
           Endif
-        Else If $xOption[i] = "Dichotomous" Then
+        Else If $sExamVar[i]["OptionType"] = "Dichotomous" Then
           If aDichoValue[i].Value Then
-            modClinSub.AddQualiData($encid, "", $xitem[i], $xOption[i], aDichoValue[i].Value, aAbnormCheck[i].Value, sTable, $xSysCons[i])
+            modClinSub.AddQualiData($encid, "", $sExamVar[i]["ExamName"], $sExamVar[i]["OptionType"], aDichoValue[i].Value, aAbnormCheck[i].Value, sTable, $sExamVar[i]["SysConstant"])
           Endif
-        Else If $xOption[i] = "Left and Right" Then
+        Else If $sExamVar[i]["OptionType"] = "Left and Right" Then
           If aLeftRight[i].DataText Then
-            modClinSub.AddQualiData($encid, "", $xitem[i], $xOption[i], aLeftRight[i].DataText, aAbnormCheck[i].Value, sTable, $xSysCons[i])
+            modClinSub.AddQualiData($encid, "", $sExamVar[i]["ExamName"], $sExamVar[i]["OptionType"], aLeftRight[i].DataText, aAbnormCheck[i].Value, sTable, $sExamVar[i]["SysConstant"])
           Endif
-        Else If $xOption[i] = "Date Time" Then
+        Else If $sExamVar[i]["OptionType"] = "Date Time" Then
           If aDateBox[i].Value Then
-            modClinSub.AddQualiData($encid, "", $xitem[i], $xOption[i], modDate.DateStringForExam(aDateBox[i].Value), aAbnormCheck[i].Value, sTable, $xSysCons[i])
+            modClinSub.AddQualiData($encid, "", $sExamVar[i]["ExamName"], $sExamVar[i]["OptionType"], modDate.DateStringForExam(aDateBox[i].Value), aAbnormCheck[i].Value, sTable, $sExamVar[i]["SysConstant"])
           Endif
-        Else If $xOption[i] = "BS Date" Then
+        Else If $sExamVar[i]["OptionType"] = "BS Date" Then
           If aDateBox[i].Value Then
-            modClinSub.AddQualiData($encid, "", $xitem[i], $xOption[i], modDate.ConvertToLocaldate(aDateBox[i].Value), aAbnormCheck[i].Value, sTable, $xSysCons[i])
+            modClinSub.AddQualiData($encid, "", $sExamVar[i]["ExamName"], $sExamVar[i]["OptionType"], modDate.ConvertToLocaldate(aDateBox[i].Value), aAbnormCheck[i].Value, sTable, $sExamVar[i]["SysConstant"])
           Endif
-        Else If $xOption[i] = "Quantitative" Then
+        Else If $sExamVar[i]["OptionType"] = "Quantitative" Then
           If aValueBox[i].Value Or If aNullCheck[i].Value Then
-            modClinSub.AddQualiData($encid, "", $xitem[i], $xOption[i], CStr(aValueBox[i].Value) & Space(1) & aUnitText[i].Text, aAbnormCheck[i].Value, sTable, $xSysCons[i])
+            modClinSub.AddQualiData($encid, "", $sExamVar[i]["ExamName"], $sExamVar[i]["OptionType"], CStr(aValueBox[i].Value) & Space(1) & aUnitText[i].Text, aAbnormCheck[i].Value, sTable, $sExamVar[i]["SysConstant"])
           Endif
-        Else If $xOption[i] = "ImageValue" Then
+        Else If $sExamVar[i]["OptionType"] = "ImageValue" Then
           If aButtonBox[i].Text Then
 
           Endif
-        Else If $xOption[i] = "Calculated" Then
+        Else If $sExamVar[i]["OptionType"] = "Calculated" Then
           If aCalcBox[i].Value Or If aCalcNull[i].Value Then
-            modClinSub.AddQualiData($encid, "", $xitem[i], $xOption[i], CStr(aCalcBox[i].Value) & Space(1) & aCalcUnit[i].Text, aAbnormCheck[i].Value, sTable, $xSysCons[i])
+            modClinSub.AddQualiData($encid, "", $sExamVar[i]["ExamName"], $sExamVar[i]["OptionType"], CStr(aCalcBox[i].Value) & Space(1) & aCalcUnit[i].Text, aAbnormCheck[i].Value, sTable, $sExamVar[i]["SysConstant"])
           Endif
-        Else If $xOption[i] = "Qualitative" Then
+        Else If $sExamVar[i]["OptionType"] = "Qualitative" Then
           If aLineText[i].Text Then
-            modClinSub.AddQualiData($encid, "", $xitem[i], $xOption[i], aLineText[i].Text, aAbnormCheck[i].Value, sTable, $xSysCons[i])
+            modClinSub.AddQualiData($encid, "", $sExamVar[i]["ExamName"], $sExamVar[i]["OptionType"], aLineText[i].Text, aAbnormCheck[i].Value, sTable, $sExamVar[i]["SysConstant"])
           Endif
-        Else If $xOption[i] = "Clinical Scale" Then
+        Else If $sExamVar[i]["OptionType"] = "Clinical Scale" Then
           If aTextArea[i].Text Then
-            modClinSub.AddClinicExam($encid, "", $xitem[i], $xOption[i], aTextArea[i].Text, aClinBox[i].Value, aAbnormCheck[i].Value, sTable, $xSysCons[i], "Regular")
+            modClinSub.AddClinicExam($encid, "", $sExamVar[i]["ExamName"], $sExamVar[i]["OptionType"], aTextArea[i].Text, aClinBox[i].Value, aAbnormCheck[i].Value, sTable, $sExamVar[i]["SysConstant"], "Regular")
           Endif
-        Else If $xOption[i] = "RichText Area" Then
+        Else If $sExamVar[i]["OptionType"] = "RichText Area" Then
           If aHTMLText[i].Text Then
-            modClinSub.AddQualiData($encid, "", $xitem[i], $xOption[i], aHTMLText[i].RichText, aAbnormCheck[i].Value, sTable, $xSysCons[i])
+            modClinSub.AddQualiData($encid, "", $sExamVar[i]["ExamName"], $sExamVar[i]["OptionType"], aHTMLText[i].RichText, aAbnormCheck[i].Value, sTable, $sExamVar[i]["SysConstant"])
           Endif
         Else
           If aGenTextArea[i].Text Then
-            modClinSub.AddQualiData($encid, "", $xitem[i], $xOption[i], aGenTextArea[i].Text, aAbnormCheck[i].Value, sTable, $xSysCons[i])
+            modClinSub.AddQualiData($encid, "", $sExamVar[i]["ExamName"], $sExamVar[i]["OptionType"], aGenTextArea[i].Text, aAbnormCheck[i].Value, sTable, $sExamVar[i]["SysConstant"])
           Endif
         Endif
       Endif
@@ -919,25 +895,25 @@ End
 
 Private Sub SetQualitativeAbnormal(i As Integer)
 
-  If $xOption[i] = "Single Selection" Then
+  If $sExamVar[i]["OptionType"] = "Single Selection" Then
     If aComboBox[i].Text Then
-      aAbnormCheck[i].Value = modAllExam.SelectExamAbnormal("Exam", $xitem[i], aComboBox[i].Text, $xOption[i])
+      aAbnormCheck[i].Value = modAllExam.SelectExamAbnormal("Exam", $sExamVar[i]["ExamName"], aComboBox[i].Text, $sExamVar[i]["OptionType"])
     Endif
-  Else If $xOption[i] = "Dichotomous" Then
+  Else If $sExamVar[i]["OptionType"] = "Dichotomous" Then
     If aDichoValue[i].Value Then
-      aAbnormCheck[i].Value = modAllExam.SelectExamAbnormal("Exam", $xitem[i], aDichoValue[i].Value, $xOption[i])
+      aAbnormCheck[i].Value = modAllExam.SelectExamAbnormal("Exam", $sExamVar[i]["ExamName"], aDichoValue[i].Value, $sExamVar[i]["OptionType"])
     Endif
-  Else If $xOption[i] = "Left and Right" Then
+  Else If $sExamVar[i]["OptionType"] = "Left and Right" Then
     If aLeftRight[i].DataText Then
-      aAbnormCheck[i].Value = modAllExam.SelectExamAbnormal("Exam", $xitem[i], aLeftRight[i].DataText, $xOption[i])
+      aAbnormCheck[i].Value = modAllExam.SelectExamAbnormal("Exam", $sExamVar[i]["ExamName"], aLeftRight[i].DataText, $sExamVar[i]["OptionType"])
     Endif
-  Else If $xOption[i] = "Qualitative" Then
+  Else If $sExamVar[i]["OptionType"] = "Qualitative" Then
     If aLineText[i].Text Then
-      aAbnormCheck[i].Value = modAllExam.SelectExamAbnormal("Exam", $xitem[i], aLineText[i].Text, $xOption[i])
+      aAbnormCheck[i].Value = modAllExam.SelectExamAbnormal("Exam", $sExamVar[i]["ExamName"], aLineText[i].Text, $sExamVar[i]["OptionType"])
     Endif
-  Else If $xOption[i] = "No Selection" Then
+  Else If $sExamVar[i]["OptionType"] = "No Selection" Then
     If aGenTextArea[i].Text Then
-      aAbnormCheck[i].Value = modAllExam.SelectExamAbnormal("Exam", $xitem[i], aGenTextArea[i].Text, $xOption[i])
+      aAbnormCheck[i].Value = modAllExam.SelectExamAbnormal("Exam", $sExamVar[i]["ExamName"], aGenTextArea[i].Text, $sExamVar[i]["OptionType"])
     Endif
   Endif
 
@@ -950,7 +926,7 @@ Public Sub ButtonBoxgroup_Click()
 
   j = Last.Tag
   OpenOption(j)
-  If $xType[j] = "Quantitative" Then
+  If $sExamVar[j]["DataType"] = "Quantitative" Then
   Else
     SetQualitativeAbnormal(j)
   Endif
@@ -965,51 +941,51 @@ Private Sub OpenOption(j As Integer)
   Dim xopt As String[]
   Dim xflot As Variant[]
 
-  If $xType[j] = "Quantitative" Then
-    xflot = GetQuantiValues("Exam", $encid, $xitem[j], 0, 0, aQuantiBox[j].Value)
+  If $sExamVar[j]["DataType"] = "Quantitative" Then
+    xflot = GetQuantiValues("Exam", $encid, $sExamVar[j]["ExamName"], 0, 0, aQuantiBox[j].Value)
     If xflot Then
       aQuantiBox[j].Value = xflot[0]
     Endif
 
   Else
-    If $xOpList[j] Then
-      xopt = Split($xOpList[j], ";")
+    If $sExamVar[j]["OptionList"] Then
+      xopt = Split($sExamVar[j]["OptionList"], ";")
 
-      If $xOption[j] = "Single Selection" Then
-        sVal = SubChoose(xopt, "Single Selection", $xitem[j])
+      If $sExamVar[j]["OptionType"] = "Single Selection" Then
+        sVal = SubChoose(xopt, "Single Selection", $sExamVar[j]["ExamName"])
         If sVal Then
           aComboBox[j].Text = sVal.Join(";")
         Endif
 
-      Else If $xOption[j] = "Dichotomous" Then
+      Else If $sExamVar[j]["OptionType"] = "Dichotomous" Then
 
-      Else If $xOption[j] = "Multiple Selection" Then
-        sVal = SubChoose(xopt, "Multiple Selection", $xitem[j])
+      Else If $sExamVar[j]["OptionType"] = "Multiple Selection" Then
+        sVal = SubChoose(xopt, "Multiple Selection", $sExamVar[j]["ExamName"])
         If sVal Then
           aListBox[j].List = sVal
         Endif
 
-      Else If $xOption[j] = "Text Table" Then
-        ' xval = TableEntry(xopt, $xitem[j], "")
+      Else If $sExamVar[j]["OptionType"] = "Text Table" Then
+        ' xval = TableEntry(xopt, $sExamVar[j]["ExamName"], "")
         ' If xval Then
-        '   DisplayAgegrid(Split($xOpList[j], ";"), xval, aGridView[j])
+        '   DisplayAgegrid(Split($sExamVar[j]["OptionList"], ";"), xval, aGridView[j])
         ' Endif
 
-      Else If $xOption[j] = "Clinical Scale" Then
-        sVal = SubChoose(xopt, "Clinical Scale", $xitem[j])
+      Else If $sExamVar[j]["OptionType"] = "Clinical Scale" Then
+        sVal = SubChoose(xopt, "Clinical Scale", $sExamVar[j]["ExamName"])
         If sVal Then
           aClinBox[j].Value = sVal[0]
           aTextArea[j].Text = sVal[1]
         Endif
 
-      Else If $xOption[j] = "Date Time" Then
+      Else If $sExamVar[j]["OptionType"] = "Date Time" Then
         aDateBox[j].Value = Now()
 
-      Else If $xOption[j] = "BS Date" Then
+      Else If $sExamVar[j]["OptionType"] = "BS Date" Then
         aDateBox[j].Value = Now()
 
-      Else If $xOption[j] = "Visual Input" Then
-        sPath = modImage.DisplayVisualData(cmbcategory.Text, "", $xitem[j], $xOption[j])
+      Else If $sExamVar[j]["OptionType"] = "Visual Input" Then
+        sPath = modImage.DisplayVisualData(cmbcategory.Text, "", $sExamVar[j]["ExamName"], $sExamVar[j]["OptionType"])
         If sPath Then
           xval = CVisualValue(cmbcategory.Text, sPath, aGenTextArea[j].Text)
           If xval Then
@@ -1220,9 +1196,9 @@ Public Sub btnfill_Click()
   Dim j As Integer
   Dim res As Result
 
-  For j = 0 To $xitem.Count - 1
+  For j = 0 To $sExamVar.Count - 1
     If j < 49 Then
-      res = modDatabase.$myConn.Exec("select flddetail from tblexam where fldexamid=&1", $xitem[j])
+      res = modDatabase.$myConn.Exec("select flddetail from tblexam where fldexamid=&1", $sExamVar[j]["ExamName"])
       If res.Available Then
 
         For Each res

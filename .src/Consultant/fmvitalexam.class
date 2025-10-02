@@ -1,5 +1,6 @@
 ' Gambas class file
 
+Private $ExamOption As String[]
 Private $rData As Result
 Private $aMyFields As String[]
 
@@ -13,6 +14,9 @@ Public Sub _new()
     cmbtarget.Enabled = True
   Endif
   cmbcategory.List = ["Triage Examinations", "Essential Examinations", "Physician Examinations", "Nursing Examinations", "Discharge Examinations"]                         ''
+  cmbtype.List = ["Qualitative", "Quantitative"]
+  cmbconstant.List = modSysCons.GetAllSysConstantsList()
+  $ExamOption = modMedicine.FillClinDirectOptionCombo()
 
 End
 
@@ -30,6 +34,18 @@ Public Sub btnexport_Click()
 
 End
 
+Public Sub cmbtype_Click()
+
+  If cmbtype.Text Then
+    If cmbtype.Text = "Quantitative" Then
+      cmboption.List = ["No Selection", "Calculated"]
+    Else If cmbtype.Text = "Qualitative" Then
+      cmboption.List = $ExamOption
+    Endif
+  Endif
+
+End
+
 Private Function GetFlagValue(sBool As Boolean) As String
 
   Dim sVal As String
@@ -43,7 +59,14 @@ Private Function GetFlagValue(sBool As Boolean) As String
 
 End
 
-''======================= Examination ==============================
+Public Sub btnrefresh_Click()
+
+  If cmbcategory.Text And If cmbtarget.Text Then
+    FillFindingGrid(cmbcategory.Text)
+  Endif
+
+End
+
 Public Sub btnaddall_Click()
 
   Dim hForm As FmSelectList
@@ -56,10 +79,56 @@ Public Sub btnaddall_Click()
 
 End
 
-Public Sub btnrefresh_Click()
+Private Sub MakeBlank()
 
-  If cmbcategory.Text And If cmbtarget.Text Then
-    FillFindingGrid(cmbcategory.Text)
+  txtexamname.Text = ""
+  cmbtype.Text = ""
+  cmbconstant.Text = ""
+  cmboption.Text = ""
+
+End
+
+Public Sub btnBrOK_Click()
+
+  Dim res As Result
+
+  If cmbcategory.Text And If txtexamname.Text And If cmbtype.Text And If cmbtarget.Text Then
+    If txtgroupname.Text And If cmbtype.Text Then
+      res = modDatabase.$myConn.Create("tblcompexam")
+      res["fldcategory"] = cmbcategory.Text
+      res["fldexamid"] = txtexamname.Text
+      res["fldtype"] = cmbtype.Text
+      res["fldsysconst"] = cmbconstant.Text
+      res["fldtanswertype"] = cmboption.Text
+      res["fldgroupname"] = Trim(txtgroupname.Text)
+      res["fldexamorder"] = 0
+      res["fldflag"] = False
+      res["fldcomp"] = cmbtarget.Text
+      res.Update
+      FillFindingGrid(cmbcategory.Text)
+      Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+      MakeBlank()
+    Endif
+  Endif
+
+End
+
+Public Sub btnedit_Click()
+
+  Dim res As Result
+
+  If cmbcategory.Text And If txtexamname.Text And If cmbtype.Text And If cmbtarget.Text Then
+    If txtgroupname.Text And If cmbtype.Text Then
+      res = modDatabase.$myConn.Edit("tblcompexam", "fldid=&1", GridView1[GridView1.Row, 0].Text)
+      res["fldexamid"] = txtexamname.Text
+      res["fldtype"] = cmbtype.Text
+      res["fldsysconst"] = cmbconstant.Text
+      res["fldtanswertype"] = cmboption.Text
+      res["fldgroupname"] = Trim(txtgroupname.Text)
+      res.Update
+      FillFindingGrid(cmbcategory.Text)
+      Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information updated", modBasic.$BalloonDelay))
+    Endif
   Endif
 
 End
@@ -69,7 +138,7 @@ Private Sub FillFindingGrid(sType As String)
   Dim sql As String
 
   If cmbtarget.Text Then
-    sql = "select fldid,fldtype,fldflag,fldexamid,fldflag from tblcompexam where fldcomp=&1 and fldcategory=&2"
+    sql = "select fldid,fldgroupname,fldflag,fldexamid,fldflag,fldtanswertype,fldsysconst,fldtype from tblcompexam where fldcomp=&1 and fldcategory=&2"
     $rData = modDatabase.$myConn.Exec(sql, cmbtarget.Text, sType)
     $aMyFields = New String[]
     modGridView.ReadSmallData(GridView1, $rData, $aMyFields)
@@ -77,12 +146,18 @@ Private Sub FillFindingGrid(sType As String)
     With GridView1
       .Columns[0].Hidden = True
       .Columns[1].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
-      .Columns[2].Width = CStr(20 * modBasic.$AppWidthRatio) & "px"
-      .Columns[3].Width = CStr(300 * modBasic.$AppWidthRatio) & "px"
+      .Columns[2].Width = CStr(25 * modBasic.$AppWidthRatio) & "px"
+      .Columns[3].Width = CStr(325 * modBasic.$AppWidthRatio) & "px"
       .Columns[4].Hidden = True
+      .Columns[5].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
+      .Columns[6].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
+      .Columns[7].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
 
-      .Columns[1].Text = "Type"
+      .Columns[1].Text = "Group Name"
       .Columns[3].Text = "Exam Name"
+      .Columns[5].Text = "Option"
+      .Columns[6].Text = "Constant"
+      .Columns[7].Text = "Data Type"
     End With
   Endif
 
@@ -93,10 +168,23 @@ Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableDat
   $rData.MoveTo(Row)
   modGridView.GridViewDecoration(Data, Row)
   If Column = 2 Then
-    Data.Html = modString.GetImageForHTMLGrid(modMisc.GetGridIcon($rData[$aMyFields[Column]]), "75%", "75%")
+    Data.Html = modString.GetImageForHTMLGrid(modMisc.SetGridCheckIcon($rData[$aMyFields[Column]]), "75%", "75%")
     Data.Text = ""
   Else
     Data.Text = $rData[$aMyFields[Column]]
+  Endif
+
+End
+
+Public Sub GridView1_Select()
+
+  If GridView1.Selection.Count Then
+    $rData.MoveTo(GridView1.Selection[0])
+    txtexamname.Text = $rData["fldexamid"]
+    txtgroupname.Text = $rData["fldgroupname"]
+    cmbconstant.Text = $rData["fldsysconst"]
+    cmboption.Text = $rData["fldtanswertype"]
+    cmbtype.Text = $rData["fldtype"]
   Endif
 
 End

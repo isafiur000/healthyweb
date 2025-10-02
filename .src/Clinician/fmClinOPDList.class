@@ -43,12 +43,12 @@ Public Sub _new(sTable As String)
     If modBasic.$HospCode Then
       cmblocation.Text = modDataRepo.$RepositoryMode
       cmbvalue.Text = modBasic.$HospCode
-      WebContainer5.Enabled = False
+      WebContainer27.Enabled = False
     Else
       cmblocation.List = ["Hospital", "Municipality", "Category", "District", "Province"]
     Endif
   Else
-    WebContainer5.Visible = False
+    WebContainer27.Visible = False
   Endif
 
   Select modHelpVariable.$LogInCategory
@@ -87,7 +87,7 @@ Public Sub _new(sTable As String)
     If aList Then
       xdepList.Insert(aList)
     Endif
-    xdepList.Add("%")
+    xdepList.Add("All")
     cmbdept.List = xdepList
     cmbdept.Text = modSettings.ShowSettingFromFIle("Clinic/DefaultOPD")
   Endif
@@ -270,7 +270,7 @@ Public Sub mnusearchconsult_Click()
 
   xname = InputBox(("Search Consultant UserID"), "Search", "")
   If xname Then
-    cmbdept.Text = "%"
+    cmbdept.Text = "All"
     xFldList = GetSQLColumns()
     If $showList = "Paid" Then
       xpaid = " and fldencounterval in(select fldencounterval from tblpatbilldetail)"
@@ -293,7 +293,7 @@ Public Sub mnusearchname_Click()
 
   xname = InputDoubleText(("Search Patient Name"), ["First Name", "SurName"], ["%", "%"], modBasic.$SurNameList)
   If xname Then
-    cmbdept.Text = "%"
+    cmbdept.Text = "All"
     xFldList = GetSQLColumns()
     If $showList = "Paid" Then
       xpaid = " and fldencounterval in(select fldencounterval from tblpatbilldetail)"
@@ -394,7 +394,7 @@ Private Function ExecuteQuery(xFldList As String[]) As Result
       sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & "  where " & $sTable & "." & "fldconsulttime>=&1 and " & $sTable & "." & "fldconsulttime<=&2 and " & $sTable & "." & "fldstatus=&3 and " & $sTable & "." & "fldconsultname=&4" & xencid & xconsult & xpaid & xcolor & $RepoStr & xorder                                           ''
       res = modDatabase.$myConn.Exec(sql, modDate.StartSqlDate(dtsort.Value), modDate.EndSqlDate(DateAdd(dtsort.Value, gb.Day, txtrange.Value)), "Planned", modBasic.$FixedDepartment)
     Else
-      If cmbdept.Text = "%" Then
+      If cmbdept.Text = "All" Then
         sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldconsulttime>=&1 and " & $sTable & "." & "fldconsulttime<=&2 and " & $sTable & "." & "fldstatus=&3" & xencid & xconsult & xpaid & xcolor & $RepoStr & xorder                                             ''
       Else
         sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldconsulttime>=&1 and " & $sTable & "." & "fldconsulttime<=&2 and " & $sTable & "." & "fldstatus=&3 and " & $sTable & "." & "fldconsultname=&4" & xencid & xconsult & xpaid & xcolor & $RepoStr & xorder
@@ -407,7 +407,7 @@ Private Function ExecuteQuery(xFldList As String[]) As Result
       sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldstatus=&1 and " & $sTable & "." & "fldconsultname=&2" & xencid & xconsult & xpaid & xcolor & $RepoStr & xorder                                            ''
       res = modDatabase.$myConn.Exec(sql, "Planned", modBasic.$FixedDepartment)
     Else
-      If cmbdept.Text = "%" Then
+      If cmbdept.Text = "All" Then
         sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldstatus=&1" & xencid & xconsult & xpaid & xcolor & $RepoStr & xorder                                              ''
       Else
         sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldstatus=&1 and " & $sTable & "." & "fldconsultname=&2" & xencid & xconsult & xpaid & xcolor & $RepoStr & xorder
@@ -429,7 +429,7 @@ Private Function GetGridViewValue(Column As Integer, xVariable As Variant) As Va
   Else If Column = 3 Then
     xxx = modPatient.GetPatientNameByEnc(xVariable, modDatabase.$syConn) & "<br>" & "<small>" & modPatient.ShowDiscountCategEnc(xVariable) & "</small>"
   Else If Column = 4 Then
-    xxx = modPatient.GetPatientAgeString(xVariable, Now()) & "<br>" & modPatient.GetPatientSex(xVariable, modDatabase.$syConn)    ''
+    xxx = modPatient.GetPatientAgeString(xVariable, Now()) & modString.HTMLBlankSpace(1) & modPatient.GetPatientSex(xVariable, modDatabase.$syConn)    ''
   Else If Column = 5 Then
     If IsNull(xVariable) = True Then
       xxx = "icons/unchecked.png"
@@ -531,7 +531,7 @@ Private Sub ResizeGrid()
     .Columns[1].Width = CStr(15 * modBasic.$AppWidthRatio) & "px"
     .Columns[2].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
     .Columns[3].Width = CStr(200 * modBasic.$AppWidthRatio) & "px"
-    .Columns[4].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
+    .Columns[4].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
     .Columns[5].Width = CStr(30 * modBasic.$AppWidthRatio) & "px"
     .Columns[6].Width = CStr(175 * modBasic.$AppWidthRatio) & "px"
     If chkshowdepart.Value = True Then
@@ -541,7 +541,7 @@ Private Sub ResizeGrid()
       Else If $sTable = "tblopvisit" Then
         .Columns[7].Hidden = True
       Endif
-      If cmbdept.Text = "%" Then
+      If cmbdept.Text = "All" Then
         .Columns[8].Hidden = False
         .Columns[8].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
       Else
@@ -590,7 +590,7 @@ Private Sub ResizeGrid()
       If $sTable = "tblconsult" Then
         .Columns[7].Text = "Consultant"
       Endif
-      If cmbdept.Text = "%" Then
+      If cmbdept.Text = "All" Then
         .Columns[8].Text = "Department"
       Endif
       If chkdate.Value = False Then
@@ -1561,7 +1561,7 @@ Public Sub mnuessenexam_Click()
 
   If GridView1.Selection.Count Then
     $rData.MoveTo(GridView1.Selection[0])
-    xx = modClinic.GetFullVitalList($rData["fldencounterval"])
+    xx = modString.GetListFromCompareVariant(modFixPatho.$ExaminationCompVar, "fldexamid", "fldcategory", "Essential Examinations", True)
     yy = New String[]
     hForm = New FmMultiChart($rData["fldencounterval"], xx, yy, LabUnitForm())
     hForm.ShowModal

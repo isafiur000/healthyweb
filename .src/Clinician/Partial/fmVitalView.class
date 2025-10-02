@@ -1,0 +1,85 @@
+' Gambas class file
+
+Private $encid As String
+Private xFinal As Variant[]
+Private $sVitalsVar As Variant[]
+
+Public Sub _new(encid As String)
+
+  $encid = encid
+  $sVitalsVar = modPathoSub.GetAllEssentialExams($encid)
+  FillDailyGrid()
+
+End
+
+Private Sub FillDailyGrid()
+
+  Dim xRowVal As Collection
+  Dim xfir As Date
+  Dim xlast As Date
+
+  Dim i As Integer
+  Dim j As Integer
+
+  xFinal = New Variant[]
+
+  xfir = modDate.StartSqlHour(DateAdd(Now(), gb.Hour, -18))
+  xlast = modDate.StartSqlHour(DateAdd(Now(), gb.Hour, 1))
+
+  GridView2.Clear()
+  GridView2.Count = $sVitalsVar.Count
+  GridView2.Columns.Count = DateDiff(xfir, xlast, gb.Hour) + 1
+
+  For i = 0 To GridView2.Count - 1
+    xRowVal = New Collection
+    For j = 0 To GridView2.Columns.Count - 1
+      If j = 0 Then
+        xRowVal.Add($sVitalsVar[i]["ExamName"], CStr(j))
+      Else
+        xRowVal.Add(GetExamValueByDate($encid, $sVitalsVar[i]["ExamName"], DateAdd(xfir, gb.Hour, j)), CStr(j))
+      Endif
+    Next
+    xFinal.Add(xRowVal)
+  Next
+
+  With GridView2
+    For j = 0 To GridView2.Columns.Count - 1
+      If j = 0 Then
+        .Columns[j].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+        .Columns[j].Text = "Examination"
+      Else
+        .Columns[j].Width = CStr(50 * modBasic.$AppWidthRatio) & "px"
+        .Columns[j].Text = modReportVar.GetDateTimeReport(DateAdd(xfir, gb.Hour, j), gb.ShortTime)
+      Endif
+    Next
+  End With
+  ' GridView2.Scroll(GridView2.X + GridView2.Width, GridView2.Y)
+
+End
+
+Public Sub GridView2_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  modGridView.GridViewDecoration(Data, Row)
+  Data.Text = xFinal[Row][CStr(Column)]
+
+End
+
+Private Function GetExamValueByDate(encid As String, xexam As String, xDate As Date) As String
+
+  Dim res As Result
+  Dim xx As String
+
+  res = modDatabase.$myConn.Exec("select fldrepquanti from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldhead=&3 and fldtime>=&4 and fldtime<=&5", encid, True, xexam, modDate.StartSqlHour(xDate), modDate.EndSqlHour(xDate))
+  If res.Available Then
+    res.MoveFirst
+    If res["fldrepquanti"] Then
+      xx = CStr(res["fldrepquanti"])
+    Else
+      xx = ""
+    Endif
+  Else
+    xx = ""
+  Endif
+  Return xx
+
+End

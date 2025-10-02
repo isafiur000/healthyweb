@@ -118,6 +118,72 @@ Public Function GetAllergyMedicineList(encid As String, selAllEnc As Boolean) As
 
 End
 
+'--------------------------- General ----------------------------
+Public Function AllowDischargeDiagno(encid As String) As Boolean
+
+  Dim xx As Boolean
+  Dim xList As String[]
+
+  If modBasic.$FixDiagnosisDischarge = "Yes" Then
+    xList = modPatient.PatientDiagnoCurrentList(encid)
+    If xList And If xList.Count Then
+      xx = True
+    Else
+      xx = False
+    Endif
+  Else
+    xx = True
+  Endif
+
+  Return xx
+
+End
+
+Public Function AllowOPOutcomeDiagno(encid As String) As Boolean
+
+  Dim xx As Boolean
+  Dim xList As String[]
+
+  If modBasic.$FixDiagnosisOPOutcome Then
+    If modBasic.$FixDiagnosisOPOutcome = "Provisional" Then
+      xList = modPatient.PatientFindingList(encid, "Provisional Diagnosis")
+    Else If modBasic.$FixDiagnosisOPOutcome = "Final" Then
+      xList = modPatient.PatientFindingList(encid, "Final Diagnosis")
+    Endif
+    If xList And If xList.Count Then
+      xx = True
+    Else
+      xx = False
+    Endif
+  Else
+    xx = True
+  Endif
+
+  Return xx
+
+End
+
+Public Function GetDiagnoGroupForService(sBed As String) As String
+
+  Dim res As Result
+  Dim xx As String
+
+  res = modDatabase.$myConn.Exec("select flddiagnosis from tblipdservice where flditem in(select fldservice from tbldepartmentbed where fldbed=&1) and flddiagnosis IS NOT NULL", sBed)
+  If res.Available Then
+    res.MoveFirst
+    If res["flddiagnosis"] Then
+      xx = res["flddiagnosis"]
+    Else
+      xx = ""
+    Endif
+  Else
+    xx = ""
+  Endif
+
+  Return xx
+
+End
+
 ''=========================Triage ==========================
 Private Function GetTriageColorArray(xfinal As String[]) As Integer
 
@@ -277,68 +343,96 @@ Public Function GetPatientColorByTriage(sid As Long) As Integer
 
 End
 
-Public Function AllowDischargeDiagno(encid As String) As Boolean
+''---------------------------------- All essential exams ---------------------
+Public Function GetAllEssentialExams(encid As String) As Variant[]
 
-  Dim xx As Boolean
-  Dim xList As String[]
-
-  If modBasic.$FixDiagnosisDischarge = "Yes" Then
-    xList = modPatient.PatientDiagnoCurrentList(encid)
-    If xList And If xList.Count Then
-      xx = True
-    Else
-      xx = False
-    Endif
-  Else
-    xx = True
-  Endif
-
-  Return xx
-
-End
-
-Public Function AllowOPOutcomeDiagno(encid As String) As Boolean
-
-  Dim xx As Boolean
-  Dim xList As String[]
-
-  If modBasic.$FixDiagnosisOPOutcome Then
-    If modBasic.$FixDiagnosisOPOutcome = "Provisional" Then
-      xList = modPatient.PatientFindingList(encid, "Provisional Diagnosis")
-    Else If modBasic.$FixDiagnosisOPOutcome = "Final" Then
-      xList = modPatient.PatientFindingList(encid, "Final Diagnosis")
-    Endif
-    If xList And If xList.Count Then
-      xx = True
-    Else
-      xx = False
-    Endif
-  Else
-    xx = True
-  Endif
-
-  Return xx
-
-End
-
-''------------------ Service ---------------------
-Public Function GetDiagnoGroupForService(sBed As String) As String
-
+  Dim i As Integer
+  Dim j As Integer
   Dim res As Result
-  Dim xx As String
+  Dim res1 As Result
+  Dim xopList As String[]
+  Dim sColl As Collection
 
-  res = modDatabase.$myConn.Exec("select flddiagnosis from tblipdservice where flditem in(select fldservice from tbldepartmentbed where fldbed=&1) and flddiagnosis IS NOT NULL", sBed)
-  If res.Available Then
-    res.MoveFirst
-    If res["flddiagnosis"] Then
-      xx = res["flddiagnosis"]
-    Else
-      xx = ""
+  Dim sVitalsVar As Variant[]
+  Dim examList As Variant[]
+  Dim extraList As String[]
+
+  sVitalsVar = New Variant[]
+  examList = modFixPatho.GetEssentialExamVar()
+  extraList = modPatPatho.GetMonitorList(encid, "Exam", "Continue", "%")
+
+  For i = 0 To examList.Count - 1
+    If i < 49 Then
+
+      sColl = New Collection
+      If examList[i]["fldsysconst"] Then
+        res = modDatabase.$myConn.Exec("select fldexamid,fldtype,fldoption,fldsysconst,fldcritical from tblexam where fldsysconst=&1", examList[i]["fldsysconst"])
+        If res.Available Then
+          res.MoveFirst
+          If res["fldoption"] = "Clinical Scale" Then
+            xopList = modAllExam.GetCLinicalScaleOptions("Exam", res["fldexamid"])
+          Else
+            xopList = modAllExam.SelectExamOptionList("Exam", res["fldexamid"])
+          Endif
+          sColl.Add(examList[i]["fldexamid"], "ExamName")
+          sColl.Add(res["fldtype"], "DataType")
+          sColl.Add(res["fldoption"], "OptionType")
+          If xopList And If xopList.Count Then
+            sColl.Add(xopList.Join(";"), "OptionList")
+          Else
+            sColl.Add("", "OptionList")
+          Endif
+          sColl.Add(examList[i]["fldsysconst"], "SysConstant")
+          If res["fldcritical"] Then
+            sColl.Add(res["fldcritical"], "CritValue")
+          Else
+            sColl.Add(0, "CritValue")
+          Endif
+          sVitalsVar.Add(sColl)
+        Endif
+
+      Else
+        sColl.Add(examList[i]["fldexamid"], "ExamName")
+        sColl.Add(examList[i]["fldtype"], "DataType")
+        sColl.Add(examList[i]["fldtanswertype"], "OptionType")
+        sColl.Add("", "OptionList")
+        sColl.Add(examList[i]["fldsysconst"], "SysConstant")
+        sColl.Add(0, "CritValue")
+        sVitalsVar.Add(sColl)
+      Endif
+
     Endif
-  Else
-    xx = ""
-  Endif
+  Next
 
-  Return xx
+  ''monitoring
+  For j = 0 To extraList.Count - 1
+    sColl = New Collection
+    res1 = modDatabase.$myConn.Exec("select fldexamid,fldtype,fldoption,fldsysconst,fldcritical from tblexam where fldexamid=&1", extraList[j])
+    If res1.Available Then
+      res1.MoveFirst
+      If res1["fldoption"] = "Clinical Scale" Then
+        xopList = modAllExam.GetCLinicalScaleOptions("Exam", res1["fldexamid"])
+      Else
+        xopList = modAllExam.SelectExamOptionList("Exam", res1["fldexamid"])
+      Endif
+      sColl.Add(extraList[j], "ExamName")
+      sColl.Add(res1["fldtype"], "DataType")
+      sColl.Add(res1["fldoption"], "OptionType")
+      If xopList And If xopList.Count Then
+        sColl.Add(xopList.Join(";"), "OptionList")
+      Else
+        sColl.Add("", "OptionList")
+      Endif
+      sColl.Add(res1["fldsysconst"], "SysConstant")
+      If res1["fldcritical"] Then
+        sColl.Add(res1["fldcritical"], "CritValue")
+      Else
+        sColl.Add(0, "CritValue")
+      Endif
+      sVitalsVar.Add(sColl)
+    Endif
+  Next
+
+  Return sVitalsVar
 
 End

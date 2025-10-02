@@ -44,13 +44,13 @@ Public Sub _new(sTable As String)
     If aList Then
       xdepList.Insert(aList)
     Endif
-    xdepList.Add("%")
+    xdepList.Add("All")
     cmbdept.List = xdepList
     cmbdept.Text = modSettings.ShowSettingFromFIle("Clinic/DefaultOPD")
   Endif
 
   $HideFormList = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select fldformname from tbluserformaccess where flduserid=&1 and fldcategory=&2 and fldstatus=&3", modBasic.$lbluser, modHelpVariable.$LogInCategory, "Inactive"))
-  formLst = ["Clinician Form", "Nursing Form", "InPatient Form", "Delivery Form", "Examinations"]
+  formLst = ["Clinician Form", "Nursing Form", "Delivery Form", "Examinations"]
   If $HideFormList And If $HideFormList.Count Then
     cmbforms.List = modString.GetRemainingArray(formLst, $HideFormList)
   Else
@@ -105,7 +105,7 @@ Public Sub btnrefresh_Click()
 
     With GridView1
       .Columns[0].Hidden = True
-      .Columns[1].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
+      .Columns[1].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
       .Columns[2].Expand = True
       .Columns[1].Text = "EncID"
       .Columns[2].Text = "Name"
@@ -148,7 +148,7 @@ Private Function ExecuteQuery() As Result
       sql = Subst("select fldid,fldencounterval,fldencounterval from &1", $sTable) & "  where fldconsulttime>=&1 and fldconsulttime<=&2 and fldstatus=&3 and fldconsultname=&4" & xencid & xconsult & xpaid & xorder                                           ''
       res = modDatabase.$myConn.Exec(sql, modDate.StartSqlDate(dtsort.Value), modDate.EndSqlDate(dtsort.Value), "Planned", modBasic.$FixedDepartment)
     Else
-      If cmbdept.Text = "%" Then
+      If cmbdept.Text = "All" Then
         sql = Subst("select fldid,fldencounterval,fldencounterval from &1", $sTable) & " where fldconsulttime>=&1 and fldconsulttime<=&2 and fldstatus=&3" & xencid & xconsult & xpaid & xorder                                             ''
       Else
         sql = Subst("select fldid,fldencounterval,fldencounterval from &1", $sTable) & " where fldconsulttime>=&1 and fldconsulttime<=&2 and fldstatus=&3 and fldconsultname=&4" & xencid & xconsult & xpaid & xorder
@@ -161,7 +161,7 @@ Private Function ExecuteQuery() As Result
       sql = Subst("select fldid,fldencounterval,fldencounterval from &1", $sTable) & " where fldstatus=&1 and fldconsultname=&2" & xencid & xconsult & xpaid & xorder                                            ''
       res = modDatabase.$myConn.Exec(sql, "Planned", modBasic.$FixedDepartment)
     Else
-      If cmbdept.Text = "%" Then
+      If cmbdept.Text = "All" Then
         sql = Subst("select fldid,fldencounterval,fldencounterval from &1", $sTable) & " where fldstatus=&1" & xencid & xconsult & xpaid & xorder                                              ''
       Else
         sql = Subst("select fldid,fldencounterval,fldencounterval from &1", $sTable) & " where fldstatus=&1 and fldconsultname=&2" & xencid & xconsult & xpaid & xorder
@@ -187,9 +187,8 @@ End
 
 Public Sub GridView1_Select()
 
-  Dim hForm1 As FmPatCliNew
-  Dim hForm2 As FmNursingForm
-  Dim hForm3 As FmPatientMain
+  Dim hForm1 As FmPatClinClaps
+  Dim hForm2 As FmVitalInput
   Dim hForm4 As FmDeliveryNew
   Dim hForm5 As FmExamReporting
 
@@ -202,16 +201,13 @@ Public Sub GridView1_Select()
     Select cmbforms.Text
       Case "Clinician Form"
         If $sTable = "tblconsult" Then
-          hForm1 = New FmPatCliNew($rData["fldencounterval"], $rData["fldid"], "Consultation", pnlmain)
+          hForm1 = New FmPatClinClaps($rData["fldencounterval"], $rData["fldid"], "Consultation", pnlmain)
         Else If $sTable = "tblopvisit" Then
-          hForm1 = New FmPatCliNew($rData["fldencounterval"], $rData["fldid"], "OP Visit", pnlmain)
+          hForm1 = New FmPatClinClaps($rData["fldencounterval"], $rData["fldid"], "OP Visit", pnlmain)
         Endif
 
       Case "Nursing Form"
-        hForm2 = New FmNursingForm($rData["fldencounterval"], pnlmain)
-
-      Case "InPatient Form"
-        hForm3 = New FmPatientMain($rData["fldencounterval"], pnlmain)
+        hForm2 = New FmVitalInput($rData["fldencounterval"], pnlmain)
 
       Case "Delivery Form"
         hForm4 = New FmDeliveryNew($rData["fldencounterval"], pnlmain)

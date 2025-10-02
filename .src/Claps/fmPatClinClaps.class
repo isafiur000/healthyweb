@@ -1,0 +1,1643 @@
+' Gambas class file
+
+''MAIN FORM
+Private $sTatus As String
+Private $dateReg As Date
+Private $PatientNum As String
+
+Private $rExamRes As Result
+Private $aExamFields As String[]
+
+Private $billModeTest As String
+Private $billModeRadio As String
+Private $billModePharmacy As String
+Private $billModeProcedure As String
+Private $billModeEquipment As String
+Private $billModeService As String
+Private $billModeOthers As String
+
+Private $PulseName As String
+Private $DiastBPName As String
+Private $SystBPName As String
+Private $RespRateName As String
+Private $OxySatName As String
+Private $TempeName As String
+
+Private $PulseRangeLimits As Float[]
+Private $DiastBPRangeLimits As Float[]
+Private $SystBPRangeLimits As Float[]
+Private $RespRateRangeLimits As Float[]
+Private $OxySatRangeLimits As Float[]
+Private $TempeRangeLimits As Float[]
+
+Public Sub _new(encid As String, sIndex As Long, sMode As String)
+
+  If encid Then
+    txtencid.Text = encid
+    txtclinIndex.Value = sIndex
+    txtclinmode.Text = sMode
+    txtencid.ReadOnly = True
+  Endif
+
+  ''PATIENT PROFILE
+  cmbpatheightunit.List = ["cm", "inch", "foot"]
+  If MMain.$SISHAppMode = "HIS" Then
+    txtbedno.ReadOnly = True
+  Endif
+
+  ''MAIN FORM
+  modLabSub.DisplayDefaultTestUnit(rbsi, rbmetric)
+  cmbrefer.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select fldlocation as col from tblreferlist"))
+
+  SetHtmlTextOption(txtgencomplaint)
+  SetHtmlTextOption(txtplan)
+  SetHtmlTextOption(txtcomment)
+  rbimproved.Value = True
+  rbimproved_Click()
+
+  If txtencid.Text Then
+    GetEncounterValue()
+  Else
+    txtencid.SetFocus
+  Endif
+
+End
+
+Public Sub WebForm_Open()
+
+  modGeneralMain.RecordFormUse(Me)
+
+End
+
+Private Sub SetHtmlTextOption(TextHTML1 As WebTextHTML)
+
+  TextHTML1.UserList = modBasic.$IPConsultUserList
+  ' TextHTML1.DictionaryPath = modBasic.$dictPathList
+
+End
+
+''====================== PATIENT PROFILE =================================
+Public Sub txtencid_Activate()
+
+  GetEncounterValue()
+
+End
+
+Public Sub btnencidsearch_Click()
+
+  If Not txtencid.Text Then
+    txtencid.Text = PatSearch("Encounter")
+  Endif
+
+End
+
+Public Sub mnusearmulti_Click()
+
+  If Not txtencid.Text Then
+    txtencid.Text = GetEncid()
+  Endif
+
+End
+
+Public Sub btnwebcam_Click()
+
+  If txtencid.Text Then
+    GetEncounterValue()
+  Else
+    txtencid.Text = QRScanValue("")
+  Endif
+
+End
+
+Private Sub GetEncounterValue()
+
+  Dim res As Result
+  Dim xallow As Boolean
+  Dim yallow As Boolean
+  Dim xpaid As Float
+
+  If Not txtpatientname.Text Then
+    If Not txtencid.Text Then Return
+    If modBasic.$EncIdPrefix And If txtencid.Text = modBasic.$EncIdPrefix Then
+      txtencid.SetFocus
+      Return
+    Endif
+
+    dtdob.Tag = ""
+    If txtencid.Text Then
+      If txtencid.Text = modBasic.$EncIdPrefix Then
+      Else
+        modSettings.SaveValuesToLog("LastValue/Encounter", Trim(txtencid.Text))
+      Endif
+      If txtclinIndex.Value And If txtclinmode.Text Then
+        pnloutcome.Enabled = True
+        pnlclinpara.Enabled = False
+        txtclindepart.Text = GetConsultDepartment(txtclinmode.Text, txtclinIndex.Value, Trim(txtencid.Text))
+      Endif
+      res = modDatabase.$myConn.Exec("select fldpatientval,flduserid from tblencounter where fldencounterval=&1", Trim(txtencid.Text))
+      If res.Available = False Then
+        modLinkDB.CheckEncDataRemote(Trim(txtencid.Text))
+        txtencid.SetFocus
+      Else
+        If modBasic.$LockToOwnConsultant = "Yes" Then
+          If res["flduserid"] = modBasic.$lbluser Then
+            xallow = True
+          Else
+            xallow = False
+          Endif
+        Else
+          xallow = True
+        Endif
+        If modBasic.$ClinPatientForms = "Paid" Then
+          xpaid = modNonMedical.TotalPaidAmountbyPatient(modDatabase.$myConn, Trim(txtencid.Text))
+          If xpaid > 0 Then
+            yallow = True
+          Else
+            yallow = False
+          Endif
+        Else
+          yallow = True
+        Endif
+
+        If xallow = True And If yallow = True Then
+          txtpatientname.Text = modPatient.GetPatientNameByEnc(Trim(txtencid.Text))
+          If txtpatientname.Text Then
+            WebTabPanel1.Enabled = True
+            txtgender.Text = modPatient.GetPatientSex(Trim(txtencid.Text))
+            txtpatientaddress.Text = modPatient.GetPatientAddressByEnc(Trim(txtencid.Text))
+            dtdob.Tag = modPatient.GetPatientBirthDay(Trim(txtencid.Text))
+            modDateSub.GetAgeControlFromDate(dtdob.Tag, txtpatage, cmbpatageunit)
+
+            $PatientNum = modPatient.GetPatientNoByEnc(Trim(txtencid.Text))
+            $sTatus = modPatient.CurrentAdmissionStatus(Trim(txtencid.Text))
+            txtnow.Text = $sTatus
+            txtbedno.Text = modPatient.GetLocationSetting(Trim(txtencid.Text), $sTatus)
+            txtpatdoa.Text = modReportVar.GetDateTimeReport(modPatient.GetRecordDate(Trim(txtencid.Text)), gb.GeneralDate)
+            txtpatweight.Value = modClinic.GetBodyWeight(Trim(txtencid.Text))
+            btnconsult.Tag = modPatient.GetAttendingConsultant(Trim(txtencid.Text))
+            btnconsult.Text = modGeneral.GetUserFullName(btnconsult.Tag)
+            modClinSub.GetPatientHeight(Trim(txtencid.Text), txtpatheight, cmbpatheightunit)
+            modAppSupport.RecordPatientActivity("Patient Data", Me.Name, "EncounterID", Trim(txtencid.Text))
+            UpdateTriage()
+            Wait
+            If modPatientSub.AllowEncIDHistory(Trim(txtencid.Text), modDatabase.$myConn) = True Then
+              BlockDCButton()
+              ''MAIN FORM
+              BasicInfoPatient()
+              txtencid.ReadOnly = True
+              txtpatheight.SetFocus
+            Else
+              Me.Enabled = False
+            Endif
+          Else
+            Message.Warning(("Encounter ID not found"), ("OK"))
+            ' Balloon.Delay = modBasic.$BalloonDelay
+            txtencid.SetFocus
+          Endif
+        Else
+          Message.Warning("Not authorized", ("OK"))
+        Endif
+      Endif
+    Endif
+  Endif
+
+End
+
+Public Sub UpdateTriage()
+
+  txtcolor.Background = modPatient.GetPatientColor(Trim(txtencid.Text))
+
+End
+
+Private Sub BlockDCButton()
+
+  Dim xx As Boolean
+
+  xx = modPatient.EnableClinicForm(txtnow.Text)
+  tlbtnaddheight.Enabled = xx
+  tlbtnaddbed.Enabled = xx
+  tlbtnadwt.Enabled = xx
+  dtdob.Enabled = xx
+  btnpic.Enabled = xx
+  btnselectuser.Enabled = xx
+
+End
+
+''------- Basic Parameters
+Public Sub btnpic_Click()
+
+  Dim hForm As FmPersonImage
+
+  If txtencid.Text Then
+    hForm = New FmPersonImage("Patient", modPatient.GetPatientNoByEnc(Trim(txtencid.Text)), False)
+    hForm.ShowModal
+  Endif
+
+End
+
+Public Sub tlbtnaddheight_Click()
+
+  If txtencid.Text Then
+    If txtpatheight.Value Then
+      If cmbpatheightunit.Text Then
+        modClinSub.UpdatePatientHeight(Trim(txtencid.Text), txtpatheight.Value, cmbpatheightunit.Text)
+        tlbtnaddheight.Enabled = False
+        Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information updated", modBasic.$BalloonDelay))
+        GetBasicCalulations()
+      Endif
+    Endif
+  Endif
+
+End
+
+Public Sub tlbtnadwt_Click()
+
+  If txtencid.Text Then
+    If txtpatweight.Value Then
+      modClinSub.AddGeneralParametersQuanti(Trim(txtencid.Text), "Body Weight", txtpatweight.Value)
+      tlbtnadwt.Enabled = False
+      Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+      GetBasicCalulations()
+    Endif
+  Endif
+
+End
+
+Public Sub dtdob_Click()
+
+  Dim dtdate As Date
+
+  If txtencid.Text Then
+    dtdate = GetDateValue("Date of Birth of " & txtpatientname.Text, "DOBirth", dtdob.Tag)
+    If dtdate Then
+      modPatientSub.UpdatePatDOB(Trim(txtencid.Text), dtdate)
+      modDateSub.GetAgeControlFromDate(dtdate, txtpatage, cmbpatageunit)
+      dtdob.Tag = dtdate
+      Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information updated", modBasic.$BalloonDelay))
+      GetBasicCalulations()
+    Endif
+  Endif
+
+End
+
+''------------Hospital related parameters
+Public Sub btnselectuser_Click()
+
+  Dim xMedUser As String[]
+
+  If txtencid.Text Then
+    xMedUser = MedicalSelectedValue(("Select Consultant"), modBasic.$IPConsultUserList)
+    If xMedUser And If xMedUser.Count Then
+      btnconsult.Tag = xMedUser[0]
+      btnconsult.Text = xMedUser[1]
+    Else
+      btnconsult.Tag = ""
+      btnconsult.Text = ""
+    Endif
+    If btnconsult.Tag Then
+      modPatientSub.UpdateAttendingConsultant(Trim(txtencid.Text), btnconsult.Tag)
+      Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+    Endif
+  Endif
+
+End
+
+Public Sub btnsms_Click()
+
+  Dim xval As String
+
+  If btnconsult.Tag Then
+    xval = modDevice.SendSMSToInpatDoc(Trim(txtencid.Text), modGeneral.GetUserContact(btnconsult.Tag))
+    If xval Then
+      Message.Info(xval, ("OK"))
+    Endif
+  Endif
+
+End
+
+Public Sub btnconsult_Change()
+
+  If btnconsult.Text = "" Then
+    btnconsult.Tag = ""
+  Endif
+
+End
+
+Public Sub tlbtnpayment_Click()
+
+  If txtencid.Text Then
+    modNonMedical.CurrentPayStatusMsg(Trim(txtencid.Text))
+  Endif
+
+End
+
+Public Sub btnprofile_Click()
+
+  Dim hForm As FmMinProfile
+
+  hForm = New FmMinProfile(Trim(txtencid.Text))
+  hForm.ShowModal()
+
+End
+
+''============================== MAIN FORM ================================
+Private Sub BasicInfoPatient()
+
+  Dim hDigForm As FmDiagnosticTab
+  Dim hLabForm As FmLabOrder
+  Dim hMedForm As FmDrugOrder
+  Dim hMinForm As FmMinorProcOrder
+
+  If txtencid.Text Then
+    modRepository.$RepoDataStatus = False
+    modAppSupport.RecordPatientActivity("Patient Data", Me.Name, "EncounterID", Trim(txtencid.Text))
+    GetDefaultBillingmodes()
+    ButtonControl()
+    $dateReg = modPatient.GetRecordDate(Trim(txtencid.Text))
+
+    If modBasic.$ClinPastDiagnosis Then
+      Select modBasic.$ClinPastDiagnosis
+        Case "Final Diagnosis", "Provisional Diagnosis", "Nursing Diagnosis"
+          txtpastdiagnosis.Text = "<p>" & "<b>Past " & modBasic.$ClinPastDiagnosis & "</b><br>" & modPathoSub.GetSelectedPastDiagnosisList(modBasic.$ClinPastDiagnosis, $PatientNum, Trim(txtencid.Text)).Join(", ") & "</p>"
+      End Select
+    Endif
+    txtgencomplaint.RichText = modPatPatho.ShowSelectedHistoryValue(Trim(txtencid.Text), "General Complaints")
+    lstallergy.List = modPathoSub.GetAllergyMedicineList(Trim(txtencid.Text), chkallergy.Value)
+    lstsyndrome.List = modPathoSub.GetSelectedDiagnosisList("Provisional Diagnosis", Trim(txtencid.Text))
+    ShowEssentialExamRange()
+    ShowEssentialExam()
+    FillExamtable()
+    dtfollowup.Value = modPatient.GetFollowUpDate(Trim(txtencid.Text))
+    cmbrefer.Text = modPatient.GetReferLocation(Trim(txtencid.Text))
+    GetBasicCalulations()
+
+    hLabForm = New FmLabOrder(Trim(txtencid.Text), $billModeTest, WebContainer5)
+    hMinForm = New FmMinorProcOrder(Trim(txtencid.Text), $billModeProcedure, WebContainer8)
+    hDigForm = New FmDiagnosticTab(Trim(txtencid.Text), "height-tablet", pnlabexams)
+    hMedForm = New FmDrugOrder(Trim(txtencid.Text), $sTatus, $billModePharmacy, WebContainer11)
+
+    modPatientSub.PopUpPatientForm(Trim(txtencid.Text), Me.Tag)
+  Endif
+
+End
+
+Private Sub GetDefaultBillingmodes()
+
+  Dim xpackage As String
+
+  Select $sTatus
+    Case "Admitted", "Discharged", "LAMA", "Death", "Refer", "Absconder"
+      $billModeTest = modNonMedical.GetAutoIPBillingPack("Test", Trim(txtencid.Text))
+      $billModeRadio = modNonMedical.GetAutoIPBillingPack("Radio", Trim(txtencid.Text))
+      $billModePharmacy = modNonMedical.GetAutoIPBillingPack("Pharmacy", Trim(txtencid.Text))
+      $billModeEquipment = modNonMedical.GetAutoIPBillingPack("Equipment", Trim(txtencid.Text))
+      $billModeProcedure = modNonMedical.GetAutoIPBillingPack("Procedure", Trim(txtencid.Text))
+      $billModeService = modNonMedical.GetAutoIPBillingPack("Service", Trim(txtencid.Text))
+      $billModeOthers = modNonMedical.GetAutoIPBillingPack("Others", Trim(txtencid.Text))
+    Case Else
+      xpackage = modNonMedical.DefaultBillingScheme(Trim(txtencid.Text), modBasic.$compID)
+      $billModeTest = xpackage
+      $billModeRadio = xpackage
+      $billModePharmacy = xpackage
+      $billModeEquipment = xpackage
+      $billModeProcedure = xpackage
+      $billModeService = xpackage
+      $billModeOthers = xpackage
+  End Select
+
+End
+
+Private Sub GetBasicCalulations()
+
+  If txtencid.Text Then
+    txtibw.Value = modSysCons.GetCalculationAValue("Ideal_Body_Weight", Trim(txtencid.Text))
+    txtbsa.Value = modSysCons.GetCalculationAValue("Body_Surface_Area", Trim(txtencid.Text))
+    txtcrclr.Value = modSysCons.GetCreatinineClearance(Trim(txtencid.Text))
+    txtbmi.Value = modSysCons.GetCalculationAValue("Body_Mass_Index", Trim(txtencid.Text))
+  Endif
+
+End
+
+Private Function GetConsultDepartment(sMode As String, sIndex As Long, encid As String) As String
+
+  Dim res As Result
+  Dim xval As String
+
+  If sMode = "Consultation" Then
+    res = modDatabase.$myConn.Exec("select fldconsultname from tblconsult where fldid=&1 and fldencounterval=&2", sIndex, encid)
+  Else If sMode = "OP Visit" Then
+    res = modDatabase.$myConn.Exec("select fldconsultname from tblopvisit where fldid=&1 and fldencounterval=&2", sIndex, encid)
+  Endif
+  If res.Available Then
+    xval = res["fldconsultname"]
+  Else
+    xval = ""
+  Endif
+  Return xval
+
+End
+
+Private Sub ButtonControl()
+
+  Dim xx As Boolean
+  Dim xval As String
+
+  xx = modPatient.EnableClinicOPDForm(Trim(txtencid.Text))
+  If xx = True Then
+    xx = modPatient.EnableClinicForm($sTatus)
+  Endif
+  ''complaints
+  btngencompln.Enabled = xx
+  ''advice
+  btnplan.Enabled = xx
+  ''findings
+  btnfinadd.Enabled = xx
+  btnfindcomponent.Enabled = xx
+  btnfindflag.Enabled = xx
+  btnfindelete.Enabled = xx
+  btnaddexamlist.Enabled = xx
+  btnaddexamlistall.Enabled = xx
+  btnaddscales.Enabled = xx
+  ''diagnosis
+  tlbtndeldises.Enabled = xx
+  btndismanual.Enabled = xx
+  tbnsyndro.Enabled = xx
+  tbndisease.Enabled = xx
+  ''blood
+  mnumedproduct.Enabled = xx
+  ''alergy
+  tlbtndelallergy.Enabled = xx
+  btnallergy.Enabled = xx
+  btnallergymanual.Enabled = xx
+  ''demographics
+  mnudemo.Enabled = xx
+  ''images
+  btnaddchart.Enabled = xx
+  ''vaccines
+  mnuvaccine.Enabled = xx
+  ''outcome
+  btnoutcome.Enabled = xx
+  ''menu
+  mnurequests.Enabled = xx
+
+  xval = modBasic.$LockDiagnosisList
+  If xval = "No" Then
+  Else
+    btndismanual.Enabled = False
+  Endif
+
+End
+
+Public Sub rbsi_Click()
+
+  modSettings.SaveSettingsToFile("TestUnit/Default", "SI")
+
+End
+
+Public Sub rbmetric_Click()
+
+  modSettings.SaveSettingsToFile("TestUnit/Default", "Metric")
+
+End
+
+Public Sub mnulastEncID_Click()
+
+  txtencid.Text = modSettings.ShowLogValues("LastValue/Encounter")
+
+End
+
+Public Sub mnupatlock_Click()
+
+  If txtencid.Text Then
+    modPatientSub.LockPatientActivity(Me.Name, Trim(txtencid.Text))
+  Endif
+
+End
+
+''--------------------------------------------- icd disease --------------------------------------------------
+Public Sub tlbtndeldises_Click()
+
+  Dim res As Result
+
+  If txtencid.Text Then
+    If lstsyndrome.Current.Text Then
+      If Message.Question(("Are you sure?"), ("No"), ("Yes")) = 2 Then
+        res = modDatabase.$myConn.Edit("tblpatfindings", "fldcode=&1 and fldencounterval=&2 and fldtype=&3 and fldsave=&4", lstsyndrome.Text, Trim(txtencid.Text), "Provisional Diagnosis", True)
+        If res.Available Then
+          res["fldsave"] = False
+          res["xyz"] = False
+          res.Update
+          lstsyndrome.List = modPathoSub.GetSelectedDiagnosisList("Provisional Diagnosis", Trim(txtencid.Text))
+        Endif
+      Endif
+    Endif
+  Endif
+
+End
+
+Public Sub tbndisease_Click()
+
+  Dim sName As String[]
+
+  If txtencid.Text Then
+    If modBasic.$ClinICDPunchFormat = "GridView" Then
+      sName = ICDGridView("Select Diseases")
+    Else
+      sName = ICDTree(modDatabase.$icdConn, "Disease", modBasic.$ClinDiagnoChapterGrouped, modBasic.$FixDiagnoGroupOPD, modBasic.$FixDiagnoGroupER, modBasic.$ClinDiagnoSelectGrouped, modBasic.$ClinDiagnoSelectERGroup)
+    Endif
+    If sName Then
+      If sName[1] And If sName[0] Then
+        modPatientGeneral.AddPatientFindings("Provisional Diagnosis", Trim(txtencid.Text), sName[0], sName[1], sName[2])
+        Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+        lstsyndrome.List = modPathoSub.GetSelectedDiagnosisList("Provisional Diagnosis", Trim(txtencid.Text))
+      Endif
+    Endif
+  Endif
+
+End
+
+Public Sub tbnsyndro_Click()
+
+  Dim sName As String[]
+
+  If txtencid.Text Then
+    If modBasic.$ProvDiagnosisRule = "Obstetrics" Then
+      sName = DiagnoObstetrics(Trim(txtencid.Text), True)
+    Else
+      sName = GetSyndromes()
+    Endif
+
+    If sName Then
+      If sName[1] And If sName[0] Then
+        modPatientGeneral.AddPatientFindings("Provisional Diagnosis", Trim(txtencid.Text), sName[0], sName[1], sName[1])
+        Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+        lstsyndrome.List = modPathoSub.GetSelectedDiagnosisList("Provisional Diagnosis", Trim(txtencid.Text))
+      Endif
+    Endif
+  Endif
+
+End
+
+Public Sub btndismanual_Click()
+
+  Dim xx As String
+
+  If txtencid.Text Then
+    xx = InputBox(("Enter custom Provisional Diagnosis"), ("Provisional Diagnosis"), "")
+    If xx Then
+      modPatientGeneral.AddPatientFindings("Provisional Diagnosis", Trim(txtencid.Text), xx, "Other", "Other")
+      Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+      lstsyndrome.List = modPathoSub.GetSelectedDiagnosisList("Provisional Diagnosis", Trim(txtencid.Text))
+    Endif
+  Endif
+
+End
+
+''------------------------------------------- Allergy --------------------------------------------------------------
+Public Sub tlbtndelallergy_Click()
+
+  Dim res As Result
+
+  If txtencid.Text Then
+    If lstallergy.Text Then
+      If Message.Question(("Are you sure?"), ("No"), ("Yes")) = 2 Then
+        res = modDatabase.$myConn.Edit("tblpatfindings", "fldcode=&1 and fldencounterval=&2 and fldtype=&3 and fldsave=&4", lstallergy.Text, Trim(txtencid.Text), "Allergic Drugs", True)
+        res["fldsave"] = False
+        res["xyz"] = False
+        res.Update
+        lstallergy.List = modPathoSub.GetAllergyMedicineList(Trim(txtencid.Text), chkallergy.Value)
+      Endif
+    Endif
+  Endif
+
+End
+
+Public Sub chkallergy_Click()
+
+  lstallergy.List = modPathoSub.GetAllergyMedicineList(Trim(txtencid.Text), chkallergy.Value)
+
+End
+
+Public Sub btnallergymanual_Click()
+
+  Dim xx As String
+
+  If txtencid.Text Then
+    xx = InputBox(("Enter custom Drug Allergy"), ("Drug Allergy"), "")
+    If xx Then
+      modPatientGeneral.AddPatientFindings("Allergic Drugs", Trim(txtencid.Text), xx, "", "")
+      Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+      lstallergy.List = modPathoSub.GetAllergyMedicineList(Trim(txtencid.Text), chkallergy.Value)
+    Endif
+  Endif
+
+End
+
+Public Sub btnallergy_Click()
+
+  Dim sName As String[]
+  Dim sText As String
+  Dim druglist As String[]
+
+  If txtencid.Text Then
+    druglist = modString.GetRemainingArray(modBasic.$GenericMedName, lstallergy.List)
+    sName = GridListView(("Select Drugs"), druglist)
+    If sName And If sName.Count Then
+      For Each sText In sName
+        modPatientGeneral.AddPatientFindings("Allergic Drugs", Trim(txtencid.Text), sText, "", "")
+      Next
+    Endif
+    Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+    lstallergy.List = modPathoSub.GetAllergyMedicineList(Trim(txtencid.Text), chkallergy.Value)
+  Endif
+
+End
+
+''------------------------------- exam ---------------------------------------------
+Public Sub cmbfinding_Activate()  ''from got focus
+
+  If cmbfinding.Text Then
+    txtfinding.SetFocus
+  Endif
+
+End
+
+Public Sub txtfinding_Activate() ''''from got focus
+
+  If txtfinding.Text Then
+    btnfinadd_Click()
+  Endif
+
+End
+
+Public Sub btnaddexamlist_Click()
+
+  Dim hForm As FmEnterGroupExam
+
+  If txtencid.Text Then
+    hForm = New FmEnterGroupExam(Trim(txtencid.Text), "Physician Examinations", "Group")
+    hForm.ShowModal
+    FillExamtable()
+    ShowEssentialExam()
+  Endif
+
+End
+
+Public Sub btnaddexamlistall_Click()
+
+  Dim hForm As FmEnterGroupExam
+
+  If txtencid.Text Then
+    hForm = New FmEnterGroupExam(Trim(txtencid.Text), "Physician Examinations", "All")
+    hForm.ShowModal
+    FillExamtable()
+    ShowEssentialExam()
+  Endif
+
+End
+
+Public Sub btnaddscales_Click()
+
+  Dim hForm As FmEnterGroupExam
+
+  If txtencid.Text Then
+    hForm = New FmEnterGroupExam(Trim(txtencid.Text), "Physician Examinations", "Scales")
+    hForm.ShowModal
+    FillExamtable()
+    ShowEssentialExam()
+  Endif
+
+End
+
+Public Sub btntriage_Click()
+
+  Dim xcol As String
+
+  If txtencid.Text Then
+    xcol = InputColor("Triage", CStr(txtcolor.Background))
+    If xcol Then
+      txtcolor.Background = CInt(xcol)
+      modPatient.SetPatientColor(Trim(txtencid.Text), xcol)
+    Endif
+  Endif
+
+End
+
+Public Sub btnfinadd_Click()
+
+  Dim sType As String
+  Dim xsys As String
+  Dim OptionType As String
+  Dim hForm As CGetExamParam
+
+  If txtencid.Text Then
+    If cmbfinding.Text Then
+      hForm = New CGetExamParam(cmbfinding.Text, "Exam")
+      sType = hForm.GetExamDataType()
+      xsys = hForm.GetExamConstant()
+      OptionType = hForm.GetExamOption()
+
+      modClinSub.AddClinicExam(Trim(txtencid.Text), "", cmbfinding.Text, OptionType, txtfinding.Text, 0, False, "Physician Examinations", xsys, "Regular")
+      FillExamtable()
+      ShowEssentialExam()
+
+      cmbfinding.Text = ""
+      txtfinding.Text = ""
+      txtfinding.Tag = ""
+      txtfinding.Enabled = True
+      If txtfinding.List.Count Then
+        txtfinding.Clear()
+      Endif
+      cmbfinding.SetFocus
+
+    Endif
+  Endif
+
+End
+
+Public Sub FillExamtable()
+
+  $rExamRes = modDatabase.$myConn.Exec("select fldid,fldtype,fldhead,fldabnormal,fldid,fldrepquali,fldtime,fldsave,fldencounterval from tblpatientexam where fldencounterval=&1 and fldinput=&2 and fldsave=&3", Trim(txtencid.Text), "Physician Examinations", True)
+  $aExamFields = New String[]
+  modGridView.ReadSmallData(GridView1, $rExamRes, $aExamFields)
+
+  With GridView1
+    .Columns[0].Hidden = True
+    .Columns[1].Hidden = True
+    .Columns[2].Width = CStr(175 * modBasic.$AppWidthRatio) & "px"
+    .Columns[3].Width = CStr(25 * modBasic.$AppWidthRatio) & "px"
+    .Columns[4].Width = CStr(200 * modBasic.$AppWidthRatio) & "px"
+    .Columns[5].Hidden = True
+    .Columns[6].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+    .Columns[7].Hidden = True
+    .Columns[8].Hidden = True
+    .Columns[2].Text = "Examination"
+    .Columns[4].Text = "Observation"
+    .Columns[6].Text = "ReportTime"
+  End With
+
+End
+
+Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  $rExamRes.MoveTo(Row)
+  modGridView.GridViewDecoration(Data, Row)
+  If Column = 3 Then
+    Data.Html = modString.GetImageForHTMLGrid(modMisc.GetGridIcon($rExamRes[$aExamFields[Column]]), "75%", "75%")
+    Data.Text = ""
+  Else If Column = 4 Then
+    Data.Html = modClinic.GetExamValueString(Trim(txtencid.Text), $rExamRes[$aExamFields[Column]], False)
+  Else If Column = 6 Then
+    Data.Text = modReportVar.GetDateTimeReport($rExamRes[$aExamFields[Column]], gb.GeneralDate)
+  Else If Column = 2 Then
+    Data.Text = $rExamRes[$aExamFields[Column]]
+  Else
+    Data.Text = $rExamRes[$aExamFields[Column]]
+  Endif
+
+End
+
+Public Sub btnfindcomponent_Click()
+
+  Dim hForm2 As FmEnterMultiple
+  Dim hFormTwo As FmEnterMultipleTwo
+  Dim res As Result
+  Dim xData As Variant[]
+
+  Dim yyy As String[]
+  Dim xquantival As Variant[]
+  Dim yqualival As Variant[]
+  Dim xlimit As Float[]
+  Dim xType As String
+  Dim xdate As Date
+
+  If GridView1.Selection.Count Then
+    $rExamRes.MoveTo(GridView1.Selection[0])
+
+    If $rExamRes["fldtype"] = "Qualitative" Then
+      xType = modFixClinic.GetExamtOptionType($rExamRes["fldhead"])
+      If modClinic.GetSubExamBool($rExamRes["fldid"], Trim(txtencid.Text)) = False Then
+        If xType = "Fixed Components" Or If xType = "Left/Right Components" Then
+          yyy = modFixClinic.GetSubExamArray($rExamRes["fldhead"])
+          If yyy.Count Then
+            modClinSub.InsertExamSubExam($rExamRes["fldencounterval"], $rExamRes["fldid"], $rExamRes["fldhead"], yyy)
+          Endif
+        Endif
+      Endif
+
+      res = modDatabase.$myConn.Exec("select fldid,fldsubtexam,fldreport,fldtanswertype,fldabnormal,fldindex from tblpatientsubexam where fldheadid=&1", $rExamRes["fldid"])
+      If res.Available = False Then
+        If xType = "Clinical Scale" Then
+          yqualival = modExamOption.GetClinScalePopUp("Exam", $rExamRes["fldhead"])
+          If yqualival Then
+            modClinSub.UpdateQualiQuantiData($rExamRes["fldid"], yqualival[1], CFloat(yqualival[0]), False)
+          Endif
+        Else If xType = "Left and Right" Then
+          yqualival = CLeftRight($rExamRes["fldhead"], modClinic.GetExamValueString($rExamRes["fldencounterval"], $rExamRes["fldid"], False), modFixClinic.GetLeftRightMainHeader("Exam", $rExamRes["fldhead"]))
+          If yqualival Then
+            modClinSub.UpdateClinicQualiData($rExamRes["fldid"], yqualival[0], yqualival[1], "")
+          Endif
+        Else If xType = "Date Time" Then
+          xdate = GetDateValue($rExamRes["fldhead"], ("Select Date Time"), Val($rExamRes["fldrepquali"]))
+          If xdate Then
+            modClinSub.UpdateClinicQualiData($rExamRes["fldid"], modDate.DateStringForExam(xdate), False, "")
+          Endif
+        Else If xType = "BS Date" Then
+          xdate = GetDateValue($rExamRes["fldhead"], ("Select Date Time"), modDate.ConvertToEnglishdate($rExamRes["fldrepquali"]))
+          If xdate Then
+            modClinSub.UpdateClinicQualiData($rExamRes["fldid"], modDate.ConvertToLocaldate(xdate), False, "")
+          Endif
+        Else If xType = "Qualitative" Then
+          yqualival = GetQualiString($rExamRes["fldhead"], $rExamRes["fldrepquali"], "Exam")
+          If yqualival Then
+            modClinSub.UpdateClinicQualiData($rExamRes["fldid"], yqualival[0], yqualival[1])
+          Endif
+        Else If xType = "RichText Area" Then
+          yqualival = GetQualiRich($rExamRes["fldhead"], $rExamRes["fldrepquali"], "Exam")
+          If yqualival Then
+            modClinSub.UpdateClinicQualiData($rExamRes["fldid"], yqualival[0], yqualival[1], yqualival[2])
+          Endif
+        Else
+          yqualival = GetQualiValues($rExamRes["fldhead"], $rExamRes["fldrepquali"], "Exam")
+          If yqualival Then
+            modClinSub.UpdateClinicQualiData($rExamRes["fldid"], yqualival[0], yqualival[1], yqualival[2])
+          Endif
+        Endif
+
+      Else If res.Available = True Then
+        xData = New Variant[]
+        For Each res
+          xData.Add([res["fldsubtexam"], res["fldreport"], res["fldid"], res["fldtanswertype"], res["fldabnormal"], res["fldindex"]])
+        Next
+        xData.Add(["Final Impression", $rExamRes["fldrepquali"], 0, "RichText Area", False, ""])
+        If xType = "Left/Right Components" Then
+          hFormTwo = New FmEnterMultipleTwo($rExamRes["fldid"], "Exam", $rExamRes["fldhead"], xData, "", "Current")
+          hFormTwo.ShowModal
+        Else
+          hForm2 = New FmEnterMultiple($rExamRes["fldid"], "Exam", $rExamRes["fldhead"], xData, "", "Current")
+          hForm2.ShowModal
+        Endif
+      Endif
+
+    Else If $rExamRes["fldtype"] = "Quantitative" Then
+      xlimit = modClinic.GetBothQuantiExamVal($rExamRes["fldhead"], $rExamRes["fldencounterval"])
+      xquantival = GetQuantiValues("Exam", Trim(txtencid.Text), $rExamRes["fldhead"], xlimit[0], xlimit[1], modClinic.GetExamValueByID($rExamRes["fldid"]))                                       '
+      If xquantival Then
+        modClinSub.UpdateQuantiData($rExamRes["fldid"], xquantival[0], xquantival[1])
+      Endif
+
+    Endif
+    FillExamtable()
+
+  Endif
+
+End
+
+Public Sub btnfindflag_Click()
+
+  Dim xx As String
+
+  If GridView1.Selection.Count Then
+    $rExamRes.MoveTo(GridView1.Selection[0])
+    xx = InputCombo("Select Flag for the observation", "Change Flag", ["Normal", "Abnormal"], modMisc.GetIconValue($rExamRes["fldabnormal"]), True)
+    If xx Then
+      modClinSub.UpdateExamFlag($rExamRes["fldid"], xx)
+      FillExamtable()
+    Endif
+  Endif
+
+End
+
+Public Sub btnfindelete_Click()
+
+  Dim res As Result
+
+  If GridView1.Selection.Count Then
+    $rExamRes.MoveTo(GridView1.Selection[0])
+    If Message.Question(("Are you sure?"), ("No"), ("Yes")) = 2 Then
+      res = modDatabase.$myConn.Edit("tblpatientexam", "fldid=&1", $rExamRes["fldid"])
+      If modGeneral.AllowClinicalEdit(res["flduserid"]) = True Then
+        res["fldsave"] = False
+        res["flduserid"] = modBasic.$lbluser
+        res.Update
+        FillExamtable()
+      Else
+        Message.Warning("Authorization with " & res["flduserid"], ("OK"))
+      Endif
+    Endif
+  Endif
+
+End
+
+''------------------------------ Essential exam -----------------------------
+Private Sub ShowEssentialExamRange()
+
+  $PulseRangeLimits = New Float[]
+  $DiastBPRangeLimits = New Float[]
+  $SystBPRangeLimits = New Float[]
+  $RespRateRangeLimits = New Float[]
+  $OxySatRangeLimits = New Float[]
+  $TempeRangeLimits = New Float[]
+
+  $PulseName = modFixClinic.GetExamIDFromSysConst("Pulse_Rate")
+  If $PulseName Then
+    $PulseRangeLimits = modClinic.GetBothQuantiExamVal($PulseName, Trim(txtencid.Text))
+  Endif
+
+  $SystBPName = modFixClinic.GetExamIDFromSysConst("BloodPressure_Systolic")
+  If $SystBPName Then
+    $SystBPRangeLimits = modClinic.GetBothQuantiExamVal($SystBPName, Trim(txtencid.Text))
+  Endif
+
+  $DiastBPName = modFixClinic.GetExamIDFromSysConst("BloodPressure_Diastolic")
+  If $DiastBPName Then
+    $DiastBPRangeLimits = modClinic.GetBothQuantiExamVal($DiastBPName, Trim(txtencid.Text))
+  Endif
+
+  $RespRateName = modFixClinic.GetExamIDFromSysConst("Respiration_Rate")
+  If $RespRateName Then
+    $RespRateRangeLimits = modClinic.GetBothQuantiExamVal($RespRateName, Trim(txtencid.Text))
+  Endif
+
+  $OxySatName = modFixClinic.GetExamIDFromSysConst("Oxygen_Saturation")
+  If $OxySatName Then
+    $OxySatRangeLimits = modClinic.GetBothQuantiExamVal($OxySatName, Trim(txtencid.Text))
+  Endif
+
+  $TempeName = modFixClinic.GetExamIDFromSysConst("Temperature_System")
+  If $TempeName Then
+    $TempeRangeLimits = modClinic.GetBothQuantiExamVal($TempeName, Trim(txtencid.Text))
+  Endif
+
+End
+
+Private Sub GetMarkAbnorm(sGiven As Float, sWebLabel1 As WebLabel, sRange As Float[])
+
+  Dim xmax As Float
+  Dim xmin As Float
+  Dim abn As Boolean
+
+  If sRange And If sRange.Count = 2 Then
+    xmin = sRange[0]
+    xmax = sRange[1]
+
+    abn = False
+    If xmin Then
+      If xmin > sGiven Then
+        abn = True
+      Endif
+    Endif
+    If xmax Then
+      If xmax < sGiven Then
+        abn = True
+      Endif
+    Endif
+
+    If abn = True Then
+      sWebLabel1.Foreground = Color.Red
+    Else
+      sWebLabel1.Foreground = Color.Default
+    Endif
+  Endif
+
+End
+
+Private Sub ShowEssentialExam()
+
+  Dim xsystolic As Variant
+  Dim xdiastolic As Variant
+  Dim xpulse As Variant
+  Dim xtemp As Variant
+  Dim xresprate As Variant
+  Dim xoxysat As Variant
+
+  xsystolic = modClinic.GetCurrExamValueFromID("Last", Trim(txtencid.Text), $SystBPName)
+  xdiastolic = modClinic.GetCurrExamValueFromID("Last", Trim(txtencid.Text), $DiastBPName)
+  xpulse = modClinic.GetCurrExamValueFromID("Last", Trim(txtencid.Text), $PulseName)
+  xtemp = modClinic.GetCurrExamValueFromID("Last", Trim(txtencid.Text), $TempeName)
+  xresprate = modClinic.GetCurrExamValueFromID("Last", Trim(txtencid.Text), $RespRateName)
+  xoxysat = modClinic.GetCurrExamValueFromID("Last", Trim(txtencid.Text), $OxySatName)
+
+  If xsystolic Then
+    txtsystolicbp.Value = xsystolic
+  Else
+    txtsystolicbp.Value = 0
+  Endif
+  If xdiastolic Then
+    txtdiastolicbp.Value = xdiastolic
+  Else
+    txtdiastolicbp.Value = 0
+  Endif
+  If xpulse Then
+    txtpulse.Value = xpulse
+  Else
+    txtpulse.Value = 0
+  Endif
+  If xtemp Then
+    txttemp.Value = xtemp
+  Else
+    txttemp.Value = 0
+  Endif
+  If xresprate Then
+    txtresprate.Value = xresprate
+  Else
+    txtresprate.Value = 0
+  Endif
+  If xoxysat Then
+    txtoxysat.Value = xoxysat
+  Else
+    txtoxysat.Value = 0
+  Endif
+
+End
+
+Public Sub txtpulse_Change()
+
+  GetMarkAbnorm(txtpulse.Value, lblpulse, $PulseRangeLimits)
+
+End
+
+Public Sub txtsystolicbp_Change()
+
+  GetMarkAbnorm(txtsystolicbp.Value, lblbpsyst, $SystBPRangeLimits)
+
+End
+
+Public Sub txtdiastolicbp_Change()
+
+  GetMarkAbnorm(txtdiastolicbp.Value, lblbpdiast, $DiastBPRangeLimits)
+
+End
+
+Public Sub txtresprate_Change()
+
+  GetMarkAbnorm(txtresprate.Value, lblresprate, $RespRateRangeLimits)
+
+End
+
+Public Sub txtoxysat_Change()
+
+  GetMarkAbnorm(txtoxysat.Value, lbloxysat, $OxySatRangeLimits)
+
+End
+
+Public Sub txttemp_Change()
+
+  GetMarkAbnorm(txttemp.Value, lbltemper, $TempeRangeLimits)
+
+End
+
+Public Sub btnsavevitals_Click()
+
+  Dim xsysbp As String
+  Dim xdiastobp As String
+  Dim xpulse As String
+  Dim xresprate As String
+  Dim xtemp As String
+  Dim xoxysat As String
+
+  If txtencid.Text Then
+    xsysbp = modFixClinic.GetExamIDFromSysConst("BloodPressure_Systolic")
+    If xsysbp Then
+      If txtsystolicbp.Value Then
+        modClinSub.AddQuantiDataCheck(Trim(txtencid.Text), "", xsysbp, "", txtsystolicbp.Value, "Essential Examinations")
+      Endif
+    Endif
+
+    xdiastobp = modFixClinic.GetExamIDFromSysConst("BloodPressure_Diastolic")
+    If xdiastobp Then
+      If txtdiastolicbp.Value Then
+        modClinSub.AddQuantiDataCheck(Trim(txtencid.Text), "", xdiastobp, "", txtdiastolicbp.Value, "Essential Examinations")
+      Endif
+    Endif
+
+    xpulse = modFixClinic.GetExamIDFromSysConst("Pulse_Rate")
+    If xpulse Then
+      If txtpulse.Value Then
+        modClinSub.AddQuantiDataCheck(Trim(txtencid.Text), "", xpulse, "", txtpulse.Value, "Essential Examinations")
+      Endif
+    Endif
+
+    xresprate = modFixClinic.GetExamIDFromSysConst("Respiration_Rate")
+    If xresprate Then
+      If txtresprate.Value Then
+        modClinSub.AddQuantiDataCheck(Trim(txtencid.Text), "", xresprate, "", txtresprate.Value, "Essential Examinations")
+      Endif
+    Endif
+
+    xtemp = modFixClinic.GetExamIDFromSysConst("Temperature_System")
+    If xtemp Then
+      If txttemp.Value Then
+        modClinSub.AddQuantiDataCheck(Trim(txtencid.Text), "", xtemp, "", txttemp.Value, "Essential Examinations")
+      Endif
+    Endif
+
+    xoxysat = modFixClinic.GetExamIDFromSysConst("Oxygen_Saturation")
+    If xoxysat Then
+      If txtoxysat.Value Then
+        modClinSub.AddQuantiDataCheck(Trim(txtencid.Text), "", xoxysat, "", txtoxysat.Value, "Essential Examinations")
+      Endif
+    Endif
+
+    Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+  Endif
+
+End
+
+Public Sub txtpulse_Activate()
+
+  txtsystolicbp.SetFocus
+
+End
+
+Public Sub txtsystolicbp_Activate()
+
+  txtdiastolicbp.SetFocus
+
+End
+
+Public Sub txtdiastolicbp_Activate()
+
+  txtresprate.SetFocus
+
+End
+
+Public Sub txtresprate_Activate()
+
+  txtoxysat.SetFocus
+
+End
+
+Public Sub txtoxysat_Activate()
+
+  txttemp.SetFocus
+
+End
+
+Public Sub txttemp_Activate()
+
+  btnsavevitals_Click()
+
+End
+
+''--------------------- History and planning ---------------------------
+Public Sub btnplan_Click()
+
+  Dim xboolean As Boolean
+
+  If modBasic.$ClinHistoryInput = "Single" Then
+    xboolean = True
+  Else
+    xboolean = False
+  Endif
+
+  If txtplan.Text Then
+    modPatientGeneral.AddExamGeneralQualiData(Trim(txtencid.Text), "Notes", "Initial Planning", txtplan.KeyList.Join(";"), txtplan.RichText, xboolean)
+    Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+  Endif
+
+End
+
+Public Sub btngencompln_Click()
+
+  Dim xboolean As Boolean
+
+  If modBasic.$ClinHistoryInput = "Single" Then
+    xboolean = True
+  Else
+    xboolean = False
+  Endif
+
+  If txtgencomplaint.Text Then
+    modPatientGeneral.AddExamGeneralQualiData(Trim(txtencid.Text), "History", "General Complaints", txtgencomplaint.KeyList.Join(";"), txtgencomplaint.RichText, xboolean)
+    Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+  Endif
+  modSettings.SaveSettingsToFile("OPDForm/Complaints", "General")
+
+End
+
+''------------------------------------- Menu -------------------------------------------------
+Public Sub mnupatimage_Click()
+
+  Dim hForm As FmPatImage
+
+  If txtencid.Text Then
+    hForm = New FmPatImage("IMAGE", Trim(txtencid.Text), "")
+    hForm.ShowModal
+  Endif
+
+End
+
+Public Sub mnupacsimage_Click()
+
+  Dim hForm As FmPacsShow
+
+  If txtencid.Text Then
+    hForm = New FmPacsShow(Trim(txtencid.Text), "Visit")
+    hForm.ShowModal
+  Endif
+
+End
+
+Public Sub mnupacshist_Click()
+
+  Dim hForm As FmPacsShow
+
+  If txtencid.Text Then
+    hForm = New FmPacsShow(Trim(txtencid.Text), "History")
+    hForm.ShowModal
+  Endif
+
+End
+
+Public Sub btnopreport_Click()
+
+  mnuopd_Click()
+
+End
+
+''================== Request ========================
+Public Sub mnumedproduct_Click()
+
+  Dim hForm As FmBloodReq
+
+  If txtencid.Text Then
+    hForm = New FmBloodReq(Trim(txtencid.Text))
+    hForm.ShowModal
+  Endif
+
+End
+
+Public Sub mnucloudai_Click()
+
+  Dim xx As String
+
+  If txtencid.Text Then
+    xx = PatCloudAI(Trim(txtencid.Text), "", "")
+  Endif
+
+End
+
+Public Sub btnblankform_Click()
+
+  Me.Parent.DeleteChildren()
+  modGeneralMain.LoadOPDClinicForm()
+
+End
+
+Public Sub mnuopd_Click()
+
+  Dim hCls As CReportCustom
+  Dim xPath As String
+
+  If txtencid.Text Then
+    If modPathoSub.AllowOPOutcomeDiagno(Trim(txtencid.Text)) = True Then
+      If modPatientSub.GetClearanceForExit(Trim(txtencid.Text)) = True Then
+
+        If modSettings.ShowSettingFromFIle("OPD Sheet/Name") Then
+          If txtclinIndex.Value And If txtclinmode.Text Then
+            If txtclinmode.Text = "Consultation" Then
+              hCls = New CReportCustom(Trim(txtencid.Text), "OPD Sheet", "ReportSize", LabUnitForm(), "Consultation|" & CStr(txtclinIndex.Value))
+            Else If txtclinmode.Text = "OP Visit" Then
+              hCls = New CReportCustom(Trim(txtencid.Text), "OPD Sheet", "ReportSize", LabUnitForm(), "OPVisit|" & CStr(txtclinIndex.Value))
+            Endif
+          Else
+            hCls = New CReportCustom(Trim(txtencid.Text), "OPD Sheet", "ReportSize", LabUnitForm())
+          Endif
+          hCls.Preview()
+        Else
+          xPath = modPatReports.ShowOPatSummary(Trim(txtencid.Text))
+          modControlSub.OpenHTMLPreview(Trim(txtencid.Text), xPath, "ReportSize")
+        Endif
+
+      Endif
+    Endif
+  Endif
+
+End
+
+Public Sub mnuexamrepo_Click()
+
+  Dim xPath As String
+
+  If txtencid.Text Then
+    xPath = modCHTMLPatient.ShowPatientExaminationgReport(Trim(txtencid.Text))
+    modControlSub.OpenHTMLPreview(Trim(txtencid.Text), xPath, "ReportSize")
+  Endif
+
+End
+
+Public Sub mnuradio_Click()
+
+  Dim xPath As String
+
+  If txtencid.Text Then
+    xPath = modCHTMLPatient.ShowPatRadioReportbyEncID(Trim(txtencid.Text))
+    modControlSub.OpenHTMLPreview(Trim(txtencid.Text), xPath, "ReportSize")
+  Endif
+
+End
+
+Public Sub mnudiagnorep_Click()
+
+  Dim xPath As String
+
+  If txtencid.Text Then
+    xPath = modCHTMLPatient.ShowPatientLaboratoryReport(Trim(txtencid.Text), LabUnitForm())
+    modControlSub.OpenHTMLPreview(Trim(txtencid.Text), xPath, "ReportSize")
+  Endif
+
+End
+
+Public Sub mnucompreport_Click()
+
+  If txtencid.Text Then
+    modPatReports.GetSelectedPatientValues(Trim(txtencid.Text), LabUnitForm())
+  Endif
+
+End
+
+Public Sub mnuexamlocal_Click()
+
+  modPatReports.GetPatHistoryLocalResult("Examination", Trim(txtencid.Text), LabUnitForm())
+
+End
+
+Public Sub mnulablocal_Click()
+
+  modPatReports.GetPatHistoryLocalResult("Laboratory", Trim(txtencid.Text), LabUnitForm())
+
+End
+
+Public Sub mnuraiolocal_Click()
+
+  modPatReports.GetPatHistoryLocalResult("Radiology", Trim(txtencid.Text), LabUnitForm())
+
+End
+
+Public Sub mnumedicinelocal_Click()
+
+  modPatReports.GetPatHistoryLocalResult("Medicines", Trim(txtencid.Text), LabUnitForm())
+
+End
+
+Public Sub mnuhistrepo_Click()
+
+  modPatReports.GetSelectHistoryResult(Trim(txtencid.Text), LabUnitForm())
+
+End
+
+Private Function LabUnitForm() As String
+
+  Dim xx As String
+
+  If rbsi.Value = True Then
+    xx = "SI"
+  Else
+    xx = "Metric"
+  Endif
+  Return xx
+
+End
+
+Public Sub mnudemo_Click()
+
+  Dim hForm As FmPatdemograph
+
+  If txtencid.Text Then
+    hForm = New FmPatdemograph(Trim(txtencid.Text), "Clinical")
+    hForm.ShowModal
+  Endif
+
+End
+
+Public Sub mnuadmission_Click()
+
+  Dim hCls As CReportCustom
+  Dim xPath As String
+
+  If txtencid.Text Then
+    If $sTatus = "Admitted" Then
+      If modSettings.ShowSettingFromFIle("Admission Report/Name") Then
+        hCls = New CReportCustom(Trim(txtencid.Text), "Admission Report", "ReportSize", LabUnitForm())
+        hCls.Preview()
+      Else
+        xPath = modPatReports.ShowAdmissionSheet(Trim(txtencid.Text))
+        modControlSub.OpenHTMLPreview(Trim(txtencid.Text), xPath, "ReportSize")
+      Endif
+    Endif
+  Endif
+
+End
+
+Public Sub mnuhistory_Click()
+
+  modPatReports.GetVisitHistoryResult($PatientNum)
+
+End
+
+''------------database
+
+Public Sub btndataopd_Click()
+
+  txtplan.RichText = AddHistory("Discharge", "Initial Planning")
+
+End
+
+''----------- pen
+Public Sub btnpancompl_Click()
+
+  txtgencomplaint.RichText = txtgencomplaint.RichText & Space(1) & modFillContainer.GetExtraTextArea("General Complaints", txtgencomplaint.Text)
+
+End
+
+Public Sub btnpanopd_Click()
+
+  txtplan.RichText = txtplan.RichText & Space(1) & modFillContainer.GetExtraTextArea("Initial Planning", txtplan.Text)
+
+End
+
+''--------------- exec
+Public Sub btnexeccompl_Click()
+
+  txtgencomplaint.RichText = txtgencomplaint.RichText & modString.TextToHTML(modCloudAI.GetPatCloudAIResponse(Trim(txtencid.Text), txtgencomplaint.Text))
+
+End
+
+Public Sub btnexecopd_Click()
+
+  txtplan.RichText = txtplan.RichText & modString.TextToHTML(modCloudAI.GetPatCloudAIResponse(Trim(txtencid.Text), txtplan.Text))
+
+End
+
+''---------------- attach
+Public Sub btnattcompl_Click()
+
+  txtgencomplaint.RichText = txtgencomplaint.RichText & DictionaryVIew(modBasic.$dictadvPath)
+
+End
+
+Public Sub btnattopd_Click()
+
+  txtplan.RichText = txtplan.RichText & DictionaryVIew(modBasic.$dictadvPath)
+
+End
+
+Public Sub btnclearinitial_Click()
+
+  txtplan.RichText = ""
+
+End
+
+Public Sub btnclearcompl_Click()
+
+  txtgencomplaint.RichText = ""
+
+End
+
+''---------------------- Outcome ---------------------------
+Public Sub btnselect_Click()
+
+  Dim xdept As String
+  Dim xval As String
+  Dim asx As String[]
+
+  If modBasic.$FixedDepartment Then
+    xdept = modBasic.$FixedDepartment
+  Else
+    xdept = ""
+  Endif
+  xval = CConsultIndex(Trim(txtencid.Text), xdept)
+  If xval Then
+    asx = Split(xval, "|")
+    txtclinIndex.Value = CLong(asx[0])
+    txtclinmode.Text = asx[1]
+    If txtclinIndex.Value And If txtclinmode.Text Then
+      pnloutcome.Enabled = True
+      txtclindepart.Text = GetConsultDepartment(txtclinmode.Text, txtclinIndex.Value, Trim(txtencid.Text))
+    Endif
+  Endif
+
+End
+
+Public Sub btnfollownep_Click()
+
+  Dim xx As String
+
+  xx = BSDateFormat(("Enter BS Date in yyyy/mm/dd format"), ("Date Converter"), modDate.ConvertToLocaldate(dtfollowup.Value))
+  If xx Then
+    dtfollowup.Value = modDate.ConvertToEnglishdate(xx)
+  Endif
+
+End
+
+Public Sub rbimproved_Click()
+
+  lbloutcome.Visible = False
+  cmbrefer.Visible = False
+  dtfollowup.Visible = False
+  btnfollownep.Visible = False
+
+End
+
+Public Sub rblama_Click()
+
+  lbloutcome.Visible = False
+  cmbrefer.Visible = False
+  dtfollowup.Visible = False
+  btnfollownep.Visible = False
+
+End
+
+Public Sub rbadmission_Click()
+
+  lbloutcome.Visible = True
+  lbloutcome.Text = "Admit To"
+  cmbrefer.Visible = True
+  dtfollowup.Visible = False
+  btnfollownep.Visible = False
+  cmbrefer.List = modGeneral.GetDepartmentAllList("Patient Ward")
+
+End
+
+Public Sub rbreferred_Click()
+
+  lbloutcome.Visible = True
+  lbloutcome.Text = "Refer To"
+  cmbrefer.Visible = True
+  dtfollowup.Visible = False
+  btnfollownep.Visible = False
+  cmbrefer.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select fldlocation from tblreferlist"))
+
+End
+
+Public Sub rbfollowup_Click()
+
+  lbloutcome.Visible = True
+  lbloutcome.Text = "F/U Date"
+  cmbrefer.Visible = False
+  dtfollowup.Visible = True
+  btnfollownep.Visible = True
+
+End
+
+Public Sub rbdeath_Click()
+
+  lbloutcome.Visible = True
+  lbloutcome.Text = "Death Date"
+  cmbrefer.Visible = False
+  dtfollowup.Visible = True
+  btnfollownep.Visible = True
+
+End
+
+Public Sub btnoutcome_Click()
+
+  Dim xmode As String
+
+  If txtclinIndex.Value And If txtclinmode.Text Then
+    modDatabase.$myConn.Begin
+    If rbadmission.Value = True Then
+      xmode = "Admission"
+    Else If rbfollowup.Value = True Then
+      xmode = "Follow Up"
+      modPatientSub.UpdateCurrentStatus(Trim(txtencid.Text), "Follow Up", dtfollowup.Value)
+    Else If rbreferred.Value = True Then
+      xmode = "Referred"
+      modPatientSub.UpdateCurrentStatus(Trim(txtencid.Text), "Refer(OPD)", cmbrefer.Text)
+    Else If rblama.Value = True Then
+      xmode = "LAMA"
+      modPatientSub.UpdateCurrentStatus(Trim(txtencid.Text), "LAMA(OPD)", "")
+    Else If rbdeath.Value = True Then
+      xmode = "Death"
+      modPatientSub.UpdateCurrentStatus(Trim(txtencid.Text), "Death(OPD)", "", dtfollowup.Value)
+    Else If rbimproved.Value = True Then
+      xmode = "Improved"
+    Endif
+
+    If xmode Then
+      If txtclinmode.Text = "Consultation" Then
+        modPatientSub.UpdateConsultData(txtclinIndex.Value, Trim(txtencid.Text), "Done", txtcomment.RichText, xmode)                       ''
+      Else If txtclinmode.Text = "OP Visit" Then
+        modPatientSub.UpdateOPVisitData(txtclinIndex.Value, Trim(txtencid.Text), "Done", txtcomment.RichText, xmode)
+      Endif
+    Endif
+    modDatabase.$myConn.Commit
+
+    ButtonControl()
+    Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information updated", modBasic.$BalloonDelay))
+  Endif
+
+Catch
+  modDatabase.$myConn.Rollback
+  modHelpVariable.CreateErrorReport()
+
+End
+
+Public Sub WebTabPanel1_Click()
+
+  If WebTabPanel1.Index = 1 Then
+
+  Endif
+
+End

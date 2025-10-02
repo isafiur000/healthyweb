@@ -1,0 +1,150 @@
+' Gambas class file
+
+Private $rData As Result
+Private $aMyFields As String[]
+
+Public Sub _new()
+
+  If modHelpVariable.$LogInCategory = "Clinician" Then
+    cmbtarget.Text = modBasic.$compID
+    cmbtarget.Enabled = False
+  Else
+    cmbtarget.List = modBasic.$AllCompPerList
+    cmbtarget.Enabled = True
+  Endif
+
+End
+
+Public Sub btnclose_Click()
+
+  Me.Close()
+
+End
+
+Public Sub cmbtarget_Click()
+
+  lblcomp.Text = modGeneral.GetCompNameFromCompID(cmbtarget.Text)
+
+End
+
+Public Sub btnshowlist_Click()
+
+  If cmbtarget.Text Then
+    WebContainer2.Enabled = True
+    lstcategory.List = modControlSub.GetDirectFillresultNoNull(modDatabase.$myConn.Exec("select distinct(fldtype) as col from tblcomplaints where fldcomp=&1", cmbtarget.Text))
+    lstcategory.Add("Null")
+  Endif
+
+End
+
+Private Function GetFlagValue(sBool As Boolean) As String
+
+  Dim sVal As String
+
+  If sBool = True Then
+    sVal = "Flagged"
+  Else If sBool = False Then
+    sVal = "Unflagged"
+  Endif
+  Return sVal
+
+End
+
+Public Sub btnaddsymp_Click()
+
+  Dim hForm As FmSelectList
+
+  If cmbtarget.Text And If txtcategory.Text Then
+    hForm = New FmSelectList(("Select Complaints for the selected department"), "Complaints List", cmbtarget.Text & "|" & txtcategory.Text)
+    hForm.ShowModal
+    btnshowlist_Click()
+    If cmbtarget.Text And If txtcategory.Text Then
+      FillComplaintGrid(txtcategory.Text, cmbtarget.Text)
+    Endif
+  Endif
+
+End
+
+Public Sub lstcategory_Select()
+
+  txtcategory.Text = lstcategory.Text
+  If cmbtarget.Text And If txtcategory.Text Then
+    FillComplaintGrid(txtcategory.Text, cmbtarget.Text)
+  Endif
+
+End
+
+Private Sub FillComplaintGrid(sCategory As String, sTarget As String)
+
+  Dim sql As String
+
+  If sCategory = "Null" Then
+    sql = "select fldid,fldflag,fldsymptom,fldflag from tblcomplaints where fldcomp=&1 and fldtype not in(select flclass from tblpathocategory where fldcategory like &2) ORDER BY fldsymptom"
+    $rData = modDatabase.$myConn.Exec(sql, sTarget, "Symptom")
+  Else
+    sql = "select fldid,fldflag,fldsymptom,fldflag from tblcomplaints where fldcomp=&1 and fldtype=&2 ORDER BY fldsymptom"
+    $rData = modDatabase.$myConn.Exec(sql, sTarget, sCategory)
+  Endif
+  $aMyFields = New String[]
+  modGridView.ReadSmallData(grdsymp, $rData, $aMyFields)
+
+  With grdsymp
+    .Columns[0].Hidden = True
+    .Columns[1].Width = CStr(35 * modBasic.$AppWidthRatio) & "px"
+    .Columns[2].Expand = True
+    .Columns[3].Hidden = True
+
+    .Columns[2].Text = "Symptom"
+  End With
+
+End
+
+Public Sub grdsymp_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  $rData.MoveTo(Row)
+  modGridView.GridViewDecoration(Data, Row)
+  If Column = 1 Then
+    Data.Html = modString.GetImageForHTMLGrid(modMisc.SetGridCheckIcon($rData[$aMyFields[Column]]), "100%", "100%")
+    Data.Text = ""
+  Else
+    Data.Text = $rData[$aMyFields[Column]]
+  Endif
+
+End
+
+Public Sub mnudelcomplain_Click()
+
+  If grdsymp.Selection.Count Then
+    $rData.MoveTo(grdsymp.Selection[0])
+    modDatabase.$myConn.Delete("tblcomplaints", "fldid=&1", $rData["fldid"])
+    If cmbtarget.Text And If txtcategory.Text Then
+      FillComplaintGrid(txtcategory.Text, cmbtarget.Text)
+    Endif
+    Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information deleted", modBasic.$BalloonDelay))
+  Endif
+
+End
+
+Public Sub mnuflag_Click()
+
+  Dim xval As String
+  Dim res As Result
+
+  If grdsymp.Selection.Count Then
+    $rData.MoveTo(grdsymp.Selection[0])
+    xval = InputCombo("Alter Flag", $rData["fldsymptom"], ["Flagged", "Unflagged"], GetFlagValue($rData["fldflag"]), True)
+    If xval Then
+      res = modDatabase.$myConn.Edit("tblcomplaints", "fldid=&1", $rData["fldid"])
+      If xval = "Flagged" Then
+        res["fldflag"] = True
+      Else If xval = "Unflagged" Then
+        res["fldflag"] = False
+      Endif
+      res.Update
+      If cmbtarget.Text And If txtcategory.Text Then
+        FillComplaintGrid(txtcategory.Text, cmbtarget.Text)
+      Endif
+    Endif
+  Endif
+
+End

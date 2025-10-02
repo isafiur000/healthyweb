@@ -1,0 +1,282 @@
+' Gambas class file
+
+Private $encid As String
+Private $rData As Result
+Private $aMyFields As String[]
+Private $sVitalsVar As Variant[]
+
+Private $sType As String
+Private $sSysCons As String
+Private $sOption As String
+
+Public Sub _new(encid As String)
+
+  $encid = encid
+
+  $sVitalsVar = modPathoSub.GetAllEssentialExams($encid)
+  ListBox1.List = modString.GetListFromVariant($sVitalsVar, "ExamName", True)
+
+End
+
+Public Sub ListBox1_Select()
+
+  If ListBox1.Text Then
+    ShowVitalExamEntry()
+  Endif
+
+End
+
+Private Sub ShowVitalExamEntry()
+
+  Dim sType As String
+  Dim xlimit As Float[]
+  Dim sColl As Collection
+
+  txtexamval.Value = 0
+  txtquali.Clear
+  txtquali.Text = ""
+  $sType = ""
+  $sSysCons = ""
+  $sOption = ""
+
+  For Each sColl In $sVitalsVar
+    If sColl["ExamName"] = ListBox1.Text Then
+      $sType = sColl["DataType"]
+      $sSysCons = sColl["SysConstant"]
+      $sOption = sColl["OptionType"]
+      If sColl["DataType"] = "Quantitative" Then
+        txtquali.Visible = False
+        btnselquali.Visible = False
+        txtexamval.Visible = True
+        lblunit.Visible = True
+        xlimit = modClinic.GetBothQuantiExamVal(sColl["ExamName"], $encid)
+        txtmin.Value = xlimit[0]
+        txtmax.Value = xlimit[1]
+        lblunit.Text = modClinic.GetExamUnit(sColl["ExamName"], $encid)
+      Else If sColl["DataType"] = "Qualitative" Then
+        txtquali.Visible = True
+        btnselquali.Visible = True
+        txtexamval.Visible = False
+        lblunit.Visible = False
+        lblunit.Text = ""
+        If sColl["OptionType"] = "Single Selection" Or If sColl["OptionType"] = "Dichotomous" Then
+          txtquali.List = modAllExam.SelectExamOptionList("Exam", sColl["ExamName"])
+        Endif
+      Endif
+      ShowExamGrid(sColl["ExamName"])
+      Break
+    Endif
+  Next
+
+  If modBasic.$TabletModeEnable = "Yes" Then
+  Else
+    If $sType = "Quantitative" Then
+      txtexamval.SetFocus
+      Me.Exec("$_(" & JS(txtexamval.Name & ":entry") & ").select()")
+    Else If $sType = "Qualitative" Then
+      txtquali.SetFocus
+    Endif
+  Endif
+
+End
+
+Public Sub btnselquali_Click()
+
+  ShowDetails()
+
+End
+
+Private Sub ShowDetails()
+
+  Dim xType As String
+  Dim xscle As String[]
+
+  If Not txtquali.Text Then
+    If ListBox1.Text Then
+
+      If $sOption = "Clinical Scale" Then
+        xscle = modExamOption.GetClinScalePopUp("Exam", ListBox1.Text)
+        If xscle Then
+          txtexamval.Value = CFloat(xscle[0])
+          txtquali.Text = xscle[1]
+          txtexamval.Enabled = True
+          txtquali.Enabled = False
+        Endif
+      Else If $sOption = "Visual Input" Then
+        txtquali.Text = modExamOption.GetVisualDataExamVal(ListBox1.Text)
+      Endif
+
+    Endif
+  Endif
+
+End
+
+Public Sub txtquali_Activate()
+
+  If Not txtquali.Text Then
+    ShowDetails()
+  Else
+    btnsave_Click()
+  Endif
+
+End
+
+Public Sub txtexamval_Activate()
+
+  btnsave_Click()
+
+End
+
+Public Sub btnsave_Click()
+
+  If ListBox1.Text Then
+    If $sType = "Quantitative" Then
+      If txtmin.Value = 0 And If txtmax.Value = 0 Then
+        chkabnormal.Value = False
+      Else
+        If txtexamval.Value < txtmin.Value Or If txtexamval.Value > txtmax.Value Then
+          chkabnormal.Value = True
+        Else
+          chkabnormal.Value = False
+        Endif
+      Endif
+      modClinSub.AddQuantiData($encid, "", ListBox1.Text, $sOption, txtexamval.Value, chkabnormal.Value, "Essential Examinations", $sSysCons)
+      ' FillVitalExamChart(PictureBox1, $encid, lblexamname.Text)
+
+    Else If $sType = "Qualitative" Then
+      If txtquali Then
+        modClinSub.AddClinicExam($encid, "", ListBox1.Text, $sOption, txtquali.Text, txtexamval.Value, chkabnormal.Value, "Essential Examinations", $sSysCons, "Regular")
+      Endif
+    Endif
+    ShowExamGrid(ListBox1.Text)
+    ' FillDailyGrid()
+    txtquali.Text = ""
+    If txtquali.List.Count Then
+      txtquali.Clear()
+    Endif
+    txtexamval.Value = 0
+    lblunit.Text = ""
+
+  Endif
+
+End
+
+Private Sub ShowExamGrid(sExam As String)
+
+  $rData = modDatabase.$myConn.Exec("select fldid,fldid,fldtype,fldhead,fldabnormal,fldid,fldtime,fldsave from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldhead=&3 ORDER by fldid DESC", $encid, True, sExam)                                                                                 ''
+  $aMyFields = New String[]
+  modGridView.ReadSmallData(GridView1, $rData, $aMyFields)
+
+  With GridView1
+    .Columns[0].Hidden = True
+    .Columns[1].Width = CStr(25 * modBasic.$AppWidthRatio) & "px"
+    .Columns[2].Hidden = True
+    .Columns[3].Width = CStr(175 * modBasic.$AppWidthRatio) & "px"
+    .Columns[4].Width = CStr(25 * modBasic.$AppWidthRatio) & "px"
+    .Columns[5].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+    .Columns[6].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+    .Columns[7].Hidden = True
+
+    .Columns[3].Text = "Examination"
+    .Columns[5].Text = "Observation"
+    .Columns[6].Text = "DateTime"
+  End With
+
+End
+
+Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  $rData.MoveTo(Row)
+  modGridView.GridViewDecoration(Data, Row)
+  If Column = 1 Then
+    Data.Background = modPathoSub.GetPatientColorByTriage($rData[$aMyFields[Column]])
+    Data.Text = ""
+  Else If Column = 4 Then
+    Data.Html = modString.GetImageForHTMLGrid(modMisc.GetGridIcon($rData[$aMyFields[Column]]), "75%", "75%")
+    Data.Text = ""
+  Else If Column = 5 Then
+    Data.Html = modClinic.GetExamValueString($encid, $rData[$aMyFields[Column]], False)
+  Else If Column = 6 Then
+    Data.Text = modPatient.GetDayTimeFromAdmission($encid, $rData[$aMyFields[Column]])
+  Else
+    Data.Text = $rData[$aMyFields[Column]]
+  Endif
+
+End
+
+Public Sub btnflag_Click()
+
+  Dim xx As String
+
+  If GridView1.Selection.Count Then
+    $rData.MoveTo(GridView1.Selection[0])
+    xx = InputCombo("Select Flag for observation", "Change Flag", ["Normal", "Abnormal"], modMisc.GetIconValue($rData["fldabnormal"]), True)
+    If xx Then
+      modClinSub.UpdateExamFlag($rData["fldid"], xx)
+      ShowExamGrid(ListBox1.Text)
+    Endif
+  Endif
+
+End
+
+Public Sub btnedit_Click()
+
+  Dim xquantival As Variant[]
+  Dim yqualival As Variant[]
+  Dim sType As String
+  Dim xlimit As Float[]
+  Dim xType As String
+
+  If GridView1.Selection.Count Then
+    $rData.MoveTo(GridView1.Selection[0])
+
+    If $sType = "Quantitative" Then
+      xlimit = modClinic.GetBothQuantiExamVal($rData["fldhead"], $encid)
+      xquantival = GetQuantiValues("Exam", $encid, $rData["fldhead"], xlimit[0], xlimit[1], modClinic.GetExamValueByID($rData["fldid"]))                                       '
+      If xquantival Then
+        modClinSub.UpdateQuantiData($rData["fldid"], xquantival[0], xquantival[1])
+        ' FillVitalExamChart(PictureBox1, $encid, lblexamname.Text)
+      Endif
+    Else If $sType = "Qualitative" Then
+      If $sOption = "Clinical Scale" Then
+        yqualival = modExamOption.GetClinScalePopUp("Exam", $rData["fldhead"])
+        If yqualival Then
+          modClinSub.UpdateQualiQuantiData($rData["fldid"], yqualival[1], CFloat(yqualival[0]), False)
+        Endif
+      Else If $sOption = "RichText Area" Then
+        yqualival = GetQualiRich($rData["fldhead"], modClinic.GetExamValueString($encid, $rData["fldid"], False), "Exam")
+        If yqualival Then                                  '
+          modClinSub.UpdateQualiData($rData["fldid"], yqualival[0], yqualival[1], yqualival[2])
+        Endif
+      Else
+        yqualival = GetQualiValues($rData["fldhead"], modClinic.GetExamValueString($encid, $rData["fldid"], False), "Exam")
+        If yqualival Then                                  '
+          modClinSub.UpdateQualiData($rData["fldid"], yqualival[0], yqualival[1], yqualival[2])
+        Endif
+      Endif
+    Endif
+    ShowExamGrid(ListBox1.Text)
+  Endif
+
+End
+
+Public Sub mnudel_Click()
+
+  Dim res As Result
+
+  If GridView1.Selection.Count Then
+    $rData.MoveTo(GridView1.Selection[0])
+    If Message.Question(("Are you sure?"), ("No"), ("Yes")) = 2 Then
+      res = modDatabase.$myConn.Edit("tblpatientexam", "fldid=&1", $rData["fldid"])
+      If modGeneral.AllowClinicalEdit(res["flduserid"]) = True Then
+        res["fldsave"] = False
+        res["flduserid"] = modBasic.$lbluser
+        res.Update
+        ShowExamGrid(ListBox1.Text)
+      Else
+        Message.Warning("Authorization with " & res["flduserid"], ("OK"))
+      Endif
+    Endif
+  Endif
+
+End

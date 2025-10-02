@@ -168,6 +168,38 @@ Catch
 
 End
 
+Public Sub SetAbsconderProfile(sPatNo As String, sType As String, sStatus As String, Optional sReason As String)
+
+  Dim rex As Result
+  Dim res As Result
+
+  rex = modDatabase.$myConn.Edit("tblabsconder", "fldpatientval=&1", sPatNo)
+  If rex.Available Then
+    rex["fldstatus"] = sStatus
+    If sReason Then
+      rex["fldreason"] = sReason
+    Endif
+    rex["fldtime"] = Now()
+    rex["fldcomp"] = modBasic.$compID
+    res["flduserid"] = modBasic.$lbluser
+    rex.Update
+  Else
+    res = modDatabase.$myConn.Create("tblabsconder")
+    res["fldpatientval"] = sPatNo
+    res["fldcategory"] = sType
+    If sReason Then
+      res["fldreason"] = sReason
+    Endif
+    res["fldstatus"] = sStatus
+    res["fldtime"] = Now()
+    res["fldcomp"] = modBasic.$compID
+    res["flduserid"] = modBasic.$lbluser
+    res["fldsave"] = True
+    res.Update
+  Endif
+
+End
+
 ''--------------------- Patient Date --------------------------
 Public Sub EnterPatientImpDate(encid As String, sType As String, sComment As String, Optional sDate As Date)
 
@@ -323,38 +355,42 @@ Public Sub UpdateConsultConsultant(id As Long, xuser As String)
 
 End
 
-Public Sub UpdateConsultData(id As Long, status As String, comment As String, sOutcome As String)
+Public Sub UpdateConsultData(id As Long, encid As String, status As String, comment As String, sOutcome As String)
 
   Dim res As Result
 
-  res = modDatabase.$myConn.Edit("tblconsult", "fldid=&1", id)
-  res["fldnotice"] = comment
-  res["fldstatus"] = status
-  res["fldoutcome"] = sOutcome
-  res["fldorduserid"] = modBasic.$lbluser
-  res["fldtime"] = Now()
-  res["fldcomp"] = modBasic.$compID
-  res["fldsave"] = True
-  res["xyz"] = False
-  res.Update
+  res = modDatabase.$myConn.Edit("tblconsult", "fldid=&1 and fldencounterval=&2", id, encid)
+  If res.Available Then
+    res["fldstatus"] = status
+    res["fldoutcome"] = sOutcome
+    res["fldsummary"] = comment
+    res["fldorduserid"] = modBasic.$lbluser
+    res["fldtime"] = Now()
+    res["fldcomp"] = modBasic.$compID
+    res["fldsave"] = True
+    res["xyz"] = False
+    res.Update
+  Endif
   'don't catch error
 
 End
 
-Public Sub UpdateOPVisitData(id As Long, status As String, comment As String, sOutcome As String)
+Public Sub UpdateOPVisitData(id As Long, encid As String, status As String, comment As String, sOutcome As String)
 
   Dim res As Result
 
-  res = modDatabase.$myConn.Edit("tblopvisit", "fldid=&1", id)
-  res["fldnotice"] = comment
-  res["fldstatus"] = status
-  res["fldoutcome"] = sOutcome
-  res["flduserid"] = modBasic.$lbluser
-  res["fldtime"] = Now()
-  res["fldcomp"] = modBasic.$compID
-  res["fldsave"] = True
-  res["xyz"] = False
-  res.Update
+  res = modDatabase.$myConn.Edit("tblopvisit", "fldid=&1 and fldencounterval=&2", id, encid)
+  If res.Available Then
+    res["fldstatus"] = status
+    res["fldoutcome"] = sOutcome
+    res["fldsummary"] = comment
+    res["flduserid"] = modBasic.$lbluser
+    res["fldtime"] = Now()
+    res["fldcomp"] = modBasic.$compID
+    res["fldsave"] = True
+    res["xyz"] = False
+    res.Update
+  Endif
   'don't catch error
 
 End
@@ -571,7 +607,7 @@ Public Sub UpdateCurrentStatus(encid As String, status As String, sComment As Va
       res["fldreferto"] = sComment
     Case "Refer(OPD)"
       res["fldreferto"] = sComment
-    Case "Follow Up"
+    Case "Follow Up", "Death(OPD)"
       res["fldfollowdate"] = sComment
   End Select
   res["xyz"] = False

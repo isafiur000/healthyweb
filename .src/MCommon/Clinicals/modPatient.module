@@ -2289,7 +2289,7 @@ Public Function EnableClinicForm(xStatus As String) As Boolean
         fme = True
       Case "Discharged", "LAMA", "Death", "Refer", "Absconder"
         fme = False
-      Case "Follow Up", "Refer(OPD)", "LAMA(OPD)", "Death(OPD)"
+      Case "LAMA(OPD)", "Death(OPD)"  ''"Follow Up", "Refer(OPD)",
         fme = False
       Case Else
         If modGlobalSetting.ShowSettingFromDB("GeneralSettings/Clinic_LockNonRegistered") = "Yes" Then
@@ -2300,6 +2300,37 @@ Public Function EnableClinicForm(xStatus As String) As Boolean
     End Select
 
   Endif
+  Return fme
+
+End
+
+Public Function EnableClinicOPDForm(encid As String) As Boolean
+
+  Dim sql As String
+  Dim res As Result
+  Dim fme As Boolean
+  Dim Row As Integer
+
+  Row = 0
+  If modBasic.$SuperUser = True Then
+    fme = True
+  Else
+    sql = "select count(fldencounterval) as xcnt from tblconsult where fldencounterval=&1 and fldstatus=&2 UNION ALL select count(fldencounterval) as xcnt from tblopvisit where fldencounterval=&1 and fldstatus=&2"
+    res = modDatabase.$myConn.Exec(sql, encid, "Planned")
+    If res.Available Then
+      For Each res
+        Row = Row + res["xcnt"]
+      Next
+      If Row > 0 Then
+        fme = True
+      Else
+        fme = False
+      Endif
+    Else
+      fme = False
+    Endif
+  Endif
+
   Return fme
 
 End
@@ -3324,5 +3355,26 @@ Public Function GetHaiClassificationSet(encid As String, sType As String) As Str
   Endif
 
   Return xclass
+
+End
+
+''------------------ Absconder --------------------------
+Public Function GetAbsconderStatus(sPatNo As String) As String
+
+  Dim res As Result
+  Dim xx As String
+
+  res = modDatabase.$myConn.Exec("select fldcategory from tblabsconder where fldpatientval=&1 and fldstatus=&2", sPatNo, "Active")
+  If res.Available Then
+    If res["fldcategory"] Then
+      xx = res["fldcategory"]
+    Else
+      xx = "Restricted"
+    Endif
+  Else
+    xx = ""
+  Endif
+
+  Return xx
 
 End

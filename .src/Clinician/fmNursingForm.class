@@ -15,10 +15,6 @@ Private $rSympRes As Result
 Private $aSympFields As String[]
 Private $vidRoom As String
 Private $VidIndex As String
-' ' Private $rFludRes As Result
-' ' Private $aFludFields As String[]
-' ' Private $rRateRes As Result
-' ' Private $aRateFields As String[]
 
 Private $rMonRes As Result
 Private $aMonFields As String[]
@@ -68,7 +64,6 @@ Public Sub _new(encid As String)
   ''MAIN FORM
   $ExamLst = modMedicine.FillClinicalSubClass("OutPatient")
   cmbsympunit.List = ["Hours", "Days", "Weeks", "Months", "Years", "Episodes"]
-  cmbsymdura.List = ["Both Side", "Left Side", "Right Side", "On/Off"]
   $UserRestrict = modBasic.$ClinicDisableCompo
   modLabSub.DisplayDefaultTestUnit(rbsi, rbmetric)
 
@@ -413,6 +408,10 @@ End
 ''============================== MAIN FORM ================================
 Private Sub BasicInfoPatient()
 
+  Dim hForm1 As FmVitalView
+  Dim hForm2 As FmVitalInput
+  Dim hPtForm As FmClinHistory
+
   If txtencid.Text Then
     modRepository.$RepoDataStatus = False
     modAppSupport.RecordPatientActivity("Patient Data", Me.Name, "EncounterID", Trim(txtencid.Text))
@@ -431,6 +430,11 @@ Private Sub BasicInfoPatient()
     ShowSymptomData()
     ShowEssentialExamRange()
     ShowEssentialExam()
+
+    hForm1 = New FmVitalView(Trim(txtencid.Text), pnlabexams)
+    hForm2 = New FmVitalInput(Trim(txtencid.Text), pnlvitalinput)
+    pnlhistory.Visible = True
+    hPtForm = New FmClinHistory($PatientNum, "PatientID", False, "height-tablet", pnlhistory)
 
     $sDate = Now()
     lbldtmonitor.Text = modPatient.GetDayDiffAdmission(Trim(txtencid.Text), $sDate)
@@ -847,6 +851,19 @@ Public Sub cmbsymptom_Activate() '''from got focus
 
 End
 
+Public Sub cmbsymptom_Completion(Text As String)
+
+  Dim xallLst As String[]
+  Dim xList As String[]
+
+  xallLst = modString.GetListFromVariant(modFixPatho.$SymptomCompVar, "fldsymptom", True)
+  If xallLst And If xallLst.Count Then
+    xList = modString.SelectStringArrayToText(Text, xallLst, False)
+    cmbsymptom.CompleteWith(xList)
+  Endif
+
+End
+
 Public Sub btncompList_Click()
 
   Dim xlist As String[]
@@ -881,8 +898,11 @@ Public Sub txtsympval_Activate()
 
 End
 
-Public Sub cmbsympunit_Activate()
+Public Sub cmbsympunit_Click()
 
+  If cmbsymptom.Text Then
+    cmbsymdura.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select fldsubsymptom as col from tblsubsymptoms where fldsymptom=&1", cmbsymptom.Text))
+  Endif
   If cmbsympunit.Text Then
     cmbsymdura.SetFocus
   Endif
@@ -1619,7 +1639,7 @@ Public Sub mnuvital_Click()
   Dim hForm As FmVital
 
   If txtencid.Text
-    hForm = New FmVital(Trim(txtencid.Text))
+    hForm = New FmVital(Trim(txtencid.Text), "widesize-popupform")
     hForm.ShowModal
     UpdateTriage()
   Endif
@@ -2279,7 +2299,7 @@ Public Sub mnuessenexam_Click()
   Dim hForm As FmMultiChart
 
   If txtencid.Text Then
-    xx = modClinic.GetFullVitalList(Trim(txtencid.Text))
+    xx = modString.GetListFromCompareVariant(modFixPatho.$ExaminationCompVar, "fldexamid", "fldcategory", "Essential Examinations", True)
     yy = New String[]
     hForm = New FmMultiChart(Trim(txtencid.Text), xx, yy, modLabSub.GetTestUnitFromButton(rbsi, rbmetric))
     hForm.ShowModal

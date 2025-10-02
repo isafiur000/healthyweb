@@ -1,7 +1,37 @@
 ' Gambas module file
 
 Public $GroqCloudModels As String[] = ["llama3-70b-8192", "llama3-8b-8192", "mixtral-8x7b-32768", "gemma-7b-it", "gemma2-9b-it"]
+Public $WhisperModels As String[] = ["tiny.en", "base.en", "small.en", "small", "medium", "large", "turbo"]
 
+''----------------------- Cloud AI ------------------------
+Public Function GetPatCloudAIResponse(encid As String, sText As String) As String
+
+  Dim xansw As String
+
+  If encid Then
+    If modBasic.$AITextSupport = "Speech-To-Text" Then
+
+    Else
+      xansw = PatCloudAI(encid, sText, "")
+    Endif
+  Endif
+
+  Return xansw
+
+End
+
+''======================= Whisper Speech to Text ========================
+Public Sub GetTextToSpeech(sModel As String, sInput As String, sLanguage As String, sOutFormat As String, sOutDir As String)
+
+  Dim arcmd As String
+
+  arcmd = "whisper " & sInput & " --model " & sModel & " --language " & sLanguage & " --output_format " & sOutFormat & " --output_dir " & sOutDir                          ''
+  modBasic.DebugString("Execute " & arcmd)
+  Shell arcmd Wait
+
+End
+
+''========================= Groq Generative AI ============================
 Public Function GetGroqModelList(sKey As String) As String[]
 
   Dim acmd As String
@@ -31,19 +61,6 @@ Public Function GetGroqModelList(sKey As String) As String[]
 
 End
 
-''----------------------- Cloud AI ------------------------
-Public Function GetPatCloudAIResponse(encid As String, sText As String) As String
-
-  Dim xansw As String
-
-  If encid Then
-    xansw = PatCloudAI(encid, sText, "")
-  Endif
-
-  Return xansw
-
-End
-
 Public Function GetComboCloudAIResponse(sData As String, sList As String[]) As String
 
   Dim xval As String
@@ -53,10 +70,10 @@ Public Function GetComboCloudAIResponse(sData As String, sList As String[]) As S
 
   xval = GridViewNew("Your Question", sList, True)
   If Trim(xval) Then
-    cForm = New CGroqAPI(modBasic.$CloudAIModel, sData & gb.NewLine & Trim(xval))
+    cForm = New CGroqAPI(modBasic.$CloudAIModel_Gen, sData & gb.NewLine & Trim(xval))
     xansw = cForm.GetAPIAnswer()
     If Trim(xansw) Then
-      xxx = xansw & gb.NewLine & "[Source: " & modString.GetSelectedTextBetween(modBasic.$CloudAIURL, "//", "/") & "]"
+      xxx = xansw & gb.NewLine & "[Source: " & modString.GetSelectedTextBetween(modBasic.$CloudAIURL_Gen, "//", "/") & "]"
     Else
       xxx = ""
     Endif
@@ -91,11 +108,11 @@ Public Function GetMedicineInvoiceResponse(sQuery As String, sInvoice As String)
         Next
         xinput = xinput & gb.NewLine & xList.Join(gb.NewLine) & gb.NewLine & gb.NewLine & sQuery
 
-        cForm = New CGroqAPI(modBasic.$CloudAIModel, xinput)
+        cForm = New CGroqAPI(modBasic.$CloudAIModel_Gen, xinput)
         xansw = cForm.GetAPIAnswer()
 
         If Trim(xansw) Then
-          xfinal = xansw & gb.NewLine & "[Source: " & modString.GetSelectedTextBetween(modBasic.$CloudAIURL, "//", "/") & "]"
+          xfinal = xansw & gb.NewLine & "[Source: " & modString.GetSelectedTextBetween(modBasic.$CloudAIURL_Gen, "//", "/") & "]"
         Else
           xfinal = ""
         Endif
