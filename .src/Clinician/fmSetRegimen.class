@@ -1,43 +1,41 @@
 ' Gambas class file
 
-Private $sType As String
 Private $encid As String
-Private $sValue As Long[]
+Private $sValue As Collection
+
+Private $ItemList As String[]
+Private sIndexLst As Long[]
 
 Private $rData As Result
 Private $aMyFields As String[]
-Private $ItemList As String[]
-Private sIndexLst As Long[]
+Private $rData1 As Result
+Private $aMyFields1 As String[]
 
 Private $PatientNum As String
 Private $curEncid As String
 Private $lstEncid As String
 
-Public Sub Run(sType As String, Optional encid As String) As Long[]
+Public Sub Run(Optional encid As String) As Collection
 
-  $sType = sType
   If encid Then
     $encid = encid
   Endif
+  modGeneralMain.GetOpenModalForm(Me)
 
-  If $sType = "Personal" Then
-    Me.Title = "Medicine Regimen"
-    lstletter.Visible = True
-    WebContainer4.Visible = False
-  Else If $sType = "Used Medicines" Then
-    Me.Title = "Medication History"
+  If $encid Then
     $curEncid = $encid
     $PatientNum = modPatient.GetPatientNoByEnc($encid)
     $lstEncid = modPatient.GetSecondLastEncidPatient($encid)
     cmbcategory.List = modPatient.GetEncListFromPatNo($PatientNum)
   Endif
-  modGeneralMain.GetOpenModalForm(Me)
 
+  rballroute.Value = True
   rbcurrent.Value = True
-  $ItemList = New String[]
-  SHowGrid()
-  lstletter.List = modString.GetFirstLetterArray($ItemList)
   sIndexLst = New Long[]
+
+  SetCategoryList()
+  btnnewrefresh_Click()
+  $sValue = New Collection
 
   If modBasic.$TabletModeEnable = "Yes" Then
   Else
@@ -48,6 +46,143 @@ Public Sub Run(sType As String, Optional encid As String) As Long[]
 
 End
 
+Private Function GetRoute() As String
+
+  Dim xx As String
+
+  If rboral.Value = True Then
+    xx = "oral"
+  Else If rbliquid.Value = True Then
+    xx = "liquid"
+  Else If rbinject.Value = True Then
+    xx = "injection"
+  Else If rbfluid.Value = True Then
+    xx = "fluid"
+  Else If rbtopical.Value = True Then
+    xx = "topical"
+  Else
+    xx = "%"
+  Endif
+
+  Return xx
+
+End
+
+Public Sub TabPanel1_Click()
+
+  $ItemList = New String[]
+  If TabPanel1.Index = 0 Then
+    ShowNewRegimen()
+    lstletter2.List = modString.GetFirstLetterArray($ItemList)
+  Else If TabPanel1.Index = 1 Then
+    SHowPastGrid()
+    lstletter.List = modString.GetFirstLetterArray($ItemList)
+  Endif
+  sIndexLst = New Long[]
+
+End
+
+Private Sub ShowTabGrid()
+
+  If TabPanel1.Index = 0 Then
+    ShowNewRegimen()
+  Else If TabPanel1.Index = 1 Then
+    SHowPastGrid()
+  Endif
+
+End
+
+Public Sub txtname_Change()
+
+  ShowTabGrid()
+
+End
+
+Public Sub rboral_Click()
+
+  ShowTabGrid()
+
+End
+
+Public Sub rbliquid_Click()
+
+  ShowTabGrid()
+
+End
+
+Public Sub rbinject_Click()
+
+  ShowTabGrid()
+
+End
+
+Public Sub rbfluid_Click()
+
+  ShowTabGrid()
+
+End
+
+Public Sub rbtopical_Click()
+
+  ShowTabGrid()
+
+End
+
+Public Sub rballroute_Click()
+
+  ShowTabGrid()
+
+End
+
+Public Sub btnok_Click()
+
+  Dim Row As Integer
+
+  If TabPanel1.Index = 0 Then
+    If GridView2.Selection.Count Then
+      For Row = 0 To GridView2.Count - 1
+        If GridView2.IsSelected(Row) = True Then
+          $rData1.MoveTo(Row)
+          If sIndexLst.Exist($rData1["fldid"]) = False Then
+            sIndexLst.Add($rData1["fldid"])
+          Endif
+        Endif
+      Next
+    Endif
+
+  Else If TabPanel1.Index = 1 Then
+    If GridView1.Selection.Count Then
+      For Row = 0 To GridView1.Count - 1
+        If GridView1.IsSelected(Row) = True Then
+          $rData.MoveTo(Row)
+          If sIndexLst.Exist($rData["fldid"]) = False Then
+            sIndexLst.Add($rData["fldid"])
+          Endif
+        Endif
+      Next
+    Endif
+
+  Endif
+  Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+
+End
+
+Public Sub btnclose_Click()
+
+  If sIndexLst.Count Then
+    If TabPanel1.Index = 0 Then
+      $sValue.Add(sIndexLst, "New Regimen")
+    Else If TabPanel1.Index = 1 Then
+      $sValue.Add(sIndexLst, "Past Regimen")
+    Endif
+    Me.Close(True)
+  Else
+    Me.Close
+  Endif
+
+End
+
+''-------------------------- Past Regimens -------------------------
 Public Sub btnrefresh_Click()
 
   Dim xdate As Date
@@ -64,7 +199,7 @@ Public Sub btnrefresh_Click()
 
   If $curEncid Then
     $ItemList = New String[]
-    SHowGrid()
+    SHowPastGrid()
     lstletter.List = modString.GetFirstLetterArray($ItemList)
     xdate = modPatient.GetRecordDate($curEncid)
     lbldate.Text = "DATE: " & Format(xdate, gb.ShortDate) & Space(1) & "(" & modDate.ConvertToLocaldate(xdate) & ")"
@@ -72,60 +207,36 @@ Public Sub btnrefresh_Click()
 
 End
 
-Public Sub txtname_Change()
-
-  SHowGrid()
-
-End
-
-Private Sub SHowGrid()
+Private Sub SHowPastGrid()
 
   Dim sql As String
 
-  If $sType = "Personal" Then
-    sql = "select fldid,fldid,fldroute,fldbrandid,flddose,fldfreq,fldday,fldqty,fldusage from tblmedregimen where (flduserid=&1 or flduserid=&2) and lower(fldbrandid) like &3 ORDER BY fldbrandid"
-    If chkleftmain.Value = True Then
-      $rData = modDatabase.$myConn.Exec(sql, modBasic.$lbluser, "%", "%" & LCase(Trim(txtname.Text)) & "%")
-    Else
-      $rData = modDatabase.$myConn.Exec(sql, modBasic.$lbluser, "%", LCase(Trim(txtname.Text)) & "%")
-    Endif
-  Else If $sType = "Used Medicines" Then
-    sql = "select fldid,fldid,fldroute,flditem,flddose,fldfreq,flddays,fldqtydisp,flddirection from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and flditemtype=&3 and fldcurval=&4 and flddose>&5 and lower(flditem) like &6 ORDER BY flditem"   ''and fldid IN (SELECT MAX(fldid) FROM tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and flditemtype=&3 and fldcurval=&4 GROUP BY flditem)
-    If chkleftmain.Value = True Then
-      $rData = modDatabase.$myConn.Exec(sql, $curEncid, True, "Medicines", "Continue", 0, "%" & LCase(Trim(txtname.Text)) & "%")
-    Else
-      $rData = modDatabase.$myConn.Exec(sql, $curEncid, True, "Medicines", "Continue", 0, LCase(Trim(txtname.Text)) & "%")
-    Endif
+  sql = "select fldid,fldid,flditem,CONCAT(fldroute, '|', flditem, '|', flddose, '|', fldfreq, '|', flddays) as fldregimen,fldroute,fldqtydisp,flddirection from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and flditemtype=&3 and fldcurval=&4 and flddose>&5 and lower(flditem) like &6 and fldroute like &7 ORDER BY flditem"   ''and fldid IN (SELECT MAX(fldid) FROM tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and flditemtype=&3 and fldcurval=&4 GROUP BY flditem)
+  If chkleftmain.Value = True Then
+    $rData = modDatabase.$myConn.Exec(sql, $curEncid, True, "Medicines", "Continue", 0, "%" & LCase(Trim(txtname.Text)) & "%", GetRoute())
+  Else
+    $rData = modDatabase.$myConn.Exec(sql, $curEncid, True, "Medicines", "Continue", 0, LCase(Trim(txtname.Text)) & "%", GetRoute())
   Endif
   $aMyFields = New String[]
   modGridView.ReadSmallData(GridView1, $rData, $aMyFields)
 
   For Each $rData
-    If $sType = "Personal" Then
-      $ItemList.Add($rData["fldbrandid"])
-    Else If $sType = "Used Medicines" Then
-      $ItemList.Add($rData["flditem"])
-    Endif
+    $ItemList.Add($rData["flditem"])
   Next
 
   With GridView1
     .Columns[0].Hidden = True
     .Columns[1].Hidden = True
-    .Columns[2].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
-    .Columns[3].Width = CStr(200 * modBasic.$AppWidthRatio) & "px"
-    .Columns[4].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
-    .Columns[5].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
-    .Columns[6].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
-    .Columns[7].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
-    .Columns[8].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+    .Columns[2].Hidden = True
+    .Columns[3].Width = CStr(400 * modBasic.$AppWidthRatio) & "px"
+    .Columns[4].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
+    .Columns[5].Width = CStr(50 * modBasic.$AppWidthRatio) & "px"
+    .Columns[6].Width = CStr(250 * modBasic.$AppWidthRatio) & "px"
 
-    .Columns[2].Text = "Route"
     .Columns[3].Text = "Medicine"
-    .Columns[4].Text = "Dose"
-    .Columns[5].Text = "Freq"
-    .Columns[6].Text = "Days"
-    .Columns[7].Text = "QTY"
-    .Columns[8].Text = "Direction"
+    .Columns[4].Text = "Route"
+    .Columns[5].Text = "QTY"
+    .Columns[6].Text = "Direction"
   End With
 
 End
@@ -134,7 +245,29 @@ Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableDat
 
   $rData.MoveTo(Row)
   modGridView.GridViewDecoration(Data, Row)
-  Data.Text = $rData[$aMyFields[Column]]
+  If Column = 3 Then
+    Data.Html = GetRegimenString($rData[$aMyFields[Column]])
+  Else
+    Data.Text = $rData[$aMyFields[Column]]
+  Endif
+
+End
+
+Private Function GetRegimenString(sInput As String) As String
+
+  Dim asx As String[]
+  Dim xval As String
+
+  If sInput Then
+    asx = Split(sInput, "|")
+    If asx.Count = 5 Then
+      xval = asx[1] & "<br><b>" & modMedConstant.GetMedicineRegimenInFormat(asx[0], asx[1], CFloat(asx[2]), asx[3], CFloat(asx[4])) & "</b>"
+    Else
+      xval = asx[1]
+    Endif
+  Endif
+
+  Return xval
 
 End
 
@@ -144,31 +277,85 @@ Public Sub lstletter_Select()
 
 End
 
-Public Sub btnok_Click()
+''======================= New Regimen ==========================
+Private Sub SetCategoryList()
 
-  Dim Row As Integer
+  Dim xList As String[]
+  Dim res As Result
 
-  If GridView1.Selection.Count Then
-    For Row = 0 To GridView1.Count - 1
-      If GridView1.IsSelected(Row) = True Then
-        $rData.MoveTo(Row)
-        If sIndexLst.Exist($rData["fldid"]) = False Then
-          sIndexLst.Add($rData["fldid"])
-        Endif
-      Endif
-    Next
-    Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+  xList = New String[]
+  xList.Add("All Categories")
+  res = modDatabase.$myConn.Exec("select distinct(fldcategory) as col from tblcode where fldcodename in(select fldcodename from tbldrug where flddrug in(select flddrug from tblmedbrand where fldbrandid in(select fldbrandid from tblmedregimen where (flduserid=&1 or flduserid=&2) and fldroute like &3)))", modBasic.$lbluser, "%", GetRoute())
+  If res.Available Then
+    xList.Insert(modControlSub.GetDirectFillresult(res))
+  Endif
+  lstcategory.List = xList
+  lstcategory.Text = "All Categories"
+
+End
+
+Public Sub btnnewrefresh_Click()
+
+  If lstcategory.Text Then
+    $ItemList = New String[]
+    ShowNewRegimen()
+    lstletter2.List = modString.GetFirstLetterArray($ItemList)
   Endif
 
 End
 
-Public Sub btnclose_Click()
+Private Sub ShowNewRegimen()
 
-  If sIndexLst.Count Then
-    $sValue = sIndexLst
-    Me.Close(True)
+  Dim sql As String
+
+  If lstcategory.Text = "All Categories" Then
+    sql = "select fldid,fldid,fldbrandid,CONCAT(fldroute, '|', fldbrandid, '|', flddose, '|', fldfreq, '|', fldday) as fldregimen,fldroute,fldqty,fldusage from tblmedregimen where (flduserid=&1 or flduserid=&2) and lower(fldbrandid) like &3 and fldroute like &4 ORDER BY fldbrandid"
   Else
-    Me.Close
+    sql = "select fldid,fldid,fldbrandid,CONCAT(fldroute, '|', fldbrandid, '|', flddose, '|', fldfreq, '|', fldday) as fldregimen,fldroute,fldqty,fldusage from tblmedregimen where (flduserid=&1 or flduserid=&2) and lower(fldbrandid) like &3 and fldroute like &4 and fldbrandid in(select fldbrandid from tblmedbrand where flddrug in(select flddrug from tbldrug where fldcodename in(select fldcodename from tblcode where fldcategory=&5))) ORDER BY fldbrandid"
   Endif
+  If chkleftmain.Value = True Then
+    $rData1 = modDatabase.$myConn.Exec(sql, modBasic.$lbluser, "%", "%" & LCase(Trim(txtname.Text)) & "%", GetRoute(), lstcategory.Text)
+  Else
+    $rData1 = modDatabase.$myConn.Exec(sql, modBasic.$lbluser, "%", LCase(Trim(txtname.Text)) & "%", GetRoute(), lstcategory.Text)
+  Endif
+  $aMyFields1 = New String[]
+  modGridView.ReadSmallData(GridView2, $rData1, $aMyFields1)
+
+  For Each $rData1
+    $ItemList.Add($rData1["fldbrandid"])
+  Next
+
+  With GridView2
+    .Columns[0].Hidden = True
+    .Columns[1].Hidden = True
+    .Columns[2].Hidden = True
+    .Columns[3].Width = CStr(400 * modBasic.$AppWidthRatio) & "px"
+    .Columns[4].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
+    .Columns[5].Width = CStr(50 * modBasic.$AppWidthRatio) & "px"
+    .Columns[6].Width = CStr(250 * modBasic.$AppWidthRatio) & "px"
+
+    .Columns[3].Text = "Medicine"
+    .Columns[4].Text = "Route"
+    .Columns[5].Text = "QTY"
+    .Columns[6].Text = "Direction"
+  End With
+
+End
+
+Public Sub GridView2_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  $rData1.MoveTo(Row)
+  modGridView.GridViewDecoration(Data, Row)
+  If Column = 3 Then
+    Data.Html = GetRegimenString($rData1[$aMyFields1[Column]])
+  Else
+    Data.Text = $rData1[$aMyFields1[Column]]
+  Endif
+
+End
+
+Public Sub lstletter2_Click()
+
+  txtname.Text = lstletter2.Text
 
 End

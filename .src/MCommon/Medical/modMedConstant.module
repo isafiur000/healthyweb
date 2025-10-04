@@ -624,23 +624,52 @@ Public Function GetDietMixNameFromCode(sCode As String) As String
 
 End
 
-''------------------------ Blood -------------------
-Public Function GetBloodShelfLife(sBlood As String) As Integer
+Public Function GetMedicineDoseFormat(sRoute As String, sMedicine As String, xDose As Float, sFormat As String) As String
 
-  Dim res As Result
-  Dim xx As Integer
+  Dim xx As String
 
-  res = modDatabase.$medConn.Exec("select fldshelf from tblbloodstore where flditemcode=&1", sBlood)
-  If res.Available = True Then
-    If res["fldshelf"] Then
-      xx = res["fldshelf"]
+  If xDose Then
+    If sFormat = "Label" Then
+      Select sRoute
+        Case "fluid", "resp", "topical", "eye/ear", "anal/vaginal"
+          xx = CStr(xDose) & Space(1) & modMedConstant.GetMedicineDoseUnit(sMedicine)
+        Case Else
+          xx = modPharmLabel.ConvertDoseToPrintNum(xDose / modMedConstant.GetDrugInitialStrength(sMedicine)) & Space(1) & modPharmLabel.GetPackVolUnit(sMedicine)
+      End Select
     Else
-      xx = 0
+      xx = CStr(xDose) & Space(1) & modMedConstant.GetMedicineDoseUnit(sMedicine)
     Endif
   Else
-    xx = 0
+    xx = ""
   Endif
 
   Return xx
+
+End
+
+Public Function GetMedicineRegimenInFormat(sRoute As String, sMedicine As String, aDose As Float, sFreq As String, xDays As Float) As String
+
+  Dim xdose As String
+  Dim xfreq As String
+  Dim xregimen As String
+
+  xdose = modMedConstant.GetMedicineDoseFormat(sRoute, sMedicine, aDose, modBasic.$MedicineDoseFormat)
+  If modBasic.$MedicineFrequencyFormat = "Label" Then
+    xfreq = modPharmLabel.ConvertMedFreqToLabel(sFreq)
+    If xDays Then
+      xregimen = xdose & Space(1) & xfreq & Space(1) & " For " & CStr(xDays) & " Days"
+    Else
+      xregimen = xdose & Space(1) & xfreq
+    Endif
+  Else
+    xfreq = "X" & Space(1) & sFreq
+    If xDays Then
+      xregimen = xdose & Space(1) & xfreq & Space(1) & "X " & CStr(xDays) & " Days"
+    Else
+      xregimen = xdose & Space(1) & xfreq
+    Endif
+  Endif
+
+  Return xregimen
 
 End

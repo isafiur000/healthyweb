@@ -101,29 +101,6 @@ Public Function GetMedFormatForMedReport(txtitemname As String, txtroute As Stri
 
 End
 
-Public Function GetMedicineDoseFormat(sRoute As String, sMedicine As String, xDose As Float, sFormat As String) As String
-
-  Dim xx As String
-
-  If xDose Then
-    If sFormat = "Label" Then
-      Select sRoute
-        Case "fluid", "resp", "topical", "eye/ear", "anal/vaginal"
-          xx = CStr(xDose) & Space(1) & modMedConstant.GetMedicineDoseUnit(sMedicine)
-        Case Else
-          xx = modPharmLabel.ConvertDoseToPrintNum(xDose / modMedConstant.GetDrugInitialStrength(sMedicine)) & Space(1) & modPharmLabel.GetPackVolUnit(sMedicine)
-      End Select
-    Else
-      xx = CStr(xDose) & Space(1) & modMedConstant.GetMedicineDoseUnit(sMedicine)
-    Endif
-  Else
-    xx = ""
-  Endif
-
-  Return xx
-
-End
-
 Public Function GetMedicineDoseInFormat(sid As Long, sFormat As String) As Variant
 
   Dim res As Result
@@ -132,7 +109,7 @@ Public Function GetMedicineDoseInFormat(sid As Long, sFormat As String) As Varia
   res = modDatabase.$myConn.Exec("select flditemtype,fldroute,flditem,flddose from tblpatdosing where fldid=&1", sid)
   If res.Available Then
     If res["flditemtype"] = "Medicines" Then
-      xx = GetMedicineDoseFormat(res["fldroute"], res["flditem"], res["flddose"], sFormat)
+      xx = modMedConstant.GetMedicineDoseFormat(res["fldroute"], res["flditem"], res["flddose"], sFormat)
     Else
       xx = ""
     Endif
@@ -140,33 +117,6 @@ Public Function GetMedicineDoseInFormat(sid As Long, sFormat As String) As Varia
     xx = ""
   Endif
   Return xx
-
-End
-
-Public Function GetMedicineRegimenInFormat(sRoute As String, sMedicine As String, aDose As Float, sFreq As String, xDays As Float) As String
-
-  Dim xdose As String
-  Dim xfreq As String
-  Dim xregimen As String
-
-  xdose = GetMedicineDoseFormat(sRoute, sMedicine, aDose, modBasic.$MedicineDoseFormat)
-  If modBasic.$MedicineFrequencyFormat = "Label" Then
-    xfreq = modPharmLabel.ConvertMedFreqToLabel(sFreq)
-    If xDays Then
-      xregimen = xdose & Space(1) & xfreq & Space(1) & " For " & CStr(xDays) & " Days"
-    Else
-      xregimen = xdose & Space(1) & xfreq
-    Endif
-  Else
-    xfreq = "X" & Space(1) & sFreq
-    If xDays Then
-      xregimen = xdose & Space(1) & xfreq & Space(1) & "X " & CStr(xDays) & " Days"
-    Else
-      xregimen = xdose & Space(1) & xfreq
-    Endif
-  Endif
-
-  Return xregimen
 
 End
 
@@ -185,7 +135,7 @@ Public Function GetTaperingRegimen(xDoseNo As Long, Optional sHospCode As String
   Endif
   If res.Available Then
     For Each res
-      xx.Add(GetMedicineRegimenInFormat("Medicine", xmed, res["flddose"], res["fldfreq"], res["flddays"]))
+      xx.Add(modMedConstant.GetMedicineRegimenInFormat("Medicine", xmed, res["flddose"], res["fldfreq"], res["flddays"]))
       ' xx.Add(res["flddose"] & " " & modMedConstant.GetMedicineDoseUnit(GetStockIDFromDosing(res["fldid"])) & " X " & res["fldfreq"] & " X " & res["flddays"] & " day(s)")
     Next
   Endif
@@ -220,10 +170,10 @@ Public Function GetDoseRegimenString(id As Variant, Route As Boolean, Optional S
         If taper Then
           reg = taper.Join(gb.NewLine)
         Else
-          reg = GetMedicineRegimenInFormat(rs["fldroute"], rs["flditem"], rs["flddose"], rs["fldfreq"], rs["flddays"])
+          reg = modMedConstant.GetMedicineRegimenInFormat(rs["fldroute"], rs["flditem"], rs["flddose"], rs["fldfreq"], rs["flddays"])
         Endif
       Else
-        reg = GetMedicineRegimenInFormat(rs["fldroute"], rs["flditem"], rs["flddose"], rs["fldfreq"], rs["flddays"])
+        reg = modMedConstant.GetMedicineRegimenInFormat(rs["fldroute"], rs["flditem"], rs["flddose"], rs["fldfreq"], rs["flddays"])
       Endif
 
       If Route = True Then
@@ -255,7 +205,7 @@ Public Function GetMedicineDispRegimens(encid As String) As String[]
   rs = modDatabase.$myConn.Exec("select fldroute,flditem,flddose,fldfreq,SUM(flddays) as flddays from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and (fldstatus=&3 or fldstatus=&4 or fldstatus=&5) and fldsave_order=&6 and flddose>&7 GROUP BY fldroute,flditem,flddose,fldfreq", encid, "Medicines", "Registered", "Admitted", "Recorded", True, 0)
   If rs.Available Then
     For Each rs
-      xval = rs["fldroute"] & Space(1) & GetMedFormatForMedReport(rs["flditem"], rs["fldroute"]) & Space(2) & GetMedicineRegimenInFormat(rs["fldroute"], rs["flditem"], rs["flddose"], rs["fldfreq"], rs["flddays"])
+      xval = rs["fldroute"] & Space(1) & GetMedFormatForMedReport(rs["flditem"], rs["fldroute"]) & Space(2) & modMedConstant.GetMedicineRegimenInFormat(rs["fldroute"], rs["flditem"], rs["flddose"], rs["fldfreq"], rs["flddays"])
       If regm.Count = 0 Then
         regm.Add(xval)
       Else
@@ -318,7 +268,7 @@ Public Function NurDosingString(encid As String) As String
         xRowVal = New Collection
         xRowVal.Add(CStr(i), CStr(0))
         xRowVal.Add(GetMedFormatForMedReport(sPt[1], sPt[0]), CStr(1))
-        xRowVal.Add(sPt[0] & Space(2) & GetMedicineRegimenInFormat(sPt[0], sPt[1], sPt[2], sPt[3], 0), CStr(2))
+        xRowVal.Add(sPt[0] & Space(2) & modMedConstant.GetMedicineRegimenInFormat(sPt[0], sPt[1], sPt[2], sPt[3], 0), CStr(2))
         xRowVal.Add(CStr(tot) & " dose", CStr(3))
         xFinal.Add(xRowVal)
         i = i + 1

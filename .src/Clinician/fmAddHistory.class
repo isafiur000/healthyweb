@@ -3,6 +3,7 @@
 Private $sValue As String
 Private $sType As String
 Private $sVariable As String
+Private $sTable As String
 
 Private $defValue As String
 Private $SelVar As Variant[]
@@ -19,7 +20,12 @@ Public Sub Run(sType As String, sVariable As String) As String
   $sType = sType
   $sVariable = sVariable
 
-  cmbformat.List = ["Common", "Format A", "Format B", "Format C", "Claim Code", "Accident SSF", "Medical SSF", "MedExtra SSF", "Critical SSF", "Staff List"]
+  If $sType = "History" Then
+    $sTable = "tblhistory"
+  Else If $sType = "Discharge" Then
+    $sTable = "tbldischarge"
+  Endif
+  cmbformat.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec(Subst("select distinct(fldformat) as col from &1", $sTable) & " where flditem=&1", $sVariable))
   cmbformat.Text = "Common"
 
   If Me.ShowModal() Then Return $sValue
@@ -40,17 +46,11 @@ End
 
 Private Sub ShowControls()
 
-  Dim sTable As String
   Dim res As Result
   Dim xVar As Variant[]
   Dim i As Integer
 
-  If $sType = "History" Then
-    sTable = "tblhistory"
-  Else If $sType = "Discharge" Then
-    sTable = "tbldischarge"
-  Endif
-  res = modDatabase.$myConn.Exec(Subst("select fldid,flddetail,fldoptions from &1", sTable) & " where flditem=&1 and fldcomp=&2 and fldformat like &3", $sVariable, modBasic.$compID, cmbformat.Text)    ''
+  res = modDatabase.$myConn.Exec(Subst("select fldid,flddetail,fldoptions from &1", $sTable) & " where flditem=&1 and fldformat like &2", $sVariable, cmbformat.Text)     ''
   If res.Available Then
     res.MoveFirst
     $defValue = res["flddetail"]
