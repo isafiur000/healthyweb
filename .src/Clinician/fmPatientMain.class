@@ -3272,9 +3272,9 @@ End
 Public Sub FillExamtable()
 
   If btnallexam.Value = False Then
-    $rExamRes = modDatabase.$myConn.Exec("select fldid,fldtype,fldhead,fldabnormal,fldid,fldid,fldtime,fldencounterval,flduserid,fldcomp from tblpatientexam where fldencounterval=&1 and fldinput=&2 and fldsave=&3 and fldtime>=&4 and fldtime<=&5", Trim(txtencid.Text), "Physician Examinations", True, modDate.StartSqlDate($dtFinding), modDate.EndSqlDate($dtFinding))
+    $rExamRes = modDatabase.$myConn.Exec("select fldid,fldtype,fldhead,fldabnormal,fldid,fldid,fldtime,fldencounterval,flduserid,fldcomp,fldsysconst,fldoption from tblpatientexam where fldencounterval=&1 and fldinput=&2 and fldsave=&3 and fldtime>=&4 and fldtime<=&5", Trim(txtencid.Text), "Physician Examinations", True, modDate.StartSqlDate($dtFinding), modDate.EndSqlDate($dtFinding))
   Else
-    $rExamRes = modDatabase.$myConn.Exec("select fldid,fldtype,fldhead,fldabnormal,fldid,fldid,fldtime,fldencounterval,flduserid,fldcomp from tblpatientexam where fldencounterval=&1 and fldinput=&2 and fldsave=&3", Trim(txtencid.Text), "Physician Examinations", True)
+    $rExamRes = modDatabase.$myConn.Exec("select fldid,fldtype,fldhead,fldabnormal,fldid,fldid,fldtime,fldencounterval,flduserid,fldcomp,fldsysconst,fldoption from tblpatientexam where fldencounterval=&1 and fldinput=&2 and fldsave=&3", Trim(txtencid.Text), "Physician Examinations", True)
   Endif
   $aExamFields = New String[]
   modGridView.ReadSmallData(GridView1, $rExamRes, $aExamFields)
@@ -3290,6 +3290,8 @@ Public Sub FillExamtable()
     .Columns[7].Hidden = True
     .Columns[8].Hidden = CStr(125 * modBasic.$AppWidthRatio) & "px"
     .Columns[9].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
+    .Columns[10].Hidden = True  ''fldsysconst
+    .Columns[11].Hidden = True  ''fldoption
 
     .Columns[2].Text = "Examination"
     .Columns[4].Text = "Observation"
@@ -3327,6 +3329,7 @@ Public Sub btnfindcomponent_Click()
   Dim xData As Variant[]
 
   Dim yyy As String[]
+  Dim xexam As String
   Dim xquantival As Variant[]
   Dim yqualival As Variant[]
   Dim xlimit As Float[]
@@ -3337,10 +3340,15 @@ Public Sub btnfindcomponent_Click()
     $rExamRes.MoveTo(GridView1.Selection[0])
 
     If $rExamRes["fldtype"] = "Qualitative" Then
-      xType = modFixClinic.GetExamtOptionType($rExamRes["fldhead"])
+      xType = $rExamRes["fldoption"]
       If modClinic.GetSubExamBool($rExamRes["fldid"], Trim(txtencid.Text)) = False Then
         If xType = "Fixed Components" Or If xType = "Left/Right Components" Then
-          yyy = modFixClinic.GetSubExamArray($rExamRes["fldhead"])
+          If $rExamRes["fldsysconst"] Then
+            xexam = modFixClinic.GetExamIDFromSysConst($rExamRes["fldsysconst"])
+          Else
+            xexam = $rExamRes["fldhead"]
+          Endif
+          yyy = modFixClinic.GetSubExamArray(xexam)
           If yyy.Count Then
             modClinSub.InsertExamSubExam($rExamRes["fldencounterval"], $rExamRes["fldid"], $rExamRes["fldhead"], yyy)
           Endif
@@ -3391,7 +3399,7 @@ Public Sub btnfindcomponent_Click()
         For Each res
           xData.Add([res["fldsubtexam"], res["fldreport"], res["fldid"], res["fldtanswertype"], res["fldabnormal"], res["fldindex"]])
         Next
-        xData.Add(["Final Impression", $rExamRes["fldrepquali"], 0, "RichText Area", False, ""])
+        ' xData.Add(["Final Impression", $rExamRes["fldrepquali"], 0, "RichText Area", False, ""])
         If xType = "Left/Right Components" Then
           hFormTwo = New FmEnterMultipleTwo($rExamRes["fldid"], "Exam", $rExamRes["fldhead"], xData, "", "Current")
           hFormTwo.ShowModal
@@ -4149,7 +4157,7 @@ End
 
 Public Sub btnroutstatus_Click()
 
-  Dim xx As String[] = ["Continue", "Completed", "Discontinue", "Hold", "Change", "ReWrite", "Cancelled", "Wasted"]
+  Dim xx As String[] = ["Continue", "Completed", "Discontinue", "On Hold", "Change", "ReWrite", "Cancelled", "Wasted"]
   Dim res As Result
   Dim xval As String
 
@@ -4379,7 +4387,7 @@ End
 
 Public Sub btnstatstatus_Click()
 
-  Dim xx As String[] = ["Continue", "Completed", "Discontinue", "Hold", "Change", "ReWrite", "Cancelled", "Wasted"]
+  Dim xx As String[] = ["Continue", "Completed", "Discontinue", "On Hold", "Change", "ReWrite", "Cancelled", "Wasted"]
   Dim res As Result
   Dim xval As String
 
@@ -4584,7 +4592,7 @@ End
 
 Public Sub btnfluidstatus_Click()
 
-  Dim xx As String[] = ["Continue", "Completed", "Discontinue", "Hold", "Change", "ReWrite", "Cancelled", "Wasted"]
+  Dim xx As String[] = ["Continue", "Completed", "Discontinue", "On Hold", "Change", "ReWrite", "Cancelled", "Wasted"]
   Dim res As Result
   Dim xval As String
 

@@ -5,7 +5,7 @@ Private $sType As String
 Private $sVariable As String
 Private $sTable As String
 
-Private $defValue As String
+Private $SelAll As Variant[]
 Private $SelVar As Variant[]
 
 Private aHorzPanel As New Object[50]
@@ -34,11 +34,8 @@ End
 
 Public Sub btnfill_Click()
 
-  If Frame1.Children.Count Then
-    Frame1.DeleteChildren()
-  Endif
   If cmbformat.Text Then
-    $SelVar = New Variant[]
+    $SelAll = New Variant[]
     ShowControls()
   Endif
 
@@ -48,71 +45,108 @@ Private Sub ShowControls()
 
   Dim res As Result
   Dim xVar As Variant[]
-  Dim i As Integer
+  Dim aColl As Collection
+  Dim aList As String[]
 
   res = modDatabase.$myConn.Exec(Subst("select fldid,flddetail,fldoptions from &1", $sTable) & " where flditem=&1 and fldformat like &2", $sVariable, cmbformat.Text)     ''
   If res.Available Then
     res.MoveFirst
-    $defValue = res["flddetail"]
+    txthistory.RichText = res["flddetail"]
     If res["fldoptions"] Then
       Try xVar = JSON.Decode(res["fldoptions"])
       If xVar Then
-        $SelVar = xVar
+        $SelAll = xVar
 
-        For i = 0 To $SelVar.Count - 1
-          If i < 49 Then
-            aHorzPanel[i] = New WebContainer(Frame1)
-            aNameLabel[i] = New WebHtml(aHorzPanel[i])
-            aOptionBox[i] = New WebComboBox(aHorzPanel[i])
-            aComboBox[i] = New WebComboBox(aHorzPanel[i])
-            aButonBox[i] = New WebButton(aHorzPanel[i]) As "ButtonGroup"
-            aSpaceBox[i] = New WebLabel(aHorzPanel[i])
-
-            With aHorzPanel[i]
-              .Arrangement = Arrange.Horizontal
-              .Class = "less-container-margin"
-              .Border = True
-            End With
-
-            With aNameLabel[i]
-              .Expand = True
-              .Text = $SelVar[i]["0"]
-              .Tag = i
-            End With
-
-            With aOptionBox[i]
-              .Width = "6em"
-              .Height = "2em"
-              .ReadOnly = False
-              .Tag = i
-            End With
-            aOptionBox[i].List = ["=", ":", "is"]
-
-            With aComboBox[i]
-              .Width = "15em"
-              .Height = "2em"
-              .ReadOnly = False
-              .Tag = i
-            End With
-            aComboBox[i].List = Split($SelVar[i]["1"], ";")
-
-            With aButonBox[i]
-              .Width = "2em"
-              .Height = "2em"
-              .Image = "icon:/small/download"
-              .Tag = i
-            End With
-
-            With aSpaceBox[i]
-              .Width = "2em"
-            End With
-
-          Endif
+        aList = New String[]
+        For Each aColl In $SelAll
+          aList.Add(aColl["Variable"])
         Next
+        If aList.Count Then
+          lstvariable.List = modString.GetDistinctStringArray(aList)
+        Else
+          lstvariable.Clear()
+        Endif
 
       Endif
     Endif
   Endif
+
+End
+
+Public Sub lstvariable_Select()
+
+  Dim aColl As Collection
+
+  If Frame1.Children.Count Then
+    Frame1.DeleteChildren()
+  Endif
+
+  $SelVar = New Variant[]
+  For Each aColl In $SelAll
+    If aColl["Variable"] = lstvariable.Text Then
+      $SelVar.Add(aColl)
+    Endif
+  Next
+
+  LoadControls()
+
+End
+
+Private Sub LoadControls()
+
+  Dim i As Integer
+
+  For i = 0 To $SelVar.Count - 1
+    If i < 49 Then
+      aHorzPanel[i] = New WebContainer(Frame1)
+      aNameLabel[i] = New WebHtml(aHorzPanel[i])
+      aOptionBox[i] = New WebComboBox(aHorzPanel[i])
+      aComboBox[i] = New WebComboBox(aHorzPanel[i])
+      aButonBox[i] = New WebButton(aHorzPanel[i]) As "ButtonGroup"
+      aSpaceBox[i] = New WebLabel(aHorzPanel[i])
+
+      With aHorzPanel[i]
+        .Arrangement = Arrange.Horizontal
+        .Class = "less-container-margin"
+        .Border = True
+      End With
+
+      With aNameLabel[i]
+        .Expand = True
+        .Text = $SelVar[i]["Value"]
+        .Tag = i
+      End With
+
+      With aOptionBox[i]
+        .Width = "4em"
+        .Height = "2em"
+        .ReadOnly = False
+        .Tag = i
+      End With
+      aOptionBox[i].List = ["=", ":", "is"]
+
+      With aComboBox[i]
+        .Width = "15em"
+        .Height = "2em"
+        .ReadOnly = False
+        .Tag = i
+      End With
+      aComboBox[i].List = Split($SelVar[i]["Option"], ";")
+
+      With aButonBox[i]
+        .Width = "2em"
+        .Height = "2em"
+        .Image = "icon:/32/apply"
+        .Tag = i
+      End With
+
+      With aSpaceBox[i]
+        .Width = "2em"
+        .Tag = $SelVar[i]["Select"]
+      End With
+
+    Endif
+  Next
 
 End
 
@@ -129,41 +163,13 @@ Public Sub ButtonGroup_Click()
   Endif
 
   If txthistory.Text Then
-    txthistory.RichText = txthistory.RichText & xstr
+    If aSpaceBox[i].Tag Then
+      txthistory.RichText = Replace(txthistory.RichText, aSpaceBox[i].Tag, xstr)
+    Else
+      txthistory.RichText = Replace(txthistory.Text, "<" & lstvariable.Text & ">", xstr)
+    Endif
   Else
     txthistory.RichText = xstr
-  Endif
-
-End
-
-Public Sub btnselection_Click()
-
-  Dim i As Integer
-  Dim xList As String[]
-
-  xList = New String[]
-  For i = 0 To $SelVar.Count - 1
-    If aComboBox[i].Text Then
-      xList.Add(aNameLabel[i].Text & Space(1) & aComboBox[i].Text)
-    Endif
-  Next
-
-  If xList.Count Then
-    If txthistory.Text Then
-      txthistory.RichText = txthistory.RichText & "<br>" & xList.Join("<br>")
-    Else
-      txthistory.RichText = xList.Join("<br>")
-    Endif
-  Endif
-
-End
-
-Public Sub btndefault_Click()
-
-  If txthistory.Text Then
-    txthistory.RichText = txthistory.RichText & "<br>" & $defValue
-  Else
-    txthistory.RichText = $defValue
   Endif
 
 End

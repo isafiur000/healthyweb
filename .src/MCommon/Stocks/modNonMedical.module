@@ -644,12 +644,16 @@ Public Function NonSTockGroupList() As String[]
 
 End
 
-Public Function NonSTockCostingGroupList(sType As String) As String[]
+Public Function NonSTockCostingGroupList(sType As String, Optional sBilMode As String) As String[]
 
   Dim res As Result
   Dim xx As String[]
 
-  res = modDatabase.$myConn.Exec("select distinct(fldgroup) as col from tblcostgroup where flditemtype=&1", sType)
+  If sBilMode Then
+    res = modDatabase.$myConn.Exec("select distinct(fldgroup) as col from tblcostgroup where flditemtype=&1 and flditemname in(select flditemname from tblservicecost where fldgroup=&2)", sType, sBilMode)
+  Else
+    res = modDatabase.$myConn.Exec("select distinct(fldgroup) as col from tblcostgroup where flditemtype=&1", sType)
+  Endif
   xx = modControlSub.GetDirectFillresult(res)
   If xx Then
     xx.Sort()

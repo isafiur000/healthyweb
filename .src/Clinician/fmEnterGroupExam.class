@@ -33,11 +33,32 @@ Private aCalcBox As New Object[50]
 Private aCalcUnit As New Object[50]
 Private aCalcNull As New Object[50]
 Private aButtonBox As New Object[50]
+Private aExpanFixed As New Object[50]
 Private aHelpButton As New Object[50]
 Private aWebSpace As New Object[50]
 
 Private aWebBottom As New Object[50]
 Private aValSlider As New Object[50]
+
+''sub components
+Private bHoriPanel As New Object[50, 50]
+Private cHoriPanel As New Object[50, 50]
+Private bExamLabel As New Object[50, 50]
+Private bNameLabel As New Object[50, 50]
+Private bDateBox As New Object[50, 50]
+Private bBSDate As New Object[50, 50]
+Private bComboBox As New Object[50, 50]
+Private bDichoValue As New Object[50, 50]
+Private bValueBox As New Object[50, 50]
+Private bUnitText As New Object[50, 50]
+Private bNullCheck As New Object[50, 50]
+Private bLineText As New Object[50, 50]
+Private bTextArea As New Object[50, 50]
+Private bClinBox As New Object[50, 50]
+Private bLeftRight As New Object[50, 50]
+Private bHTMLText As New Object[50, 50]
+Private bGenTextArea As New Object[50, 50]
+Private bWebSpace As New Object[50, 50]
 
 ''other variables
 Private $encid As String
@@ -143,14 +164,13 @@ End
 Private Sub LoadFormData()
 
   Dim idx As String
-  Dim i As Integer
   Dim res As Result
   Dim sColl As Collection
 
   Dim xType As String
   Dim xOption As String
   Dim xitem As String
-  Dim xopList As String[]
+  Dim xopList As Variant[]
   Dim xSysCons As String
   Dim xcritval As Float
   Dim aColl As Collection
@@ -158,6 +178,7 @@ Private Sub LoadFormData()
   $sExamVar = New Variant[]
 
   For Each idx In $idList
+    xopList = New Variant[]
     If $sType = "All" Then
       For Each sColl In $compPhysiExamVar
         If sColl["fldexamid"] = idx And If sColl["fldgroupname"] = cmbcategory.Text Then
@@ -168,17 +189,22 @@ Private Sub LoadFormData()
           Break
         Endif
       Next
-      If xType = "Sys Constant" Then
+      If xSysCons Then
         res = modDatabase.$myConn.Exec("select fldexamid,fldtype,fldoption,fldsysconst,fldcritical from tblexam where fldsysconst=&1", xSysCons)
         If res.Available Then
           res.MoveFirst
           xType = res["fldtype"]
+          xSysCons = res["fldsysconst"]
           xOption = res["fldoption"]
-          If res["fldoption"] = "Clinical Scale" Then
-            xopList = modAllExam.GetCLinicalScaleOptions("Exam", xitem)
-          Else
-            xopList = modAllExam.SelectExamOptionList("Exam", xitem)
-          Endif
+          Select res["fldoption"]
+            Case "Clinical Scale"
+              xopList = modAllExam.GetCLinicalScaleOptions("Exam", res["fldexamid"])
+            Case "Fixed Components", "Left/Right Components"
+              xopList = modFixClinic.GetSubExamCollection(res["fldexamid"])
+            Case Else
+              xopList = modAllExam.SelectExamOptionList("Exam", res["fldexamid"])
+          End Select
+
           If res["fldcritical"] Then
             xcritval = res["fldcritical"]
           Endif
@@ -192,11 +218,15 @@ Private Sub LoadFormData()
         xSysCons = res["fldsysconst"]
         xType = res["fldtype"]
         xOption = res["fldoption"]
-        If res["fldoption"] = "Clinical Scale" Then
-          xopList = modAllExam.GetCLinicalScaleOptions("Exam", xitem)
-        Else
-          xopList = modAllExam.SelectExamOptionList("Exam", xitem)
-        Endif
+        Select res["fldoption"]
+          Case "Clinical Scale"
+            xopList = modAllExam.GetCLinicalScaleOptions("Exam", res["fldexamid"])
+          Case "Fixed Components", "Left/Right Components"
+            xopList = modFixClinic.GetSubExamCollection(res["fldexamid"])
+          Case Else
+            xopList = modAllExam.SelectExamOptionList("Exam", res["fldexamid"])
+        End Select
+
         If res["fldcritical"] Then
           xcritval = res["fldcritical"]
         Endif
@@ -209,9 +239,10 @@ Private Sub LoadFormData()
     aColl.Add(xType, "DataType")
     aColl.Add(xOption, "OptionType")
     If xopList And If xopList.Count Then
-      aColl.Add(xopList.Join(";"), "OptionList")
+      aColl.Add(xopList, "OptionList")
     Else
-      aColl.Add("", "OptionList")
+      xopList = New Variant[]
+      aColl.Add(xopList, "OptionList")
     Endif
     aColl.Add(xSysCons, "SysConstant")
     If xcritval Then
@@ -222,6 +253,14 @@ Private Sub LoadFormData()
     $sExamVar.Add(aColl)
 
   Next
+  CreateControls()
+
+End
+
+Private Sub CreateControls()
+
+  Dim i As Integer
+  Dim j As Integer
 
   For i = 0 To $sExamVar.Count - 1
     If i < 49 Then
@@ -290,6 +329,42 @@ Private Sub LoadFormData()
             Select $sExamVar[i]["OptionType"]
               Case "Text Table"
                 aGridView[i] = New WebTable(aWideRowAll[i])
+
+              Case "Fixed Components", "Left/Right Components"
+                aExpanFixed[i] = New WebContainer(aWideRowAll[i]) As "ExpanderGroup"
+                For j = 0 To $sExamVar[i]["OptionList"].Count - 1
+                  bHoriPanel[i, j] = New WebContainer(aExpanFixed[i])
+                  cHoriPanel[i, j] = New WebContainer(aExpanFixed[i])
+                  bExamLabel[i, j] = New WebLabel(bHoriPanel[i, j])
+                  bNameLabel[i, j] = New WebHtml(bHoriPanel[i, j])
+
+                  Select $sExamVar[i]["OptionList"][j]["fldtanswertype"]
+                    Case "Date Time", "BS Date"
+                      bDateBox[i, j] = New WebDateBox(bHoriPanel[i, j])
+                      bBSDate[i, j] = New WebButton(bHoriPanel[i, j]) As "SubDateButton"
+                    Case "Single Selection"
+                      bComboBox[i, j] = New WebComboBox(bHoriPanel[i, j]) As "SubComboGroup"
+                    Case "Dichotomous"
+                      bDichoValue[i, j] = New DichotomousValue(bHoriPanel[i, j])
+                    Case "Quantitative"
+                      bValueBox[i, j] = New WebValueBox(bHoriPanel[i, j])
+                      bUnitText[i, j] = New WebTextBox(bHoriPanel[i, j])
+                      bNullCheck[i, j] = New WebCheckBox(bHoriPanel[i, j])
+                    Case "Qualitative"
+                      bLineText[i, j] = New WebTextBox(bHoriPanel[i, j])
+                    Case "Clinical Scale"
+                      bTextArea[i, j] = New WebTextArea(bHoriPanel[i, j])
+                      bClinBox[i, j] = New WebValueBox(bHoriPanel[i, j])
+                    Case "Left and Right"
+                      bLeftRight[i, j] = New LeftRightTextArea(cHoriPanel[i, j])
+                    Case "RichText Area"
+                      bHTMLText[i, j] = New WebTextHTML(cHoriPanel[i, j])
+                    Case Else
+                      bGenTextArea[i, j] = New WebTextArea(cHoriPanel[i, j])
+                  End Select
+                  bWebSpace[i, j] = New WebSeparator(aExpanFixed[i])
+                Next
+
               Case "Left and Right"
                 aLeftRight[i] = New LeftRightTextArea(aWideRowAll[i])
               Case "RichText Area"
@@ -318,6 +393,9 @@ Private Sub DIsplayTextForm()
   Dim xcrit As Float
   Dim aCrlower As Float
   Dim aCrupper As Float
+
+  Dim j As Integer
+  Dim xopt As String
 
   For i = 0 To $sExamVar.Count - 1
     If i < 49 Then
@@ -504,7 +582,7 @@ Private Sub DIsplayTextForm()
             .Width = "75%"
             .Height = "2em"
             .ReadOnly = False
-            .List = Split($sExamVar[i]["OptionList"], ";")
+            .List = $sExamVar[i]["OptionList"]
             .Tag = i
           End With
 
@@ -512,19 +590,19 @@ Private Sub DIsplayTextForm()
           With aDichoValue[i]
             .Width = "75%"
             .Height = "2em"
-            .List = Split($sExamVar[i]["OptionList"], ";")
+            .List = $sExamVar[i]["OptionList"]
             .Tag = i
           End With
 
         Else If $sExamVar[i]["OptionType"] = "Date Time" Then
           With aDateBox[i]
-            .Width = "65%"
+            .Width = "15em"
             .Height = "2em"
             .DateTime = True
             .Tag = i
           End With
           With aBSDate[i]
-            .Width = "10%"
+            .Width = "2em"
             .Height = "2em"
             .Image = "icon:/small/calendar"
             .Tag = i
@@ -532,13 +610,13 @@ Private Sub DIsplayTextForm()
 
         Else If $sExamVar[i]["OptionType"] = "BS Date" Then
           With aDateBox[i]
-            .Width = "65%"
+            .Width = "15em"
             .Height = "2em"
             .DateTime = True
             .Tag = i
           End With
           With aBSDate[i]
-            .Width = "10%"
+            .Width = "2em"
             .Height = "2em"
             .Image = "icon:/small/calendar"
             .Tag = i
@@ -636,6 +714,153 @@ Private Sub DIsplayTextForm()
             .Tag = i
           End With
 
+        Else If $sExamVar[i]["OptionType"] = "Fixed Components" Then
+          With aExpanFixed[i]
+            .Arrangement = Arrange.Vertical
+            .Expand = True
+          End With
+          ''----------- Fixed Components -----------------------
+          For j = 0 To $sExamVar[i]["OptionList"].Count - 1
+            With bHoriPanel[i, j]
+              .Arrangement = Arrange.Horizontal
+              .Class = "less-container-margin"
+              .Expand = True
+            End With
+
+            xopt = $sExamVar[i]["OptionList"][j]["fldtanswertype"]
+            Select xopt
+              Case "Date Time", "BS Date", "Single Selection", "Dichotomous", "Quantitative", "Qualitative", "Clinical Scale"
+                With cHoriPanel[i, j]
+                  .Visible = False
+                End With
+              Case "Text Table", "RichText Area"
+                With cHoriPanel[i, j]
+                  .Arrangement = Arrange.Vertical
+                  .Height = CStr((2 * Slider1.Value) + 4) & "em"
+                End With
+              Case Else
+                With cHoriPanel[i, j]
+                  .Arrangement = Arrange.Vertical
+                  .Height = CStr((2 * Slider1.Value) + 4) & "em"
+                End With
+            End Select
+
+            With bExamLabel[i, j]
+              .Width = "2em"
+              .Height = "2em"
+              .Text = $sExamVar[i]["ExamName"]
+              .Visible = False
+              .Tag = [i, j]
+            End With
+            With bNameLabel[i, j]
+              .Width = "50%"
+              .Font = "bold"
+              .Text = "<p>" & $sExamVar[i]["OptionList"][j]["fldsubexam"] & "</p>"
+              .Tag = [i, j]
+            End With
+
+            ''subcomponents
+            If xopt = "Single Selection" Then
+              With bComboBox[i, j]
+                .Width = "40%"
+                .Height = "2em"
+                .ReadOnly = False
+                .List = modAllExam.SelectSubExamOptionList("Exam", $sExamVar[i]["ExamName"], $sExamVar[i]["OptionList"][j]["fldsubexam"], xopt)
+                .Tag = [i, j]
+              End With
+            Else If xopt = "Dichotomous" Then
+              With bDichoValue[i, j]
+                .Width = "40%"
+                .Height = "2em"
+                .List = modAllExam.SelectSubExamOptionList("Exam", $sExamVar[i]["ExamName"], $sExamVar[i]["OptionList"][j]["fldsubexam"], xopt)
+                .Tag = [i, j]
+              End With
+            Else If xopt = "Date Time" Then
+              With bDateBox[i, j]
+                .Width = "15em"
+                .Height = "2em"
+                .DateTime = True
+                .Tag = [i, j]
+              End With
+              With bBSDate[i, j]
+                .Width = "2em"
+                .Height = "2em"
+                .Image = "icon:/small/calendar"
+                .Tag = [i, j]
+              End With
+            Else If xopt = "BS Date" Then
+              With bDateBox[i, j]
+                .Width = "15em"
+                .Height = "2em"
+                .DateTime = True
+                .Tag = [i, j]
+              End With
+              With bBSDate[i, j]
+                .Width = "2em"
+                .Height = "2em"
+                .Image = "icon:/small/calendar"
+                .Tag = [i, j]
+              End With
+            Else If xopt = "Clinical Scale" Then
+              With bTextArea[i, j]
+                .Width = "30%"
+                .Height = CStr(2 * Slider1.Value) & "em"
+                .Tag = [i, j]
+              End With
+              With bClinBox[i, j]
+                .Width = "4em"
+                .Height = "2em"
+                .Tag = [i, j]
+              End With
+            Else If xopt = "Quantitative" Then
+              With bValueBox[i, j]
+                .Width = "6em"
+                .Height = "2em"
+                .Border = True
+                .Tag = [i, j]
+              End With
+              With bUnitText[i, j]
+                .Width = "6em"
+                .Height = "2em"
+                .Border = True
+                .Tag = [i, j]
+              End With
+            Else If xopt = "Qualitative" Then
+              With bLineText[i, j]
+                .Width = "40%"
+                .Height = "2em"
+                .Tag = [i, j]
+              End With
+            Else If xopt = "Left and Right" Then
+              With bLeftRight[i, j]
+                .Expand = True
+                .Height = CStr((2 * Slider1.Value) + 4) & "em"
+                .Tag = [i, j]
+              End With
+            Else If xopt = "RichText Area" Then
+              With bHTMLText[i, j]
+                .Expand = True
+                .Height = CStr((2 * Slider1.Value) + 4) & "em"
+                ' .DictionaryPath = modBasic.$dictPathList
+                .Tag = [i, j]
+              End With
+            Else
+              With bGenTextArea[i, j]
+                .Expand = True
+                .Height = CStr((2 * Slider1.Value) + 4) & "em"
+                ' .DictionaryPath = modBasic.$dictPathList
+                .Tag = [i, j]
+              End With
+            Endif
+
+            With bWebSpace[i, j]
+              .Height = "1em"
+            End With
+          Next
+          ''-------- end of fixed components ----------------
+
+        Else If $sExamVar[i]["OptionType"] = "Left/Right Components" Then
+
         Else If $sExamVar[i]["OptionType"] = "Left and Right" Then
           With aLeftRight[i]
             ' .Width = "75%"
@@ -675,6 +900,9 @@ Private Sub DIsplayTextForm()
         .Tag = i
         .Tooltip = "[Ctrl+O] to display Options"
       End With
+      If $sExamVar[i]["OptionType"] = "Fixed Components" Or If $sExamVar[i]["OptionType"] = "Left/Right Components" Then
+        aHelpButton[i].Enabled = False
+      Endif
 
       With aWebSpace[i]
         .Height = "1em"
@@ -712,6 +940,23 @@ Public Sub BSButton_Click()
   xx = BSDateFormat(("Enter BS Date in yyyy/mm/dd format"), ("Date Converter"), modDate.ConvertToLocaldate(aDateBox[j].Value))
   If xx Then
     aDateBox[j].Value = modDate.ConvertToEnglishdate(xx)
+  Endif
+
+End
+
+Public Sub SubDateButton_Click()
+
+  Dim asx As Integer[]
+  Dim xx As String
+  Dim Row As Integer
+  Dim Col As Integer
+
+  asx = Last.Tag
+  Row = asx[0]
+  Col = asx[1]
+  xx = BSDateFormat(("Enter BS Date in yyyy/mm/dd format"), ("Date Converter"), modDate.ConvertToLocaldate(bDateBox[Row, Col].Value))
+  If xx Then
+    bDateBox[Row, Col].Value = modDate.ConvertToEnglishdate(xx)
   Endif
 
 End
@@ -878,6 +1123,10 @@ Private Sub FillGenExams(sTable As String)
           If aTextArea[i].Text Then
             modClinSub.AddClinicExam($encid, "", $sExamVar[i]["ExamName"], $sExamVar[i]["OptionType"], aTextArea[i].Text, aClinBox[i].Value, aAbnormCheck[i].Value, sTable, $sExamVar[i]["SysConstant"], "Regular")
           Endif
+
+        Else If $sExamVar[i]["OptionType"] = "Fixed Components" Then
+          AddSubComponents(i, sTable)
+
         Else If $sExamVar[i]["OptionType"] = "RichText Area" Then
           If aHTMLText[i].Text Then
             modClinSub.AddQualiData($encid, "", $sExamVar[i]["ExamName"], $sExamVar[i]["OptionType"], aHTMLText[i].RichText, aAbnormCheck[i].Value, sTable, $sExamVar[i]["SysConstant"])
@@ -890,6 +1139,69 @@ Private Sub FillGenExams(sTable As String)
       Endif
     Endif
   Next
+
+End
+
+Private Sub AddSubComponents(i As Integer, sType As String)
+
+  Dim j As Integer
+  Dim res As Result
+  Dim rex As Result
+  Dim xhash As String
+  Dim xopt As String
+
+  xhash = modApplication.GetMD5SumString($encid & "|" & $sExamVar[i]["ExamName"] & "|" & modString.GetNowString())
+  modClinSub.AddClinicExam($encid, "", $sExamVar[i]["ExamName"], $sExamVar[i]["OptionType"], "", 0, aAbnormCheck[i].Value, sType, $sExamVar[i]["SysConstant"], "Regular", xhash)
+  rex = modDatabase.$myConn.Exec("select fldid from tblpatientexam where fldencounterval=&1 and fldhead=&2 and fldfilepath=&3", $encid, $sExamVar[i]["ExamName"], xhash)
+  If rex.Available Then
+    rex.MoveFirst
+
+    For j = 0 To $sExamVar[i]["OptionList"].Count - 1
+      xopt = $sExamVar[i]["OptionList"][j]["fldtanswertype"]
+      If xopt = "Single Selection" Then
+        If bComboBox[i, j].Text Then
+          modClinSub.InsertComponentExams($encid, rex["fldid"], $sExamVar[i]["ExamName"], $sExamVar[i]["OptionList"][j]["fldsubexam"], xopt, bComboBox[i, j].Text)
+        Endif
+      Else If xopt = "Dichotomous" Then
+        If bDichoValue[i, j].Value Then
+          modClinSub.InsertComponentExams($encid, rex["fldid"], $sExamVar[i]["ExamName"], $sExamVar[i]["OptionList"][j]["fldsubexam"], xopt, bDichoValue[i, j].Value)
+        Endif
+      Else If xopt = "Date Time" Then
+        If bDateBox[i, j].Value Then
+          modClinSub.InsertComponentExams($encid, rex["fldid"], $sExamVar[i]["ExamName"], $sExamVar[i]["OptionList"][j]["fldsubexam"], xopt, modDate.DateStringForExam(bDateBox[i, j].Value))
+        Endif
+      Else If xopt = "BS Date" Then
+        If bDateBox[i, j].Value Then
+          modClinSub.InsertComponentExams($encid, rex["fldid"], $sExamVar[i]["ExamName"], $sExamVar[i]["OptionList"][j]["fldsubexam"], xopt, modDate.ConvertToLocaldate(bDateBox[i, j].Value))
+        Endif
+      Else If xopt = "Clinical Scale" Then
+        If bTextArea[i, j].Text Then
+          modClinSub.InsertComponentExams($encid, rex["fldid"], $sExamVar[i]["ExamName"], $sExamVar[i]["OptionList"][j]["fldsubexam"], xopt, bTextArea[i, j].Text)
+        Endif
+      Else If xopt = "Quantitative" Then
+        If bValueBox[i, j].Value Then
+          modClinSub.InsertComponentExams($encid, rex["fldid"], $sExamVar[i]["ExamName"], $sExamVar[i]["OptionList"][j]["fldsubexam"], xopt, CStr(bValueBox[i, j].Value) & Space(1) & bUnitText[i, j].Text)
+        Endif
+      Else If xopt = "Qualitative" Then
+        If bLineText[i, j].Text Then
+          modClinSub.InsertComponentExams($encid, rex["fldid"], $sExamVar[i]["ExamName"], $sExamVar[i]["OptionList"][j]["fldsubexam"], xopt, bLineText[i, j].Text)
+        Endif
+      Else If xopt = "Left and Right" Then
+        If bLeftRight[i, j].DataText Then
+          modClinSub.InsertComponentExams($encid, rex["fldid"], $sExamVar[i]["ExamName"], $sExamVar[i]["OptionList"][j]["fldsubexam"], xopt, bLeftRight[i, j].DataText)
+        Endif
+      Else If xopt = "RichText Area" Then
+        If bHTMLText[i, j].Text Then
+          modClinSub.InsertComponentExams($encid, rex["fldid"], $sExamVar[i]["ExamName"], $sExamVar[i]["OptionList"][j]["fldsubexam"], xopt, bHTMLText[i, j].RichText)
+        Endif
+      Else
+        If bGenTextArea[i, j].Text Then
+          modClinSub.InsertComponentExams($encid, rex["fldid"], $sExamVar[i]["ExamName"], $sExamVar[i]["OptionList"][j]["fldsubexam"], xopt, bGenTextArea[i, j].Text)
+        Endif
+      Endif
+    Next
+
+  Endif
 
 End
 
@@ -949,7 +1261,7 @@ Private Sub OpenOption(j As Integer)
 
   Else
     If $sExamVar[j]["OptionList"] Then
-      xopt = Split($sExamVar[j]["OptionList"], ";")
+      xopt = $sExamVar[j]["OptionList"]
 
       If $sExamVar[j]["OptionType"] = "Single Selection" Then
         sVal = SubChoose(xopt, "Single Selection", $sExamVar[j]["ExamName"])

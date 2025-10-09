@@ -235,6 +235,63 @@ Public Function GetCritValueExam(strTest As String, Optional sCon As Connection)
 
 End
 
+''from sys constant
+Public Function GetExamIDFromSysConst(syscons As String) As String
+
+  Dim res As Result
+  Dim xx As String
+
+  xx = modHelpVariable.GetCollectionValue($ExamIDFromSysConst, syscons, modBasic.$AppCacheExaminationConstants)
+  If Not xx Then
+    res = modDatabase.$medConn.Exec("select fldexamid from tblexam where fldsysconst=&1", syscons)
+    If res.Available = True Then
+      res.MoveFirst
+      If res["fldexamid"] Then
+        xx = res["fldexamid"]
+        If modBasic.$AppCacheExaminationConstants = "Yes" Then
+          $ExamIDFromSysConst.Add(xx, syscons)
+        Endif
+      Else
+        xx = ""
+      Endif
+    Else
+      xx = ""
+    Endif
+  Endif
+  Return xx
+
+End
+
+Public Function GetExamSysOptionType(strSys As String) As String
+
+  Dim res As Result
+  Dim xx As String
+
+  xx = modHelpVariable.GetCollectionValue($ExamSysOptionType, strSys, modBasic.$AppCacheExaminationConstants)
+  If Not xx Then
+    res = modDatabase.$medConn.Exec("select fldoption from tblexam where fldsysconst=&1", strSys)
+    If res.Available Then
+      If res["fldoption"] Then
+        xx = res["fldoption"]
+        If modBasic.$AppCacheExaminationConstants = "Yes" Then
+          $ExamSysOptionType.Add(xx, strSys)
+        Endif
+      Else
+        xx = ""
+      Endif
+    Else
+      xx = ""
+    Endif
+  Endif
+  If Not xx Then
+    If modMedicine.GetFixedLRExaminations().Exist(strSys) = True Then
+      xx = "Left and Right"
+    Endif
+  Endif
+  Return xx
+
+End
+
 ''----------------------------- General --------------------------------------
 Public Function SelectDeptExamAbnormal(sDepart As String, sExam As String, sOption As String, Optional xOptionType As String) As Boolean
 
@@ -287,6 +344,27 @@ Public Function GetSubExamArray(examid As String) As String[]
 
 End
 
+Public Function GetSubExamCollection(examid As String) As Variant[]
+
+  Dim res As Result
+  Dim xvar As Variant[]
+  Dim xcol As Collection
+
+  xvar = New Variant[]
+  res = modDatabase.$medConn.Exec("select fldsubexam,fldtanswertype from tblexamquali where fldexamid=&1 ORDER BY fldindex", examid)
+  If res.Available Then
+    For Each res
+      xcol = New Collection
+      xcol.Add(res["fldsubexam"], "fldsubexam")
+      xcol.Add(res["fldtanswertype"], "fldtanswertype")
+      xvar.Add(xcol)
+    Next
+  Endif
+
+  Return xvar
+
+End
+
 Public Function GetSubExamOption(headid As String, subheadid As String) As String
 
   Dim res As Result
@@ -301,62 +379,6 @@ Public Function GetSubExamOption(headid As String, subheadid As String) As Strin
     Endif
   Else
     xx = ""
-  Endif
-  Return xx
-
-End
-
-Public Function GetExamSysOptionType(strSys As String) As String
-
-  Dim res As Result
-  Dim xx As String
-
-  xx = modHelpVariable.GetCollectionValue($ExamSysOptionType, strSys, modBasic.$AppCacheExaminationConstants)
-  If Not xx Then
-    res = modDatabase.$medConn.Exec("select fldoption from tblexam where fldsysconst=&1", strSys)
-    If res.Available Then
-      If res["fldoption"] Then
-        xx = res["fldoption"]
-        If modBasic.$AppCacheExaminationConstants = "Yes" Then
-          $ExamSysOptionType.Add(xx, strSys)
-        Endif
-      Else
-        xx = ""
-      Endif
-    Else
-      xx = ""
-    Endif
-  Endif
-  If Not xx Then
-    If modMedicine.GetFixedLRExaminations().Exist(strSys) = True Then
-      xx = "Left and Right"
-    Endif
-  Endif
-  Return xx
-
-End
-
-Public Function GetExamIDFromSysConst(syscons As String) As String
-
-  Dim res As Result
-  Dim xx As String
-
-  xx = modHelpVariable.GetCollectionValue($ExamIDFromSysConst, syscons, modBasic.$AppCacheExaminationConstants)
-  If Not xx Then
-    res = modDatabase.$medConn.Exec("select fldexamid from tblexam where fldsysconst=&1", syscons)
-    If res.Available = True Then
-      res.MoveFirst
-      If res["fldexamid"] Then
-        xx = res["fldexamid"]
-        If modBasic.$AppCacheExaminationConstants = "Yes" Then
-          $ExamIDFromSysConst.Add(xx, syscons)
-        Endif
-      Else
-        xx = ""
-      Endif
-    Else
-      xx = ""
-    Endif
   Endif
   Return xx
 

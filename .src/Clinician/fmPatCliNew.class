@@ -1201,7 +1201,7 @@ End
 
 Public Sub FillExamtable()
 
-  $rExamRes = modDatabase.$myConn.Exec("select fldid,fldtype,fldhead,fldabnormal,fldid,fldrepquali,fldtime,fldsave,fldencounterval from tblpatientexam where fldencounterval=&1 and fldinput=&2 and fldsave=&3", Trim(txtencid.Text), "Physician Examinations", True)
+  $rExamRes = modDatabase.$myConn.Exec("select fldid,fldtype,fldhead,fldabnormal,fldid,fldrepquali,fldtime,fldsave,fldencounterval,fldsysconst,fldoption from tblpatientexam where fldencounterval=&1 and fldinput=&2 and fldsave=&3", Trim(txtencid.Text), "Physician Examinations", True)
   $aExamFields = New String[]
   modGridView.ReadSmallData(GridView1, $rExamRes, $aExamFields)
 
@@ -1215,6 +1215,9 @@ Public Sub FillExamtable()
     .Columns[6].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
     .Columns[7].Hidden = True
     .Columns[8].Hidden = True
+    .Columns[9].Hidden = True  ''fldsysconst
+    .Columns[10].Hidden = True  ''fldoption
+
     .Columns[2].Text = "Examination"
     .Columns[4].Text = "Observation"
     .Columns[6].Text = "ReportTime"
@@ -1249,6 +1252,7 @@ Public Sub btnfindcomponent_Click()
   Dim xData As Variant[]
 
   Dim yyy As String[]
+  Dim xexam As String
   Dim xquantival As Variant[]
   Dim yqualival As Variant[]
   Dim xlimit As Float[]
@@ -1259,10 +1263,15 @@ Public Sub btnfindcomponent_Click()
     $rExamRes.MoveTo(GridView1.Selection[0])
 
     If $rExamRes["fldtype"] = "Qualitative" Then
-      xType = modFixClinic.GetExamtOptionType($rExamRes["fldhead"])
+      xType = $rExamRes["fldoption"]
       If modClinic.GetSubExamBool($rExamRes["fldid"], Trim(txtencid.Text)) = False Then
         If xType = "Fixed Components" Or If xType = "Left/Right Components" Then
-          yyy = modFixClinic.GetSubExamArray($rExamRes["fldhead"])
+          If $rExamRes["fldsysconst"] Then
+            xexam = modFixClinic.GetExamIDFromSysConst($rExamRes["fldsysconst"])
+          Else
+            xexam = $rExamRes["fldhead"]
+          Endif
+          yyy = modFixClinic.GetSubExamArray(xexam)
           If yyy.Count Then
             modClinSub.InsertExamSubExam($rExamRes["fldencounterval"], $rExamRes["fldid"], $rExamRes["fldhead"], yyy)
           Endif
@@ -1313,7 +1322,7 @@ Public Sub btnfindcomponent_Click()
         For Each res
           xData.Add([res["fldsubtexam"], res["fldreport"], res["fldid"], res["fldtanswertype"], res["fldabnormal"], res["fldindex"]])
         Next
-        xData.Add(["Final Impression", $rExamRes["fldrepquali"], 0, "RichText Area", False, ""])
+        ' xData.Add(["Final Impression", $rExamRes["fldrepquali"], 0, "RichText Area", False, ""])
         If xType = "Left/Right Components" Then
           hFormTwo = New FmEnterMultipleTwo($rExamRes["fldid"], "Exam", $rExamRes["fldhead"], xData, "", "Current")
           hFormTwo.ShowModal
