@@ -228,7 +228,7 @@ Public Sub mnusearch_Click()
   $RepoStr = modDataRepo.GetWhereStringRepo(cmblocation.Text, cmbvalue.Text, "t2")
   If encid Then
     xFldList = GetSQLColumns()
-    sql = "select " & xFldList.Join(",") & " FROM (tblpatlabsubtable AS t3 inner join " & $tblpatlabsubtest & " AS t2 on (t3.fldsubtestid=t2.fldid and t3.fldindex<=>t2.fldindex)) inner join " & $tblpatlabtest & " AS t1 on t2.fldtestid=t1.fldid WHERE t1.fldencounterval=&1" & $RepoStr
+    sql = "select " & xFldList.Join(",") & " FROM (tblpatlabsubtable AS t3 inner join " & $tblpatlabsubtest & " AS t2 on (t3.fldsubtestid=t2.fldid and t3.fldindex<=>t2.fldindex)) inner join " & $tblpatlabtest & " AS t1 on (t2.fldtestid=t1.fldid and t2.fldencounterval=t1.fldencounterval) WHERE t1.fldencounterval=&1" & $RepoStr
     $rData = modDatabase.$syConn.Exec(sql, encid)
     FillPatGrid()
   Endif
@@ -245,7 +245,7 @@ Public Sub mnusearname_Click()
   $RepoStr = modDataRepo.GetWhereStringRepo(cmblocation.Text, cmbvalue.Text, "t2")
   If xname Then
     xFldList = GetSQLColumns()
-    sql = "select " & xFldList.Join(",") & " FROM (tblpatlabsubtable AS t3 inner join " & $tblpatlabsubtest & " AS t2 on (t3.fldsubtestid=t2.fldid and t3.fldindex<=>t2.fldindex)) inner join " & $tblpatlabtest & " AS t1 on t2.fldtestid=t1.fldid WHERE t1.fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where lower(fldptnamefir) like &1 and lower(fldptnamelast) like &2))" & $RepoStr
+    sql = "select " & xFldList.Join(",") & " FROM (tblpatlabsubtable AS t3 inner join " & $tblpatlabsubtest & " AS t2 on (t3.fldsubtestid=t2.fldid and t3.fldindex<=>t2.fldindex)) inner join " & $tblpatlabtest & " AS t1 on (t2.fldtestid=t1.fldid and t2.fldencounterval=t1.fldencounterval) WHERE t1.fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where lower(fldptnamefir) like &1 and lower(fldptnamelast) like &2))" & $RepoStr
     $rData = modDatabase.$syConn.Exec(sql, LCase(xname[0]), LCase(xname[1]))
     FillPatGrid()
   Endif
@@ -273,10 +273,10 @@ Private Function ExecuteQuery(xFldList As String[]) As Result
   If xmicrobe Then
     xfldtime = GetLabTimeStr()
     If cmbsensi.Text = "ValidValue" Then
-      sql = "select " & xFldList.Join(",") & " FROM (tblpatlabsubtable AS t3 inner join " & $tblpatlabsubtest & " AS t2 on (t3.fldsubtestid=t2.fldid and t3.fldindex<=>t2.fldindex)) inner join " & $tblpatlabtest & " AS t1 on t2.fldtestid=t1.fldid WHERE " & xfldtime & ">=&1 and " & xfldtime & "<=&2 and lower(t1.fldsampletype) like &3 and (t2.fldtanswertype=&4 or t2.fldtanswertype=&5) and lower(t2.fldsubtest) like &6 and lower(t3.fldvariable) like &7 and (t3.fldvalue like &8 or t3.fldvalue like &9 or t3.fldvalue like &{10})" & $RepoStr
+      sql = "select " & xFldList.Join(",") & " FROM (tblpatlabsubtable AS t3 inner join " & $tblpatlabsubtest & " AS t2 on (t3.fldsubtestid=t2.fldid and t3.fldindex<=>t2.fldindex)) inner join " & $tblpatlabtest & " AS t1 on (t2.fldtestid=t1.fldid and t2.fldencounterval=t1.fldencounterval) WHERE " & xfldtime & ">=&1 and " & xfldtime & "<=&2 and lower(t1.fldsampletype) like &3 and (t2.fldtanswertype=&4 or t2.fldtanswertype=&5) and lower(t2.fldsubtest) like &6 and lower(t3.fldvariable) like &7 and (t3.fldvalue like &8 or t3.fldvalue like &9 or t3.fldvalue like &{10})" & $RepoStr
       res = modDatabase.$syConn.Exec(sql, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(cmbspecimen.Text), "Drug Sensitivity", "WHO Sensitivity", LCase(xmicrobe), LCase(cmbdrug.Text), "Sensitive", "Intermediate", "Resistant")
     Else
-      sql = "select " & xFldList.Join(",") & " FROM (tblpatlabsubtable AS t3 inner join " & $tblpatlabsubtest & " AS t2 on (t3.fldsubtestid=t2.fldid and t3.fldindex<=>t2.fldindex)) inner join " & $tblpatlabtest & " AS t1 on t2.fldtestid=t1.fldid WHERE " & xfldtime & ">=&1 and " & xfldtime & "<=&2 and lower(t1.fldsampletype) like &3 and (t2.fldtanswertype=&4 or t2.fldtanswertype=&5) and lower(t2.fldsubtest) like &6 and lower(t3.fldvariable) like &7 and t3.fldvalue like &8" & $RepoStr
+      sql = "select " & xFldList.Join(",") & " FROM (tblpatlabsubtable AS t3 inner join " & $tblpatlabsubtest & " AS t2 on (t3.fldsubtestid=t2.fldid and t3.fldindex<=>t2.fldindex)) inner join " & $tblpatlabtest & " AS t1 on (t2.fldtestid=t1.fldid and t2.fldencounterval=t1.fldencounterval) WHERE " & xfldtime & ">=&1 and " & xfldtime & "<=&2 and lower(t1.fldsampletype) like &3 and (t2.fldtanswertype=&4 or t2.fldtanswertype=&5) and lower(t2.fldsubtest) like &6 and lower(t3.fldvariable) like &7 and t3.fldvalue like &8" & $RepoStr
       res = modDatabase.$syConn.Exec(sql, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(cmbspecimen.Text), "Drug Sensitivity", "WHO Sensitivity", LCase(xmicrobe), LCase(cmbdrug.Text), cmbsensi.Text)
     Endif
   Endif

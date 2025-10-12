@@ -512,7 +512,7 @@ Public Function FillCLinicalLessOptionCombo() As String[]
 
   Dim xxx As String[]
 
-  xxx = ["No Selection", "Single Selection", "Dichotomous", "RichText Area", "Clinical Scale", "Left and Right", "Text Reference", "Qualitative", "Visual Input", "ImageValue", "Date Time", "BS Date", "User Profile", "Calculated", "Custom Components", "Fixed Components", "Left/Right Components"]                               ''
+  xxx = ["No Selection", "Single Selection", "Dichotomous", "Multiple Selection", "RichText Area", "Clinical Scale", "Left and Right", "Text Reference", "Qualitative", "Visual Input", "ImageValue", "Date Time", "BS Date", "User Profile", "Calculated", "Custom Components", "Fixed Components", "Left/Right Components"]                               ''
   Return xxx
 
 End
@@ -522,16 +522,6 @@ Public Function FillClinSepOptionCombo() As String[]
   Dim xxx As String[]
 
   xxx = ["No Selection", "Single Selection", "Dichotomous", "Multiple Selection", "RichText Area", "Left and Right", "Text Table", "Qualitative", "Visual Input", "ImageValue", "Date Time", "BS Date", "User Profile", "CopyValue", "Calculated", "Sys Constant"]                               ''
-  Return xxx
-
-End
-
-''list which doesnot require option tables
-Public Function FillClinDirectOptionCombo() As String[]
-
-  Dim xxx As String[]
-
-  xxx = ["No Selection", "RichText Area", "Left and Right", "Qualitative", "Visual Input", "ImageValue", "Date Time", "BS Date", "User Profile", "CopyValue", "Calculated", "Sys Constant"]
   Return xxx
 
 End
@@ -846,27 +836,34 @@ Public Function GetDefaultClinHistories() As String[]
 
 End
 
-Public Function GetClinHistoryList(sReference As String) As String[]
+Public Function GetClinHistoryList(sReference As String, Optional gender As String) As String[]
 
   Dim xnew As String[]
   Dim xfinal As String[]
+  Dim xgender As String
+
+  If gender Then
+    xgender = gender
+  Else
+    xgender = "Both Sex"
+  Endif
 
   If modBasic.$ClinHistoryDischarge = "Selected" Then
     Select sReference
       Case "Claim Code", "Accident SSF", "Medical SSF", "MedExtra SSF", "Critical SSF", "Staff List"
-        xnew = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tblhistory where fldformat=&1 or fldformat=&2", "Common", sReference))
+        xnew = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tblhistory where (fldformat=&1 or fldformat=&2) and (fldgender=&3 or fldgender=&4)", "Common", sReference, xgender, "Both Sex"))
       Case Else
         If modBasic.$ClinIPDHistoryFormat Then
-          xnew = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tblhistory where fldformat like &1 or fldformat=&2", "Common", modBasic.$ClinIPDHistoryFormat))
+          xnew = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tblhistory where (fldformat like &1 or fldformat=&2) and (fldgender=&3 or fldgender=&4)", "Common", modBasic.$ClinIPDHistoryFormat, xgender, "Both Sex"))
         Else
-          xnew = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tblhistory where fldformat like &1", "Common"))
+          xnew = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tblhistory where fldformat like &1 and (fldgender=&2 or fldgender=&3)", "Common", xgender, "Both Sex"))
         Endif
     End Select
   Else
     If modBasic.$ClinIPDHistoryFormat Then
-      xnew = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tblhistory where fldformat like &1 or fldformat=&2", "Common", modBasic.$ClinIPDHistoryFormat))
+      xnew = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tblhistory where (fldformat like &1 or fldformat=&2) and (fldgender=&3 or fldgender=&4)", "Common", modBasic.$ClinIPDHistoryFormat, xgender, "Both Sex"))
     Else
-      xnew = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tblhistory where fldformat like &1", "Common"))
+      xnew = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tblhistory where fldformat like &1 and (fldgender=&2 or fldgender=&3)", "Common", xgender, "Both Sex"))
     Endif
   Endif
 
@@ -880,27 +877,34 @@ Public Function GetClinHistoryList(sReference As String) As String[]
 
 End
 
-Public Function GetClinDischargeList(sReference As String) As String[]
+Public Function GetClinDischargeList(sReference As String, Optional gender As String) As String[]
 
   Dim xList As String[]
   Dim xfinal As String[]
+  Dim xgender As String
+
+  If gender Then
+    xgender = gender
+  Else
+    xgender = "Both Sex"
+  Endif
 
   If modBasic.$ClinHistoryDischarge = "Selected" Then
     Select sReference
       Case "Claim Code", "Accident SSF", "Medical SSF", "MedExtra SSF", "Critical SSF", "Staff List"
-        xList = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tbldischarge where fldformat=&1 or fldformat=&2", "Common", sReference))
+        xList = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tbldischarge where (fldformat=&1 or fldformat=&2) and (fldgender=&3 or fldgender=&4)", "Common", sReference, xgender, "Both Sex"))
       Case Else
         If modBasic.$ClinIPDDischargeFormat Then
-          xList = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tbldischarge where fldformat=&1 or fldformat=&2", "Common", modBasic.$ClinIPDDischargeFormat))
+          xList = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tbldischarge where (fldformat=&1 or fldformat=&2) and (fldgender=&3 or fldgender=&4)", "Common", modBasic.$ClinIPDDischargeFormat, xgender, "Both Sex"))
         Else
-          xList = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tbldischarge where fldformat=&1", "Common"))
+          xList = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tbldischarge where fldformat=&1 and (fldgender=&2 or fldgender=&3)", "Common", xgender, "Both Sex"))
         Endif
     End Select
   Else
     If modBasic.$ClinIPDDischargeFormat Then
-      xList = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tbldischarge where fldformat=&1 or fldformat=&2", "Common", modBasic.$ClinIPDDischargeFormat))
+      xList = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tbldischarge where (fldformat=&1 or fldformat=&2) and (fldgender=&3 or fldgender=&4)", "Common", modBasic.$ClinIPDDischargeFormat, xgender, "Both Sex"))
     Else
-      xList = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tbldischarge where fldformat=&1", "Common"))
+      xList = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tbldischarge where fldformat=&1 and (fldgender=&2 or fldgender=&3)", "Common", xgender, "Both Sex"))
     Endif
   Endif
 

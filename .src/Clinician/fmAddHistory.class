@@ -2,9 +2,11 @@
 
 Private $sValue As String
 Private $sType As String
+Private $encid As String
 Private $sVariable As String
 Private $sTable As String
 
+Private $gender As String
 Private $SelAll As Variant[]
 Private $SelVar As Variant[]
 
@@ -15,9 +17,10 @@ Private aComboBox As New Object[50]
 Private aButonBox As New Object[50]
 Private aSpaceBox As New Object[50]
 
-Public Sub Run(sType As String, sVariable As String) As String
+Public Sub Run(sType As String, encid As String, sVariable As String) As String
 
   $sType = sType
+  $encid = encid
   $sVariable = sVariable
 
   If $sType = "History" Then
@@ -25,7 +28,8 @@ Public Sub Run(sType As String, sVariable As String) As String
   Else If $sType = "Discharge" Then
     $sTable = "tbldischarge"
   Endif
-  cmbformat.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec(Subst("select distinct(fldformat) as col from &1", $sTable) & " where flditem=&1", $sVariable))
+  $gender = modPatient.GetPatientSex($encid)
+  cmbformat.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec(Subst("select distinct(fldformat) as col from &1", $sTable) & " where flditem=&1 and (fldgender=&2 or fldgender=&3)", $sVariable, $gender, "Both Sex"))                              ''
   cmbformat.Text = "Common"
 
   If Me.ShowModal() Then Return $sValue
@@ -48,7 +52,7 @@ Private Sub ShowControls()
   Dim aColl As Collection
   Dim aList As String[]
 
-  res = modDatabase.$myConn.Exec(Subst("select fldid,flddetail,fldoptions from &1", $sTable) & " where flditem=&1 and fldformat like &2", $sVariable, cmbformat.Text)     ''
+  res = modDatabase.$myConn.Exec(Subst("select fldid,flddetail,fldoptions from &1", $sTable) & " where flditem=&1 and fldformat like &2 and (fldgender=&3 or fldgender=&4)", $sVariable, cmbformat.Text, $gender, "Both Sex")     ''
   If res.Available Then
     res.MoveFirst
     txthistory.RichText = res["flddetail"]

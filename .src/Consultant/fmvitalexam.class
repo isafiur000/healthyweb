@@ -16,7 +16,7 @@ Public Sub _new()
   cmbcategory.List = ["Triage Examinations", "Essential Examinations", "Physician Examinations", "Nursing Examinations", "Discharge Examinations"]                         ''
   cmbtype.List = ["Qualitative", "Quantitative"]
   cmbconstant.List = modSysCons.GetAllSysConstantsList()
-  $ExamOption = modMedicine.FillClinDirectOptionCombo()
+  $ExamOption = modMedicine.FillClinSepOptionCombo()
 
 End
 
@@ -100,6 +100,7 @@ Public Sub btnBrOK_Click()
       res["fldtype"] = cmbtype.Text
       res["fldsysconst"] = cmbconstant.Text
       res["fldtanswertype"] = cmboption.Text
+      res["fldoptionlist"] = ""
       res["fldgroupname"] = Trim(txtgroupname.Text)
       res["fldexamorder"] = 0
       res["fldflag"] = False
@@ -206,6 +207,33 @@ Public Sub btnexamflag_Click()
       Endif
       res.Update
       FillFindingGrid(cmbcategory.Text)
+    Endif
+  Endif
+
+End
+
+Public Sub btnoptions_Click()
+
+  Dim res As Result
+  Dim xlist As String[]
+  Dim aList As String[]
+
+  If GridView1.Selection.Count Then
+    $rData.MoveTo(GridView1.Selection[0])
+    res = modDatabase.$myConn.Edit("tblcompexam", "fldid=&1", $rData["fldid"])
+    If res.Available Then
+      If res["fldoptionlist"] Then
+        xlist = JSON.Decode(res["fldoptionlist"])
+      Else
+        xlist = New String[]
+      Endif
+      aList = InputList(res["fldexamid"], xlist)
+
+      If aList And If aList.Count Then
+        res["fldoptionlist"] = JSON.Encode(aList)
+        res.Update
+        Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information updated", modBasic.$BalloonDelay))
+      Endif
     Endif
   Endif
 

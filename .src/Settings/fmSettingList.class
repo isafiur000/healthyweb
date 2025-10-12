@@ -1,0 +1,109 @@
+' Gambas class file
+
+Private $sType As String
+Private $sItem As String
+Private $sComp As String
+
+Public Sub _new(sTitle As String, xType As String, xItem As String, xComp As String)
+
+  Me.Title = sTitle
+  $sType = xType
+  $sItem = xItem
+  $sComp = xComp
+
+  ShowSettingParams()
+  GetRemainingParam()
+
+End
+
+Private Sub GetRemainingParam()
+
+  Dim xList As String[]
+
+  If $sType = "User List" Then
+    xList = modGeneral.GetActiveUserIDAll()
+  Else If $sType = "Service List" Then
+    xList = modNonMedical.NonStockBillingItemArray("%", "%")
+  Endif
+  FillGridViewSelected(xList)
+
+End
+
+Private Sub ShowSettingParams()
+
+  Dim res As Result
+
+  res = modDatabase.$myConn.Exec("select fldvalue as col from tbltabsettings where fldcategory=&1 and fldcomp=&2", $sItem, $sComp)
+  modFillContainer.FillListBox(lstsecond, res, False)
+
+End
+
+Private Sub FillGridViewSelected(sList As String[])
+
+  Dim i As Integer
+  Dim xval As String
+
+  lstfirst.Clear
+  If sList And If sList.Count Then
+    For Each xval In sList
+      If Len(xval) Then
+        If lstsecond.List.Exist(xval) = False Then
+          lstfirst.Add(xval)
+        Endif
+      Endif
+    Next
+  Endif
+
+End
+
+Public Sub btnsave_Click()
+
+  Dim res As Result
+  Dim i As Integer
+
+  For i = 0 To lstfirst.List.Count - 1
+    If lstfirst.IsSelected(i) = True Then
+      If lstsecond.List.Exist(lstfirst.List[i]) = False Then
+
+        res = modDatabase.$myConn.Create("tbltabsettings")
+        res["fldcomp"] = $sComp
+        res["fldcategory"] = $sItem
+        res["fldvalue"] = lstfirst.List[i]
+        res["fldtime"] = Now()
+        res["flduserid"] = modBasic.$lbluser
+        res.Update
+
+      Endif
+    Endif
+  Next
+
+  ShowSettingParams()
+  GetRemainingParam()
+
+End
+
+Public Sub chkall_Click()
+
+  If chkall.Value = True Then
+    lstfirst.SelectAll()
+  Else
+    lstfirst.Unselect()
+  Endif
+
+End
+
+Public Sub mnudelete_Click()
+
+  If lstsecond.Text Then
+    modDatabase.$myConn.Delete("tbltabsettings", "fldcategory=&1 and fldcomp=&2 and fldvalue=&3", $sItem, $sComp, lstsecond.Text)
+    ShowSettingParams()
+    GetRemainingParam()
+  Endif
+
+End
+
+Public Sub btnclose_Click()
+
+  Me.Close()
+
+End

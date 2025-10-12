@@ -41,6 +41,7 @@ End
 Private Sub ShowPatLaboratoryReport(sType As String, sHide As Boolean)
 
   Dim $SensTable As String[]
+
   Dim $BillingReport As CReportHTML
   Dim res As Result
   Dim asx As New String[0]
@@ -440,7 +441,7 @@ Private Sub ShowPatLaboratoryReport(sType As String, sHide As Boolean)
         asx.Clear()
       Endif
 
-      res = modDatabase.$myConn.Exec("select fldsubtest,fldabnormal,fldreport,fldid,fldtestid,fldtanswertype,fldindex from " & $tblpatlabsubtest & " where fldtestid=&1 and fldchk=&2 and fldsave=&3" & modLabSub.GetLabRepoOrder("SubTest"), $rData["fldid"], True, True)
+      res = modDatabase.$myConn.Exec("select fldsubtest,fldabnormal,fldreport,fldid,fldtestid,fldtanswertype,fldindex from " & $tblpatlabsubtest & " where fldtestid=&1 and fldencounterval=&2 and fldchk=&3 and fldsave=&4" & modLabSub.GetLabRepoOrder("SubTest"), $rData["fldid"], $encid, True, True)
       If res.Available = True Then
         For Each res
           If xType = "Left/Right Components" Then
@@ -800,7 +801,7 @@ Private Sub SaveReportAsHTML(sHTML As String, sTitle As String)
   Endif
   sLongID = modImage.SavePatientFileGeneral($encid, "Diagnostic Tests", xx, sPath, $HashCode)
   If sLongID Then
-    Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "File saved", modBasic.$BalloonDelay))
+    Message.Info("File saved", "OK")
   Endif
 
 End
@@ -821,7 +822,7 @@ Private Sub SaveReportLogAsHTML(sHTML As String, sTitle As String)
   Endif
   sLongID = modImage.SavePatientFileGeneral($encid, "Diagnostic Tests Log", xx, sPath)
   If sLongID Then
-    Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "File saved", modBasic.$BalloonDelay))
+    Message.Info("File saved", "OK")
   Endif
 
 End
@@ -849,7 +850,7 @@ Private Sub SendFTPSMS(sHTML As String)
   Endif
 
   If sLongID Then
-    Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "File saved", modBasic.$BalloonDelay))
+    Message.Info("File saved", "OK")
   Endif
   If xmsg Then
     Message.Info(xmsg, ("OK"))
@@ -867,7 +868,7 @@ Private Sub SelectGridItems(sInt As Long)
     res1["fldchk"] = True
     res1["xyz"] = False
 
-    res = modDatabase.$myConn.Edit($tblpatlabsubtest, "fldtestid=&1", sInt)
+    res = modDatabase.$myConn.Edit($tblpatlabsubtest, "fldtestid=&1 and fldencounterval=&2", sInt, $encid)
     If res.Available Then
       For Each res
         res["fldchk"] = True

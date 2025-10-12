@@ -712,11 +712,11 @@ Private Sub CheckSelectFirGrid(sVal As Boolean, sInt As Long)
   Dim res As Result
   Dim res1 As Result
 
-  res1 = modDatabase.$myConn.Edit($tblpatlabtest, "fldid=&1 and flvisible=&2", sInt, "Visible")
+  res1 = modDatabase.$myConn.Edit($tblpatlabtest, "fldid=&1 and fldencounterval=&2 and flvisible=&3", sInt, $encid, "Visible")
   If res1.Available Then
     res1["fldchk"] = sVal
     res1["xyz"] = False
-    res = modDatabase.$myConn.Edit($tblpatlabsubtest, "fldtestid=&1", sInt)
+    res = modDatabase.$myConn.Edit($tblpatlabsubtest, "fldtestid=&1 and fldencounterval=&2", sInt, $encid)
     If res.Available Then
       For Each res
         res["fldchk"] = sVal
@@ -1044,8 +1044,8 @@ Private Sub EnterTextData()
   If $rData["fldtest_type"] = "Qualitative" Then
     xType = modFixLab.GetLabTestOptionType($rData["fldtestid"])
     xobs = modLabTest.GetLabTestValueString($rData["fldid"], modLabSub.GetTestUnitFromButton(rbsi, rbmetric), False, $encid, $tblpatlabtest)
-    sql = "select fldid,fldsubtest,fldtanswertype,fldreport,fldabnormal,fldindex from " & $tblpatlabsubtest & " where fldtestid=&1" & modLabSub.GetLabRepoOrder("SubTest")
-    res = modDatabase.$myConn.Exec(sql, $rData["fldid"])
+    sql = "select fldid,fldsubtest,fldtanswertype,fldreport,fldabnormal,fldindex from " & $tblpatlabsubtest & " where fldtestid=&1 and fldencounterval=&2" & modLabSub.GetLabRepoOrder("SubTest")
+    res = modDatabase.$myConn.Exec(sql, $rData["fldid"], $encid)
     If res.Available = False Then
       yqualival = GetQualiRich($rData["fldtestid"], xobs, "Test")
       If yqualival Then
@@ -1096,8 +1096,8 @@ Private Sub SHowQualiSUbTest(serial As Long)
 
   Dim sql As String
 
-  sql = "select fldid,fldchk,fldsubtest,fldabnormal,fldreport,fldorder from " & $tblpatlabsubtest & " where fldtestid=&1 and fldsave=&2" & modLabSub.GetLabRepoOrder("SubTest")
-  $rData1 = modDatabase.$myConn.Exec(sql, serial, True)
+  sql = "select fldid,fldchk,fldsubtest,fldabnormal,fldreport,fldorder from " & $tblpatlabsubtest & " where fldtestid=&1 and fldencounterval=&2 and fldsave=&3" & modLabSub.GetLabRepoOrder("SubTest")
+  $rData1 = modDatabase.$myConn.Exec(sql, serial, $encid, True)
   $aMyFields1 = New String[]
   modGridView.ReadSmallData(GridView2, $rData1, $aMyFields1)
   ResizeSubGrid()
@@ -1137,7 +1137,7 @@ Public Sub mnuselsec_Click()
 
   If GridView2.Selection.Count Then
     $rData1.MoveTo(GridView2.Selection[0])
-    res = modDatabase.$myConn.Edit($tblpatlabsubtest, "fldid=&1 and fldsave=&2", $rData1["fldid"], True)
+    res = modDatabase.$myConn.Edit($tblpatlabsubtest, "fldid=&1 and fldencounterval=&2 and fldsave=&3", $rData1["fldid"], $encid, True)
     If res.Available Then
       res["fldchk"] = True
       res["xyz"] = False
@@ -1154,7 +1154,7 @@ Public Sub mnudselsec_Click()
 
   If GridView2.Selection.Count Then
     $rData1.MoveTo(GridView2.Selection[0])
-    res = modDatabase.$myConn.Edit($tblpatlabsubtest, "fldid=&1 and fldsave=&2", $rData1["fldid"], True)
+    res = modDatabase.$myConn.Edit($tblpatlabsubtest, "fldid=&1 and fldencounterval=&2 and fldsave=&3", $rData1["fldid"], $encid, True)
     If res.Available Then
       res["fldchk"] = False
       res["xyz"] = False
@@ -1785,7 +1785,7 @@ Private Sub ShowPatLaboratoryReport(sType As String, sHide As Boolean)
               asx.Clear()
             Endif
 
-            res = modDatabase.$myConn.Exec("select fldsubtest,fldabnormal,fldreport,fldid,fldtestid,fldtanswertype,fldindex from " & $tblpatlabsubtest & " where fldtestid=&1 and fldchk=&2 and fldsave=&3" & modLabSub.GetLabRepoOrder("SubTest"), $rData["fldid"], True, True)
+            res = modDatabase.$myConn.Exec("select fldsubtest,fldabnormal,fldreport,fldid,fldtestid,fldtanswertype,fldindex from " & $tblpatlabsubtest & " where fldtestid=&1 and fldencounterval=&2 and fldchk=&3 and fldsave=&4" & modLabSub.GetLabRepoOrder("SubTest"), $rData["fldid"], $encid, True, True)
             If res.Available = True Then
               For Each res
                 If xType = "Left/Right Components" Then
@@ -2397,7 +2397,7 @@ Private Sub ShowPatLaboratoryReport(sType As String, sHide As Boolean)
               asx.Clear()
             Endif
 
-            res = modDatabase.$myConn.Exec("select fldsubtest,fldabnormal,fldreport,fldid,fldtestid,fldtanswertype,fldindex from " & $tblpatlabsubtest & " where fldtestid=&1 and fldchk=&2 and fldsave=&3" & modLabSub.GetLabRepoOrder("SubTest"), $rData["fldid"], True, True)
+            res = modDatabase.$myConn.Exec("select fldsubtest,fldabnormal,fldreport,fldid,fldtestid,fldtanswertype,fldindex from " & $tblpatlabsubtest & " where fldtestid=&1 and fldencounterval=&2 and fldchk=&3 and fldsave=&4" & modLabSub.GetLabRepoOrder("SubTest"), $rData["fldid"], $encid, True, True)
             If res.Available = True Then
               For Each res
                 If xType = "Left/Right Components" Then
