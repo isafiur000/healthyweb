@@ -183,6 +183,7 @@ Private Sub GetEncounterValue()
   Dim res As Result
   Dim xallow As Boolean
   Dim yallow As Boolean
+  Dim zallow As Boolean
   Dim xpaid As Float
 
   If Not txtpatientname.Text Then
@@ -209,6 +210,10 @@ Private Sub GetEncounterValue()
         pnloutcome.Enabled = True
         pnlclinpara.Enabled = False
         txtclindepart.Text = GetConsultDepartment(txtclinmode.Text, txtclinIndex.Value, Trim(txtencid.Text))
+      Else
+        If modBasic.$LockToOwnDepart = "Yes" And If modBasic.$FixedDepartment Then
+          btnselect_Click()
+        Endif
       Endif
       res = modDatabase.$myConn.Exec("select fldpatientval,flduserid from tblencounter where fldencounterval=&1", Trim(txtencid.Text))
       If res.Available = False Then
@@ -224,6 +229,19 @@ Private Sub GetEncounterValue()
         Else
           xallow = True
         Endif
+        If modBasic.$LockToOwnDepart = "Yes" Then
+          If modBasic.$FixedDepartment Then
+            If modBasic.$FixedDepartment = txtclindepart.Text Then
+              zallow = True
+            Else
+              zallow = False
+            Endif
+          Else
+            zallow = True
+          Endif
+        Else
+          zallow = True
+        Endif
         If modBasic.$ClinPatientForms = "Paid" Then
           xpaid = modNonMedical.TotalPaidAmountbyPatient(modDatabase.$myConn, Trim(txtencid.Text))
           If xpaid > 0 Then
@@ -235,7 +253,7 @@ Private Sub GetEncounterValue()
           yallow = True
         Endif
 
-        If xallow = True And If yallow = True Then
+        If xallow = True And If yallow = True And If zallow = True Then
           txtpatientname.Text = modPatient.GetPatientNameByEnc(Trim(txtencid.Text))
           If txtpatientname.Text Then
             EnableContainers()
@@ -2598,24 +2616,6 @@ Private Function LabUnitForm() As String
 
 End
 
-Public Sub btnhistoryall_Menu()
-
-  mnuhistoryall.Popup(btnhistoryall)
-
-End
-
-Public Sub btnarchiveall_Menu()
-
-  mnuarchiveall.Popup(btnarchiveall)
-
-End
-
-Public Sub btnreportsall_Menu()
-
-  mnureportall.Popup(btnreportsall)
-
-End
-
 Public Sub mnudemo_Click()
 
   Dim hForm As FmPatdemograph
@@ -4077,7 +4077,7 @@ Public Sub btnselect_Click()
   Else
     xdept = ""
   Endif
-  xval = CConsultIndex(Trim(txtencid.Text), xdept)
+  xval = modPatientSub.GetConsultationID(Trim(txtencid.Text), xdept)
   If xval Then
     asx = Split(xval, "|")
     txtclinIndex.Value = CLong(asx[0])
@@ -4201,5 +4201,24 @@ Public Sub btnoutcome_Click()
 Catch
   modDatabase.$myConn.Rollback
   modHelpVariable.CreateErrorReport()
+
+End
+
+Public Sub btnnotice_Click()
+
+  Dim xx As String
+  Dim xlst As String[]
+
+  xlst = New String[]
+  If txtclinIndex.Value Then
+    xx = InputCombo("Select Notice", Trim(txtencid.Text), xlst, "", False)
+    If xx Then
+      If txtclinmode.Text = "Consultation" Then
+        modPatientSub.UpdateConsultNotice(txtclinIndex.Value, xx)
+      Else If txtclinmode.Text = "OP Visit" Then
+        modPatientSub.UpdateOPVisitNotice(txtclinIndex.Value, xx)
+      Endif
+    Endif
+  Endif
 
 End

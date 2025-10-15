@@ -252,17 +252,10 @@ Public Sub AddEncounterSpecData(encid As String, consultname As String)
 
 End
 
-Public Sub AddOPVisitData(encid As String, consultname As String, consulttime As Date, sBillMode As String, sComment As String, Optional sNotice As String)
+Public Sub AddOPVisitData(encid As String, consultname As String, consulttime As Date, sBillMode As String, sComment As String)
 
   Dim res As Result
-  Dim xnotice As String
   Dim xIntVal As String
-
-  If sNotice Then
-    xnotice = sNotice
-  Else
-    xnotice = ""
-  Endif
 
   res = modDatabase.$myConn.Create("tblopvisit")
   res["fldencounterval"] = encid
@@ -272,7 +265,7 @@ Public Sub AddOPVisitData(encid As String, consultname As String, consulttime As
   res["fldstatus"] = "Planned"
   res["fldbillingmode"] = sBillMode
   res["fldoutcome"] = ""
-  res["fldnotice"] = xnotice
+  res["fldnotice"] = ""
   res["flduserid"] = modBasic.$lbluser
   res["fldtime"] = Now()
   res["fldcomp"] = modBasic.$compID
@@ -355,6 +348,17 @@ Public Sub UpdateConsultConsultant(id As Long, xuser As String)
 
 End
 
+Public Sub UpdateConsultNotice(id As Long, xNotice As String)
+
+  Dim res As Result
+
+  res = modDatabase.$myConn.Edit("tblconsult", "fldid=&1", id)
+  res["fldnotice"] = xNotice
+  res["xyz"] = False
+  res.Update
+
+End
+
 Public Sub UpdateConsultData(id As Long, encid As String, status As String, comment As String, sOutcome As String)
 
   Dim res As Result
@@ -392,6 +396,17 @@ Public Sub UpdateOPVisitData(id As Long, encid As String, status As String, comm
     res.Update
   Endif
   'don't catch error
+
+End
+
+Public Sub UpdateOPVisitNotice(id As Long, xNotice As String)
+
+  Dim res As Result
+
+  res = modDatabase.$myConn.Edit("tblopvisit", "fldid=&1", id)
+  res["fldnotice"] = xNotice
+  res["xyz"] = False
+  res.Update
 
 End
 
@@ -1103,5 +1118,39 @@ Public Sub LockPatientActivity(frm As String, encid As String)
     res["fldhostmac"] = CGI["REMOTE_ADDR"] & ":" & CGI["REMOTE_PORT"]
     res.Update
   Endif
+
+End
+
+Public Function GetConsultationID(encid As String, sDeprt As String) As String
+
+  Dim sql As String
+  Dim xFldList1 As String[]
+  Dim xFldList2 As String[]
+  Dim res As Result
+  Dim sValue As String
+
+  xFldList1 = ["fldid", "fldconsulttime", "fldencounterval", "fldconsultname", "flduserid", "fldid"]
+  xFldList1.Add(Quote("tblconsult"))
+  xFldList2 = ["fldid", "fldconsulttime", "fldencounterval", "fldconsultname", "fldstatus", "fldid"]
+  xFldList2.Add(Quote("tblopvisit"))
+  If sDeprt Then
+    sql = "select " & xFldList1.Join(",") & " from tblconsult where fldencounterval=&1 and fldstatus=&2 and fldconsultname=&3" & " UNION ALL " & "select " & xFldList2.Join(",") & " from tblopvisit where fldencounterval=&1 and fldstatus=&2 and fldconsultname=&3"                        ''
+    res = modDatabase.$myConn.Exec(sql, encid, "Planned", sDeprt)
+  Else
+    sql = "select " & xFldList1.Join(",") & " from tblconsult where fldencounterval=&1 and fldstatus=&2" & " UNION ALL " & "select " & xFldList2.Join(",") & " from tblopvisit where fldencounterval=&1 and fldstatus=&2"
+    res = modDatabase.$myConn.Exec(sql, encid, "Planned")
+  Endif
+
+  If res.Available And If res.Count = 1 Then
+    If res["tblconsult"] = "tblconsult" Then
+      sValue = CStr(res["fldid"]) & "|" & "Consultation"
+    Else If res["tblconsult"] = "tblopvisit" Then
+      sValue = CStr(res["fldid"]) & "|" & "OP Visit"
+    Endif
+  Else
+    sValue = CConsultIndex(res)
+  Endif
+
+  Return sValue
 
 End

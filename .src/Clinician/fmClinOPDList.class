@@ -91,6 +91,11 @@ Public Sub _new(sTable As String)
     cmbdept.List = xdepList
     cmbdept.Text = modSettings.ShowSettingFromFIle("Clinic/DefaultOPD")
   Endif
+
+  modSettings.ShowCheckBox(chkshowdepart, "OPDPatientList/ShowParameters")
+  modSettings.ShowCheckBox(chkshowstatus, "OPDPatientList/ShowStatusIcons")
+  modSettings.ShowCheckBox(chknotice, "OPDPatientList/ShowNotices")
+
   If modHelpVariable.$LogInCategory = "Clinician" Then
     GetComboItemList()
     WebContainer1.Visible = True
@@ -229,9 +234,9 @@ Private Function GetFieldsList()
 
   xhospfld = modDataRepo.HospitalField()
   If $sTable = "tblconsult" Then
-    $SSQLFields = ["fldid", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldflag", "fldencounterval", "flduserid", "fldconsultname", "fldconsulttime", "fldbillingmode", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval"]
+    $SSQLFields = ["fldid", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldflag", "fldencounterval", "flduserid", "fldconsultname", "fldconsulttime", "fldbillingmode", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldnotice"]
   Else If $sTable = "tblopvisit" Then
-    $SSQLFields = ["fldid", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldflag", "fldencounterval", "fldencounterval", "fldconsultname", "fldconsulttime", "fldbillingmode", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval"]
+    $SSQLFields = ["fldid", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldflag", "fldencounterval", "fldencounterval", "fldconsultname", "fldconsulttime", "fldbillingmode", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldnotice"]
   Endif
   If xhospfld Then
     $SSQLFields.Add(xhospfld)
@@ -582,6 +587,13 @@ Private Sub ResizeGrid()
       .Columns[16].Hidden = True
     Endif
 
+    If chknotice.Value = True Then
+      .Columns[17].Hidden = False
+      .Columns[17].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
+    Else
+      .Columns[17].Hidden = True
+    Endif
+
     .Columns[2].Text = "EncID"
     .Columns[3].Text = "Name"
     .Columns[4].Text = "Age/Sex"
@@ -605,6 +617,9 @@ Private Sub ResizeGrid()
       .Columns[14].Text = "Equip"
       .Columns[15].Text = "Fluid"
       .Columns[16].Text = "Device"
+    Endif
+    If chknotice.Value = True Then
+      .Columns[17].Text = "Notice"
     Endif
 
     If $newColumn.Count Then
@@ -2462,6 +2477,48 @@ Public Sub btndelivery_Click()
     Me.Parent.DeleteChildren()
     modGeneralMain.$FormOpenList.Add(["FmDeliveryNew", $sTable])
     hForm = New FmDeliveryNew($rData["fldencounterval"], fmOfficer.Workspace1)
+  Endif
+
+End
+
+Public Sub chkshowdepart_Click()
+
+  modSettings.EnterCheckSetting(chkshowdepart, "OPDPatientList/ShowParameters")
+
+End
+
+Public Sub chkshowstatus_Click()
+
+  modSettings.EnterCheckSetting(chkshowstatus, "OPDPatientList/ShowStatusIcons")
+
+End
+
+Public Sub chknotice_Click()
+
+  modSettings.EnterCheckSetting(chknotice, "OPDPatientList/ShowNotices")
+
+End
+
+Public Sub btnotice_Click()
+
+  Dim xData As String
+  Dim xlst As String[]
+  Dim Row As Integer
+
+  xlst = New String[]
+  If GridView1.Selection.Count Then
+    Row = GridView1.Selection[0]
+    $rData.MoveTo(GridView1.Selection[0])
+    xData = InputCombo("Select Notice", $rData["fldencounterval"], xlst, "", False)
+    If xData Then
+      If $sTable = "tblconsult" Then
+        modPatientSub.UpdateConsultNotice($rData["fldid"], xData)
+      Else If $sTable = "tblopvisit" Then
+        modPatientSub.UpdateOPVisitNotice($rData["fldid"], xData)
+      Endif
+    Endif
+    FillBedGrid()
+    GridView1.Select(Row)
   Endif
 
 End
