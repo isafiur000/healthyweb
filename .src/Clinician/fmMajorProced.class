@@ -2,8 +2,7 @@
 
 Private $encid As String
 Private $sPackage As String
-Private $ProcList As String[]
-Private $ProcIndex As Long
+Private $ProcList As Variant[]
 
 Private $rData As Result
 Private $aMyFields As String[]
@@ -21,6 +20,7 @@ Public Sub _new(encid As String, sPackage As String)
 
   $encid = encid
   $sPackage = sPackage
+  SetProcedureData()
   modGeneralMain.GetOpenModalForm(Me)
 
   accLst = modBasic.$BillDiscountCash
@@ -34,16 +34,41 @@ Public Sub _new(encid As String, sPackage As String)
 
   xstatus = modPatient.CurrentAdmissionStatus($encid)
   txtlocation.Text = modPatient.GetLocationSetting($encid, xstatus)
+  cmbsection.List = modControlSub.GetDirectFillresultNoNull(modDatabase.$myConn.Exec("select distinct(fldreport) as col from tblservicecost where flditemtype=&1", "Procedures"))
+  cmbsection.Add("All Sections")
+  cmbsection.Text = "All Sections"
   cmbstatus.List = ["Planned", "Referred", "On Hold", "Cancelled"]
+  cmbstatus.Text = "Planned"
   txtmode.Text = modNonMedical.GetDiscBindBillMode($sPackage)
   If txtmode.Text Then
-    $ProcList = modNonMedical.NonStockBillActiveItemArray("Procedures", txtmode.Text)
-    cmbprocedure.List = $ProcList
+    If $ProcList And If $ProcList.Count Then
+      cmbprocedure.List = modString.GetListFromCompareVariant($ProcList, "flditemname", "fldgroup", txtmode.Text, False)
+    Endif
   Endif
   dtplan.Value = Now()
-  dtbillplan.Value = Now()
-  FillLabtable()
   SHowUnpaidGrid()
+
+End
+
+Private Sub SetProcedureData()
+
+  Dim sql As String
+  Dim res As Result
+  Dim sColl As Collection
+
+  $ProcList = New Variant[]
+  sql = "select flditemname,fldtarget,fldreport,fldgroup from tblservicecost where flditemtype=&1 and fldstatus=&2 and (fldtarget=&3 or fldtarget=&4)"
+  res = modDatabase.$myConn.Exec(sql, "Procedures", "Active", "Major", "Intermediate")
+  If res.Available Then
+    For Each res
+      sColl = New Collection
+      sColl.Add(res["flditemname"], "flditemname")
+      sColl.Add(res["fldtarget"], "fldtarget")
+      sColl.Add(res["fldreport"], "fldreport")
+      sColl.Add(res["fldgroup"], "fldgroup")
+      $ProcList.Add(sColl)
+    Next
+  Endif
 
 End
 
@@ -52,8 +77,9 @@ Public Sub btnscheme_Click()
   If cmbdisctype.Text Then
     txtmode.Text = modNonMedical.GetDiscBindBillMode(cmbdisctype.Text)
     If txtmode.Text Then
-      $ProcList = modNonMedical.NonStockBillActiveItemArray("Procedures", txtmode.Text)
-      cmbprocedure.List = $ProcList
+      If $ProcList And If $ProcList.Count Then
+        cmbprocedure.List = modString.GetListFromCompareVariant($ProcList, "flditemname", "fldgroup", txtmode.Text, False)
+      Endif
     Endif
   Endif
 
@@ -62,7 +88,6 @@ End
 Public Sub TabPanel1_Click()
 
   If TabPanel1.Index = 0 Then
-    FillLabtable()
     SHowUnpaidGrid()
   Else If TabPanel1.Index = 1 Then
     SHowSavedGrid()
@@ -83,133 +108,217 @@ Public Sub dtneplan_Click()
 
 End
 
+Private Function GetProcedureList(sRatePlan As String, sSection As String) As String[]
+
+  Dim xList As String[]
+  Dim aColl As Collection
+
+  xList = New String[]
+  If $ProcList And If $ProcList.Count Then
+    For Each aColl In $ProcList
+      If aColl["fldgroup"] = sRatePlan And If aColl["fldreport"] = sSection Then
+        xList.Add(aColl["flditemname"])
+      Endif
+    Next
+  Endif
+
+  Return xList
+
+End
+
+Public Sub cmbsection_Click()
+
+  Dim sColl As Collection
+
+  If cmbsection.Text = "All Sections" Then
+    If $ProcList And If $ProcList.Count Then
+      cmbprocedure.List = modString.GetListFromCompareVariant($ProcList, "flditemname", "fldgroup", txtmode.Text, False)
+    Endif
+  Else
+    cmbprocedure.List = GetProcedureList(txtmode.Text, cmbsection.Text)
+  Endif
+
+End
+
+Private Function GetProcTarget(sItem As String) As String
+
+  Dim sColl As Collection
+  Dim xval As String
+
+  For Each sColl In $ProcList
+    If sColl["flditemname"] = sItem Then
+      xval = sColl["fldtarget"]
+      Break
+    Endif
+  Next
+
+  Return xval
+
+End
+
 Public Sub btnsubOK_Click()
 
   Dim xrefer As String
+  Dim xTarg As String
 
   If $encid And If cmbprocedure.Text And If cmbstatus.Text Then
-    If $ProcList.Exist(cmbprocedure.Text) Then
-      If modMisc.AllowDiagnoBilling($encid) = True Then
-        If modNonMedical.AllowEntryWithDeposit($encid, "Procedure") = True Then
+    If modMisc.AllowDiagnoBilling($encid) = True Then
+      If modNonMedical.AllowEntryWithDeposit($encid, "Procedure") = True Then
 
-          If chkbill.Value And If cmbstatus.Text = "Planned" Then
-            xrefer = modBillings.GetReferralUserSetting("Procedure", $encid)
-
-            If modBasic.$AutoBillProcedure Then
-              If modBasic.$AutoBillProcedure = "Standard" Then
-              Else If modBasic.$AutoBillProcedure = "Full" Then
-                modBillings.GetAutoBillingEntry($encid, cmbdisctype.Text, "Procedure", cmbprocedure.Text, 1, "Done", 0, True, False, "", xrefer)                          ''
-                SHowSavedGrid()
-                TabPanel1.Index = 1
-              Else If modBasic.$AutoBillProcedure = "Partial" Then
-                modBillings.GetAutoBillingEntry($encid, cmbdisctype.Text, "Procedure", cmbprocedure.Text, 1, "Punched", 0, False, False, "", xrefer)
-                SHowUnpaidGrid()
-              Endif
-            Endif
-          Else
-            modPatientGeneral.AddProcedureData($encid, 0, "Procedures", cmbprocedure.Text, cmbstatus.Text, txtmode.Text, dtplan.Value, "Waiting", "")
-            FillLabtable()
+        If cmbstatus.Text = "Planned" Then
+          xrefer = modBillings.GetReferralUserSetting("Procedure", $encid)
+          xTarg = GetProcTarget(cmbprocedure.Text)
+          If modBasic.$AutoBillProcedure = "Standard" Or If modBasic.$AutoBillProcedure = "Full" Or If modBasic.$AutoBillProcedure = "Partial" Then
+            modBillings.GetAutoBillingEntry($encid, cmbdisctype.Text, "Procedure", cmbprocedure.Text, 1, "Punched", 0, False, False, "", xrefer, xTarg)
+            SHowUnpaidGrid()
           Endif
-          Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
-
         Endif
-      Else
-        Message.Warning("Diagnosis not provided", ("OK"))
+        Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+
       Endif
+    Else
+      Message.Warning("Diagnosis not provided", ("OK"))
     Endif
   Endif
 
 End
 
-Public Sub btnsubChange_Click()
+Public Sub btnsaveproc_Click()
 
   Dim res As Result
+  Dim xadv As String
 
-  If $ProcIndex Then
-    If cmbstatus.Text Then
-      res = modDatabase.$myConn.Edit("tblpatgeneral", "fldid=&1 and fldsave=&2 and fldstatus=&3", $ProcIndex, False, "Waiting")
-      If res.Available Then
-        If modGeneral.AllowClinicalEdit(res["fldorduserid"]) = True Then
-          res["fldnewdate"] = dtplan.Value
-          res["fldreportquali"] = cmbstatus.Text
-          res["flduserid"] = modBasic.$lbluser
-          res["flduptime"] = Now()
-          res["fldcomp"] = modBasic.$compID
-          res["fldorduserid"] = modBasic.$lbluser
-          res["xyz"] = False
-          res.Update()
-          FillLabtable()
-          Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information updated", modBasic.$BalloonDelay))
+  res = modDatabase.$myConn.Edit("tblpatbilling", "fldencounterval=&1 and flditemtype=&2 and fldsave=&3 and fldstatus=&4 and fldordcomp=&5", $encid, "Procedures", False, "Punched", modBasic.$compID)                 ''
+  If res.Available Then
+    If modBasic.$AutoBillAdvReceipt = "Enable" Then
+      xadv = modBillLock.AdvanceReceiptString("Advance Receipt")
+    Else
+      xadv = ""
+    Endif
+
+    For Each res
+
+      If modBasic.$AutoBillProcedure = "Standard" Then
+        If modNonMedical.AllowPreCheckDeposit($encid, res["fldditemamt"], cmbdisctype.Text) = True Then
+          SavePartialEntry(res, xadv)
+        Endif
+      Else If modBasic.$AutoBillProcedure = "Full" Then
+        If modNonMedical.AllowPreEntryWithDeposit($encid, "Procedure", res["fldditemamt"], cmbdisctype.Text) = True Then
+          SavePartialEntry(res, xadv)
+        Endif
+      Else
+        If modBasic.$AutoBillSaveZero = "Yes" And If res["flditemrate"] = 0 Then
+          SavePartialEntry(res, xadv)
+        Else If modBasic.$AutoBillSaveZero = "Yes" And If res["flddiscper"] = 100 Then
+          SavePartialEntry(res, xadv)
+        Else If modBasic.$AutoBillSaveFullCredit = "Yes" And If res["fldbilltype"] = "Credit" And If res["fldcashincredit"] = 0 Then
+          SavePartialEntry(res, xadv)
         Endif
       Endif
-    Endif
+
+    Next
   Endif
+
+  SHowUnpaidGrid()
 
 End
 
-Public Sub FillLabtable()
+Private Sub SavePartialEntry(res As Result, Optional advReceipt As String)
+
+  res["fldstatus"] = "Done"
+  If advReceipt Then
+    res["fldextracol"] = advReceipt
+  Endif
+  res["fldsave"] = True
+  res["flduserid"] = modBasic.$lbluser
+  res["fldtime"] = Now()
+  res["fldcomp"] = modBasic.$compID
+  res["xyz"] = False
+  res.Update()
+
+End
+
+''====================== Unpaid ================================
+Private Sub SHowUnpaidGrid()
 
   Dim sql As String
 
-  sql = "select fldid,fldencounterval,fldnewdate,flditem,fldreportquali,fldid from tblpatgeneral where fldencounterval=&1 and fldinput=&2 and fldreportquali<>&3 and fldstatus=&4"
-  $rData = modDatabase.$myConn.Exec(sql, $encid, "Procedures", "Done", "Waiting")
-  $aMyFields = New String[]
-  modGridView.ReadSmallData(GridView1, $rData, $aMyFields)
+  sql = "select fldid,fldordtime,flditemname,fldstatus,fldid from tblpatbilling where fldencounterval=&1 and flditemtype=&2 and fldsave=&3 and fldstatus=&4 and fldordcomp=&5 and (flditemqty-fldretqty)>&6"
+  $rData4 = modDatabase.$myConn.Exec(sql, $encid, "Procedures", False, "Punched", modBasic.$compID, 0)
+  $aMyFields4 = New String[]
+  modGridView.ReadSmallData(GridView4, $rData4, $aMyFields4)
 
-  With GridView1
+  With GridView4
     .Columns[0].Hidden = True
-    .Columns[1].Hidden = True
-    .Columns[2].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
-    .Columns[3].Width = CStr(250 * modBasic.$AppWidthRatio) & "px"
-    .Columns[4].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
-    .Columns[5].Hidden = True
-
-    .Columns[2].Text = "Target Date"
-    .Columns[3].Text = "Procedure"
-    .Columns[4].Text = "Status"
+    .Columns[1].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+    .Columns[2].Width = CStr(275 * modBasic.$AppWidthRatio) & "px"
+    .Columns[3].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
+    .Columns[4].Hidden = True
+    .Columns[1].Text = "DateTime"
+    .Columns[2].Text = "Procedure"
+    .Columns[3].Text = "Status"
   End With
 
 End
 
-Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableData)
+Public Sub GridView4_Data(Row As Integer, Column As Integer, Data As WebTableData)
 
-  $rData.MoveTo(Row)
+  $rData4.MoveTo(Row)
   modGridView.GridViewDecoration(Data, Row)
-  If Column = 2 Then
-    Data.Text = modReportVar.GetDateTimeReport($rData[$aMyFields[Column]], gb.GeneralDate)
+  If Column = 1 Then
+    Data.Text = modReportVar.GetDateTimeReport($rData4[$aMyFields4[Column]], gb.GeneralDate)
   Else
-    Data.Text = $rData[$aMyFields[Column]]
+    Data.Text = $rData4[$aMyFields4[Column]]
   Endif
 
 End
 
-Public Sub brndelplan_Click()
+Public Sub btndelbill_Click()
 
-  If GridView1.Selection.Count Then
-    $rData.MoveTo(GridView1.Selection[0])
+  If GridView4.Selection.Count Then
+    $rData4.MoveTo(GridView4.Selection[0])
     If Message.Question(("Are you sure?"), ("No"), ("Yes")) = 2 Then
-      modDatabase.$myConn.Delete("tblpatgeneral", "fldid=&1 and fldstatus=&2", $rData["fldid"], "Waiting")
-      FillLabtable()
+      modDatabase.$myConn.Delete("tblpatbilling", "fldid=&1 and fldsave=&2", $rData4["fldid"], False)
+      SHowUnpaidGrid()
     Endif
   Endif
 
 End
 
-Public Sub btnviewplan_Click()
+''====================== Paid ===================================
+Private Sub SHowSavedGrid()
 
-  Dim res As Result
+  Dim sql As String
 
-  If GridView1.Selection.Count Then
-    $rData.MoveTo(GridView1.Selection[0])
-    $ProcIndex = 0
-    res = modDatabase.$myConn.Exec("select fldid,fldnewdate,flditem,fldreportquali,fldbillingmode,fldtime,fldsave from tblpatgeneral where fldid=&1", $rData["fldid"])                                                 ''
-    If res.Available Then
-      $ProcIndex = res!fldid
-      txtmode.Text = res!fldbillingmode
-      cmbprocedure.Text = res!flditem
-      cmbstatus.Text = res!fldreportquali
-      dtplan.Value = res!fldnewdate
-    Endif
+  sql = "select fldid,fldtime,flditemname,fldrefer,fldbillno from tblpatbilling where fldencounterval=&1 and flditemtype=&2 and fldsave=&3 and (fldstatus=&4 or fldstatus=&5) and fldsample=&6 and (flditemqty-fldretqty)>&7"
+  $rData1 = modDatabase.$myConn.Exec(sql, $encid, "Procedures", True, "Done", "Cleared", "Waiting", 0)
+  $aMyFields1 = New String[]
+  modGridView.ReadSmallData(GridView2, $rData1, $aMyFields1)
+
+  With GridView2
+    .Columns[0].Hidden = True
+    .Columns[1].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+    .Columns[2].Width = CStr(225 * modBasic.$AppWidthRatio) & "px"
+    .Columns[3].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
+    .Columns[4].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
+    .Columns[1].Text = "DateTime"
+    .Columns[2].Text = "Procedure"
+    .Columns[3].Text = "ReferBy"
+    .Columns[4].Text = "Invoice"
+  End With
+
+End
+
+Public Sub GridView2_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  $rData1.MoveTo(Row)
+  modGridView.GridViewDecoration(Data, Row)
+  If Column = 1 Then
+    Data.Text = modReportVar.GetDateTimeReport($rData1[$aMyFields1[Column]], gb.GeneralDate)
+  Else If Column = 3 Then
+    Data.Text = modGeneral.GetUserFullName($rData1[$aMyFields1[Column]])
+  Else
+    Data.Text = $rData1[$aMyFields1[Column]]
   Endif
 
 End
@@ -265,136 +374,6 @@ Public Sub mnureport_Click()
       modControlSub.OpenHTMLPreview($encid, xPath, "ReportSize")
     Endif
   Endif
-
-End
-
-''====================== Unpaid ================================
-Private Sub SHowUnpaidGrid()
-
-  Dim sql As String
-
-  sql = "select fldid,fldordtime,flditemname,fldstatus,fldid from tblpatbilling where fldencounterval=&1 and flditemtype=&2 and fldsave=&3 and fldstatus=&4 and fldordcomp=&5 and (flditemqty-fldretqty)>&6"
-  $rData4 = modDatabase.$myConn.Exec(sql, $encid, "Procedures", False, "Punched", modBasic.$compID, 0)
-  $aMyFields4 = New String[]
-  modGridView.ReadSmallData(GridView4, $rData4, $aMyFields4)
-
-  With GridView4
-    .Columns[0].Hidden = True
-    .Columns[1].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
-    .Columns[2].Width = CStr(275 * modBasic.$AppWidthRatio) & "px"
-    .Columns[3].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
-    .Columns[4].Hidden = True
-    .Columns[1].Text = "DateTime"
-    .Columns[2].Text = "Procedure"
-    .Columns[3].Text = "Status"
-  End With
-
-End
-
-Public Sub GridView4_Data(Row As Integer, Column As Integer, Data As WebTableData)
-
-  $rData4.MoveTo(Row)
-  modGridView.GridViewDecoration(Data, Row)
-  If Column = 1 Then
-    Data.Text = modReportVar.GetDateTimeReport($rData4[$aMyFields4[Column]], gb.GeneralDate)
-  Else
-    Data.Text = $rData4[$aMyFields4[Column]]
-  Endif
-
-End
-
-Public Sub btndelbill_Click()
-
-  If GridView4.Selection.Count Then
-    $rData4.MoveTo(GridView4.Selection[0])
-    If Message.Question(("Are you sure?"), ("No"), ("Yes")) = 2 Then
-      modDatabase.$myConn.Delete("tblpatbilling", "fldid=&1 and fldsave=&2", $rData4["fldid"], False)
-      SHowUnpaidGrid()
-    Endif
-  Endif
-
-End
-
-''====================== Paid ===================================
-Public Sub dtnepbilllan_Click()
-
-  Dim xx As String
-
-  xx = BSDateFormat(("Enter BS Date in yyyy/mm/dd format"), ("Date Converter"), modDate.ConvertToLocaldate(dtbillplan.Value))
-  If xx Then
-    dtbillplan.Value = modDate.ConvertToEnglishdate(xx)
-  Endif
-
-End
-
-Private Sub SHowSavedGrid()
-
-  Dim sql As String
-
-  sql = "select fldid,fldtime,flditemname,fldrefer,fldbillno from tblpatbilling where fldencounterval=&1 and flditemtype=&2 and fldsave=&3 and (fldstatus=&4 or fldstatus=&5) and fldsample=&6 and (flditemqty-fldretqty)>&7"
-  $rData1 = modDatabase.$myConn.Exec(sql, $encid, "Procedures", True, "Done", "Cleared", "Waiting", 0)
-  $aMyFields1 = New String[]
-  modGridView.ReadSmallData(GridView2, $rData1, $aMyFields1)
-
-  With GridView2
-    .Columns[0].Hidden = True
-    .Columns[1].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
-    .Columns[2].Width = CStr(225 * modBasic.$AppWidthRatio) & "px"
-    .Columns[3].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
-    .Columns[4].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
-    .Columns[1].Text = "DateTime"
-    .Columns[2].Text = "Procedure"
-    .Columns[3].Text = "ReferBy"
-    .Columns[4].Text = "Invoice"
-  End With
-
-End
-
-Public Sub GridView2_Data(Row As Integer, Column As Integer, Data As WebTableData)
-
-  $rData1.MoveTo(Row)
-  modGridView.GridViewDecoration(Data, Row)
-  If Column = 1 Then
-    Data.Text = modReportVar.GetDateTimeReport($rData1[$aMyFields1[Column]], gb.GeneralDate)
-  Else If Column = 3 Then
-    Data.Text = modGeneral.GetUserFullName($rData1[$aMyFields1[Column]])
-  Else
-    Data.Text = $rData1[$aMyFields1[Column]]
-  Endif
-
-End
-
-Public Sub btnaddin_Click()
-
-  Dim res1 As Result
-  Dim res2 As Result
-
-  If GridView2.Selection.Count Then
-    $rData1.MoveTo(GridView2.Selection[0])
-    res2 = modDatabase.$myConn.Exec("select fldid,flditemqty,fldretqty,fldbillno,fldrefer,fldpayto,fldbillingmode,fldordtime from tblpatbilling where fldid=&1 and (flditemqty-fldretqty)>&2", $rData1["fldid"], 0)
-    If res2.Available Then
-
-      modDatabase.$myConn.Begin
-      modPatientGeneral.AddProcedureData($encid, res2["fldid"], "Procedures", $rData1["flditemname"], "Referred", res2["fldbillingmode"], dtbillplan.Value, "Cleared", "")
-
-      res1 = modDatabase.$myConn.Edit("tblpatbilling", "fldid=&1", $rData1["fldid"])
-      res1["fldsample"] = "Sampled"
-      res1["fldrefer"] = res2["fldrefer"]
-      res1["fldpayto"] = res2["fldpayto"]
-      res1["xyz"] = False
-      res1.Update()
-
-      modDatabase.$myConn.Commit
-
-      SHowSavedGrid()
-      FillLabtable()
-
-    Endif
-  Endif
-
-Catch
-  modDatabase.$myConn.Rollback
-  modHelpVariable.CreateErrorReport()
 
 End
 

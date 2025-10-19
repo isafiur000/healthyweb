@@ -83,6 +83,7 @@ End
 Private Sub ShowFinancialParams()
 
   Dim xVarPat As Collection
+  Dim xVarElig As Variant[]
   Dim xamt As String
   Dim xdate As String
   Dim asx As String[]
@@ -101,89 +102,96 @@ Private Sub ShowFinancialParams()
 
   xVarPat = GetFinancialDetails($PatCode)
   If xVarPat Then
-    xamt = xVarPat["insurance"][0]["benefitBalance"][0]["financial"][0]["allowedMoney"]["value"]
-    If xamt Then
-      $CreditAmt = CFloat(xamt)
-    Endif
-
-    xdate = xVarPat["insurance"][0]["contract"]["reference"]
-    asx = Split(xdate, "/")
-    If asx Then
-      $PolicyNo = asx[1]
-      $ExpiryDate = modDate.GetDateFromJSON(asx[2])
-    Endif
-
-    xextVar = xVarPat["insurance"][0]["extension"]
-    For Each xexColl In xextVar
-      If xexColl["url"] = "https://hib.gov.np/fhir/FHIE+extension+Copayment" Then
-        $PayValue = xexColl["valueDecimal"]
-        $PayType = xexColl["valueString"]
-      Endif
-    Next
-
-    ''extra extensions
-    xexten = xVarPat["extension"]
-    For Each xcoll In xexten
-      If xcoll["url"] = "https://hib.gov.np/fhir/FHIE+extension+Profile+District" Then
-        xdistrict = xcoll["valueString"]
-        If xdistrict Then
-          $PatDistrict = xdistrict
-        Endif
-      Else If xcoll["url"] = "https://hib.gov.np/fhir/FHIE+extension+Profile+FSP" Then
-        xfirserv = xcoll["valueString"]
-        If xfirserv Then
-          $PatFSPoint = xfirserv
-        Endif
-      Else If xcoll["url"] = "https://hib.gov.np/fhir/FHIE+extension+Profile+Photo+Url" Then
-        ximage = xcoll["valueString"]
-        If ximage Then
-          If File.Ext(ximage) Then
-            xPath = Temp() & "." & File.Ext(ximage)
-          Else
-            xPath = Temp()
-          Endif
-          modDevAll.GetWgetDownload(ximage, xPath)
-          If Exist(xPath) Then
-            $PatImage = xPath
-          Endif
-        Endif
-      Endif
-    Next
-
-    ''policy collections
-    $EligibilityVar = New Variant[]
-    For Each xeligCol In xVarPat["insurance"]
-      aColl = New Collection
-      xamt = xeligCol["benefitBalance"][0]["financial"][0]["allowedMoney"]["value"]
+    xVarElig = xVarPat["insurance"]
+    If xVarElig And If xVarElig.Count Then
+      xamt = xVarPat["insurance"][0]["benefitBalance"][0]["financial"][0]["allowedMoney"]["value"]
       If xamt Then
-        aColl.Add(CFloat(xamt), "Credit Limit")
-      Else
-        aColl.Add(0, "Credit Limit")
+        $CreditAmt = CFloat(xamt)
       Endif
 
-      xdate = xeligCol["contract"]["reference"]
+      xdate = xVarPat["insurance"][0]["contract"]["reference"]
       asx = Split(xdate, "/")
       If asx Then
-        aColl.Add(asx[1], "Policy Name")
-        aColl.Add(modDate.GetDateFromJSON(asx[2]), "Expiry Date")
-      Else
-        aColl.Add("", "Policy Name")
-        aColl.Add("", "Expiry Date")
+        $PolicyNo = asx[1]
+        $ExpiryDate = modDate.GetDateFromJSON(asx[2])
       Endif
 
-      For Each xexColl In xeligCol["extension"]
+      xextVar = xVarPat["insurance"][0]["extension"]
+      For Each xexColl In xextVar
         If xexColl["url"] = "https://hib.gov.np/fhir/FHIE+extension+Copayment" Then
           $PayValue = xexColl["valueDecimal"]
           $PayType = xexColl["valueString"]
-          aColl.Add(CFloat(xexColl["valueDecimal"]), "Credit Value")
-          aColl.Add(xexColl["valueString"], "Credit Type")
-        Else
-          aColl.Add(0, "Credit Value")
-          aColl.Add("", "Credit Type")
         Endif
       Next
-      $EligibilityVar.Add(aColl)
-    Next
+    Endif
+
+    ''extra extensions
+    xexten = xVarPat["extension"]
+    If xexten And If xexten.Count Then
+      For Each xcoll In xexten
+        If xcoll["url"] = "https://hib.gov.np/fhir/FHIE+extension+Profile+District" Then
+          xdistrict = xcoll["valueString"]
+          If xdistrict Then
+            $PatDistrict = xdistrict
+          Endif
+        Else If xcoll["url"] = "https://hib.gov.np/fhir/FHIE+extension+Profile+FSP" Then
+          xfirserv = xcoll["valueString"]
+          If xfirserv Then
+            $PatFSPoint = xfirserv
+          Endif
+        Else If xcoll["url"] = "https://hib.gov.np/fhir/FHIE+extension+Profile+Photo+Url" Then
+          ximage = xcoll["valueString"]
+          If ximage Then
+            If File.Ext(ximage) Then
+              xPath = Temp() & "." & File.Ext(ximage)
+            Else
+              xPath = Temp()
+            Endif
+            modDevAll.GetWgetDownload(ximage, xPath)
+            If Exist(xPath) Then
+              $PatImage = xPath
+            Endif
+          Endif
+        Endif
+      Next
+    Endif
+
+    ''policy collections
+    $EligibilityVar = New Variant[]
+    If xVarElig And If xVarElig.Count Then
+      For Each xeligCol In xVarPat["insurance"]
+        aColl = New Collection
+        xamt = xeligCol["benefitBalance"][0]["financial"][0]["allowedMoney"]["value"]
+        If xamt Then
+          aColl.Add(CFloat(xamt), "Credit Limit")
+        Else
+          aColl.Add(0, "Credit Limit")
+        Endif
+
+        xdate = xeligCol["contract"]["reference"]
+        asx = Split(xdate, "/")
+        If asx Then
+          aColl.Add(asx[1], "Policy Name")
+          aColl.Add(modDate.GetDateFromJSON(asx[2]), "Expiry Date")
+        Else
+          aColl.Add("", "Policy Name")
+          aColl.Add("", "Expiry Date")
+        Endif
+
+        For Each xexColl In xeligCol["extension"]
+          If xexColl["url"] = "https://hib.gov.np/fhir/FHIE+extension+Copayment" Then
+            $PayValue = xexColl["valueDecimal"]
+            $PayType = xexColl["valueString"]
+            aColl.Add(CFloat(xexColl["valueDecimal"]), "Credit Value")
+            aColl.Add(xexColl["valueString"], "Credit Type")
+          Else
+            aColl.Add(0, "Credit Value")
+            aColl.Add("", "Credit Type")
+          Endif
+        Next
+        $EligibilityVar.Add(aColl)
+      Next
+    Endif
 
   Else
     Message.Warning("Error in Decoding data", "OK")

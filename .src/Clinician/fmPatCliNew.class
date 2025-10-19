@@ -18,6 +18,10 @@ Private $aSympFields As String[]
 Private $vidRoom As String
 Private $VidIndex As String
 
+Private hPtForm As FmClinHistory
+Private hDigForm As FmDiagnosticTab
+Private hOwnStockForm As FmWardStock
+
 Private $billModeTest As String
 Private $billModeRadio As String
 Private $billModePharmacy As String
@@ -130,7 +134,7 @@ End
 
 Private Sub SetHtmlTextOption(TextHTML1 As WebTextHTML)
 
-  TextHTML1.UserList = modBasic.$IPConsultUserList
+  TextHTML1.UserList = modBasic.$OPConsulUserList
   ' TextHTML1.DictionaryPath = modBasic.$dictPathList
 
 End
@@ -211,9 +215,7 @@ Private Sub GetEncounterValue()
         pnlclinpara.Enabled = False
         txtclindepart.Text = GetConsultDepartment(txtclinmode.Text, txtclinIndex.Value, Trim(txtencid.Text))
       Else
-        If modBasic.$LockToOwnDepart = "Yes" And If modBasic.$FixedDepartment Then
-          btnselect_Click()
-        Endif
+        GetConsultParamIndex(False)
       Endif
       res = modDatabase.$myConn.Exec("select fldpatientval,flduserid from tblencounter where fldencounterval=&1", Trim(txtencid.Text))
       If res.Available = False Then
@@ -397,7 +399,7 @@ Public Sub btnselectuser_Click()
   Dim xMedUser As String[]
 
   If txtencid.Text Then
-    xMedUser = MedicalSelectedValue(("Select Consultant"), modBasic.$IPConsultUserList)
+    xMedUser = MedicalSelectedValue(("Select Consultant"), modBasic.$OPConsulUserList)
     If xMedUser And If xMedUser.Count Then
       btnconsult.Tag = xMedUser[0]
       btnconsult.Text = xMedUser[1]
@@ -468,9 +470,6 @@ End
 ''============================== MAIN FORM ================================
 Private Sub BasicInfoPatient()
 
-  Dim hPtForm As FmClinHistory
-  Dim hDigForm As FmDiagnosticTab
-
   If txtencid.Text Then
     modRepository.$RepoDataStatus = False
     If modBasic.$AppSelect2JS = "Enable" Then
@@ -503,6 +502,10 @@ Private Sub BasicInfoPatient()
     hDigForm = New FmDiagnosticTab(Trim(txtencid.Text), "height-tablet", pnlabexams)
     pnlhistory.Visible = True
     hPtForm = New FmClinHistory($PatientNum, "PatientID", False, "height-tablet", pnlhistory)
+    hOwnStockForm = New FmWardStock(Trim(txtencid.Text), $sTatus, $billModePharmacy, "height-tablet", pnlowninventory)
+    If txtclinIndex.Value And If txtclinmode.Text Then
+      hOwnStockForm.SetOwnDepartment(txtclinIndex.Value & "|" & txtclinmode.Text)
+    Endif
     modPatientSub.PopUpPatientForm(Trim(txtencid.Text), Me.Tag)
   Endif
 
@@ -696,6 +699,7 @@ Private Sub ButtonControl()
   mnuentry.Enabled = xx
   mnucustform.Enabled = xx
   mnustruct.Enabled = xx
+  pnlowninventory.Enabled = xx
 
   xval = modBasic.$LockDiagnosisList
   If xval = "No" Then
@@ -4066,7 +4070,7 @@ Public Sub btnclearcompl_Click()
 End
 
 ''---------------------- Outcome ---------------------------
-Public Sub btnselect_Click()
+Private Sub GetConsultParamIndex(sPopUp As Boolean)
 
   Dim xdept As String
   Dim xval As String
@@ -4077,7 +4081,7 @@ Public Sub btnselect_Click()
   Else
     xdept = ""
   Endif
-  xval = modPatientSub.GetConsultationID(Trim(txtencid.Text), xdept)
+  xval = modPatientSub.GetConsultationID(Trim(txtencid.Text), xdept, sPopUp)
   If xval Then
     asx = Split(xval, "|")
     txtclinIndex.Value = CLong(asx[0])
@@ -4087,6 +4091,12 @@ Public Sub btnselect_Click()
       txtclindepart.Text = GetConsultDepartment(txtclinmode.Text, txtclinIndex.Value, Trim(txtencid.Text))
     Endif
   Endif
+
+End
+
+Public Sub btnselect_Click()
+
+  GetConsultParamIndex(True)
 
 End
 
