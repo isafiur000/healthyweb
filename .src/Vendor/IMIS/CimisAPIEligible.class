@@ -30,6 +30,7 @@ Public Sub _new(sPatcode As String)
 
   $PatCode = sPatcode
   ShowFinancialParams()
+  SetAllVariables()
 
 End
 
@@ -84,10 +85,10 @@ Private Sub ShowFinancialParams()
 
   Dim xVarPat As Collection
   Dim xVarElig As Variant[]
+
   Dim xamt As String
   Dim xdate As String
   Dim asx As String[]
-  Dim xextVar As Variant[]
   Dim xexColl As Collection
 
   Dim xexten As Variant[]
@@ -103,25 +104,40 @@ Private Sub ShowFinancialParams()
   xVarPat = GetFinancialDetails($PatCode)
   If xVarPat Then
     xVarElig = xVarPat["insurance"]
+    ''policy collections
     If xVarElig And If xVarElig.Count Then
-      xamt = xVarPat["insurance"][0]["benefitBalance"][0]["financial"][0]["allowedMoney"]["value"]
-      If xamt Then
-        $CreditAmt = CFloat(xamt)
-      Endif
-
-      xdate = xVarPat["insurance"][0]["contract"]["reference"]
-      asx = Split(xdate, "/")
-      If asx Then
-        $PolicyNo = asx[1]
-        $ExpiryDate = modDate.GetDateFromJSON(asx[2])
-      Endif
-
-      xextVar = xVarPat["insurance"][0]["extension"]
-      For Each xexColl In xextVar
-        If xexColl["url"] = "https://hib.gov.np/fhir/FHIE+extension+Copayment" Then
-          $PayValue = xexColl["valueDecimal"]
-          $PayType = xexColl["valueString"]
+      $EligibilityVar = New Variant[]
+      For Each xeligCol In xVarElig
+        aColl = New Collection
+        xamt = xeligCol["benefitBalance"][0]["financial"][0]["allowedMoney"]["value"]
+        If xamt Then
+          aColl.Add(CFloat(xamt), "Credit Limit")
+        Else
+          aColl.Add(0, "Credit Limit")
         Endif
+
+        xdate = xeligCol["contract"]["reference"]
+        asx = Split(xdate, "/")
+        If asx Then
+          aColl.Add(asx[1], "Policy Name")
+          aColl.Add(modDate.GetDateFromJSON(asx[2]), "Expiry Date")
+        Else
+          aColl.Add("", "Policy Name")
+          aColl.Add("", "Expiry Date")
+        Endif
+
+        For Each xexColl In xeligCol["extension"]
+          If xexColl["url"] = "https://hib.gov.np/fhir/FHIE+extension+Copayment" Then
+            $PayValue = xexColl["valueDecimal"]
+            $PayType = xexColl["valueString"]
+            aColl.Add(CFloat(xexColl["valueDecimal"]), "Credit Value")
+            aColl.Add(xexColl["valueString"], "Credit Type")
+          Else
+            aColl.Add(0, "Credit Value")
+            aColl.Add("", "Credit Type")
+          Endif
+        Next
+        $EligibilityVar.Add(aColl)
       Next
     Endif
 
@@ -156,45 +172,72 @@ Private Sub ShowFinancialParams()
       Next
     Endif
 
-    ''policy collections
-    $EligibilityVar = New Variant[]
-    If xVarElig And If xVarElig.Count Then
-      For Each xeligCol In xVarPat["insurance"]
-        aColl = New Collection
-        xamt = xeligCol["benefitBalance"][0]["financial"][0]["allowedMoney"]["value"]
-        If xamt Then
-          aColl.Add(CFloat(xamt), "Credit Limit")
-        Else
-          aColl.Add(0, "Credit Limit")
-        Endif
-
-        xdate = xeligCol["contract"]["reference"]
-        asx = Split(xdate, "/")
-        If asx Then
-          aColl.Add(asx[1], "Policy Name")
-          aColl.Add(modDate.GetDateFromJSON(asx[2]), "Expiry Date")
-        Else
-          aColl.Add("", "Policy Name")
-          aColl.Add("", "Expiry Date")
-        Endif
-
-        For Each xexColl In xeligCol["extension"]
-          If xexColl["url"] = "https://hib.gov.np/fhir/FHIE+extension+Copayment" Then
-            $PayValue = xexColl["valueDecimal"]
-            $PayType = xexColl["valueString"]
-            aColl.Add(CFloat(xexColl["valueDecimal"]), "Credit Value")
-            aColl.Add(xexColl["valueString"], "Credit Type")
-          Else
-            aColl.Add(0, "Credit Value")
-            aColl.Add("", "Credit Type")
-          Endif
-        Next
-        $EligibilityVar.Add(aColl)
-      Next
-    Endif
-
   Else
     Message.Warning("Error in Decoding data", "OK")
+  Endif
+
+End
+
+''Policy Collection
+Public Function GetPatientPolicyData() As Variant[]
+
+  Return $EligibilityVar
+
+End
+
+''extra extensions
+Public Function GetPatientDistrict() As String
+
+  Return $PatDistrict
+
+End
+
+Public Function GetPatientFirstService() As String
+
+  Return $PatFSPoint
+
+End
+
+Public Function GetPatientImage() As String
+
+  Return $PatImage
+
+End
+
+''get variables
+Private Sub SetAllVariables()
+
+  Dim aColl As Collection
+  Dim xColl As Collection
+
+  For Each aColl In $EligibilityVar
+    If aColl["Credit Limit"] >= 100 Then
+      If aColl["Expiry Date"] >= modDate.StartSqlDate(Now()) Then
+        If aColl["Policy Name"] = "HIB-3500" Then
+          xColl = aColl
+          Break
+        Endif
+      Endif
+    Endif
+  Next
+
+  If Not xcoll Then
+    For Each aColl In $EligibilityVar
+      If aColl["Credit Limit"] >= 100 Then
+        If aColl["Expiry Date"] >= modDate.StartSqlDate(Now()) Then
+          xcoll = aColl
+          Break
+        Endif
+      Endif
+    Next
+  Endif
+
+  If xcoll Then
+    $PolicyNo = xcoll["Policy Name"]
+    $ExpiryDate = xcoll["Expiry Date"]
+    $CreditAmt = xcoll["Credit Limit"]
+    $PayValue = xcoll["Credit Value"]
+    $PayType = xcoll["Credit Type"]
   Endif
 
 End
@@ -226,31 +269,5 @@ End
 Public Function PatientPayType() As String
 
   Return $PayType
-
-End
-
-''extra extensions
-Public Function GetPatientDistrict() As String
-
-  Return $PatDistrict
-
-End
-
-Public Function GetPatientFirstService() As String
-
-  Return $PatFSPoint
-
-End
-
-Public Function GetPatientImage() As String
-
-  Return $PatImage
-
-End
-
-''Policy Collection
-Public Function GetPatientPolicyData() As Variant[]
-
-  Return $EligibilityVar
 
 End

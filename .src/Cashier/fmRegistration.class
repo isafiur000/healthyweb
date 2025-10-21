@@ -2373,6 +2373,7 @@ Private Sub GetIMISDataAPI(xfile As String)
 
     If xname Then
       hCElig = New CimisAPIEligible(xfile)
+      ''for view only
       xPatVar = hCElig.GetPatientPolicyData()
       For Each aColl In xPatVar
         If aColl["Policy Name"] = "HIB-3500" Then
@@ -2403,11 +2404,19 @@ Private Sub GetIMISDataAPI(xfile As String)
           Endif
         Endif
       Next
-      ' xPolicy = hCElig.GetPolicyNo()
-      ' xexpdate = hCElig.GetexpiryDaye()
-      ' xcredamt = hCElig.GetAllowedAmt()
-      ' xpayval = hCElig.GetCopayValue()
-      ' xpayType = hCElig.PatientPayType()
+      ''for use
+      xPolicy = hCElig.GetPolicyNo()
+      xexpdate = hCElig.GetexpiryDaye()
+      xcredamt = hCElig.GetAllowedAmt()
+      xpayval = hCElig.GetCopayValue()
+      xpayType = hCElig.PatientPayType()
+      xallow = True
+      If xexpdate < modDate.StartSqlDate(Now()) Then
+        xallow = False
+      Endif
+      If xcredamt < 100 Then
+        xallow = False
+      Endif
       If Not xdistrict Then
         xdistrict = hCElig.GetPatientDistrict()
       Endif
@@ -2426,7 +2435,6 @@ Private Sub GetIMISDataAPI(xfile As String)
     Endif
 
     If xname Then
-      xallow = True
       xmessage = "<h1>" & xname & modString.HTMLBlankSpace(1) & xsurname & "</h1>"
 
       If xallow1 = False And If aPolicy Then
@@ -2437,28 +2445,11 @@ Private Sub GetIMISDataAPI(xfile As String)
       Endif
       If xallow1 = True And If xallow2 = True Then
         xmessage = xmessage & "<br><b>Allowed Policy:</b> " & aPolicy & ", " & bPolicy
-        xPolicy = aPolicy
-        xexpdate = aexpdate
-        xcredamt = acredamt
-        xpayval = apayval
-        xpayType = apayType
       Else
         If xallow1 = True Then
           xmessage = xmessage & "<br><b>Allowed Policy:</b> " & aPolicy
-          xPolicy = aPolicy
-          xexpdate = aexpdate
-          xcredamt = acredamt
-          xpayval = apayval
-          xpayType = apayType
         Else If xallow2 = True Then
           xmessage = xmessage & "<br><b>Allowed Policy:</b> " & bPolicy
-          xPolicy = bPolicy
-          xexpdate = bexpdate
-          xcredamt = bcredamt
-          xpayval = bpayval
-          xpayType = bpayType
-        Else
-          xallow = False
         Endif
       Endif
 

@@ -1,8 +1,5 @@
 ' Gambas class file
 
-Private $encid As String
-Private $BillMode As String
-Private $sPackage As String
 Private $xFinClear As Boolean
 Private $PatientNum As String
 Private $xNHISCode As String
@@ -11,56 +8,60 @@ Private $rData As Result
 Private $aMyFields As String[]
 Private $rData2 As Result
 Private $aMyFields2 As String[]
-Private $rData3 As Result
+Private $rData3 As MyResult
 Private $aMyFields3 As String[]
 
+Private $encid As String
 Private $billModeService As String
 Private $billModeProcedure As String
 Private $billModeOthers As String
 
-Public Sub _new(encid As String, packService As String, packProced As String, packOthers As String)
+Private $ratePlanService As String
+Private $ratePlanProcedure As String
+Private $ratePlanOthers As String
 
-  Dim accLst As String[]
+Public Sub _new(encid As String, packService As String, packProced As String, packOthers As String)
 
   $encid = encid
   $billModeService = packService
   $billModeProcedure = packProced
   $billModeOthers = packOthers
 
-  modGeneralMain.GetOpenModalForm(Me)
-  If $billModeService = $billModeProcedure And If $billModeService = $billModeOthers Then
-    $sPackage = $billModeService
-    accLst = modBasic.$BillDiscountCash
-    If accLst.Count = 0 Then
-      accLst.Add($sPackage)
-    Endif
-    cmbdisctype.List = accLst
-    cmbdisctype.Text = $sPackage
+  cmbdiscservice.List = modBasic.$BillDiscountCash
+  If cmbdiscservice.List.Count = 0 Then
+    cmbdiscservice.Add($billModeService)
+  Endif
+  cmbdiscservice.Text = $billModeService
+  $ratePlanService = modNonMedical.GetDiscBindBillMode(cmbdiscservice.Text)
+  If Not $ratePlanService Then
+    $ratePlanService = modpatient.GetPatBillingMode($encid)
+  Endif
 
-    $BillMode = modNonMedical.GetDiscBindBillMode($sPackage)
-    If Not $BillMode Then
-      $BillMode = modpatient.GetPatBillingMode($encid)
-    Endif
-    cmbsection.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldreport) as col from tblservicecost where fldgroup=&1 and fldstatus=&2 and (flditemtype=&3 or flditemtype=&4 or flditemtype=&5)", $BillMode, "Active", "General Services", "Procedures", "Other Items"))
-    If cmbsection.List.Count Then
-      pnlSection.Visible = True
-    Endif
+  cmbdiscprocedure.List = modBasic.$BillDiscountCash
+  If cmbdiscprocedure.List.Count = 0 Then
+    cmbdiscprocedure.Add($billModeProcedure)
+  Endif
+  cmbdiscprocedure.Text = $billModeProcedure
+  $ratePlanProcedure = modNonMedical.GetDiscBindBillMode(cmbdiscprocedure.Text)
+  If Not $ratePlanProcedure Then
+    $ratePlanProcedure = modpatient.GetPatBillingMode($encid)
+  Endif
 
-  Else
-    cmbdisctype.Enabled = False
-    btnscheme.Enabled = False
-    cmbsection.Enabled = False
-    btncashpack.Enabled = False
-    btngroup.Enabled = False
+  cmbdiscother.List = modBasic.$BillDiscountCash
+  If cmbdiscother.List.Count = 0 Then
+    cmbdiscother.Add($billModeOthers)
+  Endif
+  cmbdiscother.Text = $billModeOthers
+  $ratePlanOthers = modNonMedical.GetDiscBindBillMode(cmbdiscother.Text)
+  If Not $ratePlanOthers Then
+    $ratePlanOthers = modpatient.GetPatBillingMode($encid)
   Endif
 
   txtpatientname.Text = modPatient.GetPatientNameByEnc($encid)
-  txtgender.Text = modPatient.GetPatientSex($encid)
   $PatientNum = modPatient.GetPatientNoByEnc($encid)
   $xNHISCode = modPatient.GetPatientExtCOdebyEnc($encid)
 
   $xFinClear = modNonMedical.GetFinanceClearance($encid)
-  ' cmbbillitem.List = modNonMedical.NonStockBillActiveItemArray("General Services", $BillMode)
   btnrefer.Tag = modBillings.GetReferralUserSetting("Service", $encid)
   If btnrefer.Tag Then
     btnrefer.Text = modGeneral.GetUserFullName(btnrefer.Tag)
@@ -68,13 +69,14 @@ Public Sub _new(encid As String, packService As String, packProced As String, pa
   If modBasic.$ReferralLockEntry = "Yes" Then
     btnrefer.Enabled = False
   Endif
+  rbcategory.Value = True
+  cmbsection.List = ["General Services", "Procedures", "Other Items"]
+
   FillLabtable()
   CompleteGrid()
   If $xFinClear = True Then
-    btnadd.Enabled = False
-    btnaddsingle.Enabled = False
+    btnaddone.Enabled = False
   Endif
-  GetItemListGrid()
 
 End
 
@@ -101,31 +103,139 @@ Public Sub btnrefer_Change()
 
 End
 
-Public Sub TabPanel1_Click()
+Public Sub btnsms_Click()
 
-  If TabPanel1.Index = 0 Then
-    FillLabtable()
-  Else If TabPanel1.Index = 1 Then
-    CompleteGrid()
+  If btnrefer.Tag Then
+    modDevice.SendMessageToRegistPhysician($encid, btnrefer.Tag)
   Endif
 
 End
 
-Public Sub txtsearch_Change()
+Public Sub btnservice_Click()
 
-  GetItemListGrid()
+  If cmbdiscservice.Text Then
+    $ratePlanService = modNonMedical.GetDiscBindBillMode(cmbdiscservice.Text)
+    If Not $ratePlanService Then
+      $ratePlanService = modpatient.GetPatBillingMode($encid)
+    Endif
+    GetFirstList()
+  Endif
 
 End
 
-Private Sub GetItemListGrid()
+Public Sub btnprocedure_Click()
 
+  If cmbdiscprocedure.Text Then
+    $ratePlanProcedure = modNonMedical.GetDiscBindBillMode(cmbdiscprocedure.Text)
+    If Not $ratePlanProcedure Then
+      $ratePlanProcedure = modpatient.GetPatBillingMode($encid)
+    Endif
+    GetFirstList()
+  Endif
+
+End
+
+Public Sub btnothers_Click()
+
+  If cmbdiscother.Text Then
+    $ratePlanOthers = modNonMedical.GetDiscBindBillMode(cmbdiscother.Text)
+    If Not $ratePlanOthers Then
+      $ratePlanOthers = modpatient.GetPatBillingMode($encid)
+    Endif
+    GetFirstList()
+  Endif
+
+End
+
+Private Sub GetFirstList()
+
+  Dim res1 As Result
+  Dim res2 As Result
+  Dim res3 As Result
+
+  If rbcategory.Value = True Then
+    cmbsection.List = ["General Services", "Procedures", "Other Items"]
+  Else If rbsection.Value = True Then
+    res1 = modDatabase.$myConn.Exec("select distinct(fldreport) as col from tblservicecost where fldgroup=&1 and fldstatus=&2 and flditemtype=&3", $ratePlanService, "Active", "General Services")
+    res2 = modDatabase.$myConn.Exec("select distinct(fldreport) as col from tblservicecost where fldgroup=&1 and fldstatus=&2 and flditemtype=&3", $ratePlanProcedure, "Active", "Procedures")
+    res3 = modDatabase.$myConn.Exec("select distinct(fldreport) as col from tblservicecost where fldgroup=&1 and fldstatus=&2 and flditemtype=&3", $ratePlanOthers, "Active", "Other Items")
+    cmbsection.List = GetTriColumnList(res1, res2, res3)
+  Else If rbgroup.Value = True Then
+    res1 = modDatabase.$myConn.Exec("select distinct(fldbillitem) as col from tblservicecost where fldgroup=&1 and fldbillitem IS NOT NULL and fldstatus=&2 and flditemtype=&3", $ratePlanService, "Active", "General Services")
+    res2 = modDatabase.$myConn.Exec("select distinct(fldbillitem) as col from tblservicecost where fldgroup=&1 and fldbillitem IS NOT NULL and fldstatus=&2 and flditemtype=&3", $ratePlanProcedure, "Active", "Procedures")
+    res3 = modDatabase.$myConn.Exec("select distinct(fldbillitem) as col from tblservicecost where fldgroup=&1 and fldbillitem IS NOT NULL and fldstatus=&2 and flditemtype=&3", $ratePlanOthers, "Active", "Other Items")
+    cmbsection.List = GetTriColumnList(res1, res2, res3)
+  Else If rbcashpack.Value = True Then
+    res1 = modDatabase.$myConn.Exec("select distinct(fldgroup) as col from tblservicegroup where flditemname in(select flditemname from tblservicecost where fldgroup=&1 and fldstatus=&2 and flditemtype=&3)", $ratePlanService, "Active", "General Services")
+    res2 = modDatabase.$myConn.Exec("select distinct(fldgroup) as col from tblservicegroup where flditemname in(select flditemname from tblservicecost where fldgroup=&1 and fldstatus=&2 and flditemtype=&3)", $ratePlanProcedure, "Active", "Procedures")
+    res3 = modDatabase.$myConn.Exec("select distinct(fldgroup) as col from tblservicegroup where flditemname in(select flditemname from tblservicecost where fldgroup=&1 and fldstatus=&2 and flditemtype=&3)", $ratePlanOthers, "Active", "Other Items")
+    cmbsection.List = GetTriColumnList(res1, res2, res3)
+  Endif
+
+End
+
+Private Function GetTriColumnList(res1 As Result, res2 As Result, res3 As Result) As String[]
+
+  Dim aList As String[]
+  Dim bList As String[]
+  Dim cList As String[]
+
+  Dim xList As String[]
+  Dim yList As String[]
+
+  xList = New String[]
+
+  aList = modControlSub.GetDirectFillresultNoNull(res1, "col")
+  If aList And If aList.Count Then
+    xList.Insert(aList)
+  Endif
+
+  bList = modControlSub.GetDirectFillresultNoNull(res2, "col")
+  If bList And If bList.Count Then
+    xList.Insert(bList)
+  Endif
+
+  cList = modControlSub.GetDirectFillresultNoNull(res3, "col")
+  If cList And If cList.Count Then
+    xList.Insert(cList)
+  Endif
+
+  yList = modString.GetDistinctStringArray(xList)
+  Return yList
+
+End
+
+Public Sub rbcategory_Click()
+
+  GetFirstList()
+
+End
+
+Public Sub rbsection_Click()
+
+  GetFirstList()
+
+End
+
+Public Sub rbgroup_Click()
+
+  GetFirstList()
+
+End
+
+Public Sub rbcashpack_Click()
+
+  GetFirstList()
+
+End
+
+Private Sub LoadItemList()
+
+  Dim res As Result
+  Dim res1 As Result
+  Dim res2 As Result
+  Dim res3 As Result
   Dim xsearch As String
-  Dim xservmode As String
-  Dim xprocmode As String
-  Dim xothermode As String
-  Dim sql1 As String
-  Dim sql2 As String
-  Dim sql3 As String
 
   If chkleftmain.Value Then
     xsearch = "%" & LCase(txtsearch.Text) & "%"
@@ -133,28 +243,69 @@ Private Sub GetItemListGrid()
     xsearch = LCase(txtsearch.Text) & "%"
   Endif
 
-  If $billModeService = $billModeProcedure And If $billModeService = $billModeOthers Then
-    If cmbsection.Text Then
-      $rData3 = modDatabase.$myConn.Exec("select flditemname,flditemtype from tblservicecost where fldgroup=&1 and fldstatus=&2 and lower(flditemname) like &3 and (flditemtype=&4 or flditemtype=&5 or flditemtype=&6) and fldreport=&7 ORDER BY flditemname", $BillMode, "Active", xsearch, "General Services", "Procedures", "Other Items", cmbsection.Text)
-    Else
-      $rData3 = modDatabase.$myConn.Exec("select flditemname,flditemtype from tblservicecost where fldgroup=&1 and fldstatus=&2 and lower(flditemname) like &3 and (flditemtype=&4 or flditemtype=&5 or flditemtype=&6) ORDER BY flditemname", $BillMode, "Active", xsearch, "General Services", "Procedures", "Other Items")
+  $rData3 = New MyResult
+  If rbcategory.Value = True Then
+    If cmbsection.Text = "General Services" Then
+      res = modDatabase.$myConn.Exec("select flditemname,flditemname,flditemtype,fldgroup from tblservicecost where fldgroup=&1 and fldstatus=&2 and lower(flditemname) like &3 and flditemtype=&4 ORDER BY flditemname", $ratePlanService, "Active", xsearch, "General Services")
+    Else If cmbsection.Text = "Procedures" Then
+      res = modDatabase.$myConn.Exec("select flditemname,flditemname,flditemtype,fldgroup from tblservicecost where fldgroup=&1 and fldstatus=&2 and lower(flditemname) like &3 and flditemtype=&4 ORDER BY flditemname", $ratePlanProcedure, "Active", xsearch, "Procedures")
+    Else If cmbsection.Text = "Other Items" Then
+      res = modDatabase.$myConn.Exec("select flditemname,flditemname,flditemtype,fldgroup from tblservicecost where fldgroup=&1 and fldstatus=&2 and lower(flditemname) like &3 and flditemtype=&4 ORDER BY flditemname", $ratePlanOthers, "Active", xsearch, "Other Items")
+    Endif
+    $rData3.AddResult(res)
+
+  Else If rbsection.Value = True Then
+    res1 = modDatabase.$myConn.Exec("select flditemname,flditemname,flditemtype,fldgroup from tblservicecost where fldgroup=&1 and fldstatus=&2 and lower(flditemname) like &3 and flditemtype=&4 and fldreport=&5 ORDER BY flditemname", $ratePlanService, "Active", xsearch, "General Services", cmbsection.Text)
+    If res1.Available Then
+      $rData3.AddResult(res1)
+    Endif
+    res2 = modDatabase.$myConn.Exec("select flditemname,flditemname,flditemtype,fldgroup from tblservicecost where fldgroup=&1 and fldstatus=&2 and lower(flditemname) like &3 and flditemtype=&4 and fldreport=&5 ORDER BY flditemname", $ratePlanProcedure, "Active", xsearch, "Procedures", cmbsection.Text)
+    If res2.Available Then
+      $rData3.AddResult(res2)
+    Endif
+    res3 = modDatabase.$myConn.Exec("select flditemname,flditemname,flditemtype,fldgroup from tblservicecost where fldgroup=&1 and fldstatus=&2 and lower(flditemname) like &3 and flditemtype=&4 and fldreport=&5 ORDER BY flditemname", $ratePlanOthers, "Active", xsearch, "Other Items", cmbsection.Text)
+    If res3.Available Then
+      $rData3.AddResult(res3)
     Endif
 
-  Else
-    xservmode = modNonMedical.GetDiscBindBillMode($billModeService)
-    xprocmode = modNonMedical.GetDiscBindBillMode($billModeProcedure)
-    xothermode = modNonMedical.GetDiscBindBillMode($billModeOthers)
-    sql1 = "select flditemname,flditemtype from tblservicecost where fldstatus=&1 and lower(flditemname) like &2 and fldgroup=&3 and flditemtype=&4"
-    sql2 = "select flditemname,flditemtype from tblservicecost where fldstatus=&1 and lower(flditemname) like &2 and fldgroup=&5 and flditemtype=&6"
-    sql3 = "select flditemname,flditemtype from tblservicecost where fldstatus=&1 and lower(flditemname) like &2 and fldgroup=&7 and flditemtype=&8"
-    $rData3 = modDatabase.$myConn.Exec(sql1 & " UNION " & sql2 & " UNION " & sql3, "Active", xsearch, xservmode, "General Services", xprocmode, "Procedures", xothermode, "Other Items")
+  Else If rbgroup.Value = True Then
+    res1 = modDatabase.$myConn.Exec("select flditemname,flditemname,flditemtype,fldgroup from tblservicecost where fldgroup=&1 and fldstatus=&2 and lower(flditemname) like &3 and flditemtype=&4 and fldbillitem=&5 ORDER BY flditemname", $ratePlanService, "Active", xsearch, "General Services", cmbsection.Text)
+    If res1.Available Then
+      $rData3.AddResult(res1)
+    Endif
+    res2 = modDatabase.$myConn.Exec("select flditemname,flditemname,flditemtype,fldgroup from tblservicecost where fldgroup=&1 and fldstatus=&2 and lower(flditemname) like &3 and flditemtype=&4 and fldbillitem=&5 ORDER BY flditemname", $ratePlanProcedure, "Active", xsearch, "Procedures", cmbsection.Text)
+    If res2.Available Then
+      $rData3.AddResult(res2)
+    Endif
+    res3 = modDatabase.$myConn.Exec("select flditemname,flditemname,flditemtype,fldgroup from tblservicecost where fldgroup=&1 and fldstatus=&2 and lower(flditemname) like &3 and flditemtype=&4 and fldbillitem=&5 ORDER BY flditemname", $ratePlanOthers, "Active", xsearch, "Other Items", cmbsection.Text)
+    If res3.Available Then
+      $rData3.AddResult(res3)
+    Endif
+
+  Else If rbcashpack.Value = True Then
+    res1 = modDatabase.$myConn.Exec("select flditemname,flditemname,flditemtype,fldgroup from tblservicecost where fldgroup=&1 and fldstatus=&2 and lower(flditemname) like &3 and flditemtype=&4 and flditemname in(select flditemname from tblservicegroup where fldgroup=&5) ORDER BY flditemname", $ratePlanService, "Active", xsearch, "General Services", cmbsection.Text)
+    If res1.Available Then
+      $rData3.AddResult(res1)
+    Endif
+    res2 = modDatabase.$myConn.Exec("select flditemname,flditemname,flditemtype,fldgroup from tblservicecost where fldgroup=&1 and fldstatus=&2 and lower(flditemname) like &3 and flditemtype=&4 and flditemname in(select flditemname from tblservicegroup where fldgroup=&5) ORDER BY flditemname", $ratePlanProcedure, "Active", xsearch, "Procedures", cmbsection.Text)
+    If res2.Available Then
+      $rData3.AddResult(res2)
+    Endif
+    res3 = modDatabase.$myConn.Exec("select flditemname,flditemname,flditemtype,fldgroup from tblservicecost where fldgroup=&1 and fldstatus=&2 and lower(flditemname) like &3 and flditemtype=&4 and flditemname in(select flditemname from tblservicegroup where fldgroup=&5) ORDER BY flditemname", $ratePlanOthers, "Active", xsearch, "Other Items", cmbsection.Text)
+    If res3.Available Then
+      $rData3.AddResult(res3)
+    Endif
+
   Endif
+
   $aMyFields3 = New String[]
-  modGridView.ReadSmallData(GridView3, $rData3, $aMyFields3)
+  modGridView.ReadSmallMyData(GridView3, $rData3, $aMyFields3, 4)
 
   With GridView3
-    .Columns[0].Expand = True
-    .Columns[1].Hidden = True
+    .Columns[0].Hidden = True
+    .Columns[1].Expand = True
+    .Columns[2].Hidden = True
+    .Columns[3].Hidden = True
   End With
 
 End
@@ -167,6 +318,20 @@ Public Sub GridView3_Data(Row As Integer, Column As Integer, Data As WebTableDat
 
 End
 
+Public Sub cmbsection_Select()
+
+  If cmbsection.Text Then
+    LoadItemList()
+  Endif
+
+End
+
+Public Sub txtsearch_Change()
+
+  LoadItemList()
+
+End
+
 Public Sub GridView3_Select()
 
   Dim xform As String
@@ -175,20 +340,14 @@ Public Sub GridView3_Select()
 
   If GridView3.Selection.Count Then
     $rData3.MoveTo(GridView3.Selection[0])
-
-    If $billModeService = $billModeProcedure And If $billModeService = $billModeOthers Then
-      xpackg = cmbdisctype.Text
-    Else
-      xform = modNonMedical.GetServiceKeyFromCategory($rData3["flditemtype"])
-      If xform = "Service" Then
-        xpackg = $billModeService
-      Else If xform = "Procedure" Then
-        xpackg = $billModeProcedure
-      Else If xform = "Others" Then
-        xpackg = $billModeOthers
-      Endif
+    xform = modNonMedical.GetServiceKeyFromCategory($rData3["flditemtype"])
+    If xform = "Service" Then
+      xpackg = cmbdiscservice.Text
+    Else If xform = "Procedure" Then
+      xpackg = cmbdiscprocedure.Text
+    Else If xform = "Others" Then
+      xpackg = cmbdiscother.Text
     Endif
-
     xdate = modBillings.CheckLastSalesItemDate($rData3["flditemname"], $PatientNum, $xNHISCode, xpackg)
     If xdate Then
       txtlastsaledate.Text = modReportVar.GetDateTimeReport(xdate, gb.MediumDate)
@@ -205,36 +364,20 @@ Public Sub GridView3_Select()
 
 End
 
-Public Sub btnaddsingle_Click()
+Public Sub btnaddone_Click()
+
+  Dim Row As Integer
 
   If GridView3.Selection.Count Then
-    $rData3.MoveTo(GridView3.Selection[0])
     If modMisc.AllowDiagnoBilling($encid) = True Then
-
-      InsertClinicService($rData3["flditemtype"], $rData3["flditemname"], 1)
+      For Row = 0 To GridView3.Count - 1
+        If GridView3.IsSelected(Row) = True Then
+          $rData3.MoveTo(Row)
+          InsertClinicService($rData3["flditemtype"], $rData3["flditemname"], 1)
+        Endif
+      Next
+      GridView3.UnselectAll()
       FillLabtable()
-
-    Else
-      Message.Warning("Diagnosis not provided", ("OK"))
-    Endif
-  Endif
-
-End
-
-Public Sub btnadd_Click()
-
-  Dim xval As String
-
-  If GridView3.Selection.Count Then
-    $rData3.MoveTo(GridView3.Selection[0])
-    If modMisc.AllowDiagnoBilling($encid) = True Then
-
-      xval = InputValue($rData3["flditemname"], "Service Request", 1)
-      If xval Then
-        InsertClinicService($rData3["flditemtype"], $rData3["flditemname"], xval)
-        FillLabtable()
-      Endif
-
     Else
       Message.Warning("Diagnosis not provided", ("OK"))
     Endif
@@ -246,29 +389,20 @@ Private Sub InsertClinicService(sCateg As String, sItem As String, sQty As Float
 
   Dim xform As String
   Dim xauto As String
-  Dim xpackg As String
   Dim xrefer As String
   Dim xpayble As String
+  Dim xpackg As String
 
   xform = modNonMedical.GetServiceKeyFromCategory(sCateg)
   If xform = "Service" Then
     xauto = modBasic.$AutoBillService
+    xpackg = cmbdiscservice.Text
   Else If xform = "Procedure" Then
     xauto = modBasic.$AutoBillProcedure
+    xpackg = cmbdiscprocedure.Text
   Else If xform = "Others" Then
     xauto = modBasic.$AutoBillOthers
-  Endif
-
-  If $billModeService = $billModeProcedure And If $billModeService = $billModeOthers Then
-    xpackg = cmbdisctype.Text
-  Else
-    If xform = "Service" Then
-      xpackg = $billModeService
-    Else If xform = "Procedure" Then
-      xpackg = $billModeProcedure
-    Else If xform = "Others" Then
-      xpackg = $billModeOthers
-    Endif
+    xpackg = cmbdiscother.Text
   Endif
 
   If xauto Then
@@ -279,75 +413,9 @@ Private Sub InsertClinicService(sCateg As String, sItem As String, sQty As Float
         xrefer = modBillings.GetReferralUserSetting(xform, $encid)
       Endif
       xpayble = modBillings.GetPayableUserSetting(xform, $encid)
-
       modBillings.GetAutoBillingClinic($encid, xpackg, xform, sItem, sQty, "Punched", 0, False, False, xpayble, xrefer)
     Endif
   Endif
-
-End
-
-Private Sub SavePartialEntry(res As Result, Optional advReceipt As String)
-
-  res["fldstatus"] = "Done"
-  If advReceipt Then
-    res["fldextracol"] = advReceipt
-  Endif
-  res["fldsave"] = True
-  res["flduserid"] = modBasic.$lbluser
-  res["fldtime"] = Now()
-  res["fldcomp"] = modBasic.$compID
-  res["xyz"] = False
-  res.Update()
-
-End
-
-Public Sub btnsave_Click()
-
-  Dim xform As String
-  Dim res As Result
-  Dim xauto As String
-  Dim xadv As String
-
-  res = modDatabase.$myConn.Edit("tblpatbilling", "fldencounterval=&1 and fldsave=&2 and fldprint=&3 and fldordcomp like &4 and fldstatus=&5 and (flditemtype=&6 or flditemtype=&7 or flditemtype=&8)", $encid, False, False, modBasic.$compID, "Punched", "General Services", "Procedures", "Other Items")                 ''
-  If res.Available Then
-    If modBasic.$AutoBillAdvReceipt = "Enable" Then
-      xadv = modBillLock.AdvanceReceiptString("Advance Receipt")
-    Else
-      xadv = ""
-    Endif
-
-    For Each res
-      xform = modNonMedical.GetServiceKeyFromCategory(res["flditemtype"])
-      If xform = "Service" Then
-        xauto = modBasic.$AutoBillService
-      Else If xform = "Procedure" Then
-        xauto = modBasic.$AutoBillProcedure
-      Else If xform = "Others" Then
-        xauto = modBasic.$AutoBillOthers
-      Endif
-
-      If xauto = "Standard" Then
-        If modNonMedical.AllowPreCheckDeposit($encid, res["fldditemamt"], cmbdisctype.Text) = True Then
-          SavePartialEntry(res, xadv)
-        Endif
-      Else If xauto = "Full" Then
-        If modNonMedical.AllowPreEntryWithDeposit($encid, xform, res["fldditemamt"], cmbdisctype.Text) = True Then
-          SavePartialEntry(res, xadv)
-        Endif
-      Else
-        If modBasic.$AutoBillSaveZero = "Yes" And If res["flditemrate"] = 0 Then
-          SavePartialEntry(res, xadv)
-        Else If modBasic.$AutoBillSaveZero = "Yes" And If res["flddiscper"] = 100 Then
-          SavePartialEntry(res, xadv)
-        Else If modBasic.$AutoBillSaveFullCredit = "Yes" And If res["fldbilltype"] = "Credit" And If res["fldcashincredit"] = 0 Then
-          SavePartialEntry(res, xadv)
-        Endif
-      Endif
-
-    Next
-  Endif
-  FillLabtable()
-  CompleteGrid()
 
 End
 
@@ -398,6 +466,72 @@ Public Sub btndelete_Click()
 
 End
 
+Public Sub btnsave_Click()
+
+  Dim xform As String
+  Dim res As Result
+  Dim xauto As String
+  Dim xadv As String
+
+  res = modDatabase.$myConn.Edit("tblpatbilling", "fldencounterval=&1 and fldsave=&2 and fldprint=&3 and fldordcomp like &4 and fldstatus=&5 and (flditemtype=&6 or flditemtype=&7 or flditemtype=&8)", $encid, False, False, modBasic.$compID, "Punched", "General Services", "Procedures", "Other Items")                 ''
+  If res.Available Then
+    If modBasic.$AutoBillAdvReceipt = "Enable" Then
+      xadv = modBillLock.AdvanceReceiptString("Advance Receipt")
+    Else
+      xadv = ""
+    Endif
+
+    For Each res
+      xform = modNonMedical.GetServiceKeyFromCategory(res["flditemtype"])
+      If xform = "Service" Then
+        xauto = modBasic.$AutoBillService
+      Else If xform = "Procedure" Then
+        xauto = modBasic.$AutoBillProcedure
+      Else If xform = "Others" Then
+        xauto = modBasic.$AutoBillOthers
+      Endif
+
+      If xauto = "Standard" Then
+        If modNonMedical.AllowPreCheckDeposit($encid, res["fldditemamt"], res["flddisctype"]) = True Then
+          SavePartialEntry(res, xadv)
+        Endif
+      Else If xauto = "Full" Then
+        If modNonMedical.AllowPreEntryWithDeposit($encid, xform, res["fldditemamt"], res["flddisctype"]) = True Then
+          SavePartialEntry(res, xadv)
+        Endif
+      Else
+        If modBasic.$AutoBillSaveZero = "Yes" And If res["flditemrate"] = 0 Then
+          SavePartialEntry(res, xadv)
+        Else If modBasic.$AutoBillSaveZero = "Yes" And If res["flddiscper"] = 100 Then
+          SavePartialEntry(res, xadv)
+        Else If modBasic.$AutoBillSaveFullCredit = "Yes" And If res["fldbilltype"] = "Credit" And If res["fldcashincredit"] = 0 Then
+          SavePartialEntry(res, xadv)
+        Endif
+      Endif
+
+    Next
+  Endif
+
+  FillLabtable()
+  CompleteGrid()
+
+End
+
+Private Sub SavePartialEntry(res As Result, Optional advReceipt As String)
+
+  res["fldstatus"] = "Done"
+  If advReceipt Then
+    res["fldextracol"] = advReceipt
+  Endif
+  res["fldsave"] = True
+  res["flduserid"] = modBasic.$lbluser
+  res["fldtime"] = Now()
+  res["fldcomp"] = modBasic.$compID
+  res["xyz"] = False
+  res.Update()
+
+End
+
 ''====================== completed ====================
 Private Sub CompleteGrid()
 
@@ -439,78 +573,5 @@ End
 Public Sub btnclose_Click()
 
   Me.Close()
-
-End
-
-''---------------- when the three are same --------------------
-Public Sub btnscheme_Click()
-
-  If cmbdisctype.Text Then
-    $BillMode = modNonMedical.GetDiscBindBillMode(cmbdisctype.Text)
-    If Not $BillMode Then
-      $BillMode = modpatient.GetPatBillingMode($encid)
-    Endif
-    GetItemListGrid()
-  Endif
-
-End
-
-Public Sub cmbsection_Click()
-
-  GetItemListGrid()
-
-End
-
-Public Sub btncashpack_Click()
-
-  Dim xdata As String[]
-  Dim xitem As String
-  Dim res As Result
-
-  If modMisc.AllowDiagnoBilling($encid) = True Then
-    xdata = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldgroup) as col from tblservicegroup where flditemname in(select flditemname from tblservicecost where fldstatus=&1 and (fldgroup=&2 or fldgroup=&3) and (flditemtype=&4 or flditemtype=&5 or flditemtype=&6))", "Active", $BillMode, "%", "General Services", "Procedures", "Other Items"))
-    If xdata Then
-      xitem = GridViewNew("Select Cashier Pack", xdata, False)
-    Endif
-    If xitem Then
-      res = modDatabase.$myConn.Exec("select flditemname,flditemtype,flditemqty from tblservicegroup where fldgroup=&1 and flditemname in(select flditemname from tblservicecost where (fldgroup=&2 or fldgroup=&3) and (flditemtype=&4 or flditemtype=&5 or flditemtype=&6))", xitem, $BillMode, "%", "General Services", "Procedures", "Other Items")
-      If res.Available Then
-        For Each res
-          InsertClinicService(modNonMedical.GetBillItemCategoryFromCombo(res["flditemtype"]), res["flditemname"], res["flditemqty"])
-        Next
-        FillLabtable()
-      Endif
-    Endif
-
-  Else
-    Message.Warning("Diagnosis not provided", ("OK"))
-  Endif
-
-End
-
-Public Sub btngroup_Click()
-
-  Dim xdata As String[]
-  Dim xitem As String
-  Dim res As Result
-
-  If modMisc.AllowDiagnoBilling($encid) = True Then
-    xdata = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldbillitem) as col from tblservicecost where fldbillitem IS NOT NULL and fldstatus=&1 and (fldgroup=&2 or fldgroup=&3) and (flditemtype=&4 or flditemtype=&5 or flditemtype=&6)", "Active", $BillMode, "%", "General Services", "Procedures", "Other Items"))
-    If xdata Then
-      xitem = GridViewNew("Select Cashier Pack", xdata, False)
-    Endif
-    If xitem Then
-      res = modDatabase.$myConn.Exec("select flditemname,flditemtype from tblservicecost where fldbillitem=&1 and fldstatus=&2 and (fldgroup=&3 or fldgroup=&4) and (flditemtype=&5 or flditemtype=&6 or flditemtype=&7)", xitem, "Active", $BillMode, "%", "General Services", "Procedures", "Other Items")
-      If res.Available Then
-        For Each res
-          InsertClinicService(res["flditemtype"], res["flditemname"], 1)
-        Next
-        FillLabtable()
-      Endif
-    Endif
-
-  Else
-    Message.Warning("Diagnosis not provided", ("OK"))
-  Endif
 
 End
