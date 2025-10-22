@@ -2749,6 +2749,7 @@ Public Sub mnusave_Click()
         SaveGridData()
         PharmacySave()
         Wait
+        TransferOutPendingPharmacy()
 
         RefresgOldData()
 
@@ -2837,6 +2838,7 @@ Private Sub GetF12KeyPress()
     SaveGridData()
     PharmacySave()
     Wait
+    TransferOutPendingPharmacy()
 
     If ShowBilling() = True Then
       If hPatient.Enabled = True Then
@@ -4119,10 +4121,10 @@ Public Sub btngroup_Click()
 
   If AllowLockCheckPunching() = True Then
 
-    xList = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldmedgroup) as col from tblproductgroup"))
+    xList = modMedicine.GetMedicineProcolsList()
     xgroup = GridViewNew("select Protocol", xList, False)
     If xgroup Then
-      res = modDatabase.$myConn.Exec("select fldroute,flditem,flddose,flddoseunit,fldfreq,fldday,fldqty,fldstart,fldadvice from tblproductgroup where fldmedgroup=&1", xgroup)
+      res = modDatabase.$myConn.Exec("select fldroute,flditem,flddose,flddoseunit,fldfreq,fldday,fldqty,fldstart,fldadvice from tblproductgroup where fldmedgroup=&1 and (fldcomp=&2 or fldcomp=&3)", xgroup, modBasic.$compID, "%")
       If res.Available Then
         For Each res
 
@@ -4762,6 +4764,74 @@ Private Function GetHICapGo(sFixCode As String, sFixItem As String, sQty As Floa
 
 End
 
+Private Sub TransferOutPendingPharmacy()
+
+  Dim res As Result
+  Dim res1 As Result
+  Dim hField As ResultField
+  Dim xcomp As String
+  Dim xhash As String
+
+  If chkall.Value Then
+    xcomp = "%"
+  Else
+    xcomp = modBasic.$compID
+  Endif
+
+  res = modDatabase.$myConn.Edit("tblpatdosing", "fldencounterval=&1 and fldsave_order=&2 and fldqtydisp>&3 and fldbilltype=&4 and fldacledger=&5 and fldcomp_order like &6", Trim(txtencid.Text), False, 0, hPatient.GetCashCreditMode(), cmbledgerac.Text, xcomp)
+  If res.Available = True Then
+    If Message.Question("Transfer Out Pharmacy Items not dispensed ?", ("No"), ("Yes")) = 2 Then
+
+      xhash = modString.GetNowString()
+      modDatabase.$myConn.Begin
+      For Each res
+        res1 = modDatabase.$myConn.Create("tblpatoutdosing")
+        For Each hField In res1.Fields
+          If hField.Name = "fldreference" Then
+            res1["fldreference"] = xhash
+          Else If hField.Name = "fldsave" Then
+            res1["fldsave"] = False
+          Else If hField.Name = "flduserid" Then
+            res1["flduserid"] = res["flduserid_order"]
+          Else If hField.Name = "fldtime" Then
+            res1["fldtime"] = res["fldtime_order"]
+          Else If hField.Name = "fldcomp" Then
+            res1["fldcomp"] = res["fldcomp_order"]
+          Else
+            res1[hField.Name] = res[hField.Name]
+          Endif
+        Next
+        res1.Update
+
+        res["fldsave_order"] = True
+        res["flduserid"] = modBasic.$lbluser
+        res["fldtime"] = Now()
+        res["fldcomp"] = modBasic.$compID
+        If res["flddose"] And If Not res["flddays"] Then
+          res["fldendtime"] = DateAdd(res["fldstarttime"], gb.Day, 1)
+        Else
+          res["fldendtime"] = DateAdd(res["fldstarttime"], gb.Day, CInt(res["flddays"]))
+        Endif
+        res["fldcurval"] = "Continue"
+        res["fldlevel"] = "Dispensed"
+        res["fldextrarow"] = xhash
+        res["xyz"] = False
+        res.Update()
+
+      Next
+      hPatient.$OutPhmHash = xhash
+      modDatabase.$myConn.Commit
+
+    Endif
+  Endif
+
+Catch
+  modDatabase.$myConn.Rollback
+  hPatient.$OutPhmHash = ""
+  modHelpVariable.CreateErrorReport()
+
+End
+
 Private Sub PharmacySave()
 
   Dim sql1 As String
@@ -5362,6 +5432,21 @@ Public Sub btndiagnolist_Click()
   xList = modPathoSub.GetSelectedDiagnosisList("Provisional Diagnosis", Trim(txtencid.Text))
   If xList.Count Then
     xx = MessageHtml(Trim(txtencid.Text), "<h4>Provisional Diagnosis</h4>" & xList.Join("<br>"), ["OK"])
+  Endif
+
+End
+
+Public Sub mnuoutpharmacy_Click()
+
+  Dim aList As String[]
+  Dim xval As String
+
+  aList = modControlSub.GetDirectFillresultNoNull(modDatabase.$myConn.Exec("select distinct(fldreference) as col from tblpatoutdosing where fldencounterval=&1", Trim(txtencid.Text)))
+  If aList And If aList.Count Then
+    xval = DIctionaryList(aList)
+    If xval Then
+      modBILLFormat.GetPurchaseOutPath(Trim(txtencid.Text), xval)
+    Endif
   Endif
 
 End

@@ -22,6 +22,9 @@ Private $rMexamRes As Result
 Private $aMexamFields As String[]
 Private $sDate As Date
 
+Private hViewVital As FmVitalView
+Private hinputVital As FmVitalInput
+Private hOwnStockForm As FmWardStock
 Private hPtForm As FmClinHistory
 
 Private $billModeTest As String
@@ -419,9 +422,6 @@ End
 ''============================== MAIN FORM ================================
 Private Sub BasicInfoPatient()
 
-  Dim hForm1 As FmVitalView
-  Dim hForm2 As FmVitalInput
-
   If txtencid.Text Then
     modRepository.$RepoDataStatus = False
     modAppSupport.RecordPatientActivity("Patient Data", Me.Name, "EncounterID", Trim(txtencid.Text))
@@ -446,13 +446,14 @@ Private Sub BasicInfoPatient()
       pnlhistory.Visible = True
     Endif
 
-    hForm1 = New FmVitalView(Trim(txtencid.Text), pnlabexams)
-    hForm2 = New FmVitalInput(Trim(txtencid.Text), pnlvitalinput)
-    hPtForm = New FmClinHistory($PatientNum, "PatientID", False, "height-tablet", pnlhistory)
-
     $sDate = Now()
     lbldtmonitor.Text = modPatient.GetDayDiffAdmission(Trim(txtencid.Text), $sDate)
     ShowMonitoring()
+
+    hViewVital = New FmVitalView(Trim(txtencid.Text), pnlabexams)
+    hinputVital = New FmVitalInput(Trim(txtencid.Text), pnlvitalinput)
+    hOwnStockForm = New FmWardStock(Trim(txtencid.Text), $sTatus, $billModePharmacy, "height-tablet", pnlowninventory)
+    hPtForm = New FmClinHistory($PatientNum, "PatientID", False, "height-tablet", pnlhistory)
 
     modPatientSub.PopUpPatientForm(Trim(txtencid.Text), Me.Tag)
     If modSettings.ShowSettingFromFIle("OPDForm/Complaints") = "General" Then
@@ -565,6 +566,8 @@ Private Sub ButtonControl()
   mnuentry.Enabled = xx
   mnucustform.Enabled = xx
   mnustruct.Enabled = xx
+  pnlvitalinput.Enabled = xx
+  pnlowninventory.Enabled = xx
 
   xval = modBasic.$LockDiagnosisList
   If xval = "No" Then

@@ -4,6 +4,9 @@ Private $sType As String
 Private $sItem As String
 Private $sComp As String
 
+Private $mainLst As String[]
+Private $sList As String[]
+
 Public Sub _new(sTitle As String, xType As String, xItem As String, xComp As String)
 
   Me.Title = sTitle
@@ -18,39 +21,80 @@ End
 
 Private Sub GetRemainingParam()
 
-  Dim xList As String[]
-
   If $sType = "User List" Then
-    xList = modGeneral.GetActiveUserIDAll()
+    $mainLst = modGeneral.GetActiveUserIDAll()
   Else If $sType = "Service List" Then
-    xList = modNonMedical.NonStockBillingItemArray("%", "%")
+    $mainLst = modNonMedical.NonStockBillingItemArray("%", "%")
+  Else If $sType = "Medicines List" Then
+    $mainLst = modMedicine.GetPharmacyItemList("Medicines")
   Endif
-  FillGridViewSelected(xList)
+  FillGridViewSelected()
 
 End
 
-Private Sub ShowSettingParams()
+''================= First Grid view ===============
+Public Sub txtsearch_Change()
 
-  Dim res As Result
-
-  res = modDatabase.$myConn.Exec("select fldvalue as col from tbltabsettings where fldcategory=&1 and fldcomp=&2", $sItem, $sComp)
-  modFillContainer.FillListBox(lstsecond, res, False)
+  FillGridViewSelected()
 
 End
 
-Private Sub FillGridViewSelected(sList As String[])
+Private Sub FillGridViewSelected()
 
   Dim xval As String
+  Dim xList As String[]
 
-  lstfirst.Clear
-  If sList And If sList.Count Then
-    For Each xval In sList
+  xList = New String[]
+  If $mainLst And If $mainLst.Count Then
+    For Each xval In $mainLst
       If Len(xval) Then
-        If lstsecond.List.Exist(xval) = False Then
-          lstfirst.Add(xval)
+        If lstsecond.List.Exist(xval) Then
+        Else
+
+          If Len(Trim(txtsearch.Text)) Then
+            If chkleftmain.Value = True Then
+              If LCase(xval) Like "*" & Trim(txtsearch.Text) & "*" Then
+                xList.Add(xval)
+              Endif
+            Else
+              If LCase(xval) Like Trim(txtsearch.Text) & "*" Then
+                xList.Add(xval)
+              Endif
+            Endif
+          Else
+            xList.Add(xval)
+          Endif
+
         Endif
       Endif
     Next
+  Endif
+
+  $sList = xList
+
+  GridView1.Clear()
+  GridView1.Count = $sList.Count
+  GridView1.Columns.Count = 1
+
+  With GridView1
+    .Columns[0].Expand = True
+  End With
+
+End
+
+Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  modGridView.GridViewDecoration(Data, Row)
+  Data.Text = $sList[Row]
+
+End
+
+Public Sub chkall_Click()
+
+  If chkall.Value = True Then
+    GridView1.SelectAll()
+  Else
+    GridView1.UnselectAll()
   Endif
 
 End
@@ -59,18 +103,21 @@ Public Sub btnsave_Click()
 
   Dim res As Result
   Dim i As Integer
+  Dim xval As String
 
-  For i = 0 To lstfirst.List.Count - 1
-    If lstfirst.IsSelected(i) = True Then
-      If lstsecond.List.Exist(lstfirst.List[i]) = False Then
+  For i = 0 To GridView1.Count - 1
+    If GridView1.IsSelected(i) = True Then
+      xval = $sList[i]
+      If lstsecond.List.Exist(xval) = False Then
 
         res = modDatabase.$myConn.Create("tbltabsettings")
         res["fldcomp"] = $sComp
         res["fldcategory"] = $sItem
-        res["fldvalue"] = lstfirst.List[i]
+        res["fldvalue"] = xval
         res["fldtime"] = Now()
         res["flduserid"] = modBasic.$lbluser
         res.Update
+        GridView1.Unselect(i)
 
       Endif
     Endif
@@ -81,13 +128,13 @@ Public Sub btnsave_Click()
 
 End
 
-Public Sub chkall_Click()
+''================= Second list =================
+Private Sub ShowSettingParams()
 
-  If chkall.Value = True Then
-    lstfirst.SelectAll()
-  Else
-    lstfirst.Unselect()
-  Endif
+  Dim res As Result
+
+  res = modDatabase.$myConn.Exec("select fldvalue as col from tbltabsettings where fldcategory=&1 and fldcomp=&2 ORDER BY fldvalue", $sItem, $sComp)
+  modFillContainer.FillListBox(lstsecond, res, False)
 
 End
 

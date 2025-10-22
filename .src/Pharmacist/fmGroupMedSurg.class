@@ -5,6 +5,12 @@ Private $aMyFields As String[]
 
 Public Sub _new()
 
+  cmbtarget.List = modBasic.$AllCompPerList
+  cmbtarget.Text = modBasic.$compID
+  If modHelpVariable.$LogInCategory = "Clinician" Then
+    cmbtarget.Enabled = False
+  Endif
+
   cmbroute.List = modMedicine.ComboRoute()
   cmbdoseunit.List = modMedicine.$MedicineUnitList
   cmbfreq.List = modMedicine.FrequencyCombo()
@@ -14,9 +20,15 @@ Public Sub _new()
 
 End
 
+Public Sub cmbtarget_Click()
+
+  lblcomp.Text = modGeneral.GetCompNameFromCompID(cmbtarget.Text)
+
+End
+
 Public Sub btnrefresh_Click()
 
-  If cmbgroup.Text Then
+  If cmbgroup.Text And If cmbtarget.Text Then
     FillDosingGrid()
     cmbroute.SetFocus
   Endif
@@ -27,8 +39,8 @@ Private Sub FillDosingGrid()
 
   Dim sql As String
 
-  sql = "select fldid,fldroute,flditem,flddose,flddoseunit,fldfreq,fldday,fldqty,fldstart,fldadvice from tblproductgroup where fldmedgroup=&1 ORDER BY fldid DESC"
-  $rData = modDatabase.$myConn.Exec(sql, cmbgroup.Text)
+  sql = "select fldid,fldroute,flditem,flddose,flddoseunit,fldfreq,fldday,fldqty,fldstart,fldadvice from tblproductgroup where fldmedgroup=&1 and fldcomp=&2 ORDER BY fldid DESC"
+  $rData = modDatabase.$myConn.Exec(sql, cmbgroup.Text, cmbtarget.Text)
   $aMyFields = New String[]
   modGridView.ReadSmallData(GridView1, $rData, $aMyFields)
 
@@ -156,6 +168,7 @@ Public Sub tbtnadd_Click()
     If cmbroute.Text And If cmbmedicine.Text And If txtqty.Value Then
       res = modDatabase.$myConn.Create("tblproductgroup")
       res["fldmedgroup"] = cmbgroup.Text
+      res["fldcomp"] = cmbtarget.Text
       res["fldroute"] = cmbroute.Text
       res["flditem"] = cmbmedicine.Text
       res["flddose"] = txtdose.Value
@@ -271,7 +284,9 @@ Public Sub btnlist_Click()
 
   Dim xPath As String
 
-  xPath = modRepoMaster.ShowPharmacyGroupListHTML()
+  If cmbtarget.Text Then
+    xPath = modRepoMaster.ShowPharmacyGroupListHTML(cmbtarget.Text)
+  Endif
   modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
 
 End

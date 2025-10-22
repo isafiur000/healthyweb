@@ -199,6 +199,10 @@ Public Function GetCustomReportValue(sType As String, encid As String, sHead As 
     xval = modPatReports.AddInvestigationAdvised(encid, sHead)
   Else If sType = "Treatment Advised" Then
     xval = modPatReports.AddTreatmentAdvised(encid, sHead)
+  Else If sType = "Unavailable Medicines" Then
+    xval = modPatReports.AddUnavailableMeds(encid, sHead)
+  Else If sType = "Pending Medicines" Then
+    xval = modPatReports.AddPendingMeds(encid, sHead)
   Else If sType = "Surgicals Requests" Then
     xval = modPatReports.AddSurgicalsRequests(encid, sHead)
   Else If sType = "Extra Items Requests" Then
@@ -1714,13 +1718,30 @@ Public Function GetReportVarHistory($encid As String, $Line As String) As String
     $Line = Replace($Line, "{InvestigationAdvised}", modString.TextToHTML(modPatReports.OPDOrderLabRequest($encid).Join(gb.NewLine)))
   Endif
   If (String.InStr($Line, "TreatmentAdvised") > 0) Then
-    $Line = Replace($Line, "{TreatmentAdvised}", modString.TextToHTML(modPatReports.OPDRequestMedString($encid, "Medicines")))
+    $Line = Replace($Line, "{TreatmentAdvised}", modString.TextToHTML(modPatReports.GetRequestMedString($encid, "Medicines")))
   Endif
+  If (String.InStr($Line, "UnavailableMedicines") > 0) Then
+    $Line = Replace($Line, "{UnavailableMedicines}", modString.TextToHTML(modPatReports.NonAvailableMedString($encid, "Medicines")))
+  Endif
+  If (String.InStr($Line, "PendingMedicines") > 0) Then
+    $Line = Replace($Line, "{PendingMedicines}", modString.TextToHTML(modPatReports.PendingRequestMedString($encid, "Medicines")))
+  Endif
+
   If (String.InStr($Line, "SurgicalRequests") > 0) Then
-    $Line = Replace($Line, "{SurgicalRequests}", modString.TextToHTML(modPatReports.OPDRequestMedString($encid, "Surgicals")))
+    $Line = Replace($Line, "{SurgicalRequests}", modString.TextToHTML(modPatReports.GetRequestMedString($encid, "Surgicals")))
   Endif
   If (String.InStr($Line, "ExtraRequests") > 0) Then
-    $Line = Replace($Line, "{ExtraRequests}", modString.TextToHTML(modPatReports.OPDRequestMedString($encid, "Extra Items")))
+    $Line = Replace($Line, "{ExtraRequests}", modString.TextToHTML(modPatReports.GetRequestMedString($encid, "Extra Items")))
+  Endif
+
+  If (String.InStr($Line, "MedicinesDispensed") > 0) Then
+    $Line = Replace($Line, "{MedicinesDispensed}", modString.TextToHTML(modPatReports.GetDispensedPharm($encid, "Medicines")))
+  Endif
+  If (String.InStr($Line, "SurgicalsDispensed") > 0) Then
+    $Line = Replace($Line, "{SurgicalsDispensed}", modString.TextToHTML(modPatReports.GetDispensedPharm($encid, "Surgicals")))
+  Endif
+  If (String.InStr($Line, "ExtraItemsDispensed") > 0) Then
+    $Line = Replace($Line, "{ExtraItemsDispensed}", modString.TextToHTML(modPatReports.GetDispensedPharm($encid, "Extra Items")))
   Endif
 
   If (String.InStr($Line, "OPDRecommendation") > 0) Then
@@ -3232,8 +3253,13 @@ Public Sub GetReportVarCollection(sType As String) As Variant[]
 
     ListView1.Add(["{InvestigationAdvised}", "Investigation Advised"])
     ListView1.Add(["{TreatmentAdvised}", "Treatment Advised"])
+    ListView1.Add(["{UnavailableMedicines}", "Unavailable Medicines"])
+    ListView1.Add(["{PendingMedicines}", "Pending Medicines"])
     ListView1.Add(["{SurgicalRequests}", "Surgical Request"])
     ListView1.Add(["{ExtraRequests}", "Extra Request"])
+    ListView1.Add(["{MedicinesDispensed}", "Medicines Dispensed"])
+    ListView1.Add(["{SurgicalsDispensed}", "Surgicals Dispensed"])
+    ListView1.Add(["{ExtraItemsDispensed}", "Extra Items Dispensed"])
 
     ListView1.Add(["{OPDRecommendation}", "Initial Planning"])
     ListView1.Add(["{ExpertRecommendation}", "Expert Planning"])

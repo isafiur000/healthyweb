@@ -2,7 +2,7 @@
 
 Private $FootComment As String
 
-Public Function GetLockClinicSQL() As String
+Public Function GetLockClinicSQL(Optional sTable As String) As String
 
   Dim compLst As String[]
   Dim xvarsql As String
@@ -11,17 +11,29 @@ Public Function GetLockClinicSQL() As String
   Select modHelpVariable.$LogInCategory
     Case "Clinician"
       If modBasic.$ViewLockClinic = "User" Then
-        xvarsql = db.Subst(" and flduserid like &1", modBasic.$lbluser)
+        If sTable = "tblpatdosing" Then
+          xvarsql = db.Subst(" and flduserid_order like &1", modBasic.$lbluser)
+        Else
+          xvarsql = db.Subst(" and flduserid like &1", modBasic.$lbluser)
+        Endif
         $FootComment = modBasic.$lbluser
       Else If modBasic.$ViewLockClinic = "Branch" Then
         compLst = modBasic.$branchList.Copy()
         For i = 0 To compLst.Count - 1
           compLst[i] = "'" & compLst[i] & "'"
         Next
-        xvarsql = " and fldcomp in(" & compLst.Join(",") & ")"
+        If sTable = "tblpatdosing" Then
+          xvarsql = " and fldcomp_order in(" & compLst.Join(",") & ")"
+        Else
+          xvarsql = " and fldcomp in(" & compLst.Join(",") & ")"
+        Endif
         $FootComment = modBasic.$branch
       Else If modBasic.$ViewLockClinic = "Location" Then
-        xvarsql = db.Subst(" and fldcomp like &1", modBasic.$compID)
+        If sTable = "tblpatdosing" Then
+          xvarsql = db.Subst(" and fldcomp_order like &1", modBasic.$compID)
+        Else
+          xvarsql = db.Subst(" and fldcomp like &1", modBasic.$compID)
+        Endif
         $FootComment = modBasic.$compID
       Else
         xvarsql = ""
@@ -549,6 +561,42 @@ Public Function AddInvestigationAdvised(encid As String, Optional sTitle As Stri
 
 End
 
+Public Function AddUnavailableMeds(encid As String, Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+
+  Dim stChapter As String
+  Dim stObservation As String
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Unavailable Medicines"
+  Endif
+  stObservation = NonAvailableMedString(encid, "Medicines")
+  asx = AddCustomReport(stChapter, stObservation)
+  Return asx
+
+End
+
+Public Function AddPendingMeds(encid As String, Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+
+  Dim stChapter As String
+  Dim stObservation As String
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Pending Medicines"
+  Endif
+  stObservation = PendingRequestMedString(encid, "Medicines")
+  asx = AddCustomReport(stChapter, stObservation)
+  Return asx
+
+End
+
 Public Function AddTreatmentAdvised(encid As String, Optional sTitle As String) As String[]
 
   Dim asx As New String[0]
@@ -561,7 +609,7 @@ Public Function AddTreatmentAdvised(encid As String, Optional sTitle As String) 
   Else
     stChapter = "Treatment Advised"
   Endif
-  stObservation = OPDRequestMedString(encid, "Medicines")
+  stObservation = GetRequestMedString(encid, "Medicines")
   asx = AddCustomReport(stChapter, stObservation)
   Return asx
 
@@ -579,7 +627,7 @@ Public Function AddSurgicalsRequests(encid As String, Optional sTitle As String)
   Else
     stChapter = "Surgical Requests"
   Endif
-  stObservation = OPDRequestMedString(encid, "Surgicals")
+  stObservation = GetRequestMedString(encid, "Surgicals")
   asx = AddCustomReport(stChapter, stObservation)
   Return asx
 
@@ -597,7 +645,7 @@ Public Function AddExtraItemsRequests(encid As String, Optional sTitle As String
   Else
     stChapter = "Extra Requests"
   Endif
-  stObservation = OPDRequestMedString(encid, "Extra Items")
+  stObservation = GetRequestMedString(encid, "Extra Items")
   asx = AddCustomReport(stChapter, stObservation)
   Return asx
 
@@ -634,7 +682,7 @@ Public Function AddMedicineDispensed(encid As String, Optional sTitle As String)
   Else
     stChapter = "Medicines Dispensed"
   Endif
-  stObservation = OPDDispensedPharm(encid, "Medicines")
+  stObservation = GetDispensedPharm(encid, "Medicines")
   asx = AddCustomReport(stChapter, stObservation)
   Return asx
 
@@ -652,7 +700,7 @@ Public Function AddSurgicalsDispensed(encid As String, Optional sTitle As String
   Else
     stChapter = "Surgicals Dispensed"
   Endif
-  stObservation = OPDDispensedPharm(encid, "Surgicals")
+  stObservation = GetDispensedPharm(encid, "Surgicals")
   asx = AddCustomReport(stChapter, stObservation)
   Return asx
 
@@ -670,7 +718,7 @@ Public Function AddExtraDispensed(encid As String, Optional sTitle As String) As
   Else
     stChapter = "Extra Items Dispensed"
   Endif
-  stObservation = OPDDispensedPharm(encid, "Extra Items")
+  stObservation = GetDispensedPharm(encid, "Extra Items")
   asx = AddCustomReport(stChapter, stObservation)
   Return asx
 
@@ -1596,6 +1644,12 @@ Public Function ShowCompleteReport(encid As String, xList As String[], examlist 
     If xitem = "Treatment Advised" Then
       $BillingReport.Add(AddTreatmentAdvised(encid))
     Endif
+    If xitem = "Unavailable Medicines" Then
+      $BillingReport.Add(AddUnavailableMeds(encid))
+    Endif
+    If xitem = "Pending Medicines" Then
+      $BillingReport.Add(AddPendingMeds(encid))
+    Endif
 
     If xitem = "Final Diagnosis" Then
       $BillingReport.Add(AddFinalDiagnosis(encid))
@@ -1897,6 +1951,12 @@ Public Function ShowAllEncounterReport(encounter As String, xList As String[], e
       Endif
       If xitem = "Treatment Advised" Then
         $BillingReport.Add(AddTreatmentAdvised(encid))
+      Endif
+      If xitem = "Unavailable Medicines" Then
+        $BillingReport.Add(AddUnavailableMeds(encid))
+      Endif
+      If xitem = "Pending Medicines" Then
+        $BillingReport.Add(AddPendingMeds(encid))
       Endif
 
       If xitem = "Delivery Profile" Then
@@ -2313,8 +2373,8 @@ Public Function GetClinNoteSpecificReport(encid As String, sType As String) As S
 
 End
 
-''-------------------------- Daily -------------------------------------------------------
-Public Function OPDRequestMedString(encid As String, sType As String) As String
+''-------------------------- Medicines ----------------------------------------------------
+Public Function GetRequestMedString(encid As String, sType As String) As String
 
   Dim rs As Result
   Dim xx As String
@@ -2322,18 +2382,11 @@ Public Function OPDRequestMedString(encid As String, sType As String) As String
   Dim i As Integer
   Dim xRowVal As Collection
   Dim colLst As String[]
-  Dim k As Integer
-  Dim strItem As String[]
 
   xFinal = New Variant[]
 
-  strItem = ["Registered", "Admitted", "Recorded", "Follow Up", "Refer(OPD)", "LAMA(OPD)", "Death(OPD)"]
-  For k = 0 To strItem.Count - 1
-    strItem[k] = "'" & strItem[k] & "'"
-  Next
-
   i = 1
-  rs = modDatabase.$myConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,flditemtype,(fldqtydisp-fldqtyret) as fldqtydisp,flddirection,fldstarttime from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and fldstatus in(" & strItem.Join(",") & ") and fldorder=&3 and fldsave_order=&4 and fldlevel=&5 and fldcurval=&6", encid, sType, "Request", False, "Requested", "Continue")                 ''
+  rs = modDatabase.$myConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,flditemtype,(fldqtydisp-fldqtyret) as fldqtydisp,flddirection,fldstarttime from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and fldorder=&3 and fldcurval=&4" & GetLockClinicSQL("tblpatdosing"), encid, sType, "Request", "Continue")                 ''
   If rs.Available = True Then
     If sType = "Medicines" Then
       If modBasic.$ShowDayMesStartReport = "Yes" Then
@@ -2399,7 +2452,159 @@ Public Function OPDRequestMedString(encid As String, sType As String) As String
 
 End
 
-Public Function OPDDispensedPharm(encid As String, sType As String) As String
+Public Function NonAvailableMedString(encid As String, sType As String) As String
+
+  Dim rs As Result
+  Dim xx As String
+  Dim xFinal As Variant[]
+  Dim i As Integer
+  Dim xRowVal As Collection
+  Dim colLst As String[]
+
+  xFinal = New Variant[]
+
+  i = 1
+  rs = modDatabase.$myConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,flditemtype,fldqtydisp,flddirection,fldstarttime from tblpatoutdosing where fldencounterval=&1 and flditemtype=&2" & GetLockClinicSQL(), encid, sType)                 ''
+  If rs.Available = True Then
+    If sType = "Medicines" Then
+      If modBasic.$ShowDayMesStartReport = "Yes" Then
+        colLst = ["", "Medicines", "Regimen", "QTY", "Direction", "Date"]
+      Else
+        colLst = ["", "Medicines", "Regimen", "QTY", "Direction"]
+      Endif
+
+      For Each rs
+        xRowVal = New Collection
+        xRowVal.Add(CStr(i), CStr(0))
+        xRowVal.Add(modPharmacy.GetMedFormatForMedReport(rs["flditem"], rs["fldroute"]), CStr(1))
+        If rs["flddose"] Then
+          xRowVal.Add(modMedConstant.GetMedicineRegimenInFormat(rs["fldroute"], rs["flditem"], rs["flddose"], rs["fldfreq"], rs["flddays"]), CStr(2))
+        Else
+          xRowVal.Add("", CStr(2))
+        Endif
+        xRowVal.Add(rs["fldqtydisp"], CStr(3))
+        If rs["flddirection"] Then
+          xRowVal.Add(rs["flddirection"], CStr(4))
+        Else
+          xRowVal.Add("", CStr(4))
+        Endif
+        If modBasic.$ShowDayMesStartReport = "Yes" Then
+          xRowVal.Add(modReportVar.GetDateTimeReport(rs["fldstarttime"], gb.GeneralDate), CStr(5))
+        Endif
+
+        xFinal.Add(xRowVal)
+        i = i + 1
+      Next
+
+    Else
+      If modBasic.$ShowDayMesStartReport = "Yes" Then
+        colLst = ["", "Particulars", "QTY", "Date"]
+      Else
+        colLst = ["", "Particulars", "QTY"]
+      Endif
+
+      For Each rs
+        xRowVal = New Collection
+        xRowVal.Add(CStr(i), CStr(0))
+        xRowVal.Add(rs["flditem"], CStr(1))
+        xRowVal.Add(rs["fldqtydisp"], CStr(2))
+        If modBasic.$ShowDayMesStartReport = "Yes" Then
+          xRowVal.Add(modReportVar.GetDateTimeReport(rs["fldstarttime"], gb.GeneralDate), CStr(3))
+        Endif
+
+        xFinal.Add(xRowVal)
+        i = i + 1
+      Next
+    Endif
+    xx = modString.GetRichTableStringFromVariant(colLst, xFinal)
+
+  Else
+    xx = ""
+  Endif
+
+  Return xx
+
+End
+
+Public Function PendingRequestMedString(encid As String, sType As String) As String
+
+  Dim rs As Result
+  Dim xx As String
+  Dim xFinal As Variant[]
+  Dim i As Integer
+  Dim xRowVal As Collection
+  Dim colLst As String[]
+
+  xFinal = New Variant[]
+
+  i = 1
+  rs = modDatabase.$myConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,flditemtype,(fldqtydisp-fldqtyret) as fldqtydisp,flddirection,fldstarttime from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and fldorder=&3 and fldsave_order=&4 and fldlevel=&5 and fldcurval=&6" & GetLockClinicSQL("tblpatdosing"), encid, sType, "Request", False, "Requested", "Continue")                 ''
+  If rs.Available = True Then
+    If sType = "Medicines" Then
+      If modBasic.$ShowDayMesStartReport = "Yes" Then
+        colLst = ["", "Medicines", "Regimen", "QTY", "Direction", "Date"]
+      Else
+        colLst = ["", "Medicines", "Regimen", "QTY", "Direction"]
+      Endif
+
+      For Each rs
+        xRowVal = New Collection
+        xRowVal.Add(CStr(i), CStr(0))
+        xRowVal.Add(modPharmacy.GetMedFormatForMedReport(rs["flditem"], rs["fldroute"]), CStr(1))
+        If rs["flddose"] Then
+          If rs["fldfreq"] = "Tapering" Then
+            xRowVal.Add(modPharmacy.GetTaperingRegimen(rs["fldid"]).Join("<br>"), CStr(2))
+          Else
+            xRowVal.Add(modMedConstant.GetMedicineRegimenInFormat(rs["fldroute"], rs["flditem"], rs["flddose"], rs["fldfreq"], rs["flddays"]), CStr(2))
+          Endif
+        Else
+          xRowVal.Add("", CStr(2))
+        Endif
+        xRowVal.Add(rs["fldqtydisp"], CStr(3))
+        If rs["flddirection"] Then
+          xRowVal.Add(rs["flddirection"], CStr(4))
+        Else
+          xRowVal.Add("", CStr(4))
+        Endif
+        If modBasic.$ShowDayMesStartReport = "Yes" Then
+          xRowVal.Add(modReportVar.GetDateTimeReport(rs["fldstarttime"], gb.GeneralDate), CStr(5))
+        Endif
+
+        xFinal.Add(xRowVal)
+        i = i + 1
+      Next
+
+    Else
+      If modBasic.$ShowDayMesStartReport = "Yes" Then
+        colLst = ["", "Particulars", "QTY", "Date"]
+      Else
+        colLst = ["", "Particulars", "QTY"]
+      Endif
+
+      For Each rs
+        xRowVal = New Collection
+        xRowVal.Add(CStr(i), CStr(0))
+        xRowVal.Add(rs["flditem"], CStr(1))
+        xRowVal.Add(rs["fldqtydisp"], CStr(2))
+        If modBasic.$ShowDayMesStartReport = "Yes" Then
+          xRowVal.Add(modReportVar.GetDateTimeReport(rs["fldstarttime"], gb.GeneralDate), CStr(3))
+        Endif
+
+        xFinal.Add(xRowVal)
+        i = i + 1
+      Next
+    Endif
+    xx = modString.GetRichTableStringFromVariant(colLst, xFinal)
+
+  Else
+    xx = ""
+  Endif
+
+  Return xx
+
+End
+
+Public Function GetDispensedPharm(encid As String, sType As String) As String
 
   Dim rs As Result
   Dim xx As String
@@ -2419,7 +2624,7 @@ Public Function OPDDispensedPharm(encid As String, sType As String) As String
   Endif
 
   i = 1
-  rs = modDatabase.$syConn.Exec("select fldid,fldstarttime,fldroute,flditem,flddose,fldfreq,flddays,flddirection,(fldqtydisp-fldqtyret) as fldqtydisp from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and (fldorder=&3 or fldorder=&4) and fldsave_order=&5 and fldlevel=&6 and fldqtydisp>fldqtyret", encid, sType, "Request", "UseOwn", True, "Dispensed")       ''
+  rs = modDatabase.$syConn.Exec("select fldid,fldstarttime,fldroute,flditem,flddose,fldfreq,flddays,flddirection,(fldqtydisp-fldqtyret) as fldqtydisp from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and (fldorder=&3 or fldorder=&4) and fldsave_order=&5 and fldlevel=&6 and fldqtydisp>fldqtyret" & GetLockClinicSQL("tblpatdosing"), encid, sType, "Request", "UseOwn", True, "Dispensed")       ''
   If rs.Available Then
     For Each rs
       xRowVal = New Collection

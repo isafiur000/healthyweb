@@ -262,7 +262,7 @@ Public Function ShowServiceGroupListHTML() As String
 
 End
 
-Public Function ShowPharmacyGroupListHTML() As String
+Public Function ShowPharmacyGroupListHTML(sComp As String) As String
 
   Dim $BillingReport As CReportHTML
   Dim res As Result
@@ -270,39 +270,41 @@ Public Function ShowPharmacyGroupListHTML() As String
   Dim asx As New String[0]
 
   $BillingReport = New CReportHTML([("Category"), ("Particulars"), ("Dose"), ("Freq"), ("Day"), ("QTY"), ("StartHour")], "", "")
-  $BillingReport.UserData.Add("PHARMACY GROUPS", "PARAM1")
+  $BillingReport.UserData.Add("MEDICAL PROTOCOLS : " & sComp, "PARAM1")
   $BillingReport.UserData.Add(modReportVar.GetDateTimeReport(Now(), gb.GeneralDate), "PARAM2")
 
-  res = modDatabase.$syConn.Exec("select distinct(fldmedgroup) from tblproductgroup ORDER BY fldmedgroup ASC")                                                                                        ''
-  For Each res
-    $BillingReport.AddSection(res["fldmedgroup"], True)
+  res = modDatabase.$syConn.Exec("select distinct(fldmedgroup) as fldmedgroup from tblproductgroup where fldcomp=&1 ORDER BY fldmedgroup ASC", sComp)                                                                                        ''
+  If res.Available Then
+    For Each res
+      $BillingReport.AddChapter(res["fldmedgroup"])
 
-    res1 = modDatabase.$syConn.Exec("select fldid,fldroute,flditem,flddose,flddoseunit,fldfreq,fldday,fldqty,fldstart from tblproductgroup where fldmedgroup=&1 ORDER BY flditem ASC", res["fldmedgroup"])
-    For Each res1
+      res1 = modDatabase.$syConn.Exec("select fldid,fldroute,flditem,flddose,flddoseunit,fldfreq,fldday,fldqty,fldstart from tblproductgroup where fldmedgroup=&1 and fldcomp=&2 ORDER BY flditem ASC", res["fldmedgroup"], sComp)
+      For Each res1
+        With asx
+          .Add(res1["fldroute"])
+          .Add(res1["flditem"])
+          .Add(modReportVar.GetLocaleNumberFormat(res1["flddose"], -2) & Space(1) & res1["flddoseunit"])
+          .Add(res1["fldfreq"])
+          .Add(modReportVar.GetLocaleNumberFormat(res1["fldday"], -2))
+          .Add(modReportVar.GetLocaleNumberFormat(res1["fldqty"], -2))
+          .Add(modReportVar.GetLocaleNumberFormat(res1["fldstart"], 0))
+        End With
+        $BillingReport.Add(asx)
+        asx.Clear()
+      Next
       With asx
-        .Add(res1["fldroute"])
-        .Add(res1["flditem"])
-        .Add(modReportVar.GetLocaleNumberFormat(res1["flddose"], -2) & Space(1) & res1["flddoseunit"])
-        .Add(res1["fldfreq"])
-        .Add(modReportVar.GetLocaleNumberFormat(res1["fldday"], -2))
-        .Add(modReportVar.GetLocaleNumberFormat(res1["fldqty"], -2))
-        .Add(modReportVar.GetLocaleNumberFormat(res1["fldstart"], 0))
+        .Add("")
+        .Add("")
+        .Add("")
+        .Add("")
+        .Add("")
+        .Add("")
+        .Add("")
       End With
       $BillingReport.Add(asx)
       asx.Clear()
     Next
-    With asx
-      .Add("")
-      .Add("")
-      .Add("")
-      .Add("")
-      .Add("")
-      .Add("")
-      .Add("")
-    End With
-    $BillingReport.Add(asx)
-    asx.Clear()
-  Next
+  Endif
 
   Return $BillingReport.NewHTMLPath()
 

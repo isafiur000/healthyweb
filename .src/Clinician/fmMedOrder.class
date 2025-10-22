@@ -8,6 +8,7 @@ Private $doa As Date
 Private $xFinClear As Boolean
 Private $PatientNum As String
 Private $xNHISCode As String
+Private $Ready As Boolean
 
 Private $PatAge As Float
 Private $PatSex As String
@@ -129,6 +130,7 @@ Public Sub _new(encid As String, sStatus As String, DiscPackage As String)
   Endif
   modSysCons.ClearPatParameterCalc()
   ShowBasicParamStatus()
+  $Ready = True
 
 End
 
@@ -693,7 +695,7 @@ End
 
 Public Sub btngroup_Click()
 
-  Dim rsx As Result
+  Dim pList As String[]
   Dim xgroup As String
 
   Dim res As Result
@@ -716,11 +718,11 @@ Public Sub btngroup_Click()
   Else
     xcurVal = "Continue"
   Endif
-  rsx = modDatabase.$myConn.Exec("select distinct(fldmedgroup) as col from tblproductgroup")
-  xgroup = GridViewNew("Select Particulars", modControlSub.GetDirectFillresult(rsx), False)
+  pList = modMedicine.GetMedicineProcolsList()
+  xgroup = GridViewNew("Select Particulars", pList, False)
   If xgroup Then
 
-    res = modDatabase.$myConn.Exec("select fldroute,flditem,flddose,flddoseunit,fldfreq,fldday,fldqty,fldstart,fldadvice from tblproductgroup where fldmedgroup=&1", xgroup)
+    res = modDatabase.$myConn.Exec("select fldroute,flditem,flddose,flddoseunit,fldfreq,fldday,fldqty,fldstart,fldadvice from tblproductgroup where fldmedgroup=&1 and (fldcomp=&2 or fldcomp=&3)", xgroup, modBasic.$compID, "%")
     If res.Available Then
       For Each res
 
@@ -1335,29 +1337,29 @@ End
 Public Sub rbvalue_Click()
 
   modSettings.SaveSettingsToFile("DoseFormat/Dispensing", "Value")
-  If TabPanel1.Index = 0 Then
-    If rballdates.Value = True Then
-      ShowAllMedicines()
-    Else If rbcurrent.Value = True Then
-      ShowRunningMedicine(cmbcurrent.Text)
-    Endif
-  Else If TabPanel1.Index = 1 Then
-    FillDosingGrid()
-  Endif
+  RefreshGridsLabel()
 
 End
 
 Public Sub rblabel_Click()
 
   modSettings.SaveSettingsToFile("DoseFormat/Dispensing", "Label")
-  If TabPanel1.Index = 0 Then
-    If rballdates.Value = True Then
-      ShowAllMedicines()
-    Else If rbcurrent.Value = True Then
-      ShowRunningMedicine(cmbcurrent.Text)
+  RefreshGridsLabel()
+
+End
+
+Private Sub RefreshGridsLabel()
+
+  If $Ready = True Then
+    If TabPanel1.Index = 0 Then
+      If rballdates.Value = True Then
+        ShowAllMedicines()
+      Else If rbcurrent.Value = True Then
+        ShowRunningMedicine(cmbcurrent.Text)
+      Endif
+    Else If TabPanel1.Index = 1 Then
+      FillDosingGrid()
     Endif
-  Else If TabPanel1.Index = 1 Then
-    FillDosingGrid()
   Endif
 
 End
@@ -1447,6 +1449,11 @@ Private Sub ShowRunningMedicine(xCurrent As String)
   End Select
   $aMyFields2 = New String[]
   modGridView.ReadSmallData(grdmedicine, $rData2, $aMyFields2)
+  ResizeGrid()
+
+End
+
+Private Sub ResizeGrid()
 
   With grdmedicine
     .Columns[0].Hidden = True

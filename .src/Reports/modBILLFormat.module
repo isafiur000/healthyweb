@@ -52,6 +52,23 @@ Private Sub LoadTableNames()
 
 End
 
+'NOTE: ------------------------ General Reports ---------------------
+Public Sub GetPurchaseOutPath(encid As String, sHashNo As String) As String
+
+  Dim xPath As String
+
+  If MMain.$RepoReportMode = True Then
+    Message.Warning(("Disabled"), ("OK"))
+  Else
+
+    xPath = GetOutOfHospitalPharmacy(encid, sHashNo)
+    If xPath Then
+      modControlSub.OpenHTMLPreview(encid, xPath, "InvoiceSize")
+    Endif
+  Endif
+
+End
+
 'NOTE: ------------------------ Discharge Receipt ---------------------
 Public Function GetDischargeReceiptPath(encid As String, BillNo As String, txTitle As String) As String
 
@@ -2431,5 +2448,34 @@ Private Function GetExpenseAfterDischarge(encid As String, sDate As Date, sComp 
     Next
   Endif
   Return xcash
+
+End
+
+''============== Out of Hospital Medicines ==============
+Public Function GetOutOfHospitalPharmacy(encid As String, sHash As String) As String
+
+  Dim $BillingReport As CReportBILL
+  Dim res As Result
+  Dim asx As New String[0]
+
+  $BillingReport = New CReportBILL([("SNO"), ("PARTICULARS"), ("REGIMEN"), ("QTY")], "Report", encid, sHash)
+  $BillingReport.UserData.Add("PENDING PHARMACY ORDER", "InvoiceType")
+  $BillingReport.UserData.Add(modReportVar.GetDateTimeReport(Now(), gb.GeneralDate), "BillDateTime")
+
+  res = modDatabase.$myConn.Exec("select fldid,flditemtype,fldroute,flditem,flddose,fldfreq,flddays,fldqtydisp,flddirection from tblpatoutdosing where fldencounterval=&1 and fldreference=&2", encid, sHash)
+  If res.Available Then
+    For Each res
+      With asx
+        .Add(CStr(res.Index + 1))
+        .Add(modPharmacy.GetMedFormatForMedReport(res["flditem"], res["fldroute"]))
+        .Add(res["fldroute"] & Space(2) & modMedConstant.GetMedicineRegimenInFormat(res["fldroute"], res["flditem"], res["flddose"], res["fldfreq"], res["flddays"]))
+        .Add(res["fldqtydisp"])
+      End With
+      $BillingReport.Add(asx)
+      asx.Clear()
+    Next
+  Endif
+
+  Return $BillingReport.NewHTMLPath()
 
 End

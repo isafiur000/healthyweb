@@ -45,6 +45,27 @@ Public Function GetGenericMedList() As String[]
 
 End
 
+Public Function GetPharmacyItemList(sType As String) As String[]
+
+  Dim res As Result
+  Dim xx As String[]
+
+  Select sType
+    Case "Medicines"
+      res = modDatabase.$medConn.Exec("select fldbrandid as col from tblmedbrand")
+    Case "Surgicals"
+      res = modDatabase.$medConn.Exec("select fldbrandid as col from tblsurgbrand")
+    Case "Extra Items"
+      res = modDatabase.$medConn.Exec("select fldbrandid as col from tblextrabrand")
+  End Select
+  xx = modControlSub.GetDirectFillresult(res)
+  If xx Then
+    xx.Sort()
+  Endif
+  Return xx
+
+End
+
 Public Function GetBrandList(drugid As String) As String[]
 
   Dim res As Result
@@ -266,7 +287,11 @@ Public Function FillClinicalSubClass(sDept As String) As String[]
   Dim res As Result
   Dim xx As String[]
 
-  res = modDatabase.$medConn.Exec("select distinct(fldsubclass) as col from tblstructexam where fldclass like &1", sDept)
+  If modBasic.$ClinStructuredExamFormat Then
+    res = modDatabase.$medConn.Exec("select distinct(fldsubclass) as col from tblstructexam where fldclass like &1 and fldreferencee=&2", sDept, modBasic.$ClinStructuredExamFormat)
+  Else
+    res = modDatabase.$medConn.Exec("select distinct(fldsubclass) as col from tblstructexam where fldclass like &1", sDept)
+  Endif
   xx = modControlSub.GetDirectFillresult(res)
   If xx Then
     xx.Sort()
@@ -280,7 +305,7 @@ Public Function FillClinicalReference(subClass As String) As String[]
   Dim res As Result
   Dim xx As String[]
 
-  res = modDatabase.$medConn.Exec("select distinct(fldreferencee) as col from tblstructexam where fldsubclass=&1", subClass)
+  res = modDatabase.$medConn.Exec("select distinct(fldreferencee) as col from tblstructexam where fldsubclass like &1", subClass)
   xx = modControlSub.GetDirectFillresult(res)
   If xx Then
     xx.Sort()
@@ -396,6 +421,20 @@ Public Function GetRelationListFromDB() As String[]
   Dim xx As String[]
 
   res = modDatabase.$medConn.Exec("select distinct(flditem) as col from tblrelations")
+  xx = modControlSub.GetDirectFillresult(res)
+  If xx Then
+    xx.Sort()
+  Endif
+  Return xx
+
+End
+
+Public Function GetMedicineProcolsList() As String[]
+
+  Dim res As Result
+  Dim xx As String[]
+
+  res = modDatabase.$medConn.Exec("select distinct(fldmedgroup) as col from tblproductgroup where (fldcomp=&1 or fldcomp=&2)", modBasic.$compID, "%")
   xx = modControlSub.GetDirectFillresult(res)
   If xx Then
     xx.Sort()
@@ -979,6 +1018,8 @@ Public Function GetCustReportVariables(sSelect As Boolean) As String[]
   xxx.Add("Drug Allergy")
   xxx.Add("Investigation Advised")
   xxx.Add("Treatment Advised")
+  xxx.Add("Unavailable Medicines")
+  xxx.Add("Pending Medicines")
   xxx.Add("Surgicals Requests")
   xxx.Add("Extra Items Requests")
 
@@ -1049,6 +1090,8 @@ Public Function GetMedVariables() As String[]
   xxx.Add("Prominent Symptoms")
   xxx.Add("Consultations")
   xxx.Add("Treatment Advised")
+  xxx.Add("Unavailable Medicines")
+  xxx.Add("Pending Medicines")
   xxx.Add("Surgicals Requests")
   xxx.Add("Extra Items Requests")
   xxx.Add("Medicines Dispensed")
