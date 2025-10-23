@@ -2129,12 +2129,13 @@ End
 
 Public Function GetPatientPresentingSymptomReport(encid As String) As String[]
 
-  Dim xUnitLst As String[] = ["Hours", "Days", "Weeks", "Months", "Years", "Episodes"]
+  Dim xUnitLst As String[]
   Dim sql As String
   Dim res As Result
   Dim xx As String[]
   Dim xstr As String
 
+  xUnitLst = modMedicine.$SymptomFrequency
   sql = "select fldtime,flditem,fldreportquali,fldreportquanti,flddetail,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and fldsave=&3" & GetLockClinicSQL()
   res = modDatabase.$syConn.Exec(sql, encid, "Presenting Symptoms", True)
   xx = New String[]
@@ -2142,7 +2143,11 @@ Public Function GetPatientPresentingSymptomReport(encid As String) As String[]
     For Each res
 
       If xUnitLst.Exist(res["fldreportquali"]) Then
-        xstr = CStr(res["fldreportquanti"]) & Space(1) & res["fldreportquali"]
+        If res["fldreportquali"] = "Absent" Then
+          xstr = res["fldreportquali"]
+        Else
+          xstr = CStr(res["fldreportquanti"]) & Space(1) & res["fldreportquali"]
+        Endif
       Else
         If res["fldreportquanti"] Then
           xstr = modDate.ConvertHoursToString(res["fldreportquanti"])

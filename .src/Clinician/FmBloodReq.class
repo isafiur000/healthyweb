@@ -10,18 +10,22 @@ Private $aMyFields2 As String[]
 Public Sub _new(encid As String)
 
   Dim xstatus As String
+  Dim def As String
 
   $encid = encid
   modGeneralMain.GetOpenModalForm(Me)
 
   txtpatientname.Text = modPatient.GetPatientNameByEnc($encid)
-  txtgender.Text = modPatient.GetPatientAgeString($encid, Now()) & "/" & modPatient.GetPatientSex($encid)
-
   xstatus = modPatient.CurrentAdmissionStatus($encid)
   txtlocation.Text = modPatient.GetLocationSetting($encid, xstatus)
 
   cmbitem.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(flditem) as col from tblbloodstore"))
   cmbgroup.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldgroup) as col from tblbloodstore"))
+  def = modSettings.ShowSettingFromFIle("BloodBank/GroupingCode")
+  If def Then
+    txtbloodgroup.Text = modLabTest.GetCurrTesValuePos("Last", $encid, modFixLab.GetLabTestIDFromSysConst(def), MMain.$defUnit)
+  Endif
+
   FillRequestGrid()
   CompleteGrid()
 
@@ -239,6 +243,17 @@ Public Sub btnreturn_Click()
       res.Update
       CompleteGrid()
     Endif
+  Endif
+
+End
+
+Public Sub btnsetgroup_Click()
+
+  Dim xx As String
+
+  xx = InputBox("Provide Laboratory Codes for Blood Grouping", "")
+  If xx Then
+    modSettings.SaveSettingsToFile("BloodBank/GroupingCode", xx)
   Endif
 
 End

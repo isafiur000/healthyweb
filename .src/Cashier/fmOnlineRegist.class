@@ -6,12 +6,15 @@ Private $BillingOption As String
 Private $rData As Result
 Private $aMyFields As String[]
 
+Private $onlineSchemes As String[]
+
 Public Sub _new()
 
   $BillingOption = modBasic.$BillCashOption
   hPatient = New FmBillingEntry(Panel3)
 
-  cmbscheme.List = modNonMedical.FillDiscountCombo()
+  $onlineSchemes = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select fldtype from tbldiscount where fldonline=&1", "Enable"))
+  cmbscheme.List = $onlineSchemes
   cmbscheme.Add("%")
   cmbscheme.Text = "%"
   cmbdepart.List = modGeneral.GetDepartmentsForOPDBoth()
@@ -108,7 +111,7 @@ Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableDat
 
 End
 
-Public Sub btnedit_Click()
+Public Sub btndatedit_Click()
 
   Dim res As Result
   Dim xdate As Date
@@ -119,6 +122,24 @@ Public Sub btnedit_Click()
     If xdate Then
       res = modDatabase.$myConn.Edit("tblonlinebook", "fldbookingval=&1", $rData["fldbookingval"])
       res["fldconsultdate"] = xdate
+      res.Update
+      LoadGridData()
+    Endif
+  Endif
+
+End
+
+Public Sub btnschemeedit_Click()
+
+  Dim res As Result
+  Dim xval As String
+
+  If GridView1.Selection.Count Then
+    $rData.MoveTo(GridView1.Selection[0])
+    xval = InputCombo("Select Scheme for " & $rData["fldptnamefir"] & Space(1) & $rData["fldptnamelast"], "Scheme", $onlineSchemes, $rData["flddisctype"], True)
+    If xval Then
+      res = modDatabase.$myConn.Edit("tblonlinebook", "fldbookingval=&1", $rData["fldbookingval"])
+      res["flddisctype"] = xval
       res.Update
       LoadGridData()
     Endif

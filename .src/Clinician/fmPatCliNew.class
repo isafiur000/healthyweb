@@ -71,7 +71,7 @@ Public Sub _new(encid As String, sIndex As Long, sMode As String)
       pnltelemed.Visible = False
   End Select
   $ExamLst = modMedicine.FillClinicalSubClass("OutPatient")
-  cmbsympunit.List = ["Hours", "Days", "Weeks", "Months", "Years", "Episodes"]
+  cmbsympunit.List = modMedicine.$SymptomFrequency
   cmburgency.List = ["Urgent", "Normal"]
   $UserRestrict = modBasic.$ClinicDisableCompo
   modLabSub.DisplayDefaultTestUnit(rbsi, rbmetric)
@@ -572,15 +572,26 @@ Private Sub ShowPlanningsBoth()
   Dim xplanAr As String[]
   Dim xexptAr As String[]
 
+  xexptAr = modPatPatho.ShowSelectedNoteUser(Trim(txtencid.Text), "Expert Planning")
+  If xexptAr And If xexptAr.Count Then
+    txtplanfinal.RichText = xexptAr[0]
+    lblfinaluser.Text = xexptAr[1]
+  Endif
+
   xplanAr = modPatPatho.ShowSelectedNoteUser(Trim(txtencid.Text), "Initial Planning")
   If xplanAr And If xplanAr.Count Then
     txtplan.RichText = xplanAr[0]
     lblinitialuser.Text = xplanAr[1]
   Endif
-  xexptAr = modPatPatho.ShowSelectedNoteUser(Trim(txtencid.Text), "Expert Planning")
-  If xexptAr And If xexptAr.Count Then
-    txtplanfinal.RichText = xexptAr[0]
-    lblfinaluser.Text = xexptAr[1]
+
+  If modBasic.$FixAdviceOPOutcome = "Enable" Then
+    If lblinitialuser.Text Then
+      btnoutcome.Enabled = True
+    Else
+      btnoutcome.Enabled = False
+    Endif
+  Else
+    btnoutcome.Enabled = True
   Endif
 
 End
@@ -1596,7 +1607,7 @@ Public Sub btnsympunit_Click()
 
   If grdchiefsymptom.Selection.Count Then
     $rSympRes.MoveTo(grdchiefsymptom.Selection[0])
-    xval = InputCombo("Update Unit of Symptom Duration", $rSympRes["flditem"], ["Hours", "Days", "Weeks", "Months", "Years", "Episodes"], $rSympRes["fldreportquali"], True)
+    xval = InputCombo("Update Unit of Symptom Duration", $rSympRes["flditem"], modMedicine.$SymptomFrequency, $rSympRes["fldreportquali"], True)
     If xval Then
       res = modDatabase.$myConn.Edit("tblexamgeneral", "fldid=&1", $rSympRes["fldid"])
       If modGeneral.AllowClinicalEdit(res["flduserid"]) = True Then
@@ -1966,6 +1977,7 @@ Public Sub btnplan_Click()
 
   If txtplan.Text Then
     modPatientGeneral.AddExamGeneralQualiData(Trim(txtencid.Text), "Notes", "Initial Planning", txtplan.KeyList.Join(";"), txtplan.RichText, xboolean)
+    btnoutcome.Enabled = True
     Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
   Endif
 
@@ -3554,7 +3566,6 @@ Private Sub RestrictUserAccess()
   Endif
   If $UserRestrict.Exist("Patient History") Then
     btnhistory.Visible = False
-    btnplan.Visible = False
   Endif
   If $UserRestrict.Exist("Clinical Findings") Then
     btnfinadd.Visible = False

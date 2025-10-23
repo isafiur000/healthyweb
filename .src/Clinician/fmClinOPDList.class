@@ -92,6 +92,10 @@ Public Sub _new(sTable As String)
     cmbdept.Text = modSettings.ShowSettingFromFIle("Clinic/DefaultOPD")
   Endif
 
+  If modBasic.$FixAdviceOPOutcome = "Enable" Then
+    btnoutcome.Enabled = False
+  Endif
+
   modSettings.ShowCheckBox(chkshowdepart, "OPDPatientList/ShowParameters")
   modSettings.ShowCheckBox(chkshowstatus, "OPDPatientList/ShowStatusIcons")
   modSettings.ShowCheckBox(chknotice, "OPDPatientList/ShowNotices")
@@ -719,6 +723,15 @@ Public Sub GridView1_Select()
 
   If GridView1.Selection.Count Then
     $rData.MoveTo(GridView1.Selection[0])
+    If modBasic.$FixAdviceOPOutcome = "Enable" Then
+      If modPatPatho.ShowSelectedNotes($rData["fldencounterval"], "Initial Planning") Then
+        btnoutcome.Enabled = True
+      Else
+        btnoutcome.Enabled = False
+      Endif
+    Else
+      btnoutcome.Enabled = True
+    Endif
     SHowPatIndicators($rData["fldencounterval"])
   Endif
 
@@ -852,7 +865,7 @@ Public Sub btnmobilevital_Click()
 
 End
 
-Public Sub btnmobilebed_Click()
+Public Sub btnoutcome_Click()
 
   Dim hForm As FmOPOutcome
 
@@ -1089,14 +1102,24 @@ Public Sub btnopdsheet_Click()
 
 End
 
-Public Sub btnall_Click()
+Public Sub btnadvice_Click()
 
-  Dim hForm As FmHistoryMobile
+  Dim xboolean As Boolean
+  Dim xval As String
+
+  If modBasic.$ClinHistoryInput = "Single" Then
+    xboolean = True
+  Else
+    xboolean = False
+  Endif
 
   If GridView1.Selection.Count Then
     $rData.MoveTo(GridView1.Selection[0])
-    hForm = New FmHistoryMobile($rData["fldencounterval"])
-    hForm.ShowModal
+    xval = GetRichTextArea("Clinician Advice", modPatPatho.ShowSelectedNotes($rData["fldencounterval"], "Initial Planning"))
+    If xval Then
+      modPatientGeneral.AddExamGeneralQualiData($rData["fldencounterval"], "Notes", "Initial Planning", "", xval, xboolean)
+      btnoutcome.Enabled = True
+    Endif
   Endif
 
 End
@@ -1863,8 +1886,8 @@ End
 
 Private Sub GetComboItemList()
 
-  If $UserRestrict.Exist("Patient History") = False Then
-    btnall.Visible = True
+  If $UserRestrict.Exist("Initial Planning") = False Then
+    btnadvice.Visible = True
   Endif
   If $UserRestrict.Exist("Demographics") = False Then
     btnmobiledemog.Visible = True

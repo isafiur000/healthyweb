@@ -142,7 +142,7 @@ Private Sub SHowSavedGrid()
 
   Dim sql As String
 
-  sql = "select fldid,fldtime,flditemname,fldrefer,fldordcomp from tblpatbilling where fldencounterval=&1 and flditemtype=&2 and fldsave=&3 and (fldstatus=&4 or fldstatus=&5) and fldsample=&6 and (flditemqty-fldretqty)>&7"
+  sql = "select fldid,fldtime,flditemname,fldrefer,fldordcomp,fldreason from tblpatbilling where fldencounterval=&1 and flditemtype=&2 and fldsave=&3 and (fldstatus=&4 or fldstatus=&5) and fldsample=&6 and (flditemqty-fldretqty)>&7"
   $rData1 = modDatabase.$myConn.Exec(sql, $encid, "Radio Diagnostics", True, "Done", "Cleared", "Waiting", 0)
   $aMyFields1 = New String[]
   modGridView.ReadSmallData(GridView2, $rData1, $aMyFields1)
@@ -153,10 +153,13 @@ Private Sub SHowSavedGrid()
     .Columns[2].Width = CStr(250 * modBasic.$AppWidthRatio) & "px"
     .Columns[3].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
     .Columns[4].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
+    .Columns[5].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+
     .Columns[1].Text = "DateTime"
     .Columns[2].Text = "Test Name"
     .Columns[3].Text = "ReferBy"
     .Columns[4].Text = "From"
+    .Columns[5].Text = "Comment"
   End With
 
 End
@@ -171,6 +174,25 @@ Public Sub GridView2_Data(Row As Integer, Column As Integer, Data As WebTableDat
     Data.Text = modGeneral.GetUserFullName($rData1[$aMyFields1[Column]])
   Else
     Data.Text = $rData1[$aMyFields1[Column]]
+  Endif
+
+End
+
+Public Sub btnpostedit_Click()
+
+  Dim xx As String
+  Dim res As Result
+
+  If GridView2.Selection.Count Then
+    $rData1.MoveTo(GridView2.Selection[0])
+    xx = GetTextArea($rData1["flditemname"], $rData1["fldreason"])
+    If xx Then
+      res = modDatabase.$myConn.Edit("tblpatbilling", "fldid=&1", $rData1["fldid"])
+      res["fldreason"] = xx
+      res["xyz"] = False
+      res.Update
+      SHowSavedGrid()
+    Endif
   Endif
 
 End
@@ -383,8 +405,8 @@ Private Sub FillSelLabCOlumnView(sItem As String)
       sstr1 = "select flditemname from tblservicecost where (fldgroup=&1 or fldgroup=&2) and fldstatus=&3 and fldreport=&4 and flditemtype=&5"
       res = modDatabase.$myConn.Exec(sstr1, $BillMode, "%", "Active", sItem, "Radio Diagnostics")
     Else
-      sstr1 = "select distinct(fldgroupname) as col from tblgroupradio where fldgroupname in(select flditemname from tblservicecost where (fldgroup=&1 or fldgroup=&2) and fldstatus=&3) and fldgroupname in(select flditemname from tblcostgroup where fldgroup=&4)"                                                ''
-      res = modDatabase.$myConn.Exec(sstr1, $BillMode, "%", "Active", sItem)
+      sstr1 = "select distinct(fldgroupname) as col from tblgroupradio where fldgroupname in(select flditemname from tblservicecost where (fldgroup=&1 or fldgroup=&2) and fldstatus=&3) and fldgroupname in(select flditemname from tblcostgroup where fldgroup=&4 and (fldcomp=&5 or fldcomp=&6))"                                                ''
+      res = modDatabase.$myConn.Exec(sstr1, $BillMode, "%", "Active", sItem, modBasic.$compID, "%")
     Endif
     xxx = modControlSub.GetDirectFillresult(res)
     $TestList = xxx
