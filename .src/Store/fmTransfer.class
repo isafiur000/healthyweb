@@ -26,7 +26,6 @@ Public Sub _new()
   cmbroute.List = modMedicine.ComboRoute()
   xCompLst = modMisc.CompListExcept(modBasic.$AllCompList)
   cmbcompsent.List = xCompLst
-  cmbcompsent.Add("Locker")
   cmbcomprecv.List = xCompLst
   cmbcomprecv.Text = "%"
   cmbcomppend.List = modBasic.$AllCompList
@@ -36,8 +35,10 @@ Public Sub _new()
   If modBasic.$AccessStockTransfer = "Disable" Then
     If modGlobalSetting.GetDBTableList("InventorySaveAccess/StockTransfer").Exist(modBasic.$lbluser) = True Then
       btnsavefrom.Enabled = True
+      btnsavelocker.Enabled = True
     Else
       btnsavefrom.Enabled = False
+      btnsavelocker.Enabled = False
     Endif
   Endif
   rbtrans.Value = True
@@ -624,16 +625,26 @@ End
 
 Public Sub btnsavefrom_Click()
 
-  FirstSaveItems()
+  FirstSaveItems(False)
 
 End
 
-Private Sub FirstSaveItems()
+Public Sub btnsavelocker_Click()
+
+  FirstSaveItems(True)
+
+End
+
+Private Sub FirstSaveItems(sLocker As Boolean)
 
   Dim res As Result
   Dim res1 As Result
 
-  res = modDatabase.$myConn.Exec("select fldid,fldstockno,fldoldstockno,fldqty,fldfromcomp,fldtocomp,fldlockcomp from tbltransfer where fldfromcomp=&1 and fldsav=&2 and fldtocomp=&3", modBasic.$compID, False, cmbcompsent.Text)
+  If sLocker = True Then
+    res = modDatabase.$myConn.Exec("select fldid,fldstockno,fldoldstockno,fldqty,fldfromcomp,fldtocomp,fldlockcomp from tbltransfer where fldfromcomp=&1 and fldsav=&2 and fldtocomp=&3 and fldlockcomp=&4", modBasic.$compID, False, "Locker", cmbcompsent.Text)
+  Else
+    res = modDatabase.$myConn.Exec("select fldid,fldstockno,fldoldstockno,fldqty,fldfromcomp,fldtocomp,fldlockcomp from tbltransfer where fldfromcomp=&1 and fldsav=&2 and fldtocomp=&3", modBasic.$compID, False, cmbcompsent.Text)
+  Endif
   If res.Available = True Then
     For Each res
       If res["fldqty"] <= modStock.TotalQTYbyStockNo(res["fldoldstockno"]) Then

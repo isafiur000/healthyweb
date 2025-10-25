@@ -4,14 +4,16 @@ Private $rData As MyResult
 Private $aMyFields As String[]
 Private $strType As String
 Private $strTitle As String
+Private $colCount As Integer
 
-Public Sub _new(res As MyResult, strTitle As String, strType As String, AllowExport As Boolean)
+Public Sub _new(res As MyResult, strTitle As String, strType As String, AllowExport As Boolean, colCount As Integer)
 
   $strType = strType
   $rData = res
   $strTitle = strTitle
+  $colCount = colCount
 
-  WebLabel1.Text = $strTitle
+  lbltitle.Text = $strTitle
   mnutransfer.Visible = AllowExport
   SetMenuListGrid()
 
@@ -37,7 +39,7 @@ End
 Private Sub ShowGridView()
 
   $aMyFields = New String[]
-  modGridView.ReadSmallMyData(GridView1, $rData, $aMyFields)
+  modGridView.ReadSmallMyData(GridView1, $rData, $aMyFields, $colCount)
   ResizeGridView()
 
 End
@@ -117,71 +119,6 @@ End
 Public Sub btnexport_Click()
 
   modCHTMLReport.ExportGridToHTML(GridView1, Me.Title, modReportVar.GetDateTimeReport(Now(), gb.GeneralDate))
-
-End
-
-Public Sub mnutransfer_Click()
-
-  ' modGridView.ExportGridToSqlite(GridView1)
-
-End
-
-Public Sub mnumovement_Click()
-
-  Dim xcoord As String[]
-  Dim xList As String[]
-  Dim xLink As String
-
-  xList = New String[]
-  For Each $rData
-    xcoord = modDataRepo.GetGeoCoordinates($rData["fldhospcode"])
-    If xcoord Then
-      If xcoord[0] And If xcoord[1] Then
-        xList.Add(xcoord[0] & "," & xcoord[1])
-      Endif
-    Endif
-  Next
-  If xList.Count Then
-    xLink = "https://www.google.com/maps/dir/" & xList.Join("/")
-    Me.Exec("window.open('" & xLink & "'); ")
-  Endif
-
-End
-
-''===================== Images =======================
-Public Sub mnugenimage_Click()
-
-  Dim hForm As FmPatImage
-
-  If GridView1.Selection.Count Then
-    $rData.MoveTo(GridView1.Selection[0])
-    hForm = New FmPatImage("IMAGE", $rData["fldencounterval"], "")
-    hForm.ShowModal
-  Endif
-
-End
-
-Public Sub mnudicom_Click()
-
-  Dim hForm As FmPatImage
-
-  If GridView1.Selection.Count Then
-    $rData.MoveTo(GridView1.Selection[0])
-    hForm = New FmPatImage("DICOM", $rData["fldencounterval"], "")
-    hForm.ShowModal
-  Endif
-
-End
-
-Public Sub mnupacs_Click()
-
-  Dim hForm As FmPacsShow
-
-  If GridView1.Selection.Count Then
-    $rData.MoveTo(GridView1.Selection[0])
-    hForm = New FmPacsShow($rData["fldencounterval"], "Visit")
-    hForm.ShowModal
-  Endif
 
 End
 

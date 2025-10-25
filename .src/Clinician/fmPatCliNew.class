@@ -22,6 +22,7 @@ Private hPtForm As FmClinHistory
 Private hDigForm As FmDiagnosticTab
 Private hOwnStockForm As FmWardStock
 
+Private $billReference As String
 Private $billModeTest As String
 Private $billModeRadio As String
 Private $billModePharmacy As String
@@ -478,6 +479,7 @@ Private Sub BasicInfoPatient()
     Endif
     modAppSupport.RecordPatientActivity("Patient Data", Me.Name, "EncounterID", Trim(txtencid.Text))
     GetDefaultBillingmodes()
+    cmbinpathistory.List = GetHistoryList()
     ButtonControl()
     $dateReg = modPatient.GetRecordDate(Trim(txtencid.Text))
 
@@ -511,10 +513,31 @@ Private Sub BasicInfoPatient()
 
 End
 
+Private Function GetHistoryList() As String[]
+
+  Dim xList As String[]
+  Dim xnew As String[]
+  Dim xfinal As String[]
+
+  xList = New String[]
+  xList.Add("History of Illness")
+  xnew = modMedicine.GetClinHistoryList($billReference, txtgender.Text)
+  If xnew And If xnew.Count Then
+    xList.Insert(xnew)
+  Else
+    xList.Insert(modMedicine.GetDefaultClinHistories())
+  Endif
+
+  xfinal = modString.BinaryDistinctStringArray(xList)
+  Return xfinal
+
+End
+
 Private Sub GetDefaultBillingmodes()
 
   Dim xpackage As String
 
+  $billReference = modNonMedical.GetFixedReference(Trim(txtencid.Text))
   Select $sTatus
     Case "Admitted", "Discharged", "LAMA", "Death", "Refer", "Absconder"
       $billModeTest = modNonMedical.GetAutoIPBillingPack("Test", Trim(txtencid.Text))
@@ -672,7 +695,6 @@ Private Sub ButtonControl()
   ''images
   btnaddchart.Enabled = xx
   ''triage
-  mnutriage.Enabled = xx
   btntriage.Enabled = xx
   ''vitals
   mnuvital.Enabled = xx
@@ -1948,6 +1970,15 @@ Public Sub txttemp_Activate()
 End
 
 ''--------------------- History and planning ---------------------------
+Public Sub cmbinpathistory_Click()
+
+  If cmbinpathistory.Text Then
+    btnhistory.Enabled = True
+    txthistory.RichText = modPatPatho.ShowSelectedHistory(Trim(txtencid.Text), cmbinpathistory.Text)
+  Endif
+
+End
+
 Public Sub btnhistory_Click()
 
   Dim xboolean As Boolean
@@ -1958,9 +1989,12 @@ Public Sub btnhistory_Click()
     xboolean = False
   Endif
 
-  If txthistory.Text Then
-    modPatientGeneral.AddExamGeneralQualiData(Trim(txtencid.Text), "History", "History of Illness", txthistory.KeyList.Join(";"), txthistory.RichText, xboolean)
-    Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+  If cmbinpathistory.Text Then
+    If txthistory.Text Then
+      modPatientGeneral.AddExamGeneralQualiData(Trim(txtencid.Text), "History", cmbinpathistory.Text, txthistory.KeyList.Join(";"), txthistory.RichText, xboolean)
+      Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+      btnhistory.Enabled = False
+    Endif
   Endif
 
 End
@@ -2315,10 +2349,10 @@ End
 
 Public Sub mnupatdosing_Click()
 
-  Dim hForm As FmDosecount
+  Dim hForm As FmDoseMobile
 
   If txtencid.Text Then
-    hForm = New FmDosecount(Trim(txtencid.Text))
+    hForm = New FmDoseMobile(Trim(txtencid.Text))
     hForm.ShowModal
   Endif
 
@@ -2341,18 +2375,6 @@ Public Sub mnuvital_Click()
 
   If txtencid.Text
     hForm = New FmVital(Trim(txtencid.Text), "widesize-popupform")
-    hForm.ShowModal
-    UpdateTriage()
-  Endif
-
-End
-
-Public Sub mnutriage_Click()
-
-  Dim hForm As FmTriage
-
-  If txtencid.Text
-    hForm = New FmTriage("Triage Examinations", Trim(txtencid.Text))
     hForm.ShowModal
     UpdateTriage()
   Endif
@@ -3629,7 +3651,6 @@ Private Sub RestrictUserAccess()
     mnupacsimage.Visible = False
   Endif
   If $UserRestrict.Exist("Triage Examinations") Then
-    mnutriage.Visible = False
     btntriage.Visible = False
   Endif
   If $UserRestrict.Exist("Essential Examinations") Then
@@ -3958,14 +3979,16 @@ Public Sub btngetfeed_Click()
 
 End
 
-''------------database
-Public Sub btndatacompl_Click()
+Public Sub btndatahistory_Click()
+
+  If cmbinpathistory.Text Then
+    txthistory.RichText = AddHistory("History", Trim(txtencid.Text), cmbinpathistory.Text)
+  Endif
 
 End
 
-Public Sub btndatahistory_Click()
-
-  txthistory.RichText = AddHistory("History", Trim(txtencid.Text), "History of Illness")
+''-------------- other --------------------
+Public Sub btndatacompl_Click()
 
 End
 
@@ -3990,19 +4013,21 @@ End
 
 Public Sub btnpanhistory_Click()
 
-  txthistory.RichText = txthistory.RichText & Space(1) & modFillContainer.GetExtraTextArea("History of Illness", txthistory.Text)
+  If cmbinpathistory.Text Then
+    txthistory.RichText = txthistory.RichText & Space(1) & modFillContainer.GetExtraTextArea(cmbinpathistory.Text, txthistory.Text)
+  Endif
 
 End
 
 Public Sub btnpanopd_Click()
 
-  txtplan.RichText = txtplan.RichText & Space(1) & modFillContainer.GetExtraTextArea("Initial Planning", txtplan.Text)
+  txtplan.RichText = txtplan.RichText & Space(1) & modFillContainer.GetExtraTextArea("Clinician Advice", txtplan.Text)
 
 End
 
 Public Sub btnpanexpert_Click()
 
-  txtplanfinal.RichText = txtplanfinal.RichText & Space(1) & modFillContainer.GetExtraTextArea("Expert Planning", txtplanfinal.Text)
+  txtplanfinal.RichText = txtplanfinal.RichText & Space(1) & modFillContainer.GetExtraTextArea("Expert Advice", txtplanfinal.Text)
 
 End
 
@@ -4034,25 +4059,27 @@ End
 ''---------------- attach
 Public Sub btnattcompl_Click()
 
-  txtgencomplaint.RichText = txtgencomplaint.RichText & DictionaryVIew(modBasic.$dictadvPath)
+  txtgencomplaint.RichText = txtgencomplaint.RichText & DictionaryVIew("General Complaints")
 
 End
 
 Public Sub btnatthistory_Click()
 
-  txthistory.RichText = txthistory.RichText & DictionaryVIew(modBasic.$dictadvPath)
+  If cmbinpathistory.Text Then
+    txthistory.RichText = txthistory.RichText & DictionaryVIew(cmbinpathistory.Text)
+  Endif
 
 End
 
 Public Sub btnattopd_Click()
 
-  txtplan.RichText = txtplan.RichText & DictionaryVIew(modBasic.$dictadvPath)
+  txtplan.RichText = txtplan.RichText & DictionaryVIew("Clinician Advice")
 
 End
 
 Public Sub btnattexpert_Click()
 
-  txtplanfinal.RichText = txtplanfinal.RichText & DictionaryVIew(modBasic.$dictadvPath)
+  txtplanfinal.RichText = txtplanfinal.RichText & DictionaryVIew("Expert Advice")
 
 End
 

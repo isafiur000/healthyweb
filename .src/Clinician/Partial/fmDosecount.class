@@ -8,13 +8,11 @@ Private $aMyFields1 As String[]
 Private $rData As Result
 Private $aMyFields As String[]
 
-Public Sub _new(encid As String)
+Public Sub _new(encid As String, sClass As String)
 
   $encid = encid
 
-  modGeneralMain.GetOpenModalForm(Me)
-  txtpatientname.Text = modPatient.GetPatientNameByEnc($encid)
-  txtgender.Text = modPatient.GetPatientSex($encid)
+  WebContainer1.Class = sClass
   $sTatus = modPatient.CurrentAdmissionStatus($encid)
   FillMedicineList()
   ' ListBox1.SetFocus
@@ -25,17 +23,19 @@ Private Sub FillMedicineList()
 
   Dim sql As String
 
-  sql = "select fldid,fldroute,flditem,flddose,fldfreq,flddays,fldstatus from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldstarttime<=&3 and fldendtime>=&4 and fldroute<>&5 and flditemtype=&6 and fldcurval=&7"                    ''
+  sql = "select fldid,fldroute,flditem,flddose,fldfreq,flddays,fldstatus,flddirection from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldstarttime<=&3 and fldendtime>=&4 and fldroute<>&5 and flditemtype=&6 and fldcurval=&7"                    ''
   $rData1 = modDatabase.$myConn.Exec(sql, $encid, True, Now(), DateAdd(Now(), gb.Hour, -3), "fluid", "Medicines", "Continue")
   $aMyFields1 = New String[]
   modGridView.ReadSmallData(ListBox1, $rData1, $aMyFields1)
   With ListBox1
     .Columns[0].Hidden = True
     .Columns[1].Hidden = True
+    .Columns[1].Expand = True
     .Columns[3].Hidden = True
     .Columns[4].Hidden = True
     .Columns[5].Hidden = True
     .Columns[6].Hidden = True
+    .Columns[7].Hidden = True
   End With
 
 End
@@ -66,6 +66,7 @@ Private Sub ShowSelectedDosing()
     lblregimen.Text = $rData1["fldroute"] & Space(2) & $rData1["flddose"] & Space(1) & modMedConstant.GetMedicineDoseUnit($rData1["flditem"]) & " X " & $rData1["fldfreq"] & " X " & $rData1["flddays"] & " day(s)"
     lblregimen.Tag = $rData1["fldfreq"]
     lblunit.Text = modPharmLabel.GetDosageFormForLabel($rData1["flditem"], "Inpatient")
+    txtdirection.Text = $rData1["flddirection"]
     txtdose.Value = Round($rData1["flddose"] / txtinitstren.Value, -2)
 
     FillGridView(txtid.Value)
@@ -223,11 +224,5 @@ Public Sub btndosestop_Click()
       FillGridView(txtid.Value)
     Endif
   Endif
-
-End
-
-Public Sub btnclose_Click()
-
-  Me.Close()
 
 End

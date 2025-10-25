@@ -1,13 +1,15 @@
 ' Gambas class file
 
 Private $dictPath As String
+Private $sCategory As String
 Private $sValue As String
 
-Public Sub Run(dictPath As String) As String
+Public Sub Run(sCategory As String) As String
 
-  $dictPath = dictPath
+  $sCategory = sCategory
 
-  lstletter.List = modString.GetFirstLetterArray(GetChapterList($dictPath))
+  Me.Title = $sCategory
+  $dictPath = modBasic.$dictadvPath
   DisplayDictgrid()
   If modBasic.$TabletModeEnable = "Yes" Then
   Else
@@ -18,7 +20,27 @@ Public Sub Run(dictPath As String) As String
 
 End
 
-Private Sub GetChapterList(xdictPath As String) As String[]
+Public Sub txtselect_Click()
+
+  txtselect.Text = ""
+
+End
+
+Public Sub txtselect_Change()
+
+  DisplayDictgrid()
+
+End
+
+Private Sub DisplayDictgrid()
+
+  If Exist($dictPath) Then
+    ListBox1.List = GetChapterList($dictPath, $sCategory)
+  Endif
+
+End
+
+Private Sub GetChapterList(xdictPath As String, sCategory As String) As String[]
 
   Dim xxx As String[]
   Dim ConfFile As Settings
@@ -28,7 +50,7 @@ Private Sub GetChapterList(xdictPath As String) As String[]
   xxx = New String[]
   ConfFile = New Settings(xdictPath)
   For Each xtitle In ConfFile.Keys
-    If xtitle = "Dictionary" Then
+    If xtitle = sCategory Then
       For Each xkey In ConfFile.Keys[xtitle]
         If LCase(xkey) Like LCase(txtselect.Text) & "*" Then
           xxx.Add(xkey)
@@ -40,50 +62,6 @@ Private Sub GetChapterList(xdictPath As String) As String[]
 
 End
 
-Private Sub DisplayDictgrid()
-
-  If Exist($dictPath) Then
-    ListBox1.List = GetChapterList($dictPath)
-    ListBox1.Index = 0
-  Endif
-
-End
-
-Public Sub lstletter_Click()
-
-  txtselect.Text = lstletter.Text
-
-End
-
-Public Sub txtselect_Change()
-
-  DisplayDictgrid()
-
-End
-
-Public Sub btnok_Click()
-
-  If ListBox1.Text Then
-    $sValue = modControlSub.ShowSettingValue($dictPath, "Dictionary/" & ListBox1.Text)
-    Me.Close(True)
-  Else
-    Me.Close
-  Endif
-
-End
-
-Public Sub txtselect_Click()
-
-  txtselect.Text = ""
-
-End
-
-Public Sub btnclose_Click()
-
-  Me.Close
-
-End
-
 Public Sub txtselect_KeyPress()
 
   If Key.Code = "Down" Then
@@ -91,5 +69,22 @@ Public Sub txtselect_KeyPress()
       ListBox1.SetFocus
     Endif
   Endif
+
+End
+
+Public Sub btnok_Click()
+
+  If ListBox1.Text Then
+    $sValue = modControlSub.ShowSettingValue($dictPath, $sCategory & "/" & ListBox1.Text)
+    Me.Close(True)
+  Else
+    Me.Close
+  Endif
+
+End
+
+Public Sub btnclose_Click()
+
+  Me.Close
 
 End

@@ -112,6 +112,7 @@ Public Sub _new(sTable As String)
   FillExamMenu()
   modSettings.ShowCheckBox(chkdate, "OPDPatientList/SelectDate")
   rbmetric.Value = True
+  rbboth.Value = True
   rbdate.Value = True
   If cmbdept.Text Then
     btnrefresh_Click()
@@ -353,18 +354,7 @@ Private Function ExecuteQuery(xFldList As String[]) As Result
   Dim xunion As String
   Dim xpreun As String
   Dim xpaid As String
-
-  If ToolButton1.Background = Color.White Then
-    xcolor = ""
-  Else
-    If rbname.Value = True Then
-      xcolor = db.Subst(" and tblencounter.fldheight=&1", CStr(ToolButton1.Background))
-    Else If rbdate.Value = True Then
-      xcolor = " and " & $sTable & "." & "fldencounterval in(select fldencounterval from tblencounter where " & db.Subst("fldheight=&1)", CStr(ToolButton1.Background))
-    Else If rbtriage.Value = True Then
-      xcolor = db.Subst(" and tblencounter.fldheight=&1", CStr(ToolButton1.Background))
-    Endif
-  Endif
+  Dim xstate As String
 
   If Len(txtencid.Text) Then
     xencid = db.Subst(" and lower(" & $sTable & "." & "fldencounterval) like &1", LCase(Trim(txtencid.Text)))
@@ -397,29 +387,60 @@ Private Function ExecuteQuery(xFldList As String[]) As Result
     xunion = " inner join tblencounter on " & $sTable & "." & "fldencounterval=tblencounter.fldencounterval"
     xorder = " ORDER BY FIELD(tblencounter.fldheight, '0', '65280', '16776960', '16711680') DESC"
   Endif
+
+  If ToolButton1.Background = Color.White Then
+    xcolor = ""
+  Else
+    If xunion Then
+      xcolor = db.Subst(" and tblencounter.fldheight=&1", CStr(ToolButton1.Background))
+    Else
+      xunion = " inner join tblencounter on " & $sTable & "." & "fldencounterval=tblencounter.fldencounterval"
+      xcolor = db.Subst(" and tblencounter.fldheight=&1", CStr(ToolButton1.Background))
+    Endif
+  Endif
+
+  If xunion Then
+    If rbopd.Value = True Then
+      xstate = db.Subst(" and tblencounter.fldadmission<>&1", "Admitted")
+    Else If rbipd.Value = True Then
+      xstate = db.Subst(" and tblencounter.fldadmission=&1", "Admitted")
+    Else
+      xstate = ""
+    Endif
+  Else
+    xunion = " inner join tblencounter on " & $sTable & "." & "fldencounterval=tblencounter.fldencounterval"
+    If rbopd.Value = True Then
+      xstate = db.Subst(" and tblencounter.fldadmission<>&1", "Admitted")
+    Else If rbipd.Value = True Then
+      xstate = db.Subst(" and tblencounter.fldadmission=&1", "Admitted")
+    Else
+      xstate = ""
+    Endif
+  Endif
+
   $RepoStr = modDataRepo.GetWhereStringRepo(cmblocation.Text, cmbvalue.Text, $sTable)
   If chkdate.Value = True Then
     If modBasic.$FixedDepartment Then
-      sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & "  where " & $sTable & "." & "fldconsulttime>=&1 and " & $sTable & "." & "fldconsulttime<=&2 and " & $sTable & "." & "fldstatus=&3 and " & $sTable & "." & "fldconsultname=&4" & xencid & xconsult & xpaid & xcolor & $RepoStr & xorder                                           ''
+      sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & "  where " & $sTable & "." & "fldconsulttime>=&1 and " & $sTable & "." & "fldconsulttime<=&2 and " & $sTable & "." & "fldstatus=&3 and " & $sTable & "." & "fldconsultname=&4" & xencid & xconsult & xpaid & xcolor & xstate & $RepoStr & xorder                                           ''
       res = modDatabase.$myConn.Exec(sql, modDate.StartSqlDate(dtsort.Value), modDate.EndSqlDate(DateAdd(dtsort.Value, gb.Day, txtrange.Value)), "Planned", modBasic.$FixedDepartment)
     Else
       If cmbdept.Text = "All" Then
-        sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldconsulttime>=&1 and " & $sTable & "." & "fldconsulttime<=&2 and " & $sTable & "." & "fldstatus=&3" & xencid & xconsult & xpaid & xcolor & $RepoStr & xorder                                             ''
+        sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldconsulttime>=&1 and " & $sTable & "." & "fldconsulttime<=&2 and " & $sTable & "." & "fldstatus=&3" & xencid & xconsult & xpaid & xcolor & xstate & $RepoStr & xorder                                             ''
       Else
-        sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldconsulttime>=&1 and " & $sTable & "." & "fldconsulttime<=&2 and " & $sTable & "." & "fldstatus=&3 and " & $sTable & "." & "fldconsultname=&4" & xencid & xconsult & xpaid & xcolor & $RepoStr & xorder
+        sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldconsulttime>=&1 and " & $sTable & "." & "fldconsulttime<=&2 and " & $sTable & "." & "fldstatus=&3 and " & $sTable & "." & "fldconsultname=&4" & xencid & xconsult & xpaid & xcolor & xstate & $RepoStr & xorder
       Endif
       res = modDatabase.$myConn.Exec(sql, modDate.StartSqlDate(dtsort.Value), modDate.EndSqlDate(DateAdd(dtsort.Value, gb.Day, txtrange.Value)), "Planned", cmbdept.Text)
     Endif
 
   Else
     If modBasic.$FixedDepartment Then
-      sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldstatus=&1 and " & $sTable & "." & "fldconsultname=&2" & xencid & xconsult & xpaid & xcolor & $RepoStr & xorder                                            ''
+      sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldstatus=&1 and " & $sTable & "." & "fldconsultname=&2" & xencid & xconsult & xpaid & xcolor & xstate & $RepoStr & xorder                                            ''
       res = modDatabase.$myConn.Exec(sql, "Planned", modBasic.$FixedDepartment)
     Else
       If cmbdept.Text = "All" Then
-        sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldstatus=&1" & xencid & xconsult & xpaid & xcolor & $RepoStr & xorder                                              ''
+        sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldstatus=&1" & xencid & xconsult & xpaid & xcolor & xstate & $RepoStr & xorder                                              ''
       Else
-        sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldstatus=&1 and " & $sTable & "." & "fldconsultname=&2" & xencid & xconsult & xpaid & xcolor & $RepoStr & xorder
+        sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldstatus=&1 and " & $sTable & "." & "fldconsultname=&2" & xencid & xconsult & xpaid & xcolor & xstate & $RepoStr & xorder
       Endif
       res = modDatabase.$myConn.Exec(sql, "Planned", cmbdept.Text)
     Endif
@@ -542,7 +563,7 @@ Private Sub ResizeGrid()
     .Columns[3].Width = CStr(200 * modBasic.$AppWidthRatio) & "px"
     .Columns[4].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
     .Columns[5].Width = CStr(30 * modBasic.$AppWidthRatio) & "px"
-    .Columns[6].Width = CStr(175 * modBasic.$AppWidthRatio) & "px"
+    .Columns[6].Width = CStr(200 * modBasic.$AppWidthRatio) & "px"
     If chkshowdepart.Value = True Then
       If $sTable = "tblconsult" Then
         .Columns[7].Hidden = False
@@ -884,7 +905,7 @@ Public Sub btnoutcome_Click()
 
 End
 
-Public Sub btnmobiledemog_Click()
+Public Sub mnudemographic_Click()
 
   Dim hForm7 As FmPatdemograph
 
@@ -1890,7 +1911,10 @@ Private Sub GetComboItemList()
     btnadvice.Visible = True
   Endif
   If $UserRestrict.Exist("Demographics") = False Then
-    btnmobiledemog.Visible = True
+    mnudemographic.Visible = True
+  Endif
+  If $UserRestrict.Exist("Consultation Plan") = False Then
+    mnureqconsult.Visible = True
   Endif
   If $UserRestrict.Exist("Essential Examinations") = False Then
     btnmobilevital.Visible = True
@@ -2478,7 +2502,7 @@ Public Sub mnuexpocolumn_Click()
 
 End
 
-Public Sub btnexamfm_Click()
+Public Sub mnuexamform_Click()
 
   Dim hForm As FmExamReporting
 
@@ -2491,7 +2515,7 @@ Public Sub btnexamfm_Click()
 
 End
 
-Public Sub btndelivery_Click()
+Public Sub mnudelivform_Click()
 
   Dim hForm As FmDeliveryNew
 

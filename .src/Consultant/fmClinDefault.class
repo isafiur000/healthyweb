@@ -6,8 +6,9 @@ Private xGridData As Variant[]
 
 Public Sub _new()
 
-  rbhistory.Value = True
   cmbgender.List = ["Male", "Female", "Both Sex"]
+  rbhistory.Value = True
+  rbhistory_Click()
   LoadFormats()
 
 End
@@ -53,13 +54,25 @@ End
 
 Public Sub rbhistory_Click()
 
-  LoadFormats()
+  If modHelpVariable.$LogInCategory = "Clinician" And If modBasic.$ClinIPDHistoryFormat Then
+    cmbformat.Text = modBasic.$ClinIPDHistoryFormat
+    cmbformat.Enabled = False
+  Else
+    cmbformat.Enabled = True
+    LoadFormats()
+  Endif
 
 End
 
 Public Sub rbdischarge_Click()
 
-  LoadFormats()
+  If modHelpVariable.$LogInCategory = "Clinician" And If modBasic.$ClinIPDDischargeFormat Then
+    cmbformat.Text = modBasic.$ClinIPDDischargeFormat
+    cmbformat.Enabled = False
+  Else
+    cmbformat.Enabled = True
+    LoadFormats()
+  Endif
 
 End
 
@@ -274,12 +287,14 @@ End
 Public Sub btnBrCancel_Click()
 
   If ListBox1.Text And If cmbformat.Text And If cmbgender.Text Then
-    modDatabase.$medConn.Delete(GetDefTable(), "flditem=&1 and fldformat=&2 and fldgender=&3", ListBox1.Text, cmbformat.Text, cmbgender.Text)
-    txtdetail.RichText = ""
-    ShowParameters()
-    GridView1.Clear()
-    $OptionList = New Variant[]
-    Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information deleted", modBasic.$BalloonDelay))
+    If Message.Question("Are you sure ?", ("NO"), ("YES")) = 2 Then
+      modDatabase.$medConn.Delete(GetDefTable(), "flditem=&1 and fldformat=&2 and fldgender=&3", ListBox1.Text, cmbformat.Text, cmbgender.Text)
+      txtdetail.RichText = ""
+      ShowParameters()
+      GridView1.Clear()
+      $OptionList = New Variant[]
+      Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information deleted", modBasic.$BalloonDelay))
+    Endif
   Endif
 
 End
