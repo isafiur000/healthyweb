@@ -489,8 +489,7 @@ Private Sub BasicInfoPatient()
           txtpastdiagnosis.Text = "<p>" & "<b>Past " & modBasic.$ClinPastDiagnosis & "</b><br>" & modPathoSub.GetSelectedPastDiagnosisList(modBasic.$ClinPastDiagnosis, $PatientNum, Trim(txtencid.Text)).Join(", ") & "</p>"
       End Select
     Endif
-    txtgencomplaint.RichText = modPatPatho.ShowSelectedHistoryValue(Trim(txtencid.Text), "General Complaints")
-    txthistory.RichText = modPatPatho.ShowSelectedHistoryValue(Trim(txtencid.Text), "History of Illness")
+    ShowGeneralComplaints()
     modPatientGeneral.SetPatientFindingTree(Trim(txtencid.Text), lsticdisease, chkalldiagno.Value)
     ShowSymptomData()
     ShowEssentialExamRange()
@@ -1976,11 +1975,28 @@ Public Sub txttemp_Activate()
 End
 
 ''--------------------- History and planning ---------------------------
-Public Sub cmbinpathistory_Click()
+Private Sub ShowPatHistory()
+
+  Dim xcomplAr As String[]
 
   If cmbinpathistory.Text Then
+    xcomplAr = modPatPatho.ShowSelectedHistoryUser(Trim(txtencid.Text), cmbinpathistory.Text)
+    If xcomplAr And If xcomplAr.Count Then
+      txthistory.RichText = xcomplAr[0]
+      lblhistoryuser.Text = xcomplAr[1]
+    Else
+      txthistory.RichText = ""
+      lblhistoryuser.Text = ""
+    Endif
+  Endif
+
+End
+
+Public Sub btnshowhistory_Click()
+
+  If cmbinpathistory.Text Then
+    ShowPatHistory()
     btnhistory.Enabled = True
-    txthistory.RichText = modPatPatho.ShowSelectedHistory(Trim(txtencid.Text), cmbinpathistory.Text)
   Endif
 
 End
@@ -2036,6 +2052,18 @@ Public Sub btnplanfinal_Click()
   If txtplanfinal.Text Then
     modPatientGeneral.AddExamGeneralQualiData(Trim(txtencid.Text), "Notes", "Expert Planning", txtplanfinal.KeyList.Join(";"), txtplanfinal.RichText, xboolean)
     Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+  Endif
+
+End
+
+Private Sub ShowGeneralComplaints()
+
+  Dim xcomplAr As String[]
+
+  xcomplAr = modPatPatho.ShowSelectedHistoryUser(Trim(txtencid.Text), "General Complaints")
+  If xcomplAr And If xcomplAr.Count Then
+    txtgencomplaint.RichText = xcomplAr[0]
+    lblcomplaintuser.Text = xcomplAr[1]
   Endif
 
 End

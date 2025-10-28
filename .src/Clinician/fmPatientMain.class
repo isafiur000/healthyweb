@@ -2956,21 +2956,30 @@ End
 '
 ' End
 
-Public Sub cmbinpathistory_Click()
+Private Sub ShowPatHistory()
 
-  btnshowhistory_Click()
+  Dim xcomplAr As String[]
+
+  If cmbinpathistory.Text Then
+    If cmbinpathistory.Text = "Initial Planning" Or If cmbinpathistory.Text = "Expert Planning" Then
+      xcomplAr = modPatPatho.ShowSelectedNoteUser(Trim(txtencid.Text), cmbinpathistory.Text)
+    Else
+      xcomplAr = modPatPatho.ShowSelectedHistoryUser(Trim(txtencid.Text), cmbinpathistory.Text)
+    Endif
+    If xcomplAr And If xcomplAr.Count Then
+      txthistory.RichText = xcomplAr[0]
+      lblhistoryuser.Text = xcomplAr[1]
+    Else
+      txthistory.RichText = ""
+      lblhistoryuser.Text = ""
+    Endif
+  Endif
 
 End
 
 Public Sub btnshowhistory_Click()
 
-  If cmbinpathistory.Text Then
-    If cmbinpathistory.Text = "Initial Planning" Or If cmbinpathistory.Text = "Expert Planning" Then
-      txthistory.RichText = modPatPatho.ShowSelectedNotes(Trim(txtencid.Text), cmbinpathistory.Text)
-    Else
-      txthistory.RichText = modPatPatho.ShowSelectedHistoryValue(Trim(txtencid.Text), cmbinpathistory.Text)
-    Endif
-  Endif
+  ShowPatHistory()
 
 End
 
@@ -3861,21 +3870,20 @@ Public Sub ColumnView1_Select()
     If ColumnView1.Current.Image = "icons/coll4.png" Then
       xindex = ColumnView1[ColumnView1.Current.Key][3]
 
-      If chknoteedit.Value = True Then
-        res = modDatabase.$myConn.Exec("select fldid,flditem,fldreportquali,flddetail from tblexamgeneral where fldid=&1", xindex)
-        If res.Available Then
-          cmbnote.Text = res["flditem"]
-          txtnoteid.Value = res["fldid"]
-          txtimpression.Text = res["fldreportquali"]
-          txtnote.RichText = res["flddetail"]
-          If $sTatus = "Admitted" Then
-            btnoteadd.Enabled = True
-          Else
-            btnoteadd.Enabled = False
-          Endif
-        Else
+      res = modDatabase.$myConn.Exec("select fldid,flditem,fldreportquali,flddetail,flduserid,fldtime from tblexamgeneral where fldid=&1", xindex)
+      If res.Available Then
+        cmbnote.Text = res["flditem"]
+        txtnoteid.Value = res["fldid"]
+        txtimpression.Text = res["fldreportquali"]
+        txtnote.RichText = res["flddetail"]
+        lblnoteuser.Text = modGeneral.GetUserFullName(res["flduserid"]) & " [" & modReportVar.GetDateTimeReport(res["fldtime"], gb.GeneralDate) & "]"
+        If $sTatus = "Admitted" Then
           btnoteadd.Enabled = True
+        Else
+          btnoteadd.Enabled = False
         Endif
+      Else
+        btnoteadd.Enabled = True
       Endif
 
     Endif

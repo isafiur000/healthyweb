@@ -1,0 +1,156 @@
+' Gambas class file
+
+Private $rData As Result
+Private $aMyFields As String[]
+
+Public Sub _new()
+
+  cmbfrom.List = modBasic.$AllCompPerList
+  cmbtarget.List = modBasic.$AllCompPerList
+  cmburgent.List = ["Normal", "Urgent"]
+  cmburgent.Text = "%"
+
+End
+
+Public Sub btnshow_Click()
+
+  If cmbfrom.Text And If cmbtarget.Text And If cmburgent.Text Then
+    ShowRequestGrid()
+  Endif
+
+End
+
+Private Sub ShowRequestGrid()
+
+  Dim sql As String
+
+  sql = "select fldid,fldordtime,fldstockid,fldcategory,fldqty,fldcomp,fldurgent,fldexpdate,fldorduserid,fldreference from tblrequest where fldordcomp=&1 and fldstatus=&2 and fldcomp=&3 and fldsave=&4 and fldurgent like &5 and flduserid IS NULL"
+  $rData = modDatabase.$myConn.Exec(sql, cmbfrom.Text, "Requested", cmbtarget.Text, False, cmburgent.Text)
+  $aMyFields = New String[]
+  modGridView.ReadSmallData(GridView1, $rData, $aMyFields)
+
+  With GridView1
+    .Columns[0].Hidden = True
+    .Columns[1].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
+    .Columns[2].Width = CStr(350 * modBasic.$AppWidthRatio) & "px"
+    .Columns[3].Hidden = True
+    .Columns[4].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
+    .Columns[5].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
+    .Columns[6].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
+    .Columns[7].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
+    .Columns[8].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
+    .Columns[9].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
+
+    .Columns[1].Text = "DateTime"
+    .Columns[2].Text = "Particulars"
+    .Columns[4].Text = "QTY"
+    .Columns[5].Text = "Store"
+    .Columns[6].Text = "Urgency"
+    .Columns[7].Text = "Delivery"
+    .Columns[8].Text = "User"
+    .Columns[9].Text = "Reference"
+  End With
+
+End
+
+Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  $rData.MoveTo(Row)
+  modGridView.GridViewDecoration(Data, Row)
+  If Column = 1 Then
+    Data.Text = modReportVar.GetDateTimeReport($rData[$aMyFields[Column]], gb.MediumDate)
+  Else If Column = 4 Then
+    Data.Text = modReportVar.GetLocaleNumberFormat($rData[$aMyFields[Column]], -2)
+  Else If Column = 7 Then
+    Data.Text = modReportVar.GetDateTimeReport($rData[$aMyFields[Column]], gb.MediumDate)
+  Else
+    Data.Text = $rData[$aMyFields[Column]]
+  Endif
+
+End
+
+Public Sub mnueditqty_Click()
+
+  Dim res As Result
+  Dim xval As Float
+
+  If GridView1.Selection.Count Then
+    $rData.MoveTo(GridView1.Selection[0])
+    If Not $rData["fldreference"] Then
+
+      xval = InputValue($rData["fldstockid"], "Edit Quantity", $rData["fldqty"])
+      If xval Then
+        res = modDatabase.$myConn.Edit("tblrequest", "fldid=&1 and fldstatus=&2 and fldsave=&3", $rData["fldid"], "Requested", False)
+        If res.Available Then
+          res["fldqty"] = xval
+          res["fldfinalqty"] = xval
+          res.Update
+          ShowRequestGrid()
+        Endif
+      Endif
+
+    Endif
+  Endif
+
+End
+
+Public Sub mnueditpo_Click()
+
+  Dim res As Result
+  Dim xstat As String
+
+  If GridView1.Selection.Count Then
+    $rData.MoveTo(GridView1.Selection[0])
+    If Not $rData["fldreference"] Then
+
+      xstat = InputCombo($rData["fldstockid"], "Edit Urgency", ["Normal", "Urgent"], $rData["fldurgent"], True)
+      If xstat Then
+        res = modDatabase.$myConn.Edit("tblrequest", "fldid=&1 and fldstatus=&2 and fldsave=&3", $rData["fldid"], "Requested", False)
+        If res.Available Then
+          res["fldurgent"] = xstat
+          res.Update
+          ShowRequestGrid()
+        Endif
+      Endif
+
+    Endif
+  Endif
+
+End
+
+Public Sub btnverify_Click()
+
+  Dim Row As Integer
+  Dim ref As String
+  Dim idLock As Boolean
+  Dim res As Result
+
+  If GridView1.Selection.Count Then
+    idLock = modBillLock.LockTableForID("Reference")
+    If idLock = True Then
+      modDatabase.$myConn.Begin
+      ref = modBillLock.ReferenceString("General")
+      If ref Then
+
+        For Row = 0 To GridView1.Count - 1
+          If GridView1.IsSelected(Row) = True Then
+            $rData.MoveTo(Row)
+            res = modDatabase.$myConn.Edit("tblrequest", "fldid=&1", $rData["fldid"])
+            If res.Available Then
+              res["fldreference"] = ref
+              res["fldsave"] = True
+              res.Update
+            Endif
+          Endif
+        Next
+
+      Endif
+      modDatabase.$myConn.Commit
+      txtreference.Text = ref
+
+      modBillLock.ReleaseLockTable("Reference")
+    Endif
+    ShowRequestGrid()
+  Endif
+
+End

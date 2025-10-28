@@ -5,23 +5,30 @@ Private $aMyFields As String[]
 
 Public Sub _new()
 
-  cmbfreq.List = modMedicine.FrequencyCombo()
-  cmbroute.List = modMedicine.ClinicalRoute()
   If modHelpVariable.$LogInCategory = "Clinician" Then
-    cmbuserid.Text = modBasic.$lbluser
-    cmbuserid.Enabled = False
+    cmbtarget.Text = modBasic.$compID
+    cmbtarget.Enabled = False
   Else
-    cmbuserid.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flduserid as col from tbluser where fldipconsult=&1 and fldstatus=&2", True, "Active"))
-    cmbuserid.Add("%")
-    cmbuserid.Text = "%"
+    cmbtarget.List = modBasic.$AllCompPerList
+    cmbtarget.Enabled = True
   Endif
-  SHowRegimenGrid()
+  cmbroute.List = modMedicine.ClinicalRoute()
+  cmbfreq.List = modMedicine.FrequencyCombo()
+
+End
+
+Public Sub btnshow_Click()
+
+  If cmbtarget.Text Then
+    lblcomp.Text = modGeneral.GetCompNameFromCompID(cmbtarget.Text)
+    SHowRegimenGrid()
+  Endif
 
 End
 
 Private Sub SHowRegimenGrid()
 
-  $rData = modDatabase.$myConn.Exec("select fldid,fldroute,fldbrandid,flddose,fldfreq,fldday,fldqty,fldusage from tblmedregimen where flduserid=&1", modBasic.$lbluser)                                 ''
+  $rData = modDatabase.$myConn.Exec("select fldid,fldroute,fldbrandid,flddose,fldfreq,fldday,fldqty,fldusage from tblmedregimen where fldcomp=&1", cmbtarget.Text)          ''
   $aMyFields = New String[]
   modGridView.ReadSmallData(GridView1, $rData, $aMyFields)
 
@@ -72,7 +79,7 @@ Public Sub btnadd_Click()
 
   Dim res As Result
 
-  If cmbroute.Text And If cmbdrug.Text And If txtunitdose.Value Then
+  If cmbroute.Text And If cmbdrug.Text And If cmbtarget.Text Then
     res = modDatabase.$myConn.Create("tblmedregimen")
     res["fldroute"] = cmbroute.Text
     res["fldbrandid"] = cmbdrug.Text
@@ -81,7 +88,8 @@ Public Sub btnadd_Click()
     res["fldday"] = txtdura.Value
     res["fldqty"] = txtqty.Value
     res["fldusage"] = Trim(txtusage.Text)
-    res["flduserid"] = cmbuserid.Text
+    res["fldcomp"] = cmbtarget.Text
+    res["flduserid"] = modBasic.$lbluser
     res.Update
     Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
     SHowRegimenGrid()
@@ -119,7 +127,7 @@ Public Sub btnedit_Click()
     res["fldday"] = txtdura.Value
     res["fldqty"] = txtqty.Value
     res["fldusage"] = Trim(txtusage.Text)
-    res["flduserid"] = cmbuserid.Text
+    res["flduserid"] = modBasic.$lbluser
     res.Update
     Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information updated", modBasic.$BalloonDelay))
     SHowRegimenGrid()
