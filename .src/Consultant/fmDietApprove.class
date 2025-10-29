@@ -20,6 +20,7 @@ Public Sub _new()
   rbwaiting.Value = True
   rbtotal.Value = True
   $DietFormat = "Mixture Code"
+  chkautobill.Value = True
 
   xhospfld = modDataRepo.HospitalField()
   $SSQLFields = ["fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval"]
@@ -384,11 +385,7 @@ Private Sub SHowContinuePlan(encid As String)
     .Columns[2].Width = CStr(225 * modBasic.$AppWidthRatio) & "px"
     .Columns[3].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
     .Columns[4].Width = CStr(35 * modBasic.$AppWidthRatio) & "px"
-    If rbwaiting.Value = True Then
-      .Columns[5].Width = CStr(35 * modBasic.$AppWidthRatio) & "px"
-    Else
-      .Columns[5].Hidden = True
-    Endif
+    .Columns[5].Hidden = True
     .Columns[6].Hidden = True
     .Columns[7].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
     .Columns[8].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
@@ -410,10 +407,6 @@ Public Sub GridView2_Data(Row As Integer, Column As Integer, Data As WebTableDat
   modGridView.GridViewDecoration(Data, Row)
   If Column = 4 Then
     Data.Control = btnsecancel
-  Else If Column = 5 Then
-    If rbwaiting.Value = True Then
-      Data.Control = btnsecapply
-    Endif
   Else If Column = 8 Then
     Data.Text = modReportVar.GetDateTimeReport($rData2[$aMyFields2[Column]], gb.MediumTime)
   Else
@@ -481,20 +474,59 @@ Public Sub GridView2_Click(Row As Integer, Column As Integer)
           SHowContinuePlan($rData1["fldencounterval"])
           Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information deleted", modBasic.$BalloonDelay))
         Endif
-      Else If Column = 5 Then
-        res = modDatabase.$myConn.Edit("tblextradosing", "fldid=&1", $rData2["fldid"])                   ''
-        res["fldstatus"] = "Continue"
-        res["flduserid"] = modBasic.$lbluser
-        res["fldtime"] = Now()
-        res["fldcomp"] = modBasic.$compID
-        res["fldsave"] = True
-        res["xyz"] = False
-        res.Update
-        SHowContinuePlan($rData1["fldencounterval"])
-        Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
       Endif
     Endif
 
+  Endif
+
+End
+
+Public Sub btnapprove_Click()
+
+  Dim res As Result
+
+  If GridView2.Selection.Count Then
+    $rData2.MoveTo(GridView2.Selection[0])
+    If rbwaiting.Value = True Then
+
+      modDatabase.$myConn.Begin
+      If chkautobill.Value = True Then
+        SetAutoBillDiet($rData2["fldid"], $rData2["fldencounterval"], $rData2["flditem"], CFloat($rData2["flddose"]))
+      Endif
+      res = modDatabase.$myConn.Edit("tblextradosing", "fldid=&1", $rData2["fldid"])                   ''
+      res["fldstatus"] = "Continue"
+      res["flduserid"] = modBasic.$lbluser
+      res["fldtime"] = Now()
+      res["fldcomp"] = modBasic.$compID
+      res["fldsave"] = True
+      res["xyz"] = False
+      res.Update
+      modDatabase.$myConn.Commit
+
+      SHowContinuePlan($rData1["fldencounterval"])
+      Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+    Endif
+  Endif
+
+Catch
+  modDatabase.$myConn.Rollback
+  modHelpVariable.CreateErrorReport()
+
+End
+
+Private Sub SetAutoBillDiet(sIndex As Long, encid As String, xGroup As String, xQty As Float)
+
+  Dim xdiscType As String
+  Dim res As Result
+
+  xdiscType = modNonMedical.DefaultBillingScheme(encid, modBasic.$compID)
+  If xdiscType Then
+    res = modDatabase.$myConn.Exec("select flditemname,flditemqty,fldbillingmode,flditemtype from tblfoodorder where fldgroup=&1 and flddisctype=&2", xGroup, xdiscType)
+    If res.Available Then
+      For Each res
+        modBillings.GetAutoBillingEntry(encid, xdiscType, res["flditemtype"], res["flditemname"], res["flditemqty"] * xQty, "Done", sIndex, True, False)
+      Next
+    Endif
   Endif
 
 End
