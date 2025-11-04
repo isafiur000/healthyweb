@@ -20,6 +20,7 @@ Public Sub _new(encid As String)
     btnsave.Visible = True
   Endif
 
+  cmbfreq.List = modMedicine.DayFrequencyCombo()
   $CategList = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldfoodtype) as col from tblfoodtype ORDER BY fldfoodtype"))
   $CategList.Add("Group")
   $CategList.Add("Mixture")
@@ -27,7 +28,7 @@ Public Sub _new(encid As String)
   cmbsavetype.Text = "Continue"
   dttoday.Value = Now()
   dttodaysave.Value = Date()
-  txtfreq.Value = 24
+  txtduration.Value = 1
   FillGridView()
   ' dttoday.SetFocus
 
@@ -116,102 +117,154 @@ Private Sub GetItemUnit()
 
 End
 
+Private Function GetDateVal(xCur As Date, sHour As Date) As Date
+
+  Dim xdate As Date
+
+  xdate = Date(Year(xCur), Month(xCur), Day(xCur), Hour(sHour), 0, 0, 0)
+  Return xdate
+
+End
+
+Private Function GetDateList(xStart As Date, sFreq As String, sDays As Float) As Date[]
+
+  Dim lstdate As Date
+  Dim dayLst As Date[]
+  Dim xday As Integer
+  Dim newday As Date
+
+  Dim dtList As Date[]
+  Dim yHr As Integer
+  Dim xHr As Integer
+  Dim newdt As Date
+  Dim newdtLst As Date[]
+
+  If sFreq = "stat" Then
+    newdtLst = [Now()]
+  Else
+
+    lstdate = modDate.EndSqlDate(DateAdd(xStart, gb.Day, CInt(sDays - 1)))
+    dayLst = New Date[]
+    If sFreq = "Alt day" Then
+      For xday = 0 To Floor((sDays - 1) / 2)
+        newday = DateAdd(xStart, gb.Day, xday * 2)
+        If newday <= lstdate Then
+          dayLst.Add(newday)
+        Endif
+      Next
+    Else If sFreq = "Third day" Then
+      For xday = 0 To Floor((sDays - 1) / 3)
+        newday = DateAdd(xStart, gb.Day, xday * 3)
+        If newday <= lstdate Then
+          dayLst.Add(newday)
+        Endif
+      Next
+    Else If sFreq = "Fourth day" Then
+      For xday = 0 To Floor((sDays - 1) / 4)
+        newday = DateAdd(xStart, gb.Day, xday * 4)
+        If newday <= lstdate Then
+          dayLst.Add(newday)
+        Endif
+      Next
+    Else If sFreq = "Weekly" Then
+      For xday = 0 To Floor((sDays - 1) / 7)
+        newday = DateAdd(xStart, gb.Day, xday * 7)
+        If newday <= lstdate Then
+          dayLst.Add(newday)
+        Endif
+      Next
+    Else
+      For xday = 0 To sDays - 1
+        newday = DateAdd(xStart, gb.Day, xday)
+        If newday <= lstdate Then
+          dayLst.Add(newday)
+        Endif
+      Next
+    Endif
+
+    dtList = modPharmLabel.GetDosingTiming(sFreq)
+    newdtLst = New Date[]
+    For yHr = 0 To dayLst.Count - 1
+      For xHr = 0 To dtList.Count - 1
+        newdt = GetDateVal(dayLst[yHr], dtList[xHr])
+        If newdt >= xStart Then
+          newdtLst.Add(newdt)
+        Endif
+      Next
+    Next
+
+  Endif
+  Return newdtLst
+
+End
+
 Public Sub btnadd_Click()
 
-  Dim res As Result
+  Dim xstart As Date
+  Dim dtList As Date[]
   Dim xdate As Date
-  Dim xtot As Integer
-  Dim i As Integer
-  Dim dosetime As Date
+  Dim res As Result
   Dim res1 As Result
-  Dim xIntVal As String
 
-  If cmbtype.Text And If cmbitem.Text And If txtdose.Value And If txtfreq.Value Then
-    xdate = dttoday.Value
+  If cmbtype.Text And If cmbitem.Text And If txtdose.Value And If cmbfreq.Text And If txtduration.Value Then
+    xstart = dttoday.Value
+    dtList = GetDateList(xstart, cmbfreq.Text, txtduration.Value)
 
     If cmbtype.Text = "Group" Then
       res1 = modDatabase.$myConn.Exec("select flditemtype,flditemname,flditemqty from tbldietgroup where fldgroup=&1", cmbitem.Text)
       If res1.Available Then
         For Each res1
-          xtot = CInt(Ceil(24 / txtfreq.Value))
-          For i = 0 To xtot - 1
-            dosetime = DateAdd(xdate, gb.Hour, i * txtfreq.Value)
-            If dosetime <= modDate.EndSqlDate(dttoday.value) Then
-              res = modDatabase.$myConn.Create("tblextradosing")
-              res["fldencounterval"] = $encid
-              res["fldcategory"] = res1["flditemtype"]
-              res["flditem"] = res1["flditemname"]
-              res["flddose"] = txtdose.Value * res1["flditemqty"]
-              res["fldfreq"] = ""
-              res["fldtype"] = "Input Food/Fluid"
-              res["flddosetime"] = dosetime
-              res["flddosecode"] = cmbitem.Text
-              res["fldstatus"] = "Planned" '"Continue"
-              res["flduserid"] = modBasic.$lbluser
-              res["fldtime"] = Now()
-              res["fldcomp"] = modBasic.$compID
-              res["fldsave"] = False
-              res["xyz"] = True
-              If MMain.$WebEntry = True Then
-                xIntVal = modString.GetDateString(Now())
-                res["fldid"] = CLong(xIntVal)
-                res["fldrepoid"] = modMisc.GetWebIndexStr(xIntVal)
-                res["fldrepodate"] = Now()
-                res["fldrepomac"] = CGI["REMOTE_ADDR"] & ":" & CGI["REMOTE_PORT"]
-                res["fldhospcode"] = modBasic.$HospCode
-              Endif
-              res.Update
-            Endif
+          For Each xdate In dtList
+
+            res = modDatabase.$myConn.Create("tblextradosing")
+            res["fldencounterval"] = $encid
+            res["fldcategory"] = res1["flditemtype"]
+            res["flditem"] = res1["flditemname"]
+            res["flddose"] = txtdose.Value * res1["flditemqty"]
+            res["fldfreq"] = ""
+            res["fldtype"] = "Input Food/Fluid"
+            res["flddosetime"] = xdate
+            res["flddosecode"] = cmbitem.Text
+            res["fldstatus"] = "Planned" '"Continue"
+            res["flduserid"] = modBasic.$lbluser
+            res["fldtime"] = Now()
+            res["fldcomp"] = modBasic.$compID
+            res["fldsave"] = False
+            res["xyz"] = True
+            res.Update
+
           Next
         Next
       Endif
 
     Else
-      xtot = CInt(Ceil(24 / txtfreq.Value))
-      For i = 0 To xtot - 1
-        dosetime = DateAdd(xdate, gb.Hour, i * txtfreq.Value)
-        If dosetime <= modDate.EndSqlDate(dttoday.value) Then
-          res = modDatabase.$myConn.Create("tblextradosing")
-          res["fldencounterval"] = $encid
-          res["fldcategory"] = cmbtype.Text
-          res["flditem"] = cmbitem.Text
-          res["flddose"] = txtdose.Value
-          res["fldfreq"] = ""
-          res["fldtype"] = "Input Food/Fluid"
-          res["flddosetime"] = dosetime
-          res["flddosecode"] = ""
-          res["fldstatus"] = "Planned" '"Continue"
-          res["flduserid"] = modBasic.$lbluser
-          res["fldtime"] = Now()
-          res["fldcomp"] = modBasic.$compID
-          res["fldsave"] = False
-          res["xyz"] = True
-          If MMain.$WebEntry = True Then
-            xIntVal = modString.GetDateString(Now())
-            res["fldid"] = CLong(xIntVal)
-            res["fldrepoid"] = modMisc.GetWebIndexStr(xIntVal)
-            res["fldrepodate"] = Now()
-            res["fldrepomac"] = CGI["REMOTE_ADDR"] & ":" & CGI["REMOTE_PORT"]
-            res["fldhospcode"] = modBasic.$HospCode
-          Endif
-          res.Update
-        Endif
+      For Each xdate In dtList
+        res = modDatabase.$myConn.Create("tblextradosing")
+        res["fldencounterval"] = $encid
+        res["fldcategory"] = cmbtype.Text
+        res["flditem"] = cmbitem.Text
+        res["flddose"] = txtdose.Value
+        res["fldfreq"] = ""
+        res["fldtype"] = "Input Food/Fluid"
+        res["flddosetime"] = xdate
+        res["flddosecode"] = ""
+        res["fldstatus"] = "Planned" '"Continue"
+        res["flduserid"] = modBasic.$lbluser
+        res["fldtime"] = Now()
+        res["fldcomp"] = modBasic.$compID
+        res["fldsave"] = False
+        res["xyz"] = True
+        res.Update
       Next
 
     Endif
+
     cmbtype.Text = ""
     cmbitem.Text = ""
     txtdose.Value = 0
     txtdose.Tag = ""
-    txtfreq.Value = 24
     FillGridView()
   Endif
-
-End
-
-Public Sub btnrefresh_Click()
-
-  FillGridView()
 
 End
 
@@ -219,8 +272,8 @@ Private Sub FillGridView()
 
   Dim sql As String
 
-  sql = "select fldid,fldcategory,flditem,flddose,flddosetime,fldid,flddosetime,fldstatus from tblextradosing where fldencounterval=&1 and flddosetime>=&2 and flddosetime<=&3 and fldsave=&4"                        ''
-  $rData1 = modDatabase.$myConn.Exec(sql, $encid, modDate.StartSqlDate(dttoday.value), modDate.EndSqlDate(dttoday.value), False)
+  sql = "select fldid,fldcategory,flditem,flddose,flddosetime,fldid,flddosetime,fldstatus from tblextradosing where fldencounterval=&1 and fldsave=&2"                        ''
+  $rData1 = modDatabase.$myConn.Exec(sql, $encid, False)
   $aMyFields1 = New String[]
   modGridView.ReadSmallData(GridView1, $rData1, $aMyFields1)
 
@@ -229,14 +282,14 @@ Private Sub FillGridView()
     .Columns[1].Hidden = True
     .Columns[2].Width = CStr(250 * modBasic.$AppWidthRatio) & "px"
     .Columns[3].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
-    .Columns[4].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
+    .Columns[4].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
     .Columns[5].Hidden = True
     .Columns[6].Hidden = True
     .Columns[7].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
 
     .Columns[2].Text = "Particulars"
     .Columns[3].Text = "Dose"
-    .Columns[4].Text = "Time"
+    .Columns[4].Text = "DateTime"
     .Columns[7].Text = "Status"
   End With
   GetDietArray()
@@ -248,7 +301,7 @@ Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableDat
   $rData1.MoveTo(Row)
   modGridView.GridViewDecoration(Data, Row)
   If Column = 4 Then
-    Data.Text = modReportVar.GetDateTimeReport($rData1[$aMyFields1[Column]], gb.MediumTime)
+    Data.Text = modReportVar.GetDateTimeReport($rData1[$aMyFields1[Column]], gb.GeneralDate)
   Else
     Data.Text = $rData1[$aMyFields1[Column]]
   Endif

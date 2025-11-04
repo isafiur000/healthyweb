@@ -419,6 +419,8 @@ End
 Private Sub CheckMedicineName()
   ' ' Dim hForm As FmDiseaseDose
 
+  Dim cForm As CRecommendDosing
+
   If cmbmedicine.Text Then
     If cmbroute.Text = "suture" Or If cmbroute.Text = "msurg" Or If cmbroute.Text = "ortho" Or If cmbroute.Text = "extra" Then
       RegimenBoxSetting(False)
@@ -432,8 +434,9 @@ Private Sub CheckMedicineName()
       lbldose.Text = modMedConstant.GetDrugDosingUnit(cmbmedicine.Text)
 
       If modBasic.$MedDoseRecommend = "Yes" Then
-        txtdose.Value = modMedDosing.RecommendedDoseDrug($encid, xYear, cmbmedicine.Text)
-        cmbfreq.Text = modMedDosing.RecommendedFrequencyDrug(xYear, cmbmedicine.Text, True)
+        cForm = New CRecommendDosing($encid, xYear, cmbmedicine.Text)
+        txtdose.Value = cForm.UnitDose()
+        cmbfreq.Text = cForm.Frequency()
       Endif
       If $HideDos = False Then
         CheckLastDispensing(cmbmedicine.Text)
@@ -785,9 +788,9 @@ Private Sub FillDosingGrid()
   Dim sql As String
 
   If rblabel.Value = True Then
-    sql = "select fldid,fldstarttime,fldroute,flditem,fldid,fldfreq,flddays,fldqtydisp,flduserid_order,fldid,fldid,fldstarttime,fldcurval,flddirection from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldstatus=&3 and fldorder=&4 and (fldcurval=&5 or fldcurval=&6)"
+    sql = "select fldid,fldstarttime,fldroute,flditem,fldid,fldfreq,flddays,fldqtydisp,flduserid_order,fldid,fldid,fldstarttime,fldcurval,flddirection,flddosecount,fldmixing from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldstatus=&3 and fldorder=&4 and (fldcurval=&5 or fldcurval=&6)"
   Else
-    sql = "select fldid,fldstarttime,fldroute,flditem,flddose,fldfreq,flddays,fldqtydisp,flduserid_order,fldid,fldid,fldstarttime,fldcurval,flddirection from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldstatus=&3 and fldorder=&4 and (fldcurval=&5 or fldcurval=&6)"                                                   ''
+    sql = "select fldid,fldstarttime,fldroute,flditem,flddose,fldfreq,flddays,fldqtydisp,flduserid_order,fldid,fldid,fldstarttime,fldcurval,flddirection,flddosecount,fldmixing from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldstatus=&3 and fldorder=&4 and (fldcurval=&5 or fldcurval=&6)"                                                   ''
   Endif
   $rDataM = modDatabase.$myConn.Exec(sql, $encid, False, $status, "Request", "Continue", "Reserve")
   $aMyFieldsM = New String[]
@@ -797,7 +800,7 @@ Private Sub FillDosingGrid()
     .Columns[0].Hidden = True
     .Columns[1].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
     .Columns[2].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
-    .Columns[3].Width = CStr(250 * modBasic.$AppWidthRatio) & "px"
+    .Columns[3].Width = CStr(275 * modBasic.$AppWidthRatio) & "px"
     .Columns[4].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
     .Columns[5].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
     .Columns[6].Width = CStr(50 * modBasic.$AppWidthRatio) & "px"
@@ -808,6 +811,8 @@ Private Sub FillDosingGrid()
     .Columns[11].Hidden = True
     .Columns[12].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
     .Columns[13].Width = CStr(200 * modBasic.$AppWidthRatio) & "px"
+    .Columns[14].Width = CStr(50 * modBasic.$AppWidthRatio) & "px"
+    .Columns[15].Width = CStr(200 * modBasic.$AppWidthRatio) & "px"
 
     .Columns[1].Text = "Start"
     .Columns[2].Text = "Route"
@@ -818,6 +823,8 @@ Private Sub FillDosingGrid()
     .Columns[7].Text = "QTY"
     .Columns[12].Text = "Status"
     .Columns[13].Text = "Direction"
+    .Columns[14].Text = "N"
+    .Columns[15].Text = "Mixture"
   End With
 
 End
@@ -1042,7 +1049,11 @@ Public Sub txtmeddose_Click()
   If GridView1.Selection.Count Then
     $rDataM.MoveTo(GridView1.Selection[0])
     If modGeneral.AllowClinicalEdit($rDataM["flduserid_order"]) = True Then
-      xval = InputValue($rDataM["flditem"], ("Alter Unit Dose"), $rDataM["flddose"])
+      If $rDataM["flddose"] Then
+        xval = InputValue($rDataM["flditem"], ("Alter Unit Dose"), $rDataM["flddose"])
+      Else
+        xval = InputValue($rDataM["flditem"], ("Alter Unit Dose"), 0)
+      Endif
       If xval Then
         modPharmSub.UpdateDoseBefDispensing($rDataM["fldid"], xval)
         FillDosingGrid()
@@ -1116,6 +1127,44 @@ Public Sub btnadvice_Click()
       yval = InputBox($rDataM["flditem"], ("Alter Direction"), $rDataM["flddirection"])
       If yval Then
         modPharmSub.UpdateAdviceBefDispensing($rDataM["fldid"], yval)
+        FillDosingGrid()
+      Endif
+    Endif
+  Endif
+
+End
+
+Public Sub mnumaxdose_Click()
+
+  Dim xval As Float
+
+  If GridView1.Selection.Count Then
+    $rDataM.MoveTo(GridView1.Selection[0])
+    If modGeneral.AllowClinicalEdit($rDataM["flduserid_order"]) = True Then
+      If $rDataM["flddosecount"] Then
+        xval = InputValue($rDataM["flditem"], ("Alter Maximum Dose Count"), $rDataM["flddosecount"])
+      Else
+        xval = InputValue($rDataM["flditem"], ("Alter Maximum Dose Count"), 0)
+      Endif
+      If xval Then
+        modPharmSub.UpdateMaxCountBeffDispensing($rDataM["fldid"], xval)
+        FillDosingGrid()
+      Endif
+    Endif
+  Endif
+
+End
+
+Public Sub mnumixture_Click()
+
+  Dim yval As String
+
+  If GridView1.Selection.Count Then
+    $rDataM.MoveTo(GridView1.Selection[0])
+    If modGeneral.AllowClinicalEdit($rDataM["flduserid_order"]) = True Then
+      yval = InputBox($rDataM["flditem"], ("Alter Compounding Direction"), $rDataM["fldmixing"])
+      If yval Then
+        modPharmSub.UpdateMixtureBefDispensing($rDataM["fldid"], yval)
         FillDosingGrid()
       Endif
     Endif

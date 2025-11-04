@@ -187,6 +187,43 @@ Public Function GetBothQuantiExamVal(txtexam As String, encid As String, Optiona
 
 End
 
+Public Function GetRangeQuantiExamSys(examSysCons As String, encid As String, Optional sMethod As String) As Float[]
+
+  Dim res As Result
+  Dim xlow As Float
+  Dim xhigh As Float
+  Dim sqstr As String
+  Dim xlimit As Float[]
+
+  If Not sMethod Or If sMethod = "Regular" Then
+    sqstr = ""
+  Else
+    sqstr = " and fldmethod=&6"
+  Endif
+
+  res = modDatabase.$medConn.Exec("select fldlow,fldhigh from tblexamlimit where fldexamid in(select fldexamid from tblexam where fldsysconst=&1) and (fldptsex=&2 or fldptsex=&3) and (fldagegroup=&4 or fldagegroup=&5)" & sqstr, examSysCons, modPatient.GetPatientSex(encid), "Both Sex", modPatient.GetAgeGroupFIxed(encid, Now()), "All Age", sMethod)                                                               ''
+  If res.Available = True Then
+    res.MoveFirst
+    If res["fldlow"] Then
+      xlow = res["fldlow"]
+    Else
+      xlow = 0
+    Endif
+    If res["fldhigh"] Then
+      xhigh = res["fldhigh"]
+    Else
+      xhigh = 0
+    Endif
+  Else
+    xlow = 0
+    xhigh = 0
+  Endif
+  xlimit = [xlow, xhigh]
+
+  Return xlimit
+
+End
+
 Public Function GetExamLimitSrtings(id As Long, Optional encid As String) As String
 
   Dim xx As String
@@ -510,7 +547,7 @@ Public Function GetExamValueString(encid As String, id As Long, sReport As Boole
 
   Dim res As Result
   Dim xx As String
-  Dim xType As String
+  ' Dim xType As String
   Dim xval As String
   Dim xunit As String
 
@@ -530,32 +567,44 @@ Public Function GetExamValueString(encid As String, id As Long, sReport As Boole
     Else
       If res["fldrepquali"] Then
 
-        xType = res["fldoption"]
-        If xType = "Clinical Scale" Then
-          If modBasic.$ShowScaleMedFormat = "GroupWise" Then
+        ' xType = res["fldoption"]
+        Select res["fldoption"]
+          Case "Clinical Scale"
+            If modBasic.$ShowScaleMedFormat = "GroupWise" Then
+              If sReport = True Then
+                xval = modString.GetJSONToDualHTMLTable(Trim(res["fldrepquali"]))
+              Else
+                xval = Trim(res["fldrepquali"])
+              Endif
+            Else
+              xval = CStr(res["fldrepquanti"])
+            Endif
+
+          Case "Left and Right"
+            If sReport = True Then
+              xval = modString.GetLeftRightReporting(Trim(res["fldrepquali"]), "Vertical")
+            Else
+              xval = Trim(res["fldrepquali"])
+            Endif
+
+          Case "Left Right Qualitative", "Left Right Quantitative"
+            If sReport = True Then
+              xval = modString.GetLeftRightReporting(Trim(res["fldrepquali"]), "Horizontal")
+            Else
+              xval = Trim(res["fldrepquali"])
+            Endif
+
+          Case "Left/Right Components"
             If sReport = True Then
               xval = modString.GetJSONToDualHTMLTable(Trim(res["fldrepquali"]))
             Else
               xval = Trim(res["fldrepquali"])
             Endif
-          Else
-            xval = CStr(res["fldrepquanti"])
-          Endif
-        Else If xType = "Left and Right" Then
-          If sReport = True Then
-            xval = modString.GetJSONToDualHTMLTable(Trim(res["fldrepquali"]))
-          Else
+
+          Case Else
             xval = Trim(res["fldrepquali"])
-          Endif
-        Else If xType = "Left/Right Components" Then
-          If sReport = True Then
-            xval = modString.GetJSONToDualHTMLTable(Trim(res["fldrepquali"]))
-          Else
-            xval = Trim(res["fldrepquali"])
-          Endif
-        Else
-          xval = Trim(res["fldrepquali"])
-        Endif
+
+        End Select
 
       Else
         xval = ""
@@ -592,20 +641,27 @@ Public Function GetSubExamQualiList(encid As String, xType As String, pttestid A
   If res.Available = True Then
     For Each res
       If xType = "Left/Right Components" Then
-        xx.Add(modString.GetLeftRightTableValue(res["fldreport"], res["fldsubtest"]))
+        xx.Add(modString.GetLeftRightTableValue(res["fldreport"], res["fldsubtexam"]))
       Else
-        If res["fldtanswertype"] = "Multiple Selection" Or If res["fldtanswertype"] = "Single Column" Then
-          xquali = gb.NewLine & GetSubExamTableReportString(res["fldheadid"], res["fldid"])
-        Else If res["fldtanswertype"] = "Text Table" Then
-          xquali = gb.NewLine & GetSubExamTableReportString(res["fldheadid"], res["fldid"])
-        Else If res["fldtanswertype"] = "Dual Columns" Then
-          xquali = gb.NewLine & GetSubExamDualTableString(res["fldheadid"], res["fldid"])
-        Else
-          xquali = Trim(res["fldreport"])
-        Endif
+        Select res["fldtanswertype"]
+          Case "Multiple Selection", "Single Column"
+            xquali = gb.NewLine & GetSubExamTableReportString(res["fldheadid"], res["fldid"])
+          Case "Text Table"
+            xquali = gb.NewLine & GetSubExamTableReportString(res["fldheadid"], res["fldid"])
+          Case "Dual Columns"
+            xquali = gb.NewLine & GetSubExamDualTableString(res["fldheadid"], res["fldid"])
+          Case "Left and Right"
+            xquali = modString.GetLeftRightReporting(Trim(res["fldreport"]), "Vertical")
+          Case "Left Right Qualitative", "Left Right Quantitative"
+            xquali = modString.GetLeftRightReporting(Trim(res["fldreport"]), "Horizontal")
+          Case Else
+            xquali = Trim(res["fldreport"])
+        End Select
+
         If res["fldsubtexam"] Then
           xx.Add(res["fldsubtexam"] & " : " & xquali)
         Endif
+
       Endif
     Next
 
@@ -620,8 +676,6 @@ Public Function GetSubExamQualiList(encid As String, xType As String, pttestid A
     Endif
 
   Endif
-
-  Return xtable
 
 End
 

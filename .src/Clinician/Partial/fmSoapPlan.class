@@ -1,37 +1,16 @@
 ' Gambas class file
 
 Private $encid As String
-Private $rPlanRes As Result
-Private $aPlanFields As String[]
-Private $sDate As Date
+Private $rData As Result
+Private $aMyFields As String[]
 
-Public Sub _new(encid As String)
-
-  Dim xstatus As String
+Public Sub _new(encid As String, sClass As String)
 
   $encid = encid
-  modGeneralMain.GetOpenModalForm(Me)
+  WebContainer1.Class = sClass
 
-  txtpatientname.Text = modPatient.GetPatientNameByEnc($encid)
-  txtgender.Text = modPatient.GetPatientAgeString($encid, Now()) & "/" & modPatient.GetPatientSex($encid)
-
-  xstatus = modPatient.CurrentAdmissionStatus($encid)
-  txtlocation.Text = modPatient.GetLocationSetting($encid, xstatus)
-  $sDate = Now()
-  lbldtplan.Text = modPatient.GetDayDiffAdmission($encid, $sDate)
+  dtnote.Value = Now()
   ShowProblemList()
-
-End
-
-Public Sub btnplanshow_Click()
-
-  If $encid Then
-    $sDate = GetDateValue("Select Date", "Planning Date", Now())
-    If $sDate Then
-      lbldtplan.Text = modPatient.GetDayDiffAdmission($encid, $sDate)
-      ShowProblemList()
-    Endif
-  Endif
 
 End
 
@@ -39,52 +18,57 @@ Private Sub ShowProblemList()
 
   Dim sql As String
 
-  sql = "select fldid,fldproblem from tblpatplanning where fldencounterval=&1 and fldplancategory=&2 and fldtime>=&3 and fldtime<=&4"
-  $rPlanRes = modDatabase.$myConn.Exec(sql, $encid, "Clinician Plan", modDate.StartSqlDate($sDate), modDate.EndSqlDate($sDate))
-  $aPlanFields = New String[]
-  modGridView.ReadSmallData(grdplan, $rPlanRes, $aPlanFields)
+  If chksoap.Value Then
+    sql = "select fldid,fldtime,fldproblem,fldsubjective,fldobjective,fldassess,fldplan,flduserid,fldtime from tblpatplanning where fldencounterval=&1 and fldplancategory=&2 ORDER BY fldtime DESC"
+  Else
+    sql = "select fldid,fldtime,fldproblem,fldsubjective,fldobjective,fldassess,fldplan,flduserid,fldtime from tblpatplanning where fldencounterval=&1 and fldplancategory=&2 and fldtime>=&3 and fldtime<=&4 ORDER BY fldtime DESC"
+  Endif
+  $rData = modDatabase.$myConn.Exec(sql, $encid, "Clinician Plan", modDate.StartSqlDate(dtnote.Value), modDate.EndSqlDate(dtnote.Value))
+  $aMyFields = New String[]
+  modGridView.ReadSmallData(grdplan, $rData, $aMyFields)
 
-  grdplan.Columns[0].Hidden = True
-  ' grdplan.Columns[1].Width = 220 * modBasic.$AppWidthRatio
+  With grdplan
+    .Columns[0].Hidden = True
+    .Columns[1].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
+    .Columns[2].Expand = True
+    .Columns[3].Hidden = True
+    .Columns[4].Hidden = True
+    .Columns[5].Hidden = True
+    .Columns[6].Hidden = True
+    .Columns[7].Hidden = True
+    .Columns[8].Hidden = True
+  End With
 
 End
 
 Public Sub grdplan_Data(Row As Integer, Column As Integer, Data As WebTableData)
 
-  $rPlanRes.MoveTo(Row)
+  $rData.MoveTo(Row)
   modGridView.GridViewDecoration(Data, Row)
-  Data.Text = $rPlanRes[$aPlanFields[Column]]
+  If Column = 1 Then
+    Data.Text = modReportVar.GetDateTimeReport($rData[$aMyFields[Column]], gb.GeneralDate)
+  Else
+    Data.Text = $rData[$aMyFields[Column]]
+  Endif
 
 End
 
 Public Sub grdplan_Select()
 
-  ShowPlanningList()
-
-End
-
-Private Sub ShowPlanningList()
-
-  Dim sql As String
-  Dim res As Result
-
   If grdplan.Selection.Count Then
-    $rPlanRes.MoveTo(grdplan.Selection[0])
-    sql = "select fldid,fldproblem,fldsubjective,fldobjective,fldassess,fldplan from tblpatplanning where fldid=&1"
-    res = modDatabase.$myConn.Exec(sql, $rPlanRes["fldid"])
-    If res.Available Then
-      txtplanid.Value = res!fldid
-      txtproblem.Text = res!fldproblem
-      txtsubject.RichText = res!fldsubjective
-      txtobject.RichText = res!fldobjective
-      txtmanage.RichText = res!fldassess
-      txtplan.RichText = res!fldplan
-    Endif
+    $rData.MoveTo(grdplan.Selection[0])
+    txtplanid.Value = $rData["fldid"]
+    txtproblem.Text = $rData["fldproblem"]
+    txtsubject.RichText = $rData["fldsubjective"]
+    txtobject.RichText = $rData["fldobjective"]
+    txtmanage.RichText = $rData["fldassess"]
+    txtplan.RichText = $rData["fldplan"]
+    lblnoteuser.Text = modGeneral.GetUserFullName($rData["flduserid"]) & " [" & modReportVar.GetDateTimeReport($rData["fldtime"], gb.GeneralDate) & "]"
   Endif
 
 End
 
-Public Sub btnplanadd_Click()
+Public Sub btnsaveall_Click()
 
   Dim res As Result
   Dim xIntVal As String
@@ -95,10 +79,10 @@ Public Sub btnplanadd_Click()
       res["fldencounterval"] = $encid
       res["fldplancategory"] = "Clinician Plan"
       res["fldproblem"] = txtproblem.Text
-      res["fldsubjective"] = ""
-      res["fldobjective"] = ""
-      res["fldassess"] = ""
-      res["fldplan"] = ""
+      res["fldsubjective"] = txtsubject.RichText
+      res["fldobjective"] = txtobject.RichText
+      res["fldassess"] = txtmanage.RichText
+      res["fldplan"] = txtplan.RichText
       res["flduserid"] = modBasic.$lbluser
       res["fldtime"] = Now()
       res["fldcomp"] = modBasic.$compID
@@ -121,7 +105,7 @@ Public Sub btnplanadd_Click()
 
 End
 
-Public Sub btnaddsubject_Click()
+Public Sub btnupdate_Click()
 
   Dim res As Result
 
@@ -129,81 +113,10 @@ Public Sub btnaddsubject_Click()
     If txtproblem.Text Then
       res = modDatabase.$myConn.Edit("tblpatplanning", "fldid=&1", txtplanid.Value)
       If modGeneral.AllowClinicalEdit(res["flduserid"]) = True Then
+        res["fldproblem"] = txtproblem.Text
         res["fldsubjective"] = txtsubject.RichText
-        res["flduserid"] = modBasic.$lbluser
-        res["flduptime"] = Now()
-        res["fldcomp"] = modBasic.$compID
-        res["xyz"] = False
-        res.Update()
-        ShowProblemList()
-        Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
-      Else
-        Message.Warning("Authorization with " & res["flduserid"], ("OK"))
-      Endif
-    Endif
-  Endif
-  'don't catch error
-
-End
-
-Public Sub btnaddobject_Click()
-
-  Dim res As Result
-
-  If txtplanid.Value Then
-    If txtproblem.Text Then
-      res = modDatabase.$myConn.Edit("tblpatplanning", "fldid=&1", txtplanid.Value)
-      If modGeneral.AllowClinicalEdit(res["flduserid"]) = True Then
         res["fldobjective"] = txtobject.RichText
-        res["flduserid"] = modBasic.$lbluser
-        res["flduptime"] = Now()
-        res["fldcomp"] = modBasic.$compID
-        res["xyz"] = False
-        res.Update()
-        ShowProblemList()
-        Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
-      Else
-        Message.Warning("Authorization with " & res["flduserid"], ("OK"))
-      Endif
-    Endif
-  Endif
-  'don't catch error
-
-End
-
-Public Sub btnaddassess_Click()
-
-  Dim res As Result
-
-  If txtplanid.Value Then
-    If txtproblem.Text Then
-      res = modDatabase.$myConn.Edit("tblpatplanning", "fldid=&1", txtplanid.Value)
-      If modGeneral.AllowClinicalEdit(res["flduserid"]) = True Then
         res["fldassess"] = txtmanage.RichText
-        res["flduserid"] = modBasic.$lbluser
-        res["flduptime"] = Now()
-        res["fldcomp"] = modBasic.$compID
-        res["xyz"] = False
-        res.Update()
-        ShowProblemList()
-        Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
-      Else
-        Message.Warning("Authorization with " & res["flduserid"], ("OK"))
-      Endif
-    Endif
-  Endif
-  'don't catch error
-
-End
-
-Public Sub btnaddplan_Click()
-
-  Dim res As Result
-
-  If txtplanid.Value Then
-    If txtproblem.Text Then
-      res = modDatabase.$myConn.Edit("tblpatplanning", "fldid=&1", txtplanid.Value)
-      If modGeneral.AllowClinicalEdit(res["flduserid"]) = True Then
         res["fldplan"] = txtplan.RichText
         res["flduserid"] = modBasic.$lbluser
         res["flduptime"] = Now()
@@ -218,12 +131,6 @@ Public Sub btnaddplan_Click()
     Endif
   Endif
   'don't catch error
-
-End
-
-Public Sub btnclose_Click()
-
-  Me.Close()
 
 End
 

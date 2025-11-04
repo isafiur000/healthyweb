@@ -4,12 +4,15 @@ Public Function GetTotalExpensebyPatient($BillingReport As CReportHTML, $con As 
 
   Dim res As Result
   Dim asx As New String[0]
-  Dim tot As Float
   Dim xdisc As Float
   Dim xtax As Float
-  Dim atot As Float
+  Dim xcrdt As Float
+  Dim xcash As Float
+
   Dim adisc As Float
   Dim atax As Float
+  Dim acrdt As Float
+  Dim acash As Float
 
   Dim xmode As String
   Dim xmodeList As String[] = ["Credit", "Cash"]
@@ -20,7 +23,6 @@ Public Function GetTotalExpensebyPatient($BillingReport As CReportHTML, $con As 
   Dim xfin As Float
 
   Dim xdueclr As Float
-  Dim xcshcrdt As Float
   Dim xdeposit As Float
   Dim xcashtot As Float
   Dim xinvpay As Float
@@ -29,9 +31,8 @@ Public Function GetTotalExpensebyPatient($BillingReport As CReportHTML, $con As 
   xdeposit = modNonMedical.GetPatientDeposit($con, encid)
   If sType = "Admitted" And If xdoa Then
   Else
-    xcshcrdt = modNonMedical.GetCashinCreditAmtbyPatient($con, encid)
-    xdueclr = modNonMedical.GetDueClearPaidAmtbyPatient($con, encid)
     xcashtot = modNonMedical.GetCashBillAmtbyPatient($con, encid)
+    xdueclr = modNonMedical.GetDueClearPaidAmtbyPatient($con, encid)
     xinvpay = modNonMedical.InvoicePaidAmountbyPatient($con, encid)
   Endif
 
@@ -43,18 +44,20 @@ Public Function GetTotalExpensebyPatient($BillingReport As CReportHTML, $con As 
     i = 1
     xdisc = 0
     xtax = 0
-    tot = 0
+    xcrdt = 0
+    xcash = 0
     For Each xcateg In xCategList
       adisc = 0
       atax = 0
-      atot = 0
+      acrdt = 0
+      acash = 0
 
       If sType = "Admitted" Then
         If xdoa Then
-          res = $con.Exec("select flditemname,AVG(flditemrate) as flditemrate,SUM(flditemqty) as flditemqty,SUM(fldtaxamt) as fldtaxamt,SUM(flddiscamt) as flddiscamt,SUM(fldditemamt) as fldditemamt from tblpatbilling where fldencounterval=&1 and fldsave=&2 and fldbilltype=&3 and flditemtype=&4 and fldtime>=&5 GROUP BY flditemname", encid, True, xmode, xcateg, xdoa)
+          res = $con.Exec("select flditemname,AVG(flditemrate) as flditemrate,SUM(flditemqty) as flditemqty,SUM(fldtaxamt) as fldtaxamt,SUM(flddiscamt) as flddiscamt," & modNonMedical.CashCreditSQL() & " from tblpatbilling where fldencounterval=&1 and fldsave=&2 and fldbilltype=&3 and flditemtype=&4 and fldtime>=&5 GROUP BY flditemname", encid, True, xmode, xcateg, xdoa)
         Endif
       Else
-        res = $con.Exec("select flditemname,AVG(flditemrate) as flditemrate,SUM(flditemqty) as flditemqty,SUM(fldtaxamt) as fldtaxamt,SUM(flddiscamt) as flddiscamt,SUM(fldditemamt) as fldditemamt from tblpatbilling where fldencounterval=&1 and fldsave=&2 and fldbilltype=&3 and flditemtype=&4 GROUP BY flditemname", encid, True, xmode, xcateg)
+        res = $con.Exec("select flditemname,AVG(flditemrate) as flditemrate,SUM(flditemqty) as flditemqty,SUM(fldtaxamt) as fldtaxamt,SUM(flddiscamt) as flddiscamt," & modNonMedical.CashCreditSQL() & " from tblpatbilling where fldencounterval=&1 and fldsave=&2 and fldbilltype=&3 and flditemtype=&4 GROUP BY flditemname", encid, True, xmode, xcateg)
       Endif
       If res And If res.Available Then
         $BillingReport.AddChapter(xcateg)
@@ -65,8 +68,11 @@ Public Function GetTotalExpensebyPatient($BillingReport As CReportHTML, $con As 
           If res["fldtaxamt"] Then
             atax = atax + res["fldtaxamt"]
           Endif
-          If res["fldditemamt"] Then
-            atot = atot + res["fldditemamt"]
+          If res["xcredit"] Then
+            acrdt = acrdt + res["xcredit"]
+          Endif
+          If res["xcash"] Then
+            acash = acash + res["xcash"]
           Endif
           With asx
             .Add(CStr(i))
@@ -75,7 +81,8 @@ Public Function GetTotalExpensebyPatient($BillingReport As CReportHTML, $con As 
             .Add(modReportVar.GetLocaleNumberFormat(res["flditemqty"], -2))
             .Add(modReportVar.GetLocaleNumberFormat(res["flddiscamt"], gb.Currency))
             .Add(modReportVar.GetLocaleNumberFormat(res["fldtaxamt"], gb.Currency))
-            .Add(modReportVar.GetLocaleNumberFormat(res["fldditemamt"], gb.Currency))
+            .Add(modReportVar.GetLocaleNumberFormat(res["xcredit"], gb.Currency))
+            .Add(modReportVar.GetLocaleNumberFormat(res["xcash"], gb.Currency))
           End With
           $BillingReport.Add(asx)
           asx.Clear()
@@ -84,7 +91,8 @@ Public Function GetTotalExpensebyPatient($BillingReport As CReportHTML, $con As 
 
         xdisc = xdisc + adisc
         xtax = xtax + atax
-        tot = tot + atot
+        xcrdt = xcrdt + acrdt
+        xcash = xcash + acash
         With asx
           .Add("")
           .Add(modString.HTMLBlankSpace(5) & "SUBTOTAL")
@@ -92,13 +100,15 @@ Public Function GetTotalExpensebyPatient($BillingReport As CReportHTML, $con As 
           .Add("")
           .Add(modReportVar.GetLocaleNumberFormat(adisc, gb.Currency))
           .Add(modReportVar.GetLocaleNumberFormat(atax, gb.Currency))
-          .Add(modReportVar.GetLocaleNumberFormat(atot, gb.Currency))
+          .Add(modReportVar.GetLocaleNumberFormat(acrdt, gb.Currency))
+          .Add(modReportVar.GetLocaleNumberFormat(acash, gb.Currency))
         End With
         $BillingReport.Add(asx)
         asx.Clear()
       Endif
     Next
     With asx
+      .Add("")
       .Add("")
       .Add("")
       .Add("")
@@ -117,17 +127,18 @@ Public Function GetTotalExpensebyPatient($BillingReport As CReportHTML, $con As 
       .Add("...")
       .Add(modReportVar.GetLocaleNumberFormat(xdisc, gb.Currency))
       .Add(modReportVar.GetLocaleNumberFormat(xtax, gb.Currency))
-      .Add(modReportVar.GetLocaleNumberFormat(tot, gb.Currency))
+      .Add(modReportVar.GetLocaleNumberFormat(xcrdt, gb.Currency))
+      .Add(modReportVar.GetLocaleNumberFormat(xcash, gb.Currency))
     End With
     $BillingReport.Add(asx)
     asx.Clear()
 
     $BillingReport.AddChapter(UCase(xmode) & " PAYMENTS")
-    ''for admitted/complete
     If xmode = "Cash" Then
       With asx
         .Add("")
         .Add("DEPOSITS")
+        .Add("")
         .Add("")
         .Add("")
         .Add("")
@@ -138,48 +149,14 @@ Public Function GetTotalExpensebyPatient($BillingReport As CReportHTML, $con As 
       asx.Clear()
     Endif
 
-    ''for complete only
+    ''for admitted/complete
     If sType = "Admitted" And If xdoa Then
     Else
-      If xmode = "Credit" Then
-        With asx
-          .Add("")
-          .Add("CASH IN CREDIT")
-          .Add("")
-          .Add("")
-          .Add("")
-          .Add("")
-          .Add(modReportVar.GetLocaleNumberFormat(xcshcrdt, gb.Currency))
-        End With
-        $BillingReport.Add(asx)
-        asx.Clear()
-        With asx
-          .Add("")
-          .Add("CREDIT CLEARED")
-          .Add("")
-          .Add("")
-          .Add("")
-          .Add("")
-          .Add(modReportVar.GetLocaleNumberFormat(xdueclr, gb.Currency))
-        End With
-        $BillingReport.Add(asx)
-        asx.Clear()
-        With asx
-          .Add("")
-          .Add("PENDING CREDIT")
-          .Add("")
-          .Add("")
-          .Add("")
-          .Add("")
-          .Add(modReportVar.GetLocaleNumberFormat(tot - (xcshcrdt + xdueclr), gb.Currency))
-        End With
-        $BillingReport.Add(asx)
-        asx.Clear()
-
-      Else If xmode = "Cash" Then
+      If xmode = "Cash" Then
         With asx
           .Add("")
           .Add("CASH PAYMENTS")
+          .Add("")
           .Add("")
           .Add("")
           .Add("")
@@ -188,14 +165,16 @@ Public Function GetTotalExpensebyPatient($BillingReport As CReportHTML, $con As 
         End With
         $BillingReport.Add(asx)
         asx.Clear()
+      Else If xmode = "Credit" Then
         With asx
           .Add("")
-          .Add("CASH PENDING")
+          .Add("CREDIT CLEARED")
           .Add("")
           .Add("")
           .Add("")
           .Add("")
-          .Add(modReportVar.GetLocaleNumberFormat(tot - (xcashtot + xdeposit), gb.Currency))
+          .Add("")
+          .Add(modReportVar.GetLocaleNumberFormat(xdueclr, gb.Currency))
         End With
         $BillingReport.Add(asx)
         asx.Clear()
@@ -203,6 +182,7 @@ Public Function GetTotalExpensebyPatient($BillingReport As CReportHTML, $con As 
     Endif
 
     With asx
+      .Add("...")
       .Add("...")
       .Add("...")
       .Add("...")
@@ -226,6 +206,7 @@ Public Function GetTotalExpensebyPatient($BillingReport As CReportHTML, $con As 
       .Add("")
       .Add("")
       .Add("")
+      .Add("")
       .Add(modReportVar.GetLocaleNumberFormat(xdeposit + xinvpay, gb.Currency))
     End With
     $BillingReport.Add(asx)
@@ -244,19 +225,22 @@ Public Function GetPendingExpensebyPatient($BillingReport As CReportHTML, $con A
   Dim i As Integer
   Dim rte As Float
   Dim qty As Float
-  Dim amt As Float
   Dim disc As Float
   Dim xtax As Float
+  Dim crdtamt As Float
+  Dim cashamt As Float
   Dim xfin As Float
 
   Dim scateg As String
-  Dim stot As Float
+  Dim scrdttot As Float
+  Dim scashtot As Float
   Dim categList As String[]
   Dim xmode As String
   Dim xdoa As Date
 
   ''extra espenses
-  Dim tot As Float
+  Dim crdttot As Float
+  Dim cashtot As Float
   Dim res1 As Result
   Dim res2 As Result
 
@@ -266,11 +250,22 @@ Public Function GetPendingExpensebyPatient($BillingReport As CReportHTML, $con A
   Dim xrate As Float
   Dim xdscamt As Float
   Dim xtaxamt As Float
-  Dim xtotamt As Float
+  Dim xnetamt As Float
+  Dim xCshCrd As Float
+  Dim xcredt As Float
+  Dim xcash As Float
 
+  Dim rex1 As Result
+  Dim rex2 As Result
+  Dim xTotal As Integer
+  Dim dtend As Date
+  Dim sBillingMode As String
+
+  xfin = 0
   xdoa = modPatient.GetAdmissionDate(encid)
   i = 1
-  tot = 0
+  crdttot = 0
+  cashtot = 0
   $BillingReport.AddSection("ESTIMATED CHARGES", True)
   If xdoa Then
     $BillingReport.AddChapter("ESTIMATED BED CHARGES")
@@ -282,20 +277,48 @@ Public Function GetPendingExpensebyPatient($BillingReport As CReportHTML, $con A
       xrate = 0
       xdscamt = 0
       xtaxamt = 0
-      xtotamt = 0
+      xnetamt = 0
+      xCshCrd = 0
+      xcredt = 0
+      xcash = 0
 
       beditem = res1["fldbillitem"]
       If Not beditem Then
         beditem = modNonMedical.GetIPDepartChargeRate(res1["flditem"], res1["flddisctype"])
       Endif
       If beditem Then
-        unitrate = modNonMedical.GetBillingTargeDept(beditem, "General Services")
-        xhr = modPatPatho.GetBedChargeDurationSetting(unitrate, res1["fldfirsttime"], Now(), True)
-        xrate = modNonMedical.GetCashBillItemCost(beditem, "General Services")
-        xdscamt = modNonMedical.DiscPercentForCategoryValue(encid, res1["flddisctype"], "General Services", beditem, modNonMedical.GetDiscBindBillMode(res1["flddisctype"]))
-        xtaxamt = modNonMedical.ShowTaxValues("General Services", beditem)
-        xtotamt = (xrate * xhr) * (1 - xdscamt / 100) * (1 + xtaxamt / 100)
-        tot = tot + xtotamt
+        rex1 = modDatabase.$myConn.Exec("select fldmode,fldbillingmode,fldacledger,fldbilltype,fldreference,fldlimit,fldlockstate from tbldiscount where fldtype=&1", res1["flddisctype"])
+        If rex1.Available Then
+          unitrate = modNonMedical.GetBillingTargeDept(beditem, "General Services")
+          If modBasic.$AutoBedChargeMode = "Daily" Then ''done before update
+            xTotal = modBillings.GetSavedBedChargesTotal(encid)
+            dtend = modDate.StartSqlDate(DateAdd(Now(), gb.Day, 1))
+          Else
+            xTotal = 0
+            dtend = Now()
+          Endif
+          xhr = modPatPatho.GetWardBedUseDuration(encid, res1["flditem"], unitrate, res1["fldfirsttime"], dtend, xTotal)
+          xrate = modNonMedical.GetCashBillItemCost(beditem, "General Services")
+          xdscamt = modNonMedical.DiscPercentForCategoryValue(encid, res1["flddisctype"], "General Services", beditem, modNonMedical.GetDiscBindBillMode(res1["flddisctype"]))
+          xtaxamt = modNonMedical.ShowTaxValues("General Services", beditem)
+          If rex1["fldbillingmode"] Then
+            sBillingMode = rex1["fldbillingmode"]
+          Else
+            sBillingMode = modPatient.GetPatBillingMode(encid)
+          Endif
+          xnetamt = (xrate * xhr) * (1 - xdscamt / 100) * (1 + xtaxamt / 100)
+          xCshCrd = modNonMedical.CashInCreditPerForCategory(res1["flddisctype"], "General Services", beditem, sBillingMode)
+          If rex1["fldbilltype"] = "Credit" Then
+            xcredt = xnetamt - ((xCshCrd / 100) * xnetamt)
+            xcash = (xCshCrd / 100) * xnetamt
+          Else
+            xcredt = 0
+            xcash = xnetamt
+          Endif
+        Endif
+
+        crdttot = crdttot + xcredt
+        cashtot = cashtot + xcash
         With asx
           .Add(CStr(i))
           .Add(beditem)
@@ -303,7 +326,8 @@ Public Function GetPendingExpensebyPatient($BillingReport As CReportHTML, $con A
           .Add(modReportVar.GetLocaleNumberFormat(xhr, -2))
           .Add(modReportVar.GetLocaleNumberFormat(xdscamt, -2))
           .Add(modReportVar.GetLocaleNumberFormat(xtaxamt, -2))
-          .Add(modReportVar.GetLocaleNumberFormat(xtotamt, gb.Currency))
+          .Add(modReportVar.GetLocaleNumberFormat(xcredt, gb.Currency))
+          .Add(modReportVar.GetLocaleNumberFormat(xcash, gb.Currency))
         End With
         $BillingReport.Add(asx)
         asx.Clear()
@@ -321,15 +345,37 @@ Public Function GetPendingExpensebyPatient($BillingReport As CReportHTML, $con A
       xrate = 0
       xdscamt = 0
       xtaxamt = 0
-      xtotamt = 0
+      xnetamt = 0
+      xCshCrd = 0
+      xcredt = 0
+      xcash = 0
 
-      unitrate = modNonMedical.GetBillingTargeDept(res2["flditem"], "Equipment")
-      xhr = modPatPatho.GetEquipmentDurationSetting(unitrate, res2["fldfirsttime"], Now(), True)
-      xrate = modNonMedical.GetCashBillItemCost(res2["flditem"], "Equipment")
-      xdscamt = modNonMedical.DiscPercentForCategoryValue(encid, res2["flddisctype"], "Equipment", res2["flditem"], modNonMedical.GetDiscBindBillMode(res1["flddisctype"]))
-      xtaxamt = modNonMedical.ShowTaxValues("Equipment", res2["flditem"])
-      xtotamt = (xrate * xhr) * (1 - xdscamt / 100) * (1 + xtaxamt / 100)
-      tot = tot + xtotamt
+      rex2 = modDatabase.$myConn.Exec("select fldmode,fldbillingmode,fldacledger,fldbilltype,fldreference,fldlimit,fldlockstate from tbldiscount where fldtype=&1", res2["flddisctype"])
+      If rex2.Available Then
+        unitrate = modNonMedical.GetBillingTargeDept(res2["flditem"], "Equipment")
+        xhr = modPatPatho.GetEquipmentDurationSetting(unitrate, res2["fldfirsttime"], Now(), True)
+        xrate = modNonMedical.GetCashBillItemCost(res2["flditem"], "Equipment")
+        xdscamt = modNonMedical.DiscPercentForCategoryValue(encid, res2["flddisctype"], "Equipment", res2["flditem"], modNonMedical.GetDiscBindBillMode(res1["flddisctype"]))
+        xtaxamt = modNonMedical.ShowTaxValues("Equipment", res2["flditem"])
+
+        If rex2["fldbillingmode"] Then
+          sBillingMode = rex2["fldbillingmode"]
+        Else
+          sBillingMode = modPatient.GetPatBillingMode(encid)
+        Endif
+        xnetamt = (xrate * xhr) * (1 - xdscamt / 100) * (1 + xtaxamt / 100)
+        xCshCrd = modNonMedical.CashInCreditPerForCategory(res2["flddisctype"], "Equipment", res2["flditem"], sBillingMode)
+        If rex2["fldbilltype"] = "Credit" Then
+          xcredt = xnetamt - ((xCshCrd / 100) * xnetamt)
+          xcash = (xCshCrd / 100) * xnetamt
+        Else
+          xcredt = 0
+          xcash = xnetamt
+        Endif
+      Endif
+
+      crdttot = crdttot + xcredt
+      cashtot = cashtot + xcash
       With asx
         .Add(CStr(i))
         .Add(res2["flditem"])
@@ -337,13 +383,16 @@ Public Function GetPendingExpensebyPatient($BillingReport As CReportHTML, $con A
         .Add(modReportVar.GetLocaleNumberFormat(xhr, -2))
         .Add(modReportVar.GetLocaleNumberFormat(xdscamt, -2))
         .Add(modReportVar.GetLocaleNumberFormat(xtaxamt, -2))
-        .Add(modReportVar.GetLocaleNumberFormat(xtotamt, gb.Currency))
+        .Add(modReportVar.GetLocaleNumberFormat(xcredt, gb.Currency))
+        .Add(modReportVar.GetLocaleNumberFormat(xcash, gb.Currency))
       End With
       $BillingReport.Add(asx)
       asx.Clear()
       i = i + 1
     Next
   Endif
+
+  xfin = xfin + cashtot
   With asx
     .Add("")
     .Add("<b>ESTIMATED TOTAL CHARGES</b>")
@@ -351,18 +400,20 @@ Public Function GetPendingExpensebyPatient($BillingReport As CReportHTML, $con A
     .Add("")
     .Add("")
     .Add("")
-    .Add(modReportVar.GetLocaleNumberFormat(tot, gb.Currency))
+    .Add(modReportVar.GetLocaleNumberFormat(crdttot, gb.Currency))
+    .Add(modReportVar.GetLocaleNumberFormat(cashtot, gb.Currency))
   End With
   $BillingReport.Add(asx)
   asx.Clear()
   With asx
-    .Add("...")
-    .Add("...")
-    .Add("...")
-    .Add("...")
-    .Add("...")
-    .Add("...")
-    .Add("...")
+    .Add("<br>")
+    .Add("<br>")
+    .Add("<br>")
+    .Add("<br>")
+    .Add("<br>")
+    .Add("<br>")
+    .Add("<br>")
+    .Add("<br>")
   End With
   $BillingReport.Add(asx)
   asx.Clear()
@@ -375,22 +426,24 @@ Public Function GetPendingExpensebyPatient($BillingReport As CReportHTML, $con A
     For Each scateg In categList
       If sType = "Admitted" Then
         If xdoa Then
-          res = $con.Exec("select flditemname,flditemrate,flditemqty,flddiscamt,fldtaxamt,fldditemamt,fldbilltype,flddisctype from tblpatbilling where fldencounterval=&1 and fldsave=&2 and fldprint=&3 and flddisctype=&4 and fldbilltype=&5 and flditemqty>&6 and fldtime>=&7", encid, True, False, scateg, xmode, 0, xdoa)
+          res = $con.Exec("select flditemname,flditemrate,flditemqty,flddiscamt,fldtaxamt,fldditemamt,fldbilltype,flddisctype," & modNonMedical.CashCreditRow() & " from tblpatbilling where fldencounterval=&1 and fldsave=&2 and fldprint=&3 and flddisctype=&4 and fldbilltype=&5 and flditemqty>&6 and fldtime>=&7", encid, True, False, scateg, xmode, 0, xdoa)
         Endif
       Else
-        res = $con.Exec("select flditemname,flditemrate,flditemqty,flddiscamt,fldtaxamt,fldditemamt,fldbilltype,flddisctype from tblpatbilling where fldencounterval=&1 and fldsave=&2 and fldprint=&3 and flddisctype=&4 and fldbilltype=&5 and flditemqty>&6", encid, True, False, scateg, xmode, 0)
+        res = $con.Exec("select flditemname,flditemrate,flditemqty,flddiscamt,fldtaxamt,fldditemamt,fldbilltype,flddisctype," & modNonMedical.CashCreditRow() & " from tblpatbilling where fldencounterval=&1 and fldsave=&2 and fldprint=&3 and flddisctype=&4 and fldbilltype=&5 and flditemqty>&6", encid, True, False, scateg, xmode, 0)
       Endif
       If res And If res.Available Then
-        $BillingReport.AddChapter("MODE : " & xmode & modString.HTMLBlankSpace(10) & " PACKAGE : " & scateg)
+        $BillingReport.AddChapter("SCHEME : " & scateg)
 
         i = 1
-        stot = 0
+        scrdttot = 0
+        scashtot = 0
         For Each res
           rte = 0
           disc = 0
           xtax = 0
           qty = 0
-          amt = 0
+          crdtamt = 0
+          cashamt = 0
           If res["flditemrate"] Then
             rte = res["flditemrate"]
           Endif
@@ -403,10 +456,15 @@ Public Function GetPendingExpensebyPatient($BillingReport As CReportHTML, $con A
           If res["flddiscamt"] Then
             disc = res["flddiscamt"]
           Endif
-          If res["fldditemamt"] Then
-            amt = res["fldditemamt"]
+          If res["xcredit"] Then
+            crdtamt = res["xcredit"]
           Endif
-          stot = stot + amt
+          If res["xcash"] Then
+            cashamt = res["xcash"]
+          Endif
+
+          scrdttot = scrdttot + crdtamt
+          scashtot = scashtot + cashamt
           With asx
             .Add(CStr(i))
             .Add(res["flditemname"])
@@ -414,12 +472,15 @@ Public Function GetPendingExpensebyPatient($BillingReport As CReportHTML, $con A
             .Add(modReportVar.GetLocaleNumberFormat(qty, -2))
             .Add(modReportVar.GetLocaleNumberFormat(disc, gb.Currency))
             .Add(modReportVar.GetLocaleNumberFormat(xtax, gb.Currency))
-            .Add(modReportVar.GetLocaleNumberFormat(amt, gb.Currency))
+            .Add(modReportVar.GetLocaleNumberFormat(crdtamt, gb.Currency))
+            .Add(modReportVar.GetLocaleNumberFormat(cashamt, gb.Currency))
           End With
           $BillingReport.Add(asx)
           asx.Clear()
           i = i + 1
         Next
+
+        xfin = xfin + scashtot
         With asx
           .Add("")
           .Add("SUBTOTAL")
@@ -427,33 +488,20 @@ Public Function GetPendingExpensebyPatient($BillingReport As CReportHTML, $con A
           .Add("")
           .Add("")
           .Add("")
-          .Add(modReportVar.GetLocaleNumberFormat(stot, gb.Currency))
+          .Add(modReportVar.GetLocaleNumberFormat(scrdttot, gb.Currency))
+          .Add(modReportVar.GetLocaleNumberFormat(scashtot, gb.Currency))
         End With
         $BillingReport.Add(asx)
         asx.Clear()
         With asx
-          .Add("")
-          .Add("<b>SALES RECEIVEABLE AMT</b>")
-          .Add("")
-          .Add("")
-          .Add("")
-          .Add("")
-          If xmode = "Cash" Then
-            .Add(modReportVar.GetLocaleNumberFormat(stot, gb.Currency))
-          Else
-            .Add(modReportVar.GetLocaleNumberFormat(0, gb.Currency))
-          Endif
-        End With
-        $BillingReport.Add(asx)
-        asx.Clear()
-        With asx
-          .Add("...")
-          .Add("...")
-          .Add("...")
-          .Add("...")
-          .Add("...")
-          .Add("...")
-          .Add("...")
+          .Add("<br>")
+          .Add("<br>")
+          .Add("<br>")
+          .Add("<br>")
+          .Add("<br>")
+          .Add("<br>")
+          .Add("<br>")
+          .Add("<br>")
         End With
         $BillingReport.Add(asx)
         asx.Clear()
@@ -471,22 +519,24 @@ Public Function GetPendingExpensebyPatient($BillingReport As CReportHTML, $con A
     For Each scateg In categList
       If sType = "Admitted" Then
         If xdoa Then
-          res = $con.Exec("select flditemname,flditemrate,flditemqty,flddiscamt,fldtaxamt,fldditemamt,fldbilltype,flddisctype from tblpatbilling where fldencounterval=&1 and fldsave=&2 and fldprint=&3 and flddisctype=&4 and fldbilltype=&5 and flditemqty<&6 and fldtime>=&7", encid, True, False, scateg, xmode, 0, xdoa)
+          res = $con.Exec("select flditemname,flditemrate,flditemqty,flddiscamt,fldtaxamt,fldditemamt,fldbilltype,flddisctype," & modNonMedical.CashCreditRow() & " from tblpatbilling where fldencounterval=&1 and fldsave=&2 and fldprint=&3 and flddisctype=&4 and fldbilltype=&5 and flditemqty<&6 and fldtime>=&7", encid, True, False, scateg, xmode, 0, xdoa)
         Endif
       Else
-        res = $con.Exec("select flditemname,flditemrate,flditemqty,flddiscamt,fldtaxamt,fldditemamt,fldbilltype,flddisctype from tblpatbilling where fldencounterval=&1 and fldsave=&2 and fldprint=&3 and flddisctype=&4 and fldbilltype=&5 and flditemqty<&6", encid, True, False, scateg, xmode, 0)
+        res = $con.Exec("select flditemname,flditemrate,flditemqty,flddiscamt,fldtaxamt,fldditemamt,fldbilltype,flddisctype," & modNonMedical.CashCreditRow() & " from tblpatbilling where fldencounterval=&1 and fldsave=&2 and fldprint=&3 and flddisctype=&4 and fldbilltype=&5 and flditemqty<&6", encid, True, False, scateg, xmode, 0)
       Endif
       If res And If res.Available Then
-        $BillingReport.AddChapter("MODE : " & xmode & modString.HTMLBlankSpace(10) & "  PACKAGE : " & scateg)
+        $BillingReport.AddChapter("SCHEME : " & scateg)
 
         i = 1
-        stot = 0
+        scrdttot = 0
+        scashtot = 0
         For Each res
           rte = 0
           disc = 0
           xtax = 0
           qty = 0
-          amt = 0
+          crdtamt = 0
+          cashamt = 0
           If res["flditemrate"] Then
             rte = res["flditemrate"]
           Endif
@@ -499,10 +549,15 @@ Public Function GetPendingExpensebyPatient($BillingReport As CReportHTML, $con A
           If res["flddiscamt"] Then
             disc = res["flddiscamt"]
           Endif
-          If res["fldditemamt"] Then
-            amt = res["fldditemamt"]
+          If res["xcredit"] Then
+            crdtamt = res["xcredit"]
           Endif
-          stot = stot + amt
+          If res["xcash"] Then
+            cashamt = res["xcash"]
+          Endif
+
+          scrdttot = scrdttot + crdtamt
+          scashtot = scashtot + cashamt
           With asx
             .Add(CStr(i))
             .Add(res["flditemname"])
@@ -510,12 +565,15 @@ Public Function GetPendingExpensebyPatient($BillingReport As CReportHTML, $con A
             .Add(modReportVar.GetLocaleNumberFormat(qty, -2))
             .Add(modReportVar.GetLocaleNumberFormat(disc, gb.Currency))
             .Add(modReportVar.GetLocaleNumberFormat(xtax, gb.Currency))
-            .Add(modReportVar.GetLocaleNumberFormat(amt, gb.Currency))
+            .Add(modReportVar.GetLocaleNumberFormat(crdtamt, gb.Currency))
+            .Add(modReportVar.GetLocaleNumberFormat(cashamt, gb.Currency))
           End With
           $BillingReport.Add(asx)
           asx.Clear()
           i = i + 1
         Next
+
+        xfin = xfin + scashtot
         With asx
           .Add("")
           .Add("SUBTOTAL")
@@ -523,33 +581,20 @@ Public Function GetPendingExpensebyPatient($BillingReport As CReportHTML, $con A
           .Add("")
           .Add("")
           .Add("")
-          .Add(modReportVar.GetLocaleNumberFormat(stot, gb.Currency))
+          .Add(modReportVar.GetLocaleNumberFormat(scrdttot, gb.Currency))
+          .Add(modReportVar.GetLocaleNumberFormat(scashtot, gb.Currency))
         End With
         $BillingReport.Add(asx)
         asx.Clear()
         With asx
-          .Add("")
-          .Add("<b>RETURN RECEIVEABLE AMT</b>")
-          .Add("")
-          .Add("")
-          .Add("")
-          .Add("")
-          If xmode = "Cash" Then
-            .Add(modReportVar.GetLocaleNumberFormat(stot, gb.Currency))
-          Else
-            .Add(modReportVar.GetLocaleNumberFormat(0, gb.Currency))
-          Endif
-        End With
-        $BillingReport.Add(asx)
-        asx.Clear()
-        With asx
-          .Add("...")
-          .Add("...")
-          .Add("...")
-          .Add("...")
-          .Add("...")
-          .Add("...")
-          .Add("...")
+          .Add("<br>")
+          .Add("<br>")
+          .Add("<br>")
+          .Add("<br>")
+          .Add("<br>")
+          .Add("<br>")
+          .Add("<br>")
+          .Add("<br>")
         End With
         $BillingReport.Add(asx)
         asx.Clear()
@@ -559,7 +604,19 @@ Public Function GetPendingExpensebyPatient($BillingReport As CReportHTML, $con A
 
   Next
 
-  xfin = 0
+  $BillingReport.AddSection("SUMMARY", True)
+  With asx
+    .Add("")
+    .Add("<b>SALES RECEIVEABLE AMT</b>")
+    .Add("")
+    .Add("")
+    .Add("")
+    .Add("")
+    .Add("")
+    .Add(modReportVar.GetLocaleNumberFormat(xfin, gb.Currency))
+  End With
+  $BillingReport.Add(asx)
+  asx.Clear()
 
   Return xfin
 

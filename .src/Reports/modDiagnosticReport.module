@@ -257,7 +257,7 @@ Public Function GetStructuredPanelReport(encid As String) As String
 
   Dim $BillingReport As CReportHTML
   Dim asx As New String[0]
-  Dim xPath As String
+  Dim sPath As String
   Dim rsx As Result
   Dim rsx1 As Result
   Dim res As Result
@@ -268,13 +268,12 @@ Public Function GetStructuredPanelReport(encid As String) As String
   rsx = modDatabase.$myConn.Exec("select fldmethod,fldinput from tblpatientexam where fldencounterval=&1 and fldsave=&2 GROUP BY fldmethod,fldinput ORDER BY fldinput", encid, True)
   If rsx.Available Then
     For Each rsx
-
       rsx1 = modDatabase.$myConn.Exec("select distinct(flditem) as flditem from tblstructexam where fldsubclass=&1 and fldcategory=&2 ORDER BY flditemid", rsx["fldmethod"], rsx["fldinput"])
       If rsx1.Available Then
         $BillingReport.AddSection(rsx["fldinput"], True)
-        For Each rsx1
 
-          sql = "select fldid,fldtime,fldhead,fldabnormal,fldtype,fldrepquali,fldrepquanti,fldoption,fldfilepath from tblpatientexam where fldencounterval=&1 and fldsave=&2 and  fldserialval in(select fldheadcode from tblstructexam where fldsubclass=&3 and fldcategory=&4 and flditem=&5)"
+        For Each rsx1
+          sql = "select fldid,fldtime,fldhead,fldabnormal,fldtype,fldrepquali,fldrepquanti,fldoption,fldfilepath from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldserialval in(select fldheadcode from tblstructexam where fldsubclass=&3 and fldcategory=&4 and flditem=&5)"
           res = modDatabase.$myConn.Exec(sql, encid, True, rsx["fldmethod"], rsx["fldinput"], rsx1["flditem"])
           If res.Available Then
             $BillingReport.AddChapter(rsx1["flditem"])
@@ -284,36 +283,57 @@ Public Function GetStructuredPanelReport(encid As String) As String
                 If res["fldtype"] = "Quantitative" Then
                   .Add(CStr(res["fldrepquanti"]))
                 Else
-                  .Add(res["fldrepquali"])
+
+                  Select res["fldoption"]
+                    Case "Clinical Scale"
+                      If modBasic.$ShowScaleMedFormat = "GroupWise" Then
+                        .Add(modString.GetJSONToDualHTMLTable(res["fldrepquali"]))
+                      Else
+                        .Add(CStr(res["fldrepquanti"]))
+                      Endif
+                    Case "Left and Right"
+                      .Add(modString.GetLeftRightReporting(Trim(res["fldrepquali"]), "Vertical"))
+                    Case "Left Right Qualitative", "Left Right Quantitative"
+                      .Add(modString.GetLeftRightReporting(Trim(res["fldrepquali"]), "Horizontal"))
+                    Case "ImageValue"
+                      sPath = modImage.GetPatScreenImageHash(encid, res["fldfilepath"])
+                      If sPath Then
+                        .Add(modString.GetImageForHTML(sPath))
+                      Else
+                        .Add("")
+                      Endif
+                    Case Else
+                      .Add(Trim(res["fldrepquali"]))
+                  End Select
+
                 Endif
                 .Add(modReportVar.GetDateTimeReport(res["fldtime"], gb.GeneralDate))
               End With
               $BillingReport.Add(asx)
               asx.Clear()
             Next
+
+            With asx
+              .Add("")
+              .Add("")
+              .Add("")
+            End With
+            $BillingReport.Add(asx)
+            asx.Clear()
           Endif
-
-          With asx
-            .Add("")
-            .Add("")
-            .Add("")
-          End With
-          $BillingReport.Add(asx)
-          asx.Clear()
         Next
-      Endif
 
-      With asx
-        .Add("<br>")
-        .Add("<br>")
-        .Add("<br>")
-      End With
-      $BillingReport.Add(asx)
-      asx.Clear()
+        With asx
+          .Add("<br>")
+          .Add("<br>")
+          .Add("<br>")
+        End With
+        $BillingReport.Add(asx)
+        asx.Clear()
+      Endif
     Next
   Endif
 
-  xPath = $BillingReport.NewHTMLString()
-  Return xPath
+  Return $BillingReport.NewHTMLString()
 
 End

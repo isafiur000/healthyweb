@@ -1825,8 +1825,8 @@ Public Function AllowEntryWithDeposit(encid As String, sType As String) As Boole
   Endif
   If xauto Then
     If xauto = "Warn" Then
-      paidamt = TotalPaidAmountbyPatient(modDatabase.$myConn, encid) + ShowCreditLimitEnc(encid)
-      expenseamt = TotalExpenseAmountbyPatient(modDatabase.$myConn, encid)
+      paidamt = TotalPaidAmountbyPatient(modDatabase.$myConn, encid)
+      expenseamt = TotalSavedCashExpensebyPatient(modDatabase.$myConn, encid)
       If expenseamt > paidamt Then
         allow = True
         Message.Warning(("Deposit lower than payments"), ("OK"))
@@ -1838,8 +1838,8 @@ Public Function AllowEntryWithDeposit(encid As String, sType As String) As Boole
       Endif
 
     Else If xauto = "Disable" Then
-      paidamt = TotalPaidAmountbyPatient(modDatabase.$myConn, encid) + ShowCreditLimitEnc(encid)
-      expenseamt = TotalExpenseAmountbyPatient(modDatabase.$myConn, encid)
+      paidamt = TotalPaidAmountbyPatient(modDatabase.$myConn, encid)
+      expenseamt = TotalSavedCashExpensebyPatient(modDatabase.$myConn, encid)
       If expenseamt > paidamt Then
         allow = False
         Message.Warning(("Deposit lower than payments"), ("OK"))
@@ -1861,20 +1861,19 @@ Public Function AllowEntryWithDeposit(encid As String, sType As String) As Boole
 
 End
 
-Public Function AllowPreCheckDeposit(encid As String, sAmt As Float, sPackage As String) As Boolean
+Public Function AllowPreCheckDeposit(encid As String, sAmt As Float, sBillType As String) As Boolean
 
   Dim allow As Boolean
   Dim expenseamt As Float
   Dim paidamt As Float
-  Dim sBillType As String
 
-  sBillType = modNonMedical.GetFixedInvType(sPackage)
   If sBillType = "Credit" Then
     paidamt = ShowCreditLimitEnc(encid)
+    expenseamt = TotalSavedCreditExpensebyPatient(modDatabase.$myConn, encid) + sAmt
   Else
     paidamt = TotalPaidAmountbyPatient(modDatabase.$myConn, encid)
+    expenseamt = TotalSavedCashExpensebyPatient(modDatabase.$myConn, encid) + sAmt
   Endif
-  expenseamt = TotalExpenseAmountbyPatient(modDatabase.$myConn, encid) + sAmt
   If expenseamt > paidamt Then
     allow = False
   Else
@@ -1885,13 +1884,12 @@ Public Function AllowPreCheckDeposit(encid As String, sAmt As Float, sPackage As
 
 End
 
-Public Function AllowPreEntryWithDeposit(encid As String, sType As String, sAmt As Float, sPackage As String) As Boolean
+Public Function AllowPreEntryWithDeposit(encid As String, sType As String, sAmt As Float, sBillType As String) As Boolean
 
   Dim allow As Boolean
   Dim expenseamt As Float
   Dim paidamt As Float
   Dim xauto As String
-  Dim sBillType As String
 
   If sType = "Pharmacy" Then
     xauto = modBasic.$LowDepoPharm
@@ -1910,13 +1908,13 @@ Public Function AllowPreEntryWithDeposit(encid As String, sType As String, sAmt 
   Endif
   If xauto Then
     If xauto = "Warn" Then
-      sBillType = modNonMedical.GetFixedInvType(sPackage)
       If sBillType = "Credit" Then
         paidamt = ShowCreditLimitEnc(encid)
+        expenseamt = TotalSavedCreditExpensebyPatient(modDatabase.$myConn, encid) + sAmt
       Else
         paidamt = TotalPaidAmountbyPatient(modDatabase.$myConn, encid)
+        expenseamt = TotalSavedCashExpensebyPatient(modDatabase.$myConn, encid) + sAmt
       Endif
-      expenseamt = TotalExpenseAmountbyPatient(modDatabase.$myConn, encid) + sAmt
       If expenseamt > paidamt Then
         allow = True
         WebForm.Exec("Toastify({text: 'Deposit lower than payments', duration: 3000}).showToast()")
@@ -1928,13 +1926,13 @@ Public Function AllowPreEntryWithDeposit(encid As String, sType As String, sAmt 
       Endif
 
     Else If xauto = "Disable" Then
-      sBillType = modNonMedical.GetFixedInvType(sPackage)
       If sBillType = "Credit" Then
         paidamt = ShowCreditLimitEnc(encid)
+        expenseamt = TotalSavedCreditExpensebyPatient(modDatabase.$myConn, encid) + sAmt
       Else
         paidamt = TotalPaidAmountbyPatient(modDatabase.$myConn, encid)
+        expenseamt = TotalSavedCashExpensebyPatient(modDatabase.$myConn, encid) + sAmt
       Endif
-      expenseamt = TotalExpenseAmountbyPatient(modDatabase.$myConn, encid) + sAmt
       If expenseamt > paidamt Then
         allow = False
         WebForm.Exec("Toastify({text: 'Deposit lower than payments', duration: 3000}).showToast()")
@@ -3843,7 +3841,27 @@ Public Function TotalSavedCreditExpensebyPatient($conn As Connection, encid As S
   Dim amt As Float
   Dim res As Result
 
-  res = $conn.Exec("select SUM(fldditemamt*(1-(fldcashincredit/100))) as tot from tblpatbilling where fldencounterval=&1 and fldsave=&2 and fldbilltype=&3", encid, True, "Credit")
+  res = $conn.Exec("select SUM((REPLACE(REPLACE(fldbilltype , 'Cash', 0), 'Credit', 100) - COALESCE(fldcashincredit, 0)) * fldditemamt / 100) as tot from tblpatbilling where fldencounterval=&1 and fldsave=&2 and fldbilltype=&3", encid, True, "Credit")
+  If res.Available Then
+    If res["tot"] Then
+      amt = res["tot"]
+    Else
+      amt = 0
+    Endif
+  Else
+    amt = 0
+  Endif
+
+  Return amt
+
+End
+
+Public Function TotalSavedCashExpensebyPatient($conn As Connection, encid As String) As Float
+
+  Dim amt As Float
+  Dim res As Result
+
+  res = $conn.Exec("select SUM((REPLACE(REPLACE(fldbilltype , 'Cash', 100), 'Credit', 0) + COALESCE(fldcashincredit, 0)) * fldditemamt / 100) as tot from tblpatbilling where fldencounterval=&1 and fldsave=&2 and fldbilltype=&3", encid, True, "Credit")
   If res.Available Then
     If res["tot"] Then
       amt = res["tot"]

@@ -194,6 +194,8 @@ Public $SymptomScale As String
 Public $TriageMode As String
 Public $ClinVitalInterval As Float
 Public $ClinDoseToTime As String
+Public $ClinDoseStartTime As Date
+
 Public $ClinOPDExamination As String
 Public $ClinIPDExamination As String
 Public $ClinIPDHistoryFormat As String
@@ -381,8 +383,11 @@ Public $BillPharmReturnOption As String
 Public $BillCashOption As String
 Public $BillReturnOption As String
 Public $BillDepositOption As String
+
 Public $BillDischargeOption As String
 Public $BillDischargeAutoLock As String
+Public $BillDischargeCreditCheck As String
+
 Public $HandOverLockInvoice As String
 Public $HandOverLockSubmission As String
 Public $HandOverZeroSubmission As String
@@ -427,6 +432,9 @@ Public $AutoBillSaveFullCredit As String
 Public $AutoBedChargeMode As String
 Public $AutoBillUseOwn As String
 Public $AutoBillAdvReceipt As String
+
+Public $AutoBillAllowProcedure As String
+Public $AutoBillAllowRadiology As String
 
 Public $PayableLockEntry As String
 Public $ReferralLockEntry As String
@@ -504,6 +512,9 @@ Public $RegistLockProfile As Float
 ''medicine setting
 Public $MedErrorEnable As String
 Public $MedDoseRecommend As String
+Public $MedRenalAdjustment As String
+Public $MedMinRenalElimin As Float
+Public $MedMaxCreatClear As Float
 Public $MedDiseaseDose As String
 Public $MedNoRegimen As String
 Public $MedLogRecommend As String
@@ -1737,8 +1748,10 @@ Public Sub LoadCashierBillingSettings()
   $BillCashOption = modGlobalSetting.ShowSettingFromDB("BillingOption/CashierBilling")
   $BillReturnOption = modGlobalSetting.ShowSettingFromDB("BillingOption/CashierReturn")
   $BillDepositOption = modGlobalSetting.ShowSettingFromDB("BillingOption/DepositBilling")
+
   $BillDischargeOption = modGlobalSetting.ShowSettingFromDB("BillingOption/DischargeBilling")
   $BillDischargeAutoLock = modGlobalSetting.ShowSettingFromDB("BillingOption/DischargeAutoLock")
+  $BillDischargeCreditCheck = modGlobalSetting.ShowSettingFromDB("BillingOption/DischargeCreditCheck")
 
   $HandOverLockInvoice = modGlobalSetting.ShowSettingFromDB("CashHandover/LockInvoice")
   $HandOverLockSubmission = modGlobalSetting.ShowSettingFromDB("CashHandover/LockSubmission")
@@ -1767,6 +1780,9 @@ Public Sub LoadAutoBillingOptions()
   $AutoBedChargeMode = modGlobalSetting.ShowSettingFromDB("AutoIPBilling/BedChargeMode")
   $AutoBillUseOwn = modGlobalSetting.ShowSettingFromDB("AutoIPBilling/UseOwnBilling")
   $AutoBillAdvReceipt = modGlobalSetting.ShowSettingFromDB("AutoIPBilling/AdvancedReceipt")
+
+  $AutoBillAllowProcedure = modGlobalSetting.ShowSettingFromDB("AutoIPBilling/AllowProcedure")
+  $AutoBillAllowRadiology = modGlobalSetting.ShowSettingFromDB("AutoIPBilling/AllowRadiology")
 
   $PayableLockEntry = modGlobalSetting.ShowSettingFromDB("FixPayableUser/LockEntry")
   $ReferralLockEntry = modGlobalSetting.ShowSettingFromDB("FixReferralUser/LockEntry")
@@ -2143,6 +2159,7 @@ End
 Public Sub SetClinicalProcedures()
 
   Dim xinter As String
+  Dim xdosestart As String
 
   $TriageMode = modGlobalSetting.ShowSettingFromDB("IPClinic/TriageColorValue")
   xinter = modGlobalSetting.ShowSettingFromDB("IPClinic/VitalsInterval")
@@ -2150,6 +2167,13 @@ Public Sub SetClinicalProcedures()
     $ClinVitalInterval = CInt(xinter)
   Endif
   $ClinDoseToTime = modGlobalSetting.ShowSettingFromDB("IPClinic/RestrictToDoseTime")
+  xdosestart = modGlobalSetting.ShowSettingFromDB("IPClinic/DoseStartTime")
+  If xdosestart Then
+    $ClinDoseStartTime = CDate(xdosestart)
+  Else
+    $ClinDoseStartTime = ""
+  Endif
+
   modFixPatho.LoadTriageValues()
 
   $ClinOPDExamination = modGlobalSetting.ShowSettingFromDB("ClinicForms/OPDExaminations")
@@ -2242,6 +2266,23 @@ End
 
 ''for medicine review and dose recommendation
 Public Sub MedicineDoseSetting()
+
+  Dim xminelim As String
+  Dim xmaxcreat As String
+
+  $MedRenalAdjustment = modSettings.ShowSettingFromFIle("RenalDoseAdjustment/Activate")
+  xminelim = modSettings.ShowSettingFromFIle("RenalDoseAdjustment/MinRenPer")
+  If xminelim Then
+    $MedMinRenalElimin = CFloat(xminelim)
+  Else
+    $MedMinRenalElimin = 0
+  Endif
+  xmaxcreat = modSettings.ShowSettingFromFIle("RenalDoseAdjustment/MaxCrCl")
+  If xmaxcreat Then
+    $MedMaxCreatClear = CFloat(xmaxcreat)
+  Else
+    $MedMaxCreatClear = 0
+  Endif
 
   $MedErrorEnable = modSettings.ShowSettingFromFIle("MedicineSetting/EnableDrugProblems")
   $MedDoseRecommend = modSettings.ShowSettingFromFIle("MedicineSetting/DisplayDoseRecommendation")

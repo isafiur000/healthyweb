@@ -1125,6 +1125,36 @@ Public Function GetHTMLListFormat(sData As String[]) As String
 
 End
 
+Public Sub GetDualHorizontalFormat(xDualVar As Variant[], Optional sTitle As String[]) As String
+
+  Dim xx As String
+  Dim Row As Integer
+
+  If xDualVar.Count Then
+    xx = modRepoTemplete.HTMLTableSyntax()
+    For Row = 0 To xDualVar.Count - 1
+      If sTitle And If sTitle.Count = 2 Then
+        xx = xx & "<tr>" & gb.NewLine
+        xx = xx & "<td width='50%'>" & "<b>" & sTitle[0] & " : </b>" & xDualVar[Row][sTitle[0]] & "</td>" & gb.NewLine
+        xx = xx & "<td width='50%'>" & "<b>" & sTitle[1] & " : </b>" & xDualVar[Row][sTitle[1]] & "</td>" & gb.NewLine
+        xx = xx & "</tr>" & gb.NewLine
+      Else
+        xx = xx & "<tr>" & gb.NewLine
+        xx = xx & "<td width='50%'>" & "<b>RIGHT : </b>" & xDualVar[Row]["RIGHT"] & "</td>" & gb.NewLine
+        xx = xx & "<td width='50%'>" & "<b>LEFT : </b>" & xDualVar[Row]["LEFT"] & "</td>" & gb.NewLine
+        xx = xx & "</tr>" & gb.NewLine
+      Endif
+    Next
+    xx = xx & "</table>" & gb.NewLine
+
+  Else
+    xx = ""
+  Endif
+
+  Return xx
+
+End
+
 Public Sub GetDualTableFormat(sLeft As String[], sRight As String[], Optional sTitle As String[]) As String
 
   Dim xx As String
@@ -1329,9 +1359,35 @@ Public Function GetLefRightJSON(strLeft As String, strRight As String) As String
   Dim xcoll As Collection
 
   xcoll = New Collection
-  xcoll.Add(strLeft, "LEFT")
   xcoll.Add(strRight, "RIGHT")
+  xcoll.Add(strLeft, "LEFT")
   Return JSON.Encode(xcoll)
+
+End
+
+Public Function GetLeftRightReporting(sJson As String, sAlign As String) As String
+
+  Dim xxx As Variant
+  Dim xcoll As Collection
+  Dim sTable As String
+
+  Try xxx = JSON.Decode(sJson, True)
+  If xxx Then
+    If xxx Is Collection Then
+      xcoll = xxx
+      If xcoll.Count = 2 Then
+        If xcoll["LEFT"] Or If xcoll["RIGHT"] Then
+          If sAlign = "Vertical" Then
+            sTable = modString.GetDualTableFormat([xcoll["RIGHT"]], [xcoll["LEFT"]], ["RIGHT", "LEFT"])
+          Else If sAlign = "Horizontal" Then
+            sTable = modString.GetDualHorizontalFormat([xcoll], ["RIGHT", "LEFT"])
+          Endif
+        Endif
+      Endif
+    Endif
+  Endif
+
+  Return sTable
 
 End
 
@@ -1391,11 +1447,11 @@ Public Function GetLeftRightTableHeader(Optional sParam As Boolean) As String
   sTable = sTable & "<tr>" & gb.NewLine
   If sParam = True Then
     sTable = sTable & "<td style='width:30%'>VARIABLE</td>"
-    sTable = sTable & "<td style='width:35%'>LEFT</td>"
     sTable = sTable & "<td style='width:35%'>RIGHT</td>"
+    sTable = sTable & "<td style='width:35%'>LEFT</td>"
   Else
-    sTable = sTable & "<td style='width:50%'>LEFT</td>"
     sTable = sTable & "<td style='width:50%'>RIGHT</td>"
+    sTable = sTable & "<td style='width:50%'>LEFT</td>"
   Endif
   sTable = sTable & "</tr>" & gb.NewLine
   sTable = sTable & "</table>"
@@ -1413,26 +1469,26 @@ Public Function GetLeftRightTableValue(sValue As String, Optional sParam As Stri
   If Trim(sValue) Then
     xColl = JSON.Decode(sValue)
     If xColl Then
-      sLeft = xColl["LEFT"]
       sRight = xColl["RIGHT"]
+      sLeft = xColl["LEFT"]
     Else
-      sLeft = sValue
-      sRight = ""
+      sRight = sValue
+      sLeft = ""
     Endif
   Else
-    sLeft = ""
     sRight = ""
+    sLeft = ""
   Endif
 
   sTable = modRepoTemplete.HTMLDualTableSyntax()
   sTable = sTable & "<tr>" & gb.NewLine
   If sParam Then
     sTable = sTable & "<td style='width:30%'>" & sParam & "</td>" & gb.NewLine
-    sTable = sTable & "<td style='width:35%'>" & sLeft & "</td>" & gb.NewLine
     sTable = sTable & "<td style='width:35%'>" & sRight & "</td>" & gb.NewLine
+    sTable = sTable & "<td style='width:35%'>" & sLeft & "</td>" & gb.NewLine
   Else
-    sTable = sTable & "<td style='width:50%'>" & sLeft & "</td>" & gb.NewLine
     sTable = sTable & "<td style='width:50%'>" & sRight & "</td>" & gb.NewLine
+    sTable = sTable & "<td style='width:50%'>" & sLeft & "</td>" & gb.NewLine
   Endif
   sTable = sTable & "</tr>" & gb.NewLine
   sTable = sTable & "</table>"

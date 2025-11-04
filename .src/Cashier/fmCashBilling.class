@@ -19,6 +19,7 @@ Private $xNHISCode As String
 Private xYear As Integer
 Private $AdvPayment As String
 Private $DefaultItemType As String
+Private $lstEncid As String
 
 Private $TestArray As String[]
 Private $ServiceArray As String[]
@@ -192,7 +193,6 @@ Public Sub btnshow_Click()
   Dim xlock As Boolean
   Dim xcredit As Float
   Dim frmshow As Boolean
-  Dim xlstenc As String
   Dim xallow As Boolean
 
   If Not txtencid.Text Then Return
@@ -392,9 +392,9 @@ Public Sub btnshow_Click()
         txtencid.ReadOnly = True
         modImage.ShowPhotoSplash("Patient", $PatientNum)
         modPatientSub.PopUpPatientForm(Trim(txtencid.Text), Me.Tag)
+        $lstEncid = modPatient.GetSecondLastEncidPatient(Trim(txtencid.Text))
         If modBasic.$BillWarnCredits = "Yes" Then
-          xlstenc = modPatient.GetSecondLastEncidPatient(Trim(txtencid.Text))
-          xcredit = modNonMedical.GetTotalCreditInvoice(modDatabase.$myConn, xlstenc) - modNonMedical.GetDueClearPaidAmtbyPatient(modDatabase.$myConn, xlstenc)
+          xcredit = modNonMedical.GetTotalCreditInvoice(modDatabase.$myConn, $lstEncid) - modNonMedical.GetDueClearPaidAmtbyPatient(modDatabase.$myConn, $lstEncid)
           If xcredit Then
             Message.Warning(("Credit pending from last visit is ") & xcredit, "OK")
           Endif
@@ -1323,7 +1323,7 @@ Public Sub chksave_Click()
           cmbtype.SetFocus
         Endif
       Else
-        msg = "Not Allowed. The reason may be: 1) Diagnosis requirement, or, 2) Credit Lock Rule"
+        msg = "Not Allowed. Reason may be: 1) Diagnosis requirement, or, 2) Credit Lock Rule"
         Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", msg, modBasic.$BalloonDelay))
       Endif
 
@@ -3800,6 +3800,7 @@ End
 Private Sub COmtrolMedNames()
 
   Dim xcomp As String
+  Dim cForm As CRecommendDosing
 
   If cmbmedicine.Text Then
     If modStockSub.GetComboStockControl(cmbroute.Text, cmbmedicine.Text, rbgeneric, rbrand, modDatabase.$medConn) = False Then
@@ -3847,8 +3848,9 @@ Private Sub COmtrolMedNames()
           txtday.Enabled = True
 
           If modBasic.$MedDoseRecommend = "Yes" Then
-            txtdose.Value = modMedDosing.RecommendedDoseDrug(Trim(txtencid.Text), xYear, cmbmedicine.Text)
-            cmbfreq.Text = modMedDosing.RecommendedFrequencyDrug(xYear, cmbmedicine.Text)
+            cForm = New CRecommendDosing(Trim(txtencid.Text), xYear, cmbmedicine.Text)
+            txtdose.Value = cForm.UnitDose()
+            cmbfreq.Text = cForm.Frequency()
           Endif
 
           If $HideDos = False Then  '' First pass to textbox
@@ -5448,5 +5450,68 @@ Public Sub mnuoutpharmacy_Click()
       modBILLFormat.GetPurchaseOutPath(Trim(txtencid.Text), xval)
     Endif
   Endif
+
+End
+
+Public Sub mnupastorder_Click()
+
+  Dim res As Result
+  Dim xList As String[]
+  Dim finLst As String[]
+  Dim xitem As String
+
+  xList = New String[]
+  res = modDatabase.$myConn.Exec("select fldid,flditemname,fldordcomp from tblpatbilling where fldencounterval=&1 and fldsave=&2 and fldstatus=&3 and fldbillno IS NULL", $lstEncid, False, "Planned")
+  If res.Available Then
+    For Each res
+      xList.Add(res["flditemname"] & "|" & res["fldordcomp"])
+    Next
+
+    If xList.Count Then
+      finLst = GridDualView("Past Orders for Billing", xList)
+      If finLst And If finLst.Count Then
+        For Each xitem In finLst
+          CopyToNewItem($lstEncid, xitem)
+        Next
+        ShowNewEntry()
+      Endif
+    Endif
+  Endif
+
+End
+
+Private Sub CopyToNewItem(encidLast As String, xItem As String)
+
+  Dim res As Result
+  Dim res1 As Result
+
+  modDatabase.$myConn.Begin
+  res = modDatabase.$myConn.Edit("tblpatbilling", "fldencounterval=&1 and fldsave=&2 and fldstatus=&3 and flditemname=&4 and fldbillno IS NULL", encidLast, False, "Planned", xItem)
+  If res.Available Then
+    res.MoveFirst
+
+    If res["flditemtype"] = "Radio Diagnostics" Then
+      res1 = modDatabase.$myConn.Edit("tblpatradiotest", "fldencounterval=&1 and fldgroupid=&2", encidLast, res["fldid"])
+      If res1.Available Then
+        res1["fldencounterval"] = Trim(txtencid.Text)
+        res1.Update
+      Endif
+    Else If res["flditemtype"] = "Procedures" Then
+      res1 = modDatabase.$myConn.Edit("tblpatgeneral", "fldencounterval=&1 and fldgroupid=&2 and flditem=&3", encidLast, res["fldid"], res["flditemname"])
+      If res1.Available Then
+        res1["fldencounterval"] = Trim(txtencid.Text)
+        res1.Update
+      Endif
+    Endif
+
+    res["fldencounterval"] = Trim(txtencid.Text)
+    res["fldstatus"] = "Punched"
+    res.Update
+  Endif
+  modDatabase.$myConn.Commit
+
+Catch
+  modDatabase.$myConn.Rollback
+  modHelpVariable.CreateErrorReport()
 
 End

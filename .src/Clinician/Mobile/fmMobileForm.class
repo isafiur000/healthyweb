@@ -1,0 +1,70 @@
+' Gambas class file
+
+Private $sType As String
+Private $doa As Date
+Private $sTatus As String
+
+Public Sub _new(encid As String, sType As String)
+
+  txtencid.Text = encid
+  $sType = sType
+  modGeneralMain.GetOpenModalForm(Me)
+
+  If txtencid.Text Then
+    btnshow_Click()
+  Else
+    pnlfirst.Visible = True
+  Endif
+
+End
+
+Public Sub txtencid_Activate()
+
+  btnshow_Click()
+
+End
+
+Public Sub btnwebcam_Click()
+
+  txtencid.Text = QRScanValue("")
+  If txtencid.Text Then
+    btnshow_Click()
+  Endif
+
+End
+
+Public Sub btnshow_Click()
+
+  Dim xx As Boolean
+
+  If txtencid.Text Then
+    txtname.Text = modPatient.GetPatientNameByEnc(Trim(txtencid.Text))
+    $doa = modPatient.GetRecordDate(Trim(txtencid.Text))
+    $sTatus = modPatient.CurrentAdmissionStatus(Trim(txtencid.Text))
+    xx = modPatient.EnableClinicForm(modPatient.CurrentAdmissionStatus(Trim(txtencid.Text)))
+    If xx = True Then
+      LoadAttachForms()
+    Endif
+  Endif
+
+End
+
+Private Sub LoadAttachForms()
+
+  Dim hForm1 As FmClinNote
+  Dim xNoteLst As String[] = ["Progress Note", "Clinicians Note", "Nurses Note", "Transfer Note"]
+
+  Select $sType
+    Case "Notes"
+      hForm1 = New FmClinNote(Trim(txtencid.Text), xNoteLst, $sTatus, "height-tablet-medium", WebContainer2)
+    Case "Progress Note", "Clinicians Note", "Nurses Note", "Transfer Note"
+      hForm1 = New FmClinNote(Trim(txtencid.Text), [$sType], $sTatus, "height-tablet-medium", WebContainer2)
+  End Select
+
+End
+
+Public Sub btnclose_Click()
+
+  Me.Close()
+
+End

@@ -211,7 +211,11 @@ Public Sub btnsubOK_Click()
       If modNonMedical.AllowEntryWithDeposit($encid, "Procedure") = True Then
 
         If modBasic.$AutoBillProcedure = "Standard" Or If modBasic.$AutoBillProcedure = "Full" Or If modBasic.$AutoBillProcedure = "Partial" Then
-          modBillings.GetAutoBillingEntry($encid, cmbdisctype.Text, "Procedure", cmbprocedure.Text, 1, "Punched", 0, False, False, "", btnrefer.Tag, GetProcedType())
+          If chknextvisit.Value = True Then
+            modBillings.GetAutoBillingEntry($encid, cmbdisctype.Text, "Procedure", cmbprocedure.Text, 1, "Planned", 0, False, False, "", btnrefer.Tag, GetProcedType())
+          Else
+            modBillings.GetAutoBillingEntry($encid, cmbdisctype.Text, "Procedure", cmbprocedure.Text, 1, "Punched", 0, False, False, "", btnrefer.Tag, GetProcedType())
+          Endif
           Unpaidtable()
         Endif
         Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
@@ -228,8 +232,8 @@ Public Sub Unpaidtable()
 
   Dim sql As String
 
-  sql = "select fldid,fldordtime,flditemname,fldstatus,fldid from tblpatbilling where fldencounterval=&1 and flditemtype=&2 and fldsave=&3 and fldstatus=&4 and fldordcomp=&5 and (fldtarget=&6 or fldtarget=&7 or fldtarget=&8) and (flditemqty-fldretqty)>&9"
-  $rData4 = modDatabase.$myConn.Exec(sql, $encid, "Procedures", False, "Punched", modBasic.$compID, "Minor", "Extra", "Plaster", 0)
+  sql = "select fldid,fldordtime,flditemname,fldstatus,fldid from tblpatbilling where fldencounterval=&1 and flditemtype=&2 and fldsave=&3 and (fldstatus=&4 or fldstatus=&5) and fldordcomp=&6 and (fldtarget=&7 or fldtarget=&8 or fldtarget=&9) and (flditemqty-fldretqty)>&{10}"
+  $rData4 = modDatabase.$myConn.Exec(sql, $encid, "Procedures", False, "Punched", "Planned", modBasic.$compID, "Minor", "Extra", "Plaster", 0)
   $aMyFields4 = New String[]
   modGridView.ReadSmallData(GridView4, $rData4, $aMyFields4)
 
@@ -287,11 +291,11 @@ Public Sub btnsave_Click()
     For Each res
 
       If modBasic.$AutoBillProcedure = "Standard" Then
-        If modNonMedical.AllowPreCheckDeposit($encid, res["fldditemamt"], res["flddisctype"]) = True Then
+        If modNonMedical.AllowPreCheckDeposit($encid, res["fldditemamt"], res["fldbilltype"]) = True Then
           SavePartialEntry(res, xadv)
         Endif
       Else If modBasic.$AutoBillProcedure = "Full" Then
-        If modNonMedical.AllowPreEntryWithDeposit($encid, "Procedure", res["fldditemamt"], res["flddisctype"]) = True Then
+        If modNonMedical.AllowPreEntryWithDeposit($encid, "Procedure", res["fldditemamt"], res["fldbilltype"]) = True Then
           SavePartialEntry(res, xadv)
         Endif
       Else

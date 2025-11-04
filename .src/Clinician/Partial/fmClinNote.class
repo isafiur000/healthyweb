@@ -1,0 +1,160 @@
+' Gambas class file
+
+Private $encid As String
+Private $categList As String[]
+Private $sTatus As String
+Private $rData As Result
+Private $aMyFields As String[]
+
+Public Sub _new(encid As String, categList As String[], xState As String, sClass As String)
+
+  $encid = encid
+  $categList = categList
+  $sTatus = xState
+  WebContainer1.Class = sClass
+
+  cmbcategory.List = $categList
+  cmbnotetype.List = ["All Types", "Progress Note", "Clinicians Note", "Nurses Note", "Transfer Note", "Patient Note"]
+  cmbnotetype.Text = "All Types"
+  dtnote.Value = Now()
+  ShowNoteGrid()
+
+End
+
+Public Sub btnrefresh_Click()
+
+  If cmbnotetype.Text Then
+    ShowNoteGrid()
+  Endif
+
+End
+
+Private Sub ShowNoteGrid()
+
+  Dim i As Integer
+  Dim sTypLst As String[]
+  Dim sql As String
+
+  If cmbnotetype.Text = "All Types" Then
+    If $sTatus = "Admitted" Then
+      sTypLst = ["Progress Note", "Clinicians Note", "Nurses Note", "Transfer Note", "Patient Note"]
+    Else
+      sTypLst = New String[]
+      sTypLst.Insert(["Progress Note", "Clinicians Note", "Nurses Note", "Transfer Note", "Patient Note"])
+      sTypLst.Insert($categList.Copy())
+    Endif
+  Else
+    sTypLst = [cmbnotetype.Text]
+  Endif
+
+  For i = 0 To sTypLst.Count - 1
+    sTypLst[i] = "'" & sTypLst[i] & "'"
+  Next
+
+  If chknoteall.Value Then
+    sql = "select fldid,fldtime,flditem,fldreportquali,flddetail,flduserid,fldtime from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and flditem in(" & sTypLst.Join(",") & ") ORDER BY fldtime DESC"
+  Else
+    sql = "select fldid,fldtime,flditem,fldreportquali,flddetail,flduserid,fldtime from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and flditem in(" & sTypLst.Join(",") & ") and fldtime>=&3 and fldtime<=&4 ORDER BY fldtime DESC"
+  Endif
+  $rData = modDatabase.$myConn.Exec(sql, $encid, "Notes", modDate.StartSqlDate(dtnote.Value), modDate.EndSqlDate(dtnote.Value))
+  $aMyFields = New String[]
+  modGridView.ReadSmallData(WebTable1, $rData, $aMyFields)
+
+  With WebTable1
+    .Columns[0].Hidden = True
+    .Columns[1].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
+    .Columns[2].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+    .Columns[3].Hidden = True
+    .Columns[4].Hidden = True
+    .Columns[5].Hidden = True
+    .Columns[6].Hidden = True
+  End With
+
+End
+
+Public Sub WebTable1_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  $rData.MoveTo(Row)
+  modGridView.GridViewDecoration(Data, Row)
+  If Column = 1 Then
+    Data.Text = modReportVar.GetDateTimeReport($rData[$aMyFields[Column]], gb.GeneralDate)
+  Else
+    Data.Text = $rData[$aMyFields[Column]]
+  Endif
+
+End
+
+Public Sub WebTable1_Select()
+
+  If WebTable1.Selection.Count Then
+    $rData.MoveTo(WebTable1.Selection[0])
+    txtnoteid.Value = $rData["fldid"]
+    cmbcategory.Text = $rData["flditem"]
+    txtimpression.Text = $rData["fldreportquali"]
+    txtnote.RichText = $rData["flddetail"]
+    lblnoteuser.Text = modGeneral.GetUserFullName($rData["flduserid"]) & " [" & modReportVar.GetDateTimeReport($rData["fldtime"], gb.GeneralDate) & "]"
+
+    If $categList.Exist($rData["flditem"]) Then
+      btnotedit.Enabled = True
+    Else
+      btnotedit.Enabled = False
+    Endif
+  Endif
+
+End
+
+''--------------------- write note ----------------------
+''----------- icons
+Public Sub btndatanote_Click()
+
+End
+
+Public Sub btnpannote_Click()
+
+  If cmbcategory.Text Then
+    txtnote.RichText = txtnote.RichText & Space(1) & modFillContainer.GetExtraTextArea(cmbcategory.Text, txtnote.Text)
+  Endif
+
+End
+
+Public Sub btnexecnote_Click()
+
+  txtnote.RichText = txtnote.RichText & modString.TextToHTML(modCloudAI.GetPatCloudAIResponse($encid, txtnote.Text))
+
+End
+
+Public Sub btnattnote_Click()
+
+  If cmbcategory.Text Then
+    txtnote.RichText = txtnote.RichText & DictionaryVIew(cmbcategory.Text)
+  Endif
+
+End
+
+Public Sub btnclear_Click()
+
+  txtnote.RichText = ""
+
+End
+
+Public Sub btnoteadd_Click()
+
+  If cmbcategory.Text Then
+    If txtnote.Text Then
+      modPatientGeneral.AddExamGeneralQualiData($encid, "Notes", cmbcategory.Text, txtimpression.Text, txtnote.RichText, False)                ''
+      Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+      ShowNoteGrid()
+    Endif
+  Endif
+
+End
+
+Public Sub btnotedit_Click()
+
+  If txtnoteid.Value Then
+    modPatientGeneral.UpdateExamGeneralQualiData(txtnoteid.Value, cmbcategory.Text, txtimpression.Text, txtnote.RichText)
+    Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+    ShowNoteGrid()
+  Endif
+
+End

@@ -78,6 +78,22 @@ Public Sub TabPanel1_Click()
 
 End
 
+Public Sub txtsearch_Change()
+
+  cmbconsult.List = modString.SelectStringArrayToText(txtsearch.Text, $ConsList, chkleft.Value)
+
+End
+
+Public Sub cmbconsult_Select()
+
+  txtdepart.Text = cmbconsult.Text
+  dtconsult.Value = Now()
+  txtpresummary.RichText = ""
+  btnconsult.Tag = ""
+  btnconsult.Text = ""
+
+End
+
 Public Sub btnsubOK_Click()
 
   Dim billItem As String
@@ -95,9 +111,9 @@ Public Sub btnsubOK_Click()
       Endif
 
       If modGeneral.GetCategoryFromDept(cmbconsult.Text) = "Consultation" Then
-        modPatientSub.AddConsultData($encid, cmbconsult.Text, dtconsult.Value, $BillMode, "IP Consultation", btnconsult.Tag)
+        modPatientSub.AddConsultData($encid, cmbconsult.Text, dtconsult.Value, $BillMode, "IP Consultation", btnconsult.Tag, txtpresummary.RichText)
       Else
-        modPatientSub.AddOPVisitData($encid, cmbconsult.Text, dtconsult.Value, $BillMode, "IP Consultation")
+        modPatientSub.AddOPVisitData($encid, cmbconsult.Text, dtconsult.Value, $BillMode, "IP Consultation", txtpresummary.RichText)
       Endif
 
       If modBasic.$AutoBillConsult Then
@@ -111,7 +127,7 @@ Public Sub btnsubOK_Click()
           Endif
         Endif
       Endif
-      cmbconsult.Text = ""
+      txtdepart.Text = ""
       FillLabtable()
 
     Endif
@@ -122,8 +138,8 @@ End
 Public Sub FillLabtable()
 
   Dim sql As String
-  Dim xFldList1 As String[] = ["fldid", "fldconsulttime", "fldencounterval", "fldconsultname", "fldid"]
-  Dim xFldList2 As String[] = ["fldid", "fldconsulttime", "fldencounterval", "fldconsultname", "fldid"]
+  Dim xFldList1 As String[] = ["fldid", "fldconsultname", "fldencounterval", "fldconsulttime", "fldid", "fldpresummary"]
+  Dim xFldList2 As String[] = ["fldid", "fldconsultname", "fldencounterval", "fldconsulttime", "fldid", "fldpresummary"]
 
   xFldList1.Add(Quote("tblconsult"))
   xFldList2.Add(Quote("tblopvisit"))
@@ -134,14 +150,15 @@ Public Sub FillLabtable()
 
   With GridView1
     .Columns[0].Hidden = True
-    .Columns[1].Width = CStr(175 * modBasic.$AppWidthRatio) & "px"
+    .Columns[1].Width = CStr(250 * modBasic.$AppWidthRatio) & "px"
     .Columns[2].Hidden = True
-    .Columns[3].Width = CStr(300 * modBasic.$AppWidthRatio) & "px"
+    .Columns[3].Width = CStr(175 * modBasic.$AppWidthRatio) & "px"
     .Columns[4].Hidden = True
     .Columns[5].Hidden = True
+    .Columns[6].Hidden = True
 
-    .Columns[1].Text = "DateTime"
-    .Columns[3].Text = "Consultation"
+    .Columns[1].Text = "Consultation"
+    .Columns[3].Text = "DateTime"
   End With
 
 End
@@ -150,10 +167,44 @@ Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableDat
 
   $rData.MoveTo(Row)
   modGridView.GridViewDecoration(Data, Row)
-  If Column = 1 Then
+  If Column = 3 Then
     Data.Text = modReportVar.GetDateTimeReport($rData[$aMyFields[Column]], gb.GeneralDate)
   Else
     Data.Text = $rData[$aMyFields[Column]]
+  Endif
+
+End
+
+Public Sub GridView1_Select()
+
+  Dim res As Result
+
+  If GridView1.Selection.Count Then
+    $rData.MoveTo(GridView1.Selection[0])
+    If $rData["tblconsult"] = "tblconsult" Then
+      res = modDatabase.$myConn.Exec("select fldconsultname,fldconsulttime,fldpresummary,flduserid from tblconsult where fldid=&1", $rData["fldid"])
+      If res.Available Then
+        txtdepart.Text = res["fldconsultname"]
+        dtconsult.Value = res["fldconsulttime"]
+        txtpresummary.RichText = res["fldpresummary"]
+        If res["flduserid"] Then
+          btnconsult.Tag = res["flduserid"]
+          btnconsult.Text = modGeneral.GetUserFullName(res["flduserid"])
+        Else
+          btnconsult.Tag = ""
+          btnconsult.Text = ""
+        Endif
+      Endif
+    Else If $rData["tblconsult"] = "tblopvisit" Then
+      res = modDatabase.$myConn.Exec("select fldconsultname,fldconsulttime,fldpresummary from tblconsult where fldid=&1", $rData["fldid"])
+      If res.Available Then
+        txtdepart.Text = res["fldconsultname"]
+        dtconsult.Value = res["fldconsulttime"]
+        txtpresummary.RichText = res["fldpresummary"]
+        btnconsult.Tag = ""
+        btnconsult.Text = ""
+      Endif
+    Endif
   Endif
 
 End

@@ -675,7 +675,7 @@ Public Function ShowRecomExaminationpatient(encid As String, sCategory As String
   Dim res As Result
   Dim res2 As Result
   Dim asx As New String[0]
-  Dim xType As String
+  ' Dim xType As String
   Dim xFormat As String
   Dim sPath As String
 
@@ -700,28 +700,32 @@ Public Function ShowRecomExaminationpatient(encid As String, sCategory As String
         res2 = modDatabase.$syConn.Exec("select fldid,fldtime,fldhead,fldabnormal,fldrepquali,fldrepquanti,fldoption,fldfilepath from tblpatientexam where fldinput=&1 and fldencounterval=&2 and fldsave=&3 and fldhead=&4 and fldserialval in(select fldheadcode from tblstructexam where fldsubclass=&5 and fldcategory=&6 and fldreferencee=&7 and flditem=&8 and fldclass=&9)", xFormat, encid, True, res["col"], sCategory, subCategory, sref, res1["flditem"], sDepart)
         If res2.Available Then
           res2.MoveLast
-          xType = res2["fldoption"]
+          ' xType = res2["fldoption"]
           With asx
             .Add(modString.HTMLBlankSpace(5) & modReportVar.GetDateTimeReport(res2["fldtime"], gb.GeneralDate))
             .Add(res["col"])
-            If xType = "Clinical Scale" Then
-              If modBasic.$ShowScaleMedFormat = "GroupWise" Then
-                .Add(modString.GetJSONToDualHTMLTable(res2["fldrepquali"]))
-              Else
-                .Add(CStr(res2["fldrepquanti"]))
-              Endif
-            Else If xType = "Left and Right" Then
-              .Add(modString.GetJSONToDualHTMLTable(res2["fldrepquali"]))
-            Else If xType = "ImageValue" Then
-              sPath = modImage.GetPatScreenImageHash(encid, res2["fldfilepath"])
-              If sPath Then
-                .Add(modString.GetImageForHTML(modPrint.GetFileWebURL(sPath)))
-              Else
-                .Add("")
-              Endif
-            Else
-              .Add(Trim(res2["fldrepquali"]))
-            Endif
+
+            Select res2["fldoption"]
+              Case "Clinical Scale"
+                If modBasic.$ShowScaleMedFormat = "GroupWise" Then
+                  .Add(modString.GetJSONToDualHTMLTable(res2["fldrepquali"]))
+                Else
+                  .Add(CStr(res2["fldrepquanti"]))
+                Endif
+              Case "Left and Right"
+                .Add(modString.GetLeftRightReporting(Trim(res2["fldrepquali"]), "Vertical"))
+              Case "Left Right Qualitative", "Left Right Quantitative"
+                .Add(modString.GetLeftRightReporting(Trim(res2["fldrepquali"]), "Horizontal"))
+              Case "ImageValue"
+                sPath = modImage.GetPatScreenImageHash(encid, res2["fldfilepath"])
+                If sPath Then
+                  .Add(modString.GetImageForHTML(sPath))
+                Else
+                  .Add("")
+                Endif
+              Case Else
+                .Add(Trim(res2["fldrepquali"]))
+            End Select
           End With
           $BillingReport.Add(asx)
           asx.Clear()
@@ -752,7 +756,7 @@ Public Function ShowRecomExamCompletePatient(encid As String, sCategory As Strin
   Dim res1 As Result
   Dim res As Result
   Dim res2 As Result
-  Dim xType As String
+  ' Dim xType As String
   Dim sPath As String
   Dim xObsVal As String
 
@@ -779,27 +783,30 @@ Public Function ShowRecomExamCompletePatient(encid As String, sCategory As Strin
           res2 = modDatabase.$syConn.Exec("select fldid,fldtime,fldhead,fldabnormal,fldrepquali,fldrepquanti,fldoption,fldfilepath from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldhead=&3 and fldserialval in(select fldheadcode from tblstructexam where fldsubclass=&4 and fldcategory=&5 and fldreferencee=&6 and flditem=&7 and fldclass=&8)", encid, True, res["fldhead"], sCategory, subCategory, sReference, res1["flditem"], sDepart)
           If res2.Available Then
             res2.MoveLast
-            xType = res2["fldoption"]
+            ' xType = res2["fldoption"]
             With asx
               xObsVal = ""
-              If xType = "Clinical Scale" Then
-                If modBasic.$ShowScaleMedFormat = "GroupWise" Then
-                  xObsVal = modString.GetJSONToDualHTMLTable(res2["fldrepquali"])
-                Else
-                  xObsVal = CStr(res2["fldrepquanti"])
-                Endif
-              Else If xType = "Left and Right" Then
-                xObsVal = modString.GetJSONToDualHTMLTable(res2["fldrepquali"])
-              Else If xType = "ImageValue" Then
-                sPath = modImage.GetPatScreenImageHash(encid, res2["fldfilepath"])
-                If sPath Then
-                  xObsVal = modString.GetImageForHTML(sPath)
-                Else
-                  xObsVal = ""
-                Endif
-              Else
-                xObsVal = Trim(res2["fldrepquali"])
-              Endif
+              Select res2["fldoption"]
+                Case "Clinical Scale"
+                  If modBasic.$ShowScaleMedFormat = "GroupWise" Then
+                    xObsVal = modString.GetJSONToDualHTMLTable(res2["fldrepquali"])
+                  Else
+                    xObsVal = CStr(res2["fldrepquanti"])
+                  Endif
+                Case "Left and Right"
+                  xObsVal = modString.GetLeftRightReporting(Trim(res2["fldrepquali"]), "Vertical")
+                Case "Left Right Qualitative", "Left Right Quantitative"
+                  xObsVal = modString.GetLeftRightReporting(Trim(res2["fldrepquali"]), "Horizontal")
+                Case "ImageValue"
+                  sPath = modImage.GetPatScreenImageHash(encid, res2["fldfilepath"])
+                  If sPath Then
+                    xObsVal = modString.GetImageForHTML(sPath)
+                  Else
+                    xObsVal = ""
+                  Endif
+                Case Else
+                  xObsVal = Trim(res2["fldrepquali"])
+              End Select
 
               If modBasic.$MedRepoBody = "Paragraph" Then
                 .Add("<p><b>" & res["fldhead"] & "</b><br>" & xObsVal & "</p>")
@@ -1729,7 +1736,7 @@ Public Function ShowMedicationOrder(encid As String) As String
   $BillingReport.UserData.Add("REPORT", "Report")
   $BillingReport.UserData.Add("PENDING PHARMACY ORDER", "PARAM1")
 
-  res = modDatabase.$syConn.Exec("select fldid,fldstarttime,fldroute,flditem,flddose,fldfreq,flddays,flddirection from tblpatdosing where fldencounterval=&1 and fldsave_order=&2", encid, False)
+  res = modDatabase.$syConn.Exec("select fldid,fldstarttime,fldroute,flditem,flddose,fldfreq,flddays,flddirection,fldmixing from tblpatdosing where fldencounterval=&1 and fldsave_order=&2", encid, False)
   For Each res
     With asx
       .Add(CStr(res.Index + 1))
@@ -1737,7 +1744,11 @@ Public Function ShowMedicationOrder(encid As String) As String
       .Add(modPharmacy.GetMedFormatForMedReport(res["flditem"], res["fldroute"]))
       .Add(res["fldroute"])
       .Add(modPharmacy.GetDoseRegimenString(res["fldid"], False, True))
-      .Add(res["flddirection"])
+      If res["fldmixing"] Then
+        .Add(modString.TextToHTML(res["flddirection"] & gb.NewLine & "Compounding: " & res["fldmixing"]))
+      Else
+        .Add(res["flddirection"])
+      Endif
     End With
     $BillingReport.Add(asx)
     asx.Clear()
