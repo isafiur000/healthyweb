@@ -1,6 +1,8 @@
 ' Gambas class file
 
 Private $encid As String
+Private $rData As Result
+Private $aMyFields As String[]
 
 Private xFinal As Variant[]
 Private $ExamList As String[]
@@ -40,6 +42,90 @@ Private Function LabUnitForm() As String
 
 End
 
+Public Sub rbdaterepo_Click()
+
+  btnshowexams_Click()
+
+End
+
+Public Sub rbnamerepo_Click()
+
+  btnshowexams_Click()
+
+End
+
+''======================= List ============================
+Private Sub ShowGridViewList()
+
+  If rbnamerepo.Value = True Then
+    If rblabs.Value = True Then
+      $rData = modDatabase.$myConn.Exec("select fldtestid,fldtestid as col from tblpatlabtest where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3) and flvisible=&4 GROUP BY fldtestid ORDER BY fldtestid", $encid, "Reported", "Verified", "Visible")
+    Else If rbradio.Value = True Then
+      $rData = modDatabase.$myConn.Exec("select fldtestid,fldtestid as col from tblpatradiotest where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3) and flvisible=&4 GROUP BY fldtestid ORDER BY fldtestid", $encid, "Reported", "Verified", "Visible")
+    Else If rbexam.Value = True Then
+      $rData = modDatabase.$myConn.Exec("select fldhead,fldhead as col from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldserialval IS NULL GROUP BY fldhead ORDER BY fldhead", $encid, True)
+    Endif
+
+  Else If rbdaterepo.Value = True Then
+    If rblabs.Value = True Then
+      $rData = modDatabase.$myConn.Exec("select DATE(fldtime_sample),DATE(fldtime_sample) as col from tblpatlabtest where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3) and flvisible=&4 GROUP BY DATE(fldtime_sample) ORDER BY fldtime_sample", $encid, "Reported", "Verified", "Visible")
+    Else If rbradio.Value = True Then
+      $rData = modDatabase.$myConn.Exec("select DATE(fldtime_report),DATE(fldtime_report) as col from tblpatradiotest where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3) and flvisible=&4 GROUP BY DATE(fldtime_report) ORDER BY fldtime_report", $encid, "Reported", "Verified", "Visible")
+    Else If rbexam.Value = True Then
+      $rData = modDatabase.$myConn.Exec("select DATE(fldtime),DATE(fldtime) as col from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldserialval IS NULL GROUP BY DATE(fldtime) ORDER BY fldtime", $encid, True)
+    Endif
+
+  Endif
+
+  $aMyFields = New String[]
+  modGridView.ReadSmallData(GridView1, $rData, $aMyFields)
+
+  With GridView1
+    .Columns[0].Expand = True
+    .Columns[1].Hidden = True
+  End With
+
+End
+
+Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  $rData.MoveTo(Row)
+  modGridView.GridViewDecoration(Data, Row)
+  If Column = 0 Then
+    If rbnamerepo.Value = True Then
+      Data.Text = $rData[$aMyFields[Column]]
+    Else If rbdaterepo.Value = True Then
+      Data.Text = modReportVar.GetDateTimeReport($rData[$aMyFields[Column]], gb.MediumDate)
+    Endif
+  Else
+    Data.Text = $rData[$aMyFields[Column]]
+  Endif
+
+End
+
+Public Sub GridView1_Select()
+
+  Dim xformat As String
+
+  If rbdaterepo.Value = True Then
+    xformat = "Date"
+  Else If rbnamerepo.Value = True Then
+    xformat = "Name"
+  Endif
+
+  If GridView1.Selection.Count Then
+    $rData.MoveTo(GridView1.Selection[0])
+    If rblabs.Value = True Then
+      WebView1.Html = modDiagnosticReport.GetLaboratoryPanelReport($encid, xformat, LabUnitForm(), $rData["col"])
+    Else If rbradio.Value = True Then
+      WebView1.Html = modDiagnosticReport.GetRadiologyPanelReport($encid, xformat, $rData["col"])
+    Else If rbexam.Value = True Then
+      WebView1.Html = modDiagnosticReport.GetExaminationPanelReport($encid, "Physician Examinations", xformat, $rData["col"])
+    Endif
+  Endif
+
+End
+
 ''=============================== EXAMS ====================
 Public Sub btnshowexams_Click()
 
@@ -52,6 +138,7 @@ Public Sub btnshowexams_Click()
   Endif
 
   If $encid Then
+    ShowGridViewList()
     If rblabs.Value = True Then
       WebContainer4.Visible = True
       GridView2.Visible = False
@@ -63,7 +150,7 @@ Public Sub btnshowexams_Click()
     Else If rbexam.Value = True Then
       WebContainer4.Visible = True
       GridView2.Visible = False
-      WebView1.Html = modDiagnosticReport.GetExaminationPanelReport($encid, xformat)
+      WebView1.Html = modDiagnosticReport.GetExaminationPanelReport($encid, "Physician Examinations", xformat)
     Else If rbstruct.Value = True Then
       WebContainer4.Visible = True
       GridView2.Visible = False

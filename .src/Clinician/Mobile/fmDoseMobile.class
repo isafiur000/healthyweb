@@ -3,16 +3,21 @@
 Private aWebFrame As New Object[50]
 Private aNameLabel As New Object[50]
 Private aHorizPanel As New Object[50]
+Private aLeftPanel As New Object[50]
+Private aRightPanel As New Object[50]
 Private aIndexVal As New Object[50]
+Private aTimeLabel As New Object[50]
 Private aRegmLabel As New Object[50]
 Private aQuantiBox As New Object[50]
 Private aUnitLabel As New Object[50]
 Private aDoseLabel As New Object[50]
 Private aCountBox As New Object[50]
-Private aWeighBox As New Object[50]
+Private aSkipBox As New Object[50]
 Private aBlankFrame As New Object[50]
 
 Private $rData As Result
+' Private $minTime As Date
+' Private $maxTime As Date
 
 Public Sub _new(encid As String)
 
@@ -40,9 +45,52 @@ Public Sub btnshow_Click()
   If txtencid.Text Then
     txtname.Text = modPatient.GetPatientNameByEnc(Trim(txtencid.Text))
     xx = modPatient.EnableClinicForm(modPatient.CurrentAdmissionStatus(Trim(txtencid.Text)))
+    ' $minTime = DateAdd(Now(), gb.Hour, -3)
+    ' $maxTime = DateAdd(Now(), gb.Hour, 3)
     LoadControlsWeb()
     btnsaveall.Enabled = xx
   Endif
+
+End
+
+Private Function GetCurrentTime(sDosId As Long, sFreq As String, sStart As Date) As Date
+
+  Dim res As Result
+  Dim timeLst As Date[]
+  Dim finTime As Date
+
+  Dim xtimeLast As Date
+  Dim xtime As Date
+
+  timeLst = modPharmLabel.GetDosingTiming(sFreq)
+  res = modDatabase.$myConn.Exec("select fldid,fldfromtime from tblnurdosing where fldencounterval=&1 and flddoseno=&2 and fldtime>=&3 and fldtime<=&4 ORDER BY fldfromtime", Trim(txtencid.Text), sDosId, modDate.StartSqlDate(Now()), modDate.EndSqlDate(Now()))
+  If res.Available Then
+    res.MoveLast
+    xtimeLast = Time(res["fldfromtime"])
+    For Each xtime In timeLst
+      If xtime > xtimeLast Then
+        finTime = xtime
+        Break
+      Endif
+    Next
+
+  Else
+    If Date(sStart) = Date(Now()) Then
+      xtimeLast = Time(sStart)
+      For Each xtime In timeLst
+        If xtime >= xtimeLast Then
+          finTime = xtime
+          Break
+        Endif
+      Next
+
+    Else
+      finTime = timeLst[0]
+    Endif
+
+  Endif
+
+  Return finTime
 
 End
 
@@ -51,94 +99,118 @@ Private Sub LoadControlsWeb()
   Dim i As Integer
   Dim sql As String
   Dim xunit As String
+  Dim xtime As Date
 
   i = 0
-  sql = "select fldid,fldroute,flditem,flddose,fldfreq,flddays,fldstatus from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldstarttime<=&3 and fldendtime>=&4 and fldroute<>&5 and flditemtype=&6 and fldcurval=&7"
+  sql = "select fldid,fldroute,flditem,flddose,fldfreq,flddays,fldstatus,fldstarttime,fldendtime,flddosecount from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldstarttime<=&3 and fldendtime>=&4 and fldroute<>&5 and flditemtype=&6 and fldcurval=&7"
   $rData = modDatabase.$myConn.Exec(sql, Trim(txtencid.Text), True, Now(), DateAdd(Now(), gb.Hour, -3), "fluid", "Medicines", "Continue")
   If $rData.Available Then
     For Each $rData
       If i < 49 Then
+        xtime = GetCurrentTime($rData["fldid"], $rData["fldfreq"], $rData["fldstarttime"])
+        If xtime Then
 
-        aWebFrame[i] = New WebContainer(Frame1)
-        aNameLabel[i] = New WebHtml(aWebFrame[i])
-        aHorizPanel[i] = New WebContainer(aWebFrame[i])
-        aIndexVal[i] = New WebValueBox(aHorizPanel[i])
-        aRegmLabel[i] = New WebLabel(aHorizPanel[i])
-        aUnitLabel[i] = New WebLabel(aHorizPanel[i])
-        aQuantiBox[i] = New WebValueBox(aHorizPanel[i])
-        aDoseLabel[i] = New WebLabel(aHorizPanel[i])
-        aCountBox[i] = New WebValueBox(aHorizPanel[i])
-        aWeighBox[i] = New WebValueBox(aHorizPanel[i])
-        aBlankFrame[i] = New WebSeparator(Frame1)
+          aWebFrame[i] = New WebContainer(Frame1)
+          aNameLabel[i] = New WebHtml(aWebFrame[i])
+          aHorizPanel[i] = New WebContainer(aWebFrame[i])
 
-        With aWebFrame[i]
-          .Arrangement = Arrange.Vertical
-        End With
+          aLeftPanel[i] = New WebHBox(aHorizPanel[i])
+          aIndexVal[i] = New WebValueBox(aLeftPanel[i])
+          aTimeLabel[i] = New WebLabel(aLeftPanel[i])
+          aRegmLabel[i] = New WebLabel(aLeftPanel[i])
 
-        With aNameLabel[i]
-          .Font = "bold"
-          .Text = "<p>" & $rData["flditem"] & "</p>"
-          .Tag = i
-        End With
+          aRightPanel[i] = New WebHBox(aHorizPanel[i])
+          aUnitLabel[i] = New WebLabel(aRightPanel[i])
+          aQuantiBox[i] = New WebValueBox(aRightPanel[i]) As "QuantiBox"
+          aDoseLabel[i] = New WebLabel(aRightPanel[i])
+          aCountBox[i] = New WebValueBox(aRightPanel[i])
+          aSkipBox[i] = New WebCheckBox(aRightPanel[i])
+          aBlankFrame[i] = New WebSeparator(Frame1)
 
-        xunit = modPharmLabel.GetDosageFormForLabel($rData["flditem"], "Inpatient")
-        With aHorizPanel[i]
-          .Arrangement = Arrange.Horizontal
-          .Class = "less-container-margin"
-        End With
+          With aWebFrame[i]
+            .Arrangement = Arrange.Vertical
+          End With
 
-        With aIndexVal[i]
-          .Width = "2em"
-          .Height = "2em"
-          .Value = $rData["fldid"]
-          .Visible = False
-          .Tag = i
-        End With
-        With aRegmLabel[i]
-          .Expand = True
-          .Height = "2em"
-          .Border = True
-          .Text = $rData["fldroute"] & Space(2) & modMedConstant.GetMedicineRegimenInFormat($rData["fldroute"], $rData["flditem"], $rData["flddose"], $rData["fldfreq"], $rData["flddays"])
-          .Tag = $rData["fldfreq"]
-        End With
-        With aUnitLabel[i]
-          .Width = "4em"
-          .Height = "2em"
-          .Border = True
-          .Text = modMedConstant.GetMedicineDoseFormat($rData["fldroute"], $rData["flditem"], $rData["flddose"], modBasic.$MedicineDoseFormat)  ''Round($rData["flddose"] / modMedConstant.GetDrugInitialStrength($rData["flditem"]), -2)
-          .Tag = i
-        End With
-        With aQuantiBox[i]
-          .Width = "4em"
-          .Height = "2em"
-          .Tag = i
-        End With
-        With aDoseLabel[i]
-          .Width = "5em"
-          .Height = "2em"
-          .Border = True
-          .Text = xunit
-          .Tag = i
-        End With
-        With aCountBox[i]
-          .Width = "3em"
-          .Height = "2em"
-          .Enabled = False
-          .Value = modPharmacy.TotalDoseCount($rData["fldid"], Now())
-          .Tag = i
-        End With
-        With aWeighBox[i]
-          .Width = "5em"
-          .Height = "2em"
-          .Enabled = False
-          .Value = modPharmacy.TotalDoseAmount($rData["fldid"], Now())
-          .Tag = i
-        End With
+          With aNameLabel[i]
+            .Font = "bold"
+            .Text = "<p>" & $rData["flditem"] & "</p>"
+            .Tag = i
+          End With
 
-        With aBlankFrame[i]
-          .Height = "1em"
-        End With
+          With aHorizPanel[i]
+            .Arrangement = Arrange.Row
+          End With
 
+          With aLeftPanel[i]
+            .Class = "size-tablet less-container-margin"
+          End With
+
+          With aIndexVal[i]
+            .Width = "2em"
+            .Height = "2em"
+            .Value = $rData["fldid"]
+            .Visible = False
+            .Tag = i
+          End With
+          With aTimeLabel[i]
+            .Width = "5em"
+            .Height = "2em"
+            .Border = True
+            .Text = CStr(xtime)
+            .Tag = i
+          End With
+          With aRegmLabel[i]
+            .Expand = True
+            .Height = "2em"
+            .Border = True
+            .Text = $rData["fldroute"] & Space(2) & modMedConstant.GetMedicineRegimenInFormat($rData["fldroute"], $rData["flditem"], $rData["flddose"], $rData["fldfreq"], $rData["flddays"])
+            .Tag = $rData["fldfreq"]
+          End With
+
+          With aRightPanel[i]
+            .Class = "size-tablet less-container-margin"
+          End With
+
+          With aUnitLabel[i]
+            .Expand = True
+            .Height = "2em"
+            .Border = True
+            .Text = modMedConstant.GetMedicineDoseFormat($rData["fldroute"], $rData["flditem"], $rData["flddose"], modBasic.$MedicineDoseFormat)  ''Round($rData["flddose"] / modMedConstant.GetDrugInitialStrength($rData["flditem"]), -2)
+            .Tag = i
+          End With
+          With aQuantiBox[i]
+            .Width = "4em"
+            .Height = "2em"
+            .Tag = i
+          End With
+
+          xunit = modPharmLabel.GetDosageFormForLabel($rData["flditem"], "Inpatient")
+          With aDoseLabel[i]
+            .Width = "5em"
+            .Height = "2em"
+            .Border = True
+            .Text = xunit
+            .Tag = i
+          End With
+          With aCountBox[i]
+            .Width = "3em"
+            .Height = "2em"
+            .Enabled = False
+            .Value = modPharmacy.TotalDoseCount($rData["fldid"], Now())
+            .Tag = i
+          End With
+          With aSkipBox[i]
+            .Width = "5em"
+            .Height = "2em"
+            .Text = "Skip"
+            .Tag = i
+          End With
+
+          With aBlankFrame[i]
+            .Height = "1em"
+          End With
+
+        Endif
       Endif
       i = i + 1
     Next
@@ -153,17 +225,29 @@ Public Sub btnsaveall_Click()
 
   For i = 0 To $rData.Count - 1
     If i < 49 Then
-      If aIndexVal[i].Value And If aQuantiBox[i].Value Then
+      If aIndexVal[i] And If aQuantiBox[i] Then
+        If aIndexVal[i].Value Then
+          If aQuantiBox[i].Value Or If aSkipBox[i].Value Then
 
-        modPharmSub.InsertNurDosing(aIndexVal[i].Value, Trim(txtencid.Text), aQuantiBox[i].Value, aDoseLabel[i].Text, "")
-        If aRegmLabel[i].Tag = "stat" Then
-          res = modDatabase.$myConn.Edit("tblpatdosing", "fldid=&1", aIndexVal[i].Value)
-          res["fldcurval"] = "Completed"
-          res.Update
+            If aTimeLabel[i].Text Then
+              If aSkipBox[i].Value Then
+                modPharmSub.InsertNurDosing(aIndexVal[i].Value, Trim(txtencid.Text), 0, aDoseLabel[i].Text, CDate(aTimeLabel[i].Text))
+              Else
+                modPharmSub.InsertNurDosing(aIndexVal[i].Value, Trim(txtencid.Text), aQuantiBox[i].Value, aDoseLabel[i].Text, CDate(aTimeLabel[i].Text))
+              Endif
+            Else
+              modPharmSub.InsertNurDosing(aIndexVal[i].Value, Trim(txtencid.Text), aQuantiBox[i].Value, aDoseLabel[i].Text, "")
+            Endif
+            If aRegmLabel[i].Tag = "stat" Then
+              res = modDatabase.$myConn.Edit("tblpatdosing", "fldid=&1", aIndexVal[i].Value)
+              res["fldcurval"] = "Completed"
+              res.Update
+            Endif
+            aQuantiBox[i].Value = 0
+            aQuantiBox[i].ReadOnly = True
+
+          Endif
         Endif
-        aQuantiBox[i].Value = 0
-        aQuantiBox[i].ReadOnly = True
-
       Endif
     Endif
   Next

@@ -1,6 +1,6 @@
 ' Gambas module file
 
-Public Function GetLaboratoryPanelReport(encid As String, sFormat As String, unt As String) As String
+Public Function GetLaboratoryPanelReport(encid As String, sFormat As String, unt As String, Optional sSelect As Variant) As String
 
   Dim $BillingReport As CReportHTML
   Dim asx As New String[0]
@@ -11,13 +11,22 @@ Public Function GetLaboratoryPanelReport(encid As String, sFormat As String, unt
 
   Dim xtabval As String
   Dim xcaption As String
+  Dim xcomment As String
 
-  $BillingReport = New CReportHTML([("Particulars"), ("Observation"), ("Comment"), ("Time")], "PatientReport", encid)
+  $BillingReport = New CReportHTML([("Parameter"), ("Observation"), ("Comment"), ("Time")], "PatientReport", encid)
   $BillingReport.SetColumnWidths([20, 45, 25, 10])
   If sFormat = "Name" Then
-    rsx = modDatabase.$myConn.Exec("select DISTINCT fldtestid as col from tblpatlabtest where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3) and flvisible=&4 ORDER BY fldtestid", encid, "Reported", "Verified", "Visible")
+    If sSelect Then
+      rsx = modDatabase.$myConn.Exec("select DISTINCT fldtestid as col from tblpatlabtest where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3) and flvisible=&4 and fldtestid=&5", encid, "Reported", "Verified", "Visible", sSelect)
+    Else
+      rsx = modDatabase.$myConn.Exec("select DISTINCT fldtestid as col from tblpatlabtest where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3) and flvisible=&4 ORDER BY fldtestid", encid, "Reported", "Verified", "Visible")
+    Endif
   Else If sFormat = "Date" Then
-    rsx = modDatabase.$myConn.Exec("select DISTINCT DATE(fldtime_sample) as col from tblpatlabtest where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3) and flvisible=&4 ORDER BY fldtime_sample", encid, "Reported", "Verified", "Visible")
+    If sSelect Then
+      rsx = modDatabase.$myConn.Exec("select DISTINCT DATE(fldtime_sample) as col from tblpatlabtest where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3) and flvisible=&4 and fldtime_sample>=&5 and fldtime_sample<=&6", encid, "Reported", "Verified", "Visible", modDate.StartSqlDate(sSelect), modDate.EndSqlDate(sSelect))
+    Else
+      rsx = modDatabase.$myConn.Exec("select DISTINCT DATE(fldtime_sample) as col from tblpatlabtest where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3) and flvisible=&4 ORDER BY fldtime_sample", encid, "Reported", "Verified", "Visible")
+    Endif
   Endif
 
   If rsx.Available Then
@@ -62,7 +71,12 @@ Public Function GetLaboratoryPanelReport(encid As String, sFormat As String, unt
               Endif
             Endif
 
-            .Add(modLabTest.LabReportCommentPatient(res["fldid"], unt, res["fldtest_type"], "tblpatlabtest"))
+            xcomment = modLabTest.GetLabTestComment(res["fldid"], encid)
+            If xcomment Then
+              .Add(modLabTest.LabReportCommentPatient(res["fldid"], unt, res["fldtest_type"], "tblpatlabtest") & "<br>" & "Comment : " & xcomment)
+            Else
+              .Add(modLabTest.LabReportCommentPatient(res["fldid"], unt, res["fldtest_type"], "tblpatlabtest"))
+            Endif
             .Add(modReportVar.GetDateTimeReport(res["fldtime_sample"], gb.ShortTime))
           End With
           $BillingReport.Add(asx)
@@ -86,7 +100,7 @@ Public Function GetLaboratoryPanelReport(encid As String, sFormat As String, unt
 
 End
 
-Public Function GetRadiologyPanelReport(encid As String, sFormat As String) As String
+Public Function GetRadiologyPanelReport(encid As String, sFormat As String, Optional sSelect As Variant) As String
 
   Dim $BillingReport As CReportHTML
   Dim asx As New String[0]
@@ -97,13 +111,22 @@ Public Function GetRadiologyPanelReport(encid As String, sFormat As String) As S
 
   Dim xtabval As String
   Dim xcaption As String
+  Dim xcomment As String
 
-  $BillingReport = New CReportHTML([("Particulars"), ("Observation"), ("Comment"), ("Time")], "PatientReport", encid)
+  $BillingReport = New CReportHTML([("Parameter"), ("Observation"), ("Comment"), ("Time")], "PatientReport", encid)
   $BillingReport.SetColumnWidths([20, 45, 25, 10])
   If sFormat = "Name" Then
-    rsx = modDatabase.$myConn.Exec("select DISTINCT fldtestid as col from tblpatradiotest where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3) and flvisible=&4 ORDER BY fldtestid", encid, "Reported", "Verified", "Visible")
+    If sSelect Then
+      rsx = modDatabase.$myConn.Exec("select DISTINCT fldtestid as col from tblpatradiotest where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3) and flvisible=&4 and fldtestid=&5", encid, "Reported", "Verified", "Visible", sSelect)
+    Else
+      rsx = modDatabase.$myConn.Exec("select DISTINCT fldtestid as col from tblpatradiotest where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3) and flvisible=&4 ORDER BY fldtestid", encid, "Reported", "Verified", "Visible")
+    Endif
   Else If sFormat = "Date" Then
-    rsx = modDatabase.$myConn.Exec("select DISTINCT DATE(fldtime_report) as col from tblpatradiotest where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3) and flvisible=&4  ORDER BY fldtime_report", encid, "Reported", "Verified", "Visible")
+    If sSelect Then
+      rsx = modDatabase.$myConn.Exec("select DISTINCT DATE(fldtime_report) as col from tblpatradiotest where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3) and flvisible=&4 and fldtime_report>=&5 and fldtime_report<=&6", encid, "Reported", "Verified", "Visible", modDate.StartSqlDate(sSelect), modDate.EndSqlDate(sSelect))
+    Else
+      rsx = modDatabase.$myConn.Exec("select DISTINCT DATE(fldtime_report) as col from tblpatradiotest where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3) and flvisible=&4  ORDER BY fldtime_report", encid, "Reported", "Verified", "Visible")
+    Endif
   Endif
 
   If rsx.Available Then
@@ -149,7 +172,12 @@ Public Function GetRadiologyPanelReport(encid As String, sFormat As String) As S
               Endif
             Endif
 
-            .Add(modRadioTest.GetRadioTestLimitSrting(res["fldid"]))
+            xcomment = modRadioTest.GetRadioTestComment(res["fldid"], encid)
+            If xcomment Then
+              .Add(modRadioTest.GetRadioTestLimitSrting(res["fldid"], encid) & "<br>" & "Coment: " & xcomment)
+            Else
+              .Add(modRadioTest.GetRadioTestLimitSrting(res["fldid"], encid))
+            Endif
             .Add(modReportVar.GetDateTimeReport(res["fldtime_report"], gb.ShortTime))
           End With
           $BillingReport.Add(asx)
@@ -173,7 +201,7 @@ Public Function GetRadiologyPanelReport(encid As String, sFormat As String) As S
 
 End
 
-Public Function GetExaminationPanelReport(encid As String, sFormat As String) As String
+Public Function GetExaminationPanelReport(encid As String, sType As String, sFormat As String, Optional sSelect As Variant) As String
 
   Dim $BillingReport As CReportHTML
   Dim asx As New String[0]
@@ -184,12 +212,20 @@ Public Function GetExaminationPanelReport(encid As String, sFormat As String) As
 
   Dim xtabval As String
 
-  $BillingReport = New CReportHTML([("Particulars"), ("Observation"), ("Comment"), ("Time")], "PatientReport", encid)
+  $BillingReport = New CReportHTML([("Parameter"), ("Observation"), ("Comment"), ("Time")], "PatientReport", encid)
   $BillingReport.SetColumnWidths([20, 45, 25, 10])
   If sFormat = "Name" Then
-    rsx = modDatabase.$myConn.Exec("select DISTINCT fldhead as col from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldserialval IS NULL ORDER BY fldhead", encid, True)
+    If sSelect Then
+      rsx = modDatabase.$myConn.Exec("select DISTINCT fldhead as col from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldinput=&3 and fldhead=&4", encid, True, sType, sSelect)
+    Else
+      rsx = modDatabase.$myConn.Exec("select DISTINCT fldhead as col from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldinput=&3 ORDER BY fldhead", encid, True, sType)
+    Endif
   Else If sFormat = "Date" Then
-    rsx = modDatabase.$myConn.Exec("select DISTINCT DATE(fldtime) as col from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldserialval IS NULL ORDER BY fldtime", encid, True)
+    If sSelect Then
+      rsx = modDatabase.$myConn.Exec("select DISTINCT DATE(fldtime) as col from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldinput=&3 and fldtime>=&4 and fldtime<=&5", encid, True, sType, modDate.StartSqlDate(sSelect), modDate.EndSqlDate(sSelect))
+    Else
+      rsx = modDatabase.$myConn.Exec("select DISTINCT DATE(fldtime) as col from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldinput=&3 ORDER BY fldtime", encid, True, sType)
+    Endif
   Endif
 
   If rsx.Available Then
@@ -202,11 +238,11 @@ Public Function GetExaminationPanelReport(encid As String, sFormat As String) As
       Endif
 
       If sFormat = "Name" Then
-        sql = "select fldid,fldhead,DATE(fldtime) as xvariable,fldmethod,fldabnormal,fldid,fldinput,fldtime,fldtype,fldoption,fldcomp from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldhead=&3 and fldserialval IS NULL"
-        res = modDatabase.$myConn.Exec(sql, encid, True, rsx["col"])
+        sql = "select fldid,fldhead,DATE(fldtime) as xvariable,fldmethod,fldabnormal,fldid,fldinput,fldtime,fldtype,fldoption,fldcomp from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldhead=&3 and fldinput=&4"
+        res = modDatabase.$myConn.Exec(sql, encid, True, rsx["col"], sType)
       Else If sFormat = "Date" Then
-        sql = "select fldid,fldhead,fldhead as xvariable,fldmethod,fldabnormal,fldid,fldinput,fldtime,fldtype,fldoption,fldcomp from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldtime>=&3 and fldtime<=&4 and fldserialval IS NULL"
-        res = modDatabase.$myConn.Exec(sql, encid, True, modDate.StartSqlDate(rsx["col"]), modDate.EndSqlDate(rsx["col"]))
+        sql = "select fldid,fldhead,fldhead as xvariable,fldmethod,fldabnormal,fldid,fldinput,fldtime,fldtype,fldoption,fldcomp from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldtime>=&3 and fldtime<=&4 and fldinput=&5"
+        res = modDatabase.$myConn.Exec(sql, encid, True, modDate.StartSqlDate(rsx["col"]), modDate.EndSqlDate(rsx["col"]), sType)
       Endif
       If res.Available Then
         For Each res
@@ -263,7 +299,7 @@ Public Function GetStructuredPanelReport(encid As String) As String
   Dim res As Result
   Dim sql As String
 
-  $BillingReport = New CReportHTML([("Particulars"), ("Observation"), ("DateTime")], "PatientReport", encid)
+  $BillingReport = New CReportHTML([("Parameter"), ("Observation"), ("DateTime")], "PatientReport", encid)
   $BillingReport.SetColumnWidths([30, 55, 15])
   rsx = modDatabase.$myConn.Exec("select fldmethod,fldinput from tblpatientexam where fldencounterval=&1 and fldsave=&2 GROUP BY fldmethod,fldinput ORDER BY fldinput", encid, True)
   If rsx.Available Then

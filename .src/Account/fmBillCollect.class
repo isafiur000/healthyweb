@@ -146,6 +146,20 @@ Public Sub btndenomin_Click()
 
 End
 
+Private Function GetMaxIndex(sTable As String) As Long
+
+  Dim res As Result
+  Dim xval As Long
+
+  res = modDatabase.$myConn.Exec(Subst("select MAX(fldid) as fldid from &1", sTable))
+  If res.Available Then
+    xval = res["fldid"]
+  Endif
+
+  Return xval
+
+End
+
 Public Sub btnrefresh_Click()
 
   Dim res As Result
@@ -160,16 +174,14 @@ Public Sub btnrefresh_Click()
   Dim resz As Result
   Dim resz1 As Result
   Dim resz2 As Result
-  Dim rsy As Result
-  Dim rsy1 As Result
-  Dim rsy2 As Result
-  Dim rsw As Result
-  Dim rsw1 As Result
-  Dim rsw2 As Result
 
   Dim billid As Long
   Dim recepid As Long
   Dim vouchid As Long
+
+  Dim xmaxbill As Long
+  Dim xmaxrecep As Long
+  Dim xmaxvouch As Long
 
   btngetval.Tag = ""
   txtreceivamt.Value = 0
@@ -204,23 +216,18 @@ Public Sub btnrefresh_Click()
     If resx.Available Then
       resx.MoveFirst
       If resx["fldtoinvoice"] Then
-        billid = modNonMedical.GetBillIDFromBillNo(resx["fldtoinvoice"], $tblpatbilldetail)
-        If billid Then
-          resz = modDatabase.$myConn.Exec("select fldbillno from " & $tblpatbilldetail & " where fldid=&1", billid + 1)
+        xmaxbill = GetMaxIndex($tblpatbilldetail)
+        billid = modNonMedical.GetBillIDFromBillNo(resx["fldtoinvoice"], $tblpatbilldetail) + 1
+        While Not txtfrominv.Text
+          resz = modDatabase.$myConn.Exec("select fldbillno from " & $tblpatbilldetail & " where fldid=&1", billid)
           If resz.Available And If resz["fldbillno"] Then
             txtfrominv.Text = resz["fldbillno"]
-          Else  ''for mariadb cluster nodes =2
-            rsy = modDatabase.$myConn.Exec("select fldbillno from " & $tblpatbilldetail & " where fldid=&1", billid + 2)
-            If rsy.Available And If rsy["fldbillno"] Then
-              txtfrominv.Text = rsy["fldbillno"]
-            Else
-              rsw = modDatabase.$myConn.Exec("select fldbillno from " & $tblpatbilldetail & " where fldid=&1", billid + 3)
-              If rsw.Available And If rsw["fldbillno"] Then
-                txtfrominv.Text = rsw["fldbillno"]
-              Endif
-            Endif
           Endif
-        Endif
+          If billid > xmaxbill Then
+            Break
+          Endif
+          billid = billid + 1
+        Wend
       Endif
     Else
       resy = modDatabase.$myConn.Limit(2).Exec("select fldbillno from " & $tblpatbilldetail & " ORDER BY fldtime ASC")
@@ -235,23 +242,18 @@ Public Sub btnrefresh_Click()
     If resx1.Available Then
       resx1.MoveFirst
       If resx1["fldtoreceipt"] Then
-        recepid = modNonMedical.GetBillIDFromReceipt(resx1["fldtoreceipt"], $tbltempbilldetail)
-        If recepid Then
-          resz1 = modDatabase.$myConn.Exec("select fldbillno from " & $tbltempbilldetail & " where fldid=&1", recepid + 1)
+        xmaxrecep = GetMaxIndex($tbltempbilldetail)
+        recepid = modNonMedical.GetBillIDFromReceipt(resx1["fldtoreceipt"], $tbltempbilldetail) + 1
+        While Not txtfromrecp.Text
+          resz1 = modDatabase.$myConn.Exec("select fldbillno from " & $tbltempbilldetail & " where fldid=&1", recepid)
           If resz1.Available And If resz1["fldbillno"] Then
             txtfromrecp.Text = resz1["fldbillno"]
-          Else  ''for mariadb cluster nodes =2
-            rsy1 = modDatabase.$myConn.Exec("select fldbillno from " & $tbltempbilldetail & " where fldid=&1", recepid + 2)
-            If rsy1.Available And If rsy1["fldbillno"] Then
-              txtfromrecp.Text = rsy1["fldbillno"]
-            Else
-              rsw1 = modDatabase.$myConn.Exec("select fldbillno from " & $tbltempbilldetail & " where fldid=&1", recepid + 3)
-              If rsw1.Available And If rsw1["fldbillno"] Then
-                txtfromrecp.Text = rsw1["fldbillno"]
-              Endif
-            Endif
           Endif
-        Endif
+          If recepid > xmaxrecep Then
+            Break
+          Endif
+          recepid = recepid + 1
+        Wend
       Endif
     Else
       resy1 = modDatabase.$myConn.Limit(2).Exec("select fldbillno from " & $tbltempbilldetail & " ORDER BY fldtime ASC")
@@ -266,23 +268,18 @@ Public Sub btnrefresh_Click()
     If resx2.Available Then
       resx2.MoveFirst
       If resx2["fldtovouch"] Then
-        vouchid = modNonMedical.GetVOucherIDFromBillNo(resx2["fldtovouch"])
-        If vouchid Then
-          resz2 = modDatabase.$myConn.Exec("select fldreference from tblextrareceipt where fldid=&1 and fldreference like &2", vouchid + 1, "%")
+        xmaxvouch = GetMaxIndex("tblextrareceipt")
+        vouchid = modNonMedical.GetVOucherIDFromBillNo(resx2["fldtovouch"]) + 1
+        While Not txtfromvouch.Text
+          resz2 = modDatabase.$myConn.Exec("select fldreference from tblextrareceipt where fldid=&1 and fldreference like &2", vouchid, "%")
           If resz2.Available And If resz2["fldreference"] Then
             txtfromvouch.Text = resz2["fldreference"]
-          Else  ''for mariadb cluster nodes =2
-            rsy2 = modDatabase.$myConn.Exec("select fldreference from tblextrareceipt where fldid=&1 and fldreference like &2", vouchid + 2, "%")
-            If rsy2.Available And If rsy2["fldreference"] Then
-              txtfromvouch.Text = rsy2["fldreference"]
-            Else
-              rsw2 = modDatabase.$myConn.Exec("select fldreference from tblextrareceipt where fldid=&1 and fldreference like &2", vouchid + 3, "%")
-              If rsw2.Available And If rsw2["fldreference"] Then
-                txtfromvouch.Text = rsw2["fldreference"]
-              Endif
-            Endif
           Endif
-        Endif
+          If vouchid > xmaxvouch Then
+            Break
+          Endif
+          vouchid = vouchid + 1
+        Wend
       Endif
     Else
       resy2 = modDatabase.$myConn.Limit(2).Exec("select fldreference from tblextrareceipt where fldreference like &1 ORDER BY fldtime ASC", "%")
