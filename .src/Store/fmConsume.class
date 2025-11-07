@@ -12,7 +12,12 @@ Private $InjGenricLst As String[]
 Private $LiqBrandLst As String[]
 Private $LiqGenricLst As String[]
 
+Private $exceptList As String[]
+
 Public Sub _new()
+
+  Dim xx As Boolean
+  Dim yy As Boolean
 
   cmbcomroute.List = modMedicine.ComboRoute()
   cmbcomtaget.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tbltarget"))
@@ -20,7 +25,18 @@ Public Sub _new()
   dtconsume.Value = Now()
   IniateCategoryPharmArray()
   If modBasic.$AccessStockConsume = "Disable" Then
+    $exceptList = modGlobalSetting.GetDBTableList("InventorySaveAccess/StockConsume:Pharmacy")
+    If $exceptList.Count Then
+      xx = True
+    Else
+      xx = False
+    Endif
     If modGlobalSetting.GetDBTableList("InventorySaveAccess/StockConsume").Exist(modBasic.$lbluser) = True Then
+      yy = True
+    Else
+      yy = False
+    Endif
+    If xx = True And If yy = True Then
       btncomsave.Enabled = True
     Else
       btncomsave.Enabled = False
@@ -368,8 +384,18 @@ Public Sub btncomsave_Click()
   Dim xPath As String
   Dim idLock As Boolean
   Dim xtot As Float
+  Dim strItem As String[]
+  Dim i As Integer
 
-  rs = modDatabase.$myConn.Exec("select fldid,fldstockno,fldqtydisp,fldreference from tblbulksale where fldtarget=&1 and fldsave=&2 and fldcomp=&3", cmbcomtaget.Text, False, modBasic.$compID)
+  If $exceptList.Count Then
+    strItem = $exceptList.Copy()
+    For i = 0 To strItem.Count - 1
+      strItem[i] = "'" & strItem[i] & "'"
+    Next
+    rs = modDatabase.$myConn.Exec("select fldid,fldstockno,fldqtydisp,fldreference from tblbulksale where fldtarget=&1 and fldsave=&2 and fldcomp=&3 and fldstockid in(" & strItem.Join(",") & ")", cmbcomtaget.Text, False, modBasic.$compID)
+  Else
+    rs = modDatabase.$myConn.Exec("select fldid,fldstockno,fldqtydisp,fldreference from tblbulksale where fldtarget=&1 and fldsave=&2 and fldcomp=&3", cmbcomtaget.Text, False, modBasic.$compID)
+  Endif
   If rs.Available Then
 
     idLock = modBillLock.LockTableForID("Reference")

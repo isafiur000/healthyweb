@@ -11,6 +11,7 @@ Private $rData2 As Result
 Private $aMyFields2 As String[]
 
 Private hPacsForm As FmPacsFind
+Private hBillPayment As FmBillPayment
 
 Private $doa As Date
 
@@ -21,15 +22,126 @@ Public Sub _new(sPatNo As String)
   rblabs.Value = True
   modBasic.$currency = "Rs "
 
-  txtpatname.Text = modPatient.PatientFullNameByPatID($PatientNum)
-  txtpataddress.Text = modPatient.GetPatientAddressByPatno($PatientNum)
+  ShowPatientDetails()
   GoLastEncounter()
 
 End
 
-Public Sub WebForm_Open()
+Private Sub ShowPatientDetails()
 
-  modGeneralMain.RecordFormUse(Me)
+  Dim res As Result
+  Dim tempFile As String
+  Dim qrcodeFile As String
+
+  res = modDatabase.$myConn.Exec("select fldptnamefir,fldptnamelast,fldptaddvill,fldptaddward,fldptadddist,fldptcontact,fldemail from tblpatientinfo where fldpatientval=&1", $PatientNum)
+  If res.Available Then
+    txtpatname.Text = res["fldptnamefir"] & Space(1) & res["fldptnamelast"]
+    If res["fldptaddward"] Then
+      txtpataddress.Text = res["fldptaddvill"] & "-" & res["fldptaddward"] & ", " & res["fldptadddist"]
+    Else
+      txtpataddress.Text = res["fldptaddvill"] & ", " & res["fldptadddist"]
+    Endif
+    txtphone.Text = res["fldptcontact"]
+    If res["fldptcontact"] Then
+      btnphone.Visible = False
+    Else
+      btnphone.Visible = True
+    Endif
+    txtemail.Text = res["fldemail"]
+    If res["fldemail"] Then
+      btnemail.Visible = False
+    Else
+      btnemail.Visible = True
+    Endif
+  Endif
+
+  tempFile = modImage.DisplayPersonImageData("Patient", $PatientNum)
+  If tempFile Then
+    modImage.StretchtPictureToBox(pctpatient, tempFile)
+    pnlpicedit.Visible = False
+    WebProgressBar1.Visible = False
+    pctpatient.Height = "13em"
+  Else
+    pnlpicedit.Visible = True
+    WebProgressBar1.Visible = True
+    pctpatient.Height = "9em"
+  Endif
+
+  qrcodeFile = modDevAll.MakeQRCode($PatientNum)
+  If qrcodeFile Then
+    modImage.StretchtPictureToBox(pctqrcode, qrcodeFile)
+  Endif
+
+End
+
+Public Sub btnphone_Click()
+
+  Dim res As Result
+
+  If txtphone.Text Then
+    res = modDatabase.$myConn.Edit("tblpatientinfo", "fldpatientval=&1", $PatientNum)
+    res["fldptcontact"] = Trim(txtphone.Text)
+    res.Update
+    Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information updated", modBasic.$BalloonDelay))
+  Endif
+
+End
+
+Public Sub btnemail_Click()
+
+  Dim res As Result
+
+  If txtemail.Text Then
+    res = modDatabase.$myConn.Edit("tblpatientinfo", "fldpatientval=&1", $PatientNum)
+    res["fldemail"] = Trim(txtemail.Text)
+    res.Update
+    Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information updated", modBasic.$BalloonDelay))
+  Endif
+
+End
+
+Public Sub btnOpen_Click()
+
+  btnOpen.Upload()
+
+End
+
+Public Sub btnOpen_Progress()
+
+  WebProgressBar1.Value = btnOpen.Progress
+
+End
+
+Public Sub btnOpen_Finish()
+
+  Dim xPath As String
+
+  Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Image upload completed", modBasic.$BalloonDelay))
+  xPath = modPrint.GetCopyTempPath(btnOpen.Path)
+  If Exist(xPath) Then
+    modImage.StretchtPictureToBox(pctpatient, xPath)
+  Endif
+
+End
+
+Public Sub btnOpen_Abort(Reason As String)
+
+  Message.Error("Unable to upload file.<br>Reason: " & Html(Reason))
+  WebProgressBar1.Value = 0
+
+End
+
+Public Sub btneditpic_Click()
+
+  Dim sPath As String
+
+  If pctpatient.Tag Then
+    sPath = pctpatient.Tag
+    If Exist(sPath) Then
+      modImage.UpdatePatientImage("Patient", $PatientNum, sPath)
+      Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information updated", modBasic.$BalloonDelay))
+    Endif
+  Endif
 
 End
 
@@ -135,6 +247,11 @@ Public Sub WebTabPanel1_Click()
     rbinvoice.Value = True
     If $encid Then
       SHowPatientInvoices($encid)
+    Endif
+
+  Else If WebTabPanel1.Index = 4 Then
+    If $encid Then
+      hBillPayment = New FmBillPayment($encid, pnlbillpay)
     Endif
 
   Endif

@@ -16,10 +16,14 @@ Private $InjGenricLst As String[]
 Private $LiqBrandLst As String[]
 Private $LiqGenricLst As String[]
 
+Private $exceptList As String[]
+
 Public Sub _new()
 
   Dim xCompLst As String[]
   ' Dim hForm As FmNewRequest
+  Dim xx As Boolean
+  Dim yy As Boolean
 
   ' hForm = New FmNewRequest(Panel9)
 
@@ -33,7 +37,18 @@ Public Sub _new()
   modStockSub.DisplayDefaultTransferMode(rbrand, rbgeneric)
   IniateCategoryPharmArray()
   If modBasic.$AccessStockTransfer = "Disable" Then
+    $exceptList = modGlobalSetting.GetDBTableList("InventorySaveAccess/StockTransfer:Pharmacy")
+    If $exceptList.Count Then
+      xx = True
+    Else
+      xx = False
+    Endif
     If modGlobalSetting.GetDBTableList("InventorySaveAccess/StockTransfer").Exist(modBasic.$lbluser) = True Then
+      yy = True
+    Else
+      yy = False
+    Endif
+    If xx = True And If yy = True Then
       btnsavefrom.Enabled = True
       btnsavelocker.Enabled = True
     Else
@@ -639,11 +654,25 @@ Private Sub FirstSaveItems(sLocker As Boolean)
 
   Dim res As Result
   Dim res1 As Result
+  Dim strItem As String[]
+  Dim i As Integer
 
-  If sLocker = True Then
-    res = modDatabase.$myConn.Exec("select fldid,fldstockno,fldoldstockno,fldqty,fldfromcomp,fldtocomp,fldlockcomp from tbltransfer where fldfromcomp=&1 and fldsav=&2 and fldtocomp=&3 and fldlockcomp=&4", modBasic.$compID, False, "Locker", cmbcompsent.Text)
+  If $exceptList.Count Then
+    strItem = $exceptList.Copy()
+    For i = 0 To strItem.Count - 1
+      strItem[i] = "'" & strItem[i] & "'"
+    Next
+    If sLocker = True Then
+      res = modDatabase.$myConn.Exec("select fldid,fldstockno,fldoldstockno,fldqty,fldfromcomp,fldtocomp,fldlockcomp from tbltransfer where fldfromcomp=&1 and fldsav=&2 and fldtocomp=&3 and fldlockcomp=&4 and fldstockid in(" & strItem.Join(",") & ")", modBasic.$compID, False, "Locker", cmbcompsent.Text)
+    Else
+      res = modDatabase.$myConn.Exec("select fldid,fldstockno,fldoldstockno,fldqty,fldfromcomp,fldtocomp,fldlockcomp from tbltransfer where fldfromcomp=&1 and fldsav=&2 and fldtocomp=&3 and fldstockid in(" & strItem.Join(",") & ")", modBasic.$compID, False, cmbcompsent.Text)
+    Endif
   Else
-    res = modDatabase.$myConn.Exec("select fldid,fldstockno,fldoldstockno,fldqty,fldfromcomp,fldtocomp,fldlockcomp from tbltransfer where fldfromcomp=&1 and fldsav=&2 and fldtocomp=&3", modBasic.$compID, False, cmbcompsent.Text)
+    If sLocker = True Then
+      res = modDatabase.$myConn.Exec("select fldid,fldstockno,fldoldstockno,fldqty,fldfromcomp,fldtocomp,fldlockcomp from tbltransfer where fldfromcomp=&1 and fldsav=&2 and fldtocomp=&3 and fldlockcomp=&4", modBasic.$compID, False, "Locker", cmbcompsent.Text)
+    Else
+      res = modDatabase.$myConn.Exec("select fldid,fldstockno,fldoldstockno,fldqty,fldfromcomp,fldtocomp,fldlockcomp from tbltransfer where fldfromcomp=&1 and fldsav=&2 and fldtocomp=&3", modBasic.$compID, False, cmbcompsent.Text)
+    Endif
   Endif
   If res.Available = True Then
     For Each res
