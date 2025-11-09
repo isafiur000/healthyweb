@@ -64,6 +64,8 @@ Private Sub ShowGridViewList()
       $rData = modDatabase.$myConn.Exec("select fldtestid,fldtestid as col from tblpatradiotest where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3) and flvisible=&4 GROUP BY fldtestid ORDER BY fldtestid", $encid, "Reported", "Verified", "Visible")
     Else If rbexam.Value = True Then
       $rData = modDatabase.$myConn.Exec("select fldhead,fldhead as col from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldserialval IS NULL GROUP BY fldhead ORDER BY fldhead", $encid, True)
+    Else If rbstruct.Value = True Then
+      $rData = modDatabase.$myConn.Exec("select fldinput,fldinput as col from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldserialval like &3 GROUP BY fldinput ORDER BY fldinput", $encid, True, "%")
     Endif
 
   Else If rbdaterepo.Value = True Then
@@ -73,6 +75,8 @@ Private Sub ShowGridViewList()
       $rData = modDatabase.$myConn.Exec("select DATE(fldtime_report),DATE(fldtime_report) as col from tblpatradiotest where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3) and flvisible=&4 GROUP BY DATE(fldtime_report) ORDER BY fldtime_report", $encid, "Reported", "Verified", "Visible")
     Else If rbexam.Value = True Then
       $rData = modDatabase.$myConn.Exec("select DATE(fldtime),DATE(fldtime) as col from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldserialval IS NULL GROUP BY DATE(fldtime) ORDER BY fldtime", $encid, True)
+    Else If rbstruct.Value = True Then
+      $rData = modDatabase.$myConn.Exec("select DATE(fldtime),DATE(fldtime) as col from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldserialval like &3 GROUP BY DATE(fldtime) ORDER BY fldtime", $encid, True, "%")
     Endif
 
   Endif
@@ -121,6 +125,8 @@ Public Sub GridView1_Select()
       WebView1.Html = modDiagnosticReport.GetRadiologyPanelReport($encid, xformat, $rData["col"])
     Else If rbexam.Value = True Then
       WebView1.Html = modDiagnosticReport.GetExaminationPanelReport($encid, "Physician Examinations", xformat, $rData["col"])
+    Else If rbstruct.Value = True Then
+      WebView1.Html = modDiagnosticReport.GetStructuredPanelReport($encid, xformat, $rData["col"])
     Endif
   Endif
 
@@ -154,7 +160,7 @@ Public Sub btnshowexams_Click()
     Else If rbstruct.Value = True Then
       WebContainer4.Visible = True
       GridView2.Visible = False
-      WebView1.Html = modDiagnosticReport.GetStructuredPanelReport($encid)
+      WebView1.Html = modDiagnosticReport.GetStructuredPanelReport($encid, xformat)
     Else If rbvitals.Value = True Then
       WebContainer4.Visible = False
       GridView2.Visible = True

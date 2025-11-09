@@ -289,11 +289,12 @@ Public Function GetExaminationPanelReport(encid As String, sType As String, sFor
 
 End
 
-Public Function GetStructuredPanelReport(encid As String) As String
+Public Function GetStructuredPanelReport(encid As String, sFormat As String, Optional sSelect As Variant) As String
 
   Dim $BillingReport As CReportHTML
   Dim asx As New String[0]
   Dim sPath As String
+  Dim rsy As Result
   Dim rsx As Result
   Dim rsx1 As Result
   Dim res As Result
@@ -301,72 +302,102 @@ Public Function GetStructuredPanelReport(encid As String) As String
 
   $BillingReport = New CReportHTML([("Parameter"), ("Observation"), ("DateTime")], "PatientReport", encid)
   $BillingReport.SetColumnWidths([30, 55, 15])
-  rsx = modDatabase.$myConn.Exec("select fldmethod,fldinput from tblpatientexam where fldencounterval=&1 and fldsave=&2 GROUP BY fldmethod,fldinput ORDER BY fldinput", encid, True)
-  If rsx.Available Then
-    For Each rsx
-      rsx1 = modDatabase.$myConn.Exec("select distinct(flditem) as flditem from tblstructexam where fldsubclass=&1 and fldcategory=&2 ORDER BY flditemid", rsx["fldmethod"], rsx["fldinput"])
-      If rsx1.Available Then
-        $BillingReport.AddSection(rsx["fldinput"], True)
 
-        For Each rsx1
-          sql = "select fldid,fldtime,fldhead,fldabnormal,fldtype,fldrepquali,fldrepquanti,fldoption,fldfilepath from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldserialval in(select fldheadcode from tblstructexam where fldsubclass=&3 and fldcategory=&4 and flditem=&5)"
-          res = modDatabase.$myConn.Exec(sql, encid, True, rsx["fldmethod"], rsx["fldinput"], rsx1["flditem"])
-          If res.Available Then
-            $BillingReport.AddChapter(rsx1["flditem"])
-            For Each res
-              With asx
-                .Add(res["fldhead"])
-                If res["fldtype"] = "Quantitative" Then
-                  .Add(CStr(res["fldrepquanti"]))
-                Else
+  If sFormat = "Name" Then
+    If sSelect Then
+      rsy = modDatabase.$myConn.Exec("select DISTINCT fldinput as col from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldserialval like &3 and fldinput=&4", encid, True, "%", sSelect)
+    Else
+      rsy = modDatabase.$myConn.Exec("select DISTINCT fldinput as col from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldserialval like &3 ORDER BY fldinput", encid, True, "%")
+    Endif
+  Else If sFormat = "Date" Then
+    If sSelect Then
+      rsy = modDatabase.$myConn.Exec("select DISTINCT DATE(fldtime) as col from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldserialval like &3 and fldtime>=&4 and fldtime<=&5", encid, True, "%", modDate.StartSqlDate(sSelect), modDate.EndSqlDate(sSelect))
+    Else
+      rsy = modDatabase.$myConn.Exec("select DISTINCT DATE(fldtime) as col from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldserialval like &3 ORDER BY fldtime", encid, True, "%")
+    Endif
+  Endif
 
-                  Select res["fldoption"]
-                    Case "Clinical Scale"
-                      If modBasic.$ShowScaleMedFormat = "GroupWise" Then
-                        .Add(modString.GetJSONToDualHTMLTable(res["fldrepquali"]))
-                      Else
-                        .Add(CStr(res["fldrepquanti"]))
-                      Endif
-                    Case "Left and Right"
-                      .Add(modString.GetLeftRightReporting(Trim(res["fldrepquali"]), "Vertical"))
-                    Case "Left Right Qualitative", "Left Right Quantitative"
-                      .Add(modString.GetLeftRightReporting(Trim(res["fldrepquali"]), "Horizontal"))
-                    Case "ImageValue"
-                      sPath = modImage.GetPatScreenImageHash(encid, res["fldfilepath"])
-                      If sPath Then
-                        .Add(modString.GetImageForHTML(sPath))
-                      Else
-                        .Add("")
-                      Endif
-                    Case Else
-                      .Add(Trim(res["fldrepquali"]))
-                  End Select
+  If rsy.Available Then
+    For Each rsy
 
-                Endif
-                .Add(modReportVar.GetDateTimeReport(res["fldtime"], gb.GeneralDate))
-              End With
-              $BillingReport.Add(asx)
-              asx.Clear()
+      If sFormat = "Name" Then
+        rsx = modDatabase.$myConn.Exec("select fldmethod,fldinput from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldserialval like &3 and fldinput=&4 GROUP BY fldmethod,fldinput ORDER BY fldinput", encid, True, "%", rsy["col"])
+      Else If sFormat = "Date" Then
+        rsx = modDatabase.$myConn.Exec("select fldmethod,fldinput from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldserialval like &3 and fldtime>=&4 and fldtime<=&5 GROUP BY fldmethod,fldinput ORDER BY fldinput", encid, True, "%", modDate.StartSqlDate(rsy["col"]), modDate.EndSqlDate(rsy["col"]))
+      Endif
+      If rsx.Available Then
+        For Each rsx
+          rsx1 = modDatabase.$myConn.Exec("select distinct(flditem) as flditem from tblstructexam where fldsubclass=&1 and fldcategory=&2 ORDER BY flditemid", rsx["fldmethod"], rsx["fldinput"])
+          If rsx1.Available Then
+            $BillingReport.AddSection(rsx["fldinput"], True)
+
+            For Each rsx1
+              If sFormat = "Name" Then
+                sql = "select fldid,fldtime,fldhead,fldabnormal,fldtype,fldrepquali,fldrepquanti,fldoption,fldfilepath from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldinput=&3 and fldinput=&3 and fldserialval in(select fldheadcode from tblstructexam where fldsubclass=&4 and fldcategory=&5 and flditem=&6)"
+                res = modDatabase.$myConn.Exec(sql, encid, True, rsy["col"], rsx["fldmethod"], rsx["fldinput"], rsx1["flditem"])
+              Else If sFormat = "Date" Then
+                sql = "select fldid,fldtime,fldhead,fldabnormal,fldtype,fldrepquali,fldrepquanti,fldoption,fldfilepath from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldtime>=&3 and fldtime<=&4 and fldserialval in(select fldheadcode from tblstructexam where fldsubclass=&5 and fldcategory=&6 and flditem=&7)"
+                res = modDatabase.$myConn.Exec(sql, encid, True, modDate.StartSqlDate(rsy["col"]), modDate.EndSqlDate(rsy["col"]), rsx["fldmethod"], rsx["fldinput"], rsx1["flditem"])
+              Endif
+              If res.Available Then
+                $BillingReport.AddChapter(rsx1["flditem"])
+                For Each res
+                  With asx
+                    .Add(res["fldhead"])
+                    If res["fldtype"] = "Quantitative" Then
+                      .Add(CStr(res["fldrepquanti"]))
+                    Else
+
+                      Select res["fldoption"]
+                        Case "Clinical Scale"
+                          If modBasic.$ShowScaleMedFormat = "GroupWise" Then
+                            .Add(modString.GetJSONToDualHTMLTable(res["fldrepquali"]))
+                          Else
+                            .Add(CStr(res["fldrepquanti"]))
+                          Endif
+                        Case "Left and Right"
+                          .Add(modString.GetLeftRightReporting(Trim(res["fldrepquali"]), "Vertical"))
+                        Case "Left Right Qualitative", "Left Right Quantitative"
+                          .Add(modString.GetLeftRightReporting(Trim(res["fldrepquali"]), "Horizontal"))
+                        Case "ImageValue"
+                          sPath = modImage.GetPatScreenImageHash(encid, res["fldfilepath"])
+                          If sPath Then
+                            .Add(modString.GetImageForHTML(sPath))
+                          Else
+                            .Add("")
+                          Endif
+                        Case Else
+                          .Add(Trim(res["fldrepquali"]))
+                      End Select
+
+                    Endif
+                    .Add(modReportVar.GetDateTimeReport(res["fldtime"], gb.GeneralDate))
+                  End With
+                  $BillingReport.Add(asx)
+                  asx.Clear()
+                Next
+
+                With asx
+                  .Add("")
+                  .Add("")
+                  .Add("")
+                End With
+                $BillingReport.Add(asx)
+                asx.Clear()
+              Endif
             Next
 
             With asx
-              .Add("")
-              .Add("")
-              .Add("")
+              .Add("<br>")
+              .Add("<br>")
+              .Add("<br>")
             End With
             $BillingReport.Add(asx)
             asx.Clear()
           Endif
         Next
-
-        With asx
-          .Add("<br>")
-          .Add("<br>")
-          .Add("<br>")
-        End With
-        $BillingReport.Add(asx)
-        asx.Clear()
       Endif
+
     Next
   Endif
 
