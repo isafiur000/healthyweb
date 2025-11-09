@@ -300,7 +300,7 @@ Private Sub CreateControls()
         aValSlider[i] = New WebSlider(aWebBottom[i]) As "SliderGroup"
       Else
         Select $sExamVar[i]["OptionType"]
-          Case "Sys Constant", "Multiple Selection", "Clinical Scale", "Date Time", "BS Date", "Single Selection", "Dichotomous", "Left Right Qualitative", "Left Right Quantitative", "Quantitative", "Qualitative", "Calculated", "ImageValue"
+          Case "Sys Constant", "Multiple Selection", "Clinical Scale", "Date Time", "BS Date", "Single Selection", "Dichotomous", "Left Right Qualitative", "Left Right Quantitative", "Quantitative", "Qualitative", "Calculated", "ImageValue", "User Profile"                               ''
             aWebPanel[i] = New WebContainer(aWebRowAll[i])
             aAbnormCheck[i] = New WebCheckBox(aWebPanel[i])
             Select $sExamVar[i]["OptionType"]
@@ -330,6 +330,8 @@ Private Sub CreateControls()
                 aLineText[i] = New WebTextBox(aWebPanel[i])
               Case "ImageValue"
                 aButtonBox[i] = New WebButtonBox(aWebPanel[i]) As "ImageBoxGroup"
+              Case "User Profile"
+                aLineText[i] = New WebTextBox(aWebPanel[i])
               Case "Calculated"
                 aCalcBox[i] = New WebValueBox(aWebPanel[i]) As "CalcGroup"
                 aCalcUnit[i] = New WebTextBox(aWebPanel[i]) As "CalcUnitGroup"
@@ -429,7 +431,7 @@ Private Sub DIsplayTextForm()
         End With
       Else
         Select $sExamVar[i]["OptionType"]
-          Case "Sys Constant", "Multiple Selection", "Clinical Scale", "Date Time", "BS Date", "Single Selection", "Dichotomous", "Left Right Qualitative", "Left Right Quantitative", "Quantitative", "Qualitative", "Calculated", "ImageValue"
+          Case "Sys Constant", "Multiple Selection", "Clinical Scale", "Date Time", "BS Date", "Single Selection", "Dichotomous", "Left Right Qualitative", "Left Right Quantitative", "Quantitative", "Qualitative", "Calculated", "ImageValue", "User Profile"
             With aWebRowAll[i]
               .Arrangement = Arrange.Row
             End With
@@ -474,7 +476,7 @@ Private Sub DIsplayTextForm()
         End With
       Else
         Select $sExamVar[i]["OptionType"]
-          Case "Sys Constant", "Multiple Selection", "Clinical Scale", "Date Time", "BS Date", "Single Selection", "Dichotomous", "Left Right Qualitative", "Left Right Quantitative", "Quantitative", "Qualitative", "Calculated", "ImageValue"
+          Case "Sys Constant", "Multiple Selection", "Clinical Scale", "Date Time", "BS Date", "Single Selection", "Dichotomous", "Left Right Qualitative", "Left Right Quantitative", "Quantitative", "Qualitative", "Calculated", "ImageValue", "User Profile"
             With aWebPanel[i]
               .Arrangement = Arrange.Horizontal
               .Class = "size-tablet less-container-margin"
@@ -697,6 +699,13 @@ Private Sub DIsplayTextForm()
             .Height = "2em"
             .Border = True
             .Text = ""
+            .Tag = i
+          End With
+
+        Else If $sExamVar[i]["OptionType"] = "User Profile" Then
+          With aLineText[i]
+            .Width = "75%"
+            .Height = "2em"
             .Tag = i
           End With
 
@@ -1163,7 +1172,11 @@ Private Sub FillGenExams(sTable As String)
           Endif
         Else If $sExamVar[i]["OptionType"] = "ImageValue" Then
           If aButtonBox[i].Text Then
-
+            modClinSub.AddQualiImageData($encid, "", $sExamVar[i]["ExamName"], $sExamVar[i]["OptionType"], sTable, $sExamVar[i]["SysConstant"], aButtonBox[i].Text)
+          Endif
+        Else If $sExamVar[i]["OptionType"] = "User Profile" Then
+          If aLineText[i] Then
+            modClinSub.AddQualiData($encid, "", $sExamVar[i]["ExamName"], $sExamVar[i]["OptionType"], aLineText[i].Text, aAbnormCheck[i].Value, sTable, $sExamVar[i]["SysConstant"])
           Endif
         Else If $sExamVar[i]["OptionType"] = "Calculated" Then
           If aCalcBox[i].Value Or If aCalcNull[i].Value Then
@@ -1364,6 +1377,19 @@ Private Sub OpenOption(j As Integer)
           If xval Then
             aGenTextArea[j].Text = xval
           Endif
+        Endif
+
+      Else If $sExamVar[j]["OptionType"] = "ImageValue" Then
+        sPath = modImage.DisplayVisualData(cmbcategory.Text, $sExamVar[j]["ExamName"], "", $sExamVar[j]["OptionType"])
+        sVal = CustomDraw(sPath)
+        If sVal Then
+          aButtonBox[j].Text = sVal[0]
+        Endif
+
+      Else If $sExamVar[j]["OptionType"] = "User Profile" Then
+        sVal = MedicalSelectedValue(("Select Physisican User"), modBasic.$OPConsulUserList)
+        If sVal Then
+          aLineText[j].Text = sVal[1]
         Endif
 
       Endif

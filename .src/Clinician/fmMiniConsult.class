@@ -4,6 +4,8 @@ Private $encid As String
 Private $BillMode As String
 Private $sPackage As String
 Private $xFinClear As Boolean
+Private $deptGroup As String
+
 Private $rData As Result
 Private $aMyFields As String[]
 Private $rData2 As Result
@@ -35,6 +37,7 @@ Public Sub _new(encid As String, DiscType As String)
   xstatus = modPatient.CurrentAdmissionStatus($encid)
   txtlocation.Text = modPatient.GetLocationSetting($encid, xstatus)
   $xFinClear = modNonMedical.GetFinanceClearance($encid)
+  $deptGroup = modSettings.ShowSettingFromFIle("RegistrationForm/DefaultDeptGroup")
   rbconsult.Value = True
   GetDepartmentList()
 
@@ -92,12 +95,24 @@ End
 
 Private Sub GetDepartmentList()
 
-  If rbconsult.Value = True Then
-    $ConsList = modGeneral.GetDepartForConsultOnly()
-    cmbconsult.List = $ConsList
-  Else If rbopvisit.Value = True Then
-    $ConsList = modGeneral.GetDepartForOPVisitOnly()
-    cmbconsult.List = $ConsList
+  If $deptGroup Then
+    If rbconsult.Value = True Then
+      $ConsList = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditemname as col from tbldeptgroup where fldgroupname=&1 and flditemname in(select flddept from tbldepartment where fldcateg=&2)", $deptGroup, "Consultation"))   ''
+      cmbconsult.List = $ConsList
+    Else If rbopvisit.Value = True Then
+      $ConsList = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditemname as col from tbldeptgroup where fldgroupname=&1 and flditemname in(select flddept from tbldepartment where fldcateg=&2)", $deptGroup, "OPD Visit"))
+      cmbconsult.List = $ConsList
+    Endif
+
+  Else
+    If rbconsult.Value = True Then
+      $ConsList = modGeneral.GetDepartForConsultOnly()
+      cmbconsult.List = $ConsList
+    Else If rbopvisit.Value = True Then
+      $ConsList = modGeneral.GetDepartForOPVisitOnly()
+      cmbconsult.List = $ConsList
+    Endif
+
   Endif
 
 End
@@ -121,9 +136,9 @@ End
 Public Sub btnsubOK_Click()
 
   Dim billItem As String
-
   Dim xrefer As String
   Dim xpayble As String
+  Dim xgo As Boolean
 
   If cmbconsult.Text Then
     If $ConsList.Exist(cmbconsult.Text) Then
@@ -134,24 +149,35 @@ Public Sub btnsubOK_Click()
         xpayble = modBillings.GetPayableUserSetting("Service", $encid)
       Endif
 
-      If modGeneral.GetCategoryFromDept(cmbconsult.Text) = "Consultation" Then
-        modPatientSub.AddConsultData($encid, cmbconsult.Text, dtconsult.Value, $BillMode, "IP Consultation", btnconsult.Tag, txtpresummary.RichText)
+      If modBasic.$ClinConsultComment = "Essential" Then
+        If txtpresummary.RichText Then
+          xgo = True
+        Else
+          xgo = False
+        Endif
       Else
-        modPatientSub.AddOPVisitData($encid, cmbconsult.Text, dtconsult.Value, $BillMode, "IP Consultation", txtpresummary.RichText)
+        xgo = True
       Endif
 
-      If modBasic.$AutoBillConsult Then
-        billItem = modNonMedical.GetIPDepartConsultRate(cmbconsult.Text, cmbdisctype.Text)
-        If billItem Then
-          If modBasic.$AutoBillConsult = "Standard" Then
-          Else If modBasic.$AutoBillConsult = "Full" Then
-            modBillings.GetAutoBillingEntry($encid, cmbdisctype.Text, "Service", billItem, 1, "Done", 0, True, False, xpayble, xrefer)
-          Else If modBasic.$AutoBillConsult = "Partial" Then
-            modBillings.GetAutoBillingEntry($encid, cmbdisctype.Text, "Service", billItem, 1, "Punched", 0, False, False, xpayble, xrefer)
+      If xgo = True Then
+        If modGeneral.GetCategoryFromDept(cmbconsult.Text) = "Consultation" Then
+          modPatientSub.AddConsultData($encid, cmbconsult.Text, dtconsult.Value, $BillMode, "IP Consultation", btnconsult.Tag, txtpresummary.RichText)
+        Else
+          modPatientSub.AddOPVisitData($encid, cmbconsult.Text, dtconsult.Value, $BillMode, "IP Consultation", txtpresummary.RichText)
+        Endif
+
+        If modBasic.$AutoBillConsult Then
+          billItem = modNonMedical.GetIPDepartConsultRate(cmbconsult.Text, cmbdisctype.Text)
+          If billItem Then
+            If modBasic.$AutoBillConsult = "Standard" Then
+            Else If modBasic.$AutoBillConsult = "Full" Then
+              modBillings.GetAutoBillingEntry($encid, cmbdisctype.Text, "Service", billItem, 1, "Done", 0, True, False, xpayble, xrefer)
+            Else If modBasic.$AutoBillConsult = "Partial" Then
+              modBillings.GetAutoBillingEntry($encid, cmbdisctype.Text, "Service", billItem, 1, "Punched", 0, False, False, xpayble, xrefer)
+            Endif
           Endif
         Endif
       Endif
-      txtdepart.Text = ""
       FillLabtable()
 
     Endif

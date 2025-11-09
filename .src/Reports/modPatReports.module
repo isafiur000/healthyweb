@@ -1104,6 +1104,24 @@ Public Function AddExpertAdvice(encid As String, Optional sTitle As String) As S
 
 End
 
+Public Function AddOrderForNewVisit(encid As String, Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+
+  Dim stChapter As String
+  Dim stObservation As String
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Orders for New Visit"
+  Endif
+  stObservation = GetPastBillingOrders(encid)
+  asx = AddCustomReport(stChapter, stObservation)
+  Return asx
+
+End
+
 Public Function AddDeliveryProfile(encid As String, Optional sTitle As String) As String[]
 
   Dim asx As New String[0]
@@ -1691,6 +1709,9 @@ Public Function ShowCompleteReport(encid As String, xList As String[], examlist 
     If xitem = "Nutrition Approved" Then
       $BillingReport.Add(AddNutritionApproved(encid))
     Endif
+    If xitem = "Orders for New Visit" Then
+      $BillingReport.Add(AddOrderForNewVisit(encid))
+    Endif
 
     If xitem = "Delivery Profile" Then
       xdelivery = DeliveryReportbyMother(encid)
@@ -1957,6 +1978,9 @@ Public Function ShowAllEncounterReport(encounter As String, xList As String[], e
       Endif
       If xitem = "Pending Medicines" Then
         $BillingReport.Add(AddPendingMeds(encid))
+      Endif
+      If xitem = "Orders for New Visit" Then
+        $BillingReport.Add(AddOrderForNewVisit(encid))
       Endif
 
       If xitem = "Delivery Profile" Then
@@ -2764,6 +2788,36 @@ Public Function DischargeMedString(encid As String) As String
       If modBasic.$ShowDayMesStartReport = "Yes" Then
         xRowVal.Add(modReportVar.GetDateTimeReport(rs["fldstarttime"], gb.GeneralDate), CStr(5))
       Endif
+      xFinal.Add(xRowVal)
+      i = i + 1
+    Next
+    xx = modString.GetRichTableStringFromVariant(sColmList, xFinal)
+  Endif
+
+  Return xx
+
+End
+
+Public Function GetPastBillingOrders(encid As String) As String
+
+  Dim res As Result
+  Dim i As Integer
+  Dim xRowVal As Collection
+  Dim xFinal As Variant[]
+  Dim sColmList As String[]
+  Dim xx As String
+
+  xFinal = New Variant[]
+  sColmList = ["", "Category", "Particulars", "QTY"]
+  res = modDatabase.$myConn.Exec("select flditemtype,flditemname,flditemqty from tblpatbilling where fldencounterval=&1 and fldsave=&2 and fldstatus=&3 and fldbillno IS NULL", encid, False, "Planned")
+  If res.Available Then
+    i = 1
+    For Each res
+      xRowVal = New Collection
+      xRowVal.Add(CStr(i), CStr(0))
+      xRowVal.Add(res["flditemtype"], CStr(1))
+      xRowVal.Add(res["flditemname"], CStr(2))
+      xRowVal.Add(res["flditemqty"], CStr(3))
       xFinal.Add(xRowVal)
       i = i + 1
     Next

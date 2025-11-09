@@ -12,6 +12,7 @@ Private $RepoStr As String
 Private $showList As String
 
 Private $sTable As String
+Private $forward As Boolean
 
 Public Sub _new(sTable As String)
 
@@ -356,6 +357,7 @@ Private Function ExecuteQuery(xFldList As String[]) As Result
   Dim xpreun As String
   Dim xpaid As String
   Dim xstate As String
+  Dim xforward As String
 
   If Len(txtencid.Text) Then
     xencid = db.Subst(" and lower(" & $sTable & "." & "fldencounterval) like &1", LCase(Trim(txtencid.Text)))
@@ -423,29 +425,35 @@ Private Function ExecuteQuery(xFldList As String[]) As Result
     Endif
   Endif
 
+  If chkrefer.Value = True Then
+    xforward = Subst(" and &1.fldconsultname<>tblencounter.fldadmitlocat", $sTable)
+  Else If chkrefer.Value = False Then
+    xforward = ""
+  Endif
+
   $RepoStr = modDataRepo.GetWhereStringRepo(cmblocation.Text, cmbvalue.Text, $sTable)
   If chkdate.Value = True Then
     If modBasic.$FixedDepartment Then
-      sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & "  where " & $sTable & "." & "fldconsulttime>=&1 and " & $sTable & "." & "fldconsulttime<=&2 and " & $sTable & "." & "fldstatus=&3 and " & $sTable & "." & "fldconsultname=&4" & xencid & xconsult & xpaid & xcolor & xstate & $RepoStr & xorder                                           ''
+      sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & "  where " & $sTable & "." & "fldconsulttime>=&1 and " & $sTable & "." & "fldconsulttime<=&2 and " & $sTable & "." & "fldstatus=&3 and " & $sTable & "." & "fldconsultname=&4" & xencid & xconsult & xpaid & xcolor & xstate & xforward & $RepoStr & xorder                                           ''
       res = modDatabase.$myConn.Exec(sql, modDate.StartSqlDate(dtsort.Value), modDate.EndSqlDate(DateAdd(dtsort.Value, gb.Day, txtrange.Value)), "Planned", modBasic.$FixedDepartment)
     Else
       If cmbdept.Text = "All" Then
-        sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldconsulttime>=&1 and " & $sTable & "." & "fldconsulttime<=&2 and " & $sTable & "." & "fldstatus=&3" & xencid & xconsult & xpaid & xcolor & xstate & $RepoStr & xorder                                             ''
+        sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldconsulttime>=&1 and " & $sTable & "." & "fldconsulttime<=&2 and " & $sTable & "." & "fldstatus=&3" & xencid & xconsult & xpaid & xcolor & xstate & xforward & $RepoStr & xorder                                             ''
       Else
-        sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldconsulttime>=&1 and " & $sTable & "." & "fldconsulttime<=&2 and " & $sTable & "." & "fldstatus=&3 and " & $sTable & "." & "fldconsultname=&4" & xencid & xconsult & xpaid & xcolor & xstate & $RepoStr & xorder
+        sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldconsulttime>=&1 and " & $sTable & "." & "fldconsulttime<=&2 and " & $sTable & "." & "fldstatus=&3 and " & $sTable & "." & "fldconsultname=&4" & xencid & xconsult & xpaid & xcolor & xstate & xforward & $RepoStr & xorder
       Endif
       res = modDatabase.$myConn.Exec(sql, modDate.StartSqlDate(dtsort.Value), modDate.EndSqlDate(DateAdd(dtsort.Value, gb.Day, txtrange.Value)), "Planned", cmbdept.Text)
     Endif
 
   Else
     If modBasic.$FixedDepartment Then
-      sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldstatus=&1 and " & $sTable & "." & "fldconsultname=&2" & xencid & xconsult & xpaid & xcolor & xstate & $RepoStr & xorder                                            ''
+      sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldstatus=&1 and " & $sTable & "." & "fldconsultname=&2" & xencid & xconsult & xpaid & xcolor & xstate & xforward & $RepoStr & xorder                                            ''
       res = modDatabase.$myConn.Exec(sql, "Planned", modBasic.$FixedDepartment)
     Else
       If cmbdept.Text = "All" Then
-        sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldstatus=&1" & xencid & xconsult & xpaid & xcolor & xstate & $RepoStr & xorder                                              ''
+        sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldstatus=&1" & xencid & xconsult & xpaid & xcolor & xstate & xforward & $RepoStr & xorder                                              ''
       Else
-        sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldstatus=&1 and " & $sTable & "." & "fldconsultname=&2" & xencid & xconsult & xpaid & xcolor & xstate & $RepoStr & xorder
+        sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldstatus=&1 and " & $sTable & "." & "fldconsultname=&2" & xencid & xconsult & xpaid & xcolor & xstate & xforward & $RepoStr & xorder
       Endif
       res = modDatabase.$myConn.Exec(sql, "Planned", cmbdept.Text)
     Endif
