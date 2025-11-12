@@ -169,7 +169,7 @@ Public Function AddClinFindingsAll(encid As String, Optional sTitle As String) A
   Endif
   xlist = PaientSelExamNameArray(encid, "Non-Vital")
   If xlist Then
-    stObservation = GetExaminationHTMLProfile(encid, xlist)
+    stObservation = modClinicReport.GetExaminationHTMLProfile(encid, xlist)
     asx = AddCustomReport(stChapter, stObservation)
   Endif
   Return asx
@@ -191,7 +191,7 @@ Public Function AddPhysicianFindings(encid As String, Optional sTitle As String)
   Endif
   xlist = PaientSelExamNameArray(encid, "Physician Examinations")
   If xlist Then
-    stObservation = GetExaminationHTMLProfile(encid, xlist)
+    stObservation = modClinicReport.GetExaminationHTMLProfile(encid, xlist)
     asx = AddCustomReport(stChapter, stObservation)
   Endif
   Return asx
@@ -213,7 +213,7 @@ Public Function AddNursingFindings(encid As String, Optional sTitle As String) A
   Endif
   xlist = PaientSelExamNameArray(encid, "Nursing Examinations")
   If xlist Then
-    stObservation = GetExaminationHTMLProfile(encid, xlist)
+    stObservation = modClinicReport.GetExaminationHTMLProfile(encid, xlist)
     asx = AddCustomReport(stChapter, stObservation)
   Endif
   Return asx
@@ -235,7 +235,7 @@ Public Function AddEssentialFindings(encid As String, Optional sTitle As String)
   Endif
   xlist = PaientSelExamNameArray(encid, "Essential Examinations")
   If xlist Then
-    stObservation = GetExaminationHTMLProfile(encid, xlist)
+    stObservation = modClinicReport.GetExaminationHTMLProfile(encid, xlist)
     asx = AddCustomReport(stChapter, stObservation)
   Endif
   Return asx
@@ -257,7 +257,7 @@ Public Function AddTriageFindings(encid As String, Optional sTitle As String) As
   Endif
   xlist = PaientSelExamNameArray(encid, "ABC Examinations")
   If xlist Then
-    stObservation = GetExaminationHTMLProfile(encid, xlist)
+    stObservation = modClinicReport.GetExaminationHTMLProfile(encid, xlist)
     asx = AddCustomReport(stChapter, stObservation)
   Endif
   Return asx
@@ -279,7 +279,7 @@ Public Function AddDischargeFindings(encid As String, Optional sTitle As String)
   Endif
   xlist = PaientSelExamNameArray(encid, "Discharge Examinations")
   If xlist Then
-    stObservation = GetExaminationHTMLProfile(encid, xlist)
+    stObservation = modClinicReport.GetExaminationHTMLProfile(encid, xlist)
     asx = AddCustomReport(stChapter, stObservation)
   Endif
   Return asx
@@ -298,7 +298,7 @@ Public Function AddPhysicianStructured(encid As String, Optional sTitle As Strin
   Else
     stChapter = "Physician Examinations"
   Endif
-  stObservation = modPatReports.GetRecommendedExam(encid, "Physician Examinations")
+  stObservation = modClinicReport.GetRecommendedExam(encid, "Physician Examinations")
   asx = AddCustomReport(stChapter, stObservation)
 
   Return asx
@@ -317,7 +317,7 @@ Public Function AddDepartmentStructured(encid As String, Optional sTitle As Stri
   Else
     stChapter = "Departmental Examinations"
   Endif
-  stObservation = modPatReports.GetRecommendedExam(encid, "Departmental")
+  stObservation = modClinicReport.GetRecommendedExam(encid, "Departmental")
   asx = AddCustomReport(stChapter, stObservation)
 
   Return asx
@@ -1274,7 +1274,7 @@ Public Function AddSelectedExamination(encid As String, examList As String[]) As
   Dim stObservation As String
 
   stChapter = "Examinations"
-  stObservation = GetExaminationHTMLProfile(encid, examList)
+  stObservation = modClinicReport.GetExaminationHTMLProfile(encid, examList)
   asx = AddCustomReport(stChapter, stObservation)
   Return asx
 
@@ -3185,6 +3185,26 @@ Public Function DeliveryReportbyMother(encid As String) As String[]
 
 End
 
+''----------------------- Examination ---------------------------------------------
+Private Function PaientSelExamNameArray(encid As String, sType As String) As String[]
+
+  Dim res As Result
+  Dim sql As String
+  Dim xx As String[]
+
+  If sType = "Non-Vital" Then
+    sql = "select distinct(fldhead) as col from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldhead not in(select fldexamid from tblcompexam where (fldcomp=&3 or fldcomp=&4) and fldcategory<>&5)" & GetLockClinicSQL() ''all except vital
+    res = modDatabase.$syConn.Exec(sql, encid, True, modBasic.$compID, "%", "Essential Examinations")
+  Else
+    sql = "select distinct(fldhead) as col from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldinput like &3" & GetLockClinicSQL() '''for specific exam type
+    res = modDatabase.$syConn.Exec(sql, encid, True, sType)
+  Endif
+  xx = modControlSub.GetDirectFillresult(res)
+
+  Return xx
+
+End
+
 ''-------------------------Laboratory -------------------------------
 Public Function GetlaboratoryHTMLProfile(encid As String, testList As String[], sUnit As String) As String
 
@@ -3447,287 +3467,6 @@ Private Function GetCompleteTestByEnc(encid As String, testList As String[], sUn
 
 End
 
-''----------------------- Examination ---------------------------------------------
-Private Function PaientSelExamNameArray(encid As String, sType As String) As String[]
-
-  Dim res As Result
-  Dim sql As String
-  Dim xx As String[]
-
-  If sType = "Non-Vital" Then
-    sql = "select distinct(fldhead) as col from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldhead not in(select fldexamid from tblcompexam where (fldcomp=&3 or fldcomp=&4) and fldcategory<>&5)" & GetLockClinicSQL() ''all except vital
-    res = modDatabase.$syConn.Exec(sql, encid, True, modBasic.$compID, "%", "Essential Examinations")
-  Else
-    sql = "select distinct(fldhead) as col from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldinput like &3" & GetLockClinicSQL() '''for specific exam type
-    res = modDatabase.$syConn.Exec(sql, encid, True, sType)
-  Endif
-  xx = modControlSub.GetDirectFillresult(res)
-
-  Return xx
-
-End
-
-Public Function GetExaminationHTMLProfile(encid As String, examList As String[]) As String
-
-  Dim aList As String[]
-  Dim categList As String[]
-  Dim xcatList As String[]
-  Dim xcateg As String
-
-  Dim bList As String[]
-  Dim xtest As String
-  Dim asx As String[]
-
-  Dim stObservation As String
-  Dim xtable As String
-
-  aList = New String[]
-  categList = New String[]
-  For Each xtest In examList
-    xcateg = modFixClinic.GetExaminationCategory(xtest)
-    If Not xcateg Then
-      xcateg = "Null"
-    Endif
-    categList.Add(xcateg)
-    aList.Add(xcateg & "|" & xtest)
-  Next
-  xcatList = modString.BinaryDistinctStringArray(categList)
-
-  stObservation = ""
-  For Each xcateg In xcatList
-
-    bList = New String[]
-    For Each xtest In aList
-      asx = Split(xtest, "|")
-      If asx[0] = xcateg Then
-        bList.Add(asx[1])
-      Endif
-    Next
-
-    xtable = ""
-    If modBasic.$ShowQuantiMedReport = "AllValues" Then
-      xtable = GetCompleteExamByEnc(encid, bList, False)
-    Else If modBasic.$ShowQuantiMedReport = "Chart" Then
-      xtable = GetCompleteExamByEnc(encid, bList, True)
-    Else
-      xtable = GetExamClinHTMLTable(encid, bList, modBasic.$ShowQuantiMedReport)
-    Endif
-    If xcateg = "Null" Then
-      stObservation = stObservation & "<b>" & ". . ." & "</b>" & gb.NewLine
-    Else
-      stObservation = stObservation & "<b>" & xcateg & "</b>" & gb.NewLine
-    Endif
-    stObservation = stObservation & xtable & "<br>"
-
-  Next
-
-  Return stObservation
-
-End
-
-Private Function GetExamClinHTMLTable(encid As String, testList As String[], sType As String) As String
-
-  Dim xx As String
-  Dim xtest As String
-  Dim asx As String[]
-  Dim bsx As String[]
-
-  xx = modRepoTemplete.HTMLTableSyntax()
-  If sType = "First-LastVal" Then
-    xx = xx & "<td class='reportmid_table_h'>" & "Variable" & "</td>" & gb.NewLine
-
-    xx = xx & "<td class='reportmid_table_h'>" & "First Value" & "</td>" & gb.NewLine
-    If modBasic.$SHowDayDiagnosticReport = "User" Then
-      xx = xx & "<td class='reportmid_table_h'>" & "User" & "</td>" & gb.NewLine
-    Else If modBasic.$SHowDayDiagnosticReport = "Date+User" Then
-      xx = xx & "<td class='reportmid_table_h'>" & "Date" & "</td>" & gb.NewLine
-      xx = xx & "<td class='reportmid_table_h'>" & "User" & "</td>" & gb.NewLine
-    Else If modBasic.$SHowDayDiagnosticReport = "None" Then
-    Else
-      xx = xx & "<td class='reportmid_table_h'>" & "Date" & "</td>" & gb.NewLine
-    Endif
-
-    xx = xx & "<td class='reportmid_table_h'>" & "Last Value" & "</td>" & gb.NewLine
-    If modBasic.$SHowDayDiagnosticReport = "User" Then
-      xx = xx & "<td class='reportmid_table_h'>" & "User" & "</td>" & gb.NewLine
-    Else If modBasic.$SHowDayDiagnosticReport = "Date+User" Then
-      xx = xx & "<td class='reportmid_table_h'>" & "Date" & "</td>" & gb.NewLine
-      xx = xx & "<td class='reportmid_table_h'>" & "User" & "</td>" & gb.NewLine
-    Else If modBasic.$SHowDayDiagnosticReport = "None" Then
-    Else
-      xx = xx & "<td class='reportmid_table_h'>" & "Date" & "</td>" & gb.NewLine
-    Endif
-
-  Else If sType = "FitsrVal" Then
-    xx = xx & "<td class='reportmid_table_h'>" & "Variable" & "</td>" & gb.NewLine
-    xx = xx & "<td class='reportmid_table_h'>" & "First Value" & "</td>" & gb.NewLine
-    If modBasic.$SHowDayDiagnosticReport = "User" Then
-      xx = xx & "<td class='reportmid_table_h'>" & "User" & "</td>" & gb.NewLine
-    Else If modBasic.$SHowDayDiagnosticReport = "Date+User" Then
-      xx = xx & "<td class='reportmid_table_h'>" & "Date" & "</td>" & gb.NewLine
-      xx = xx & "<td class='reportmid_table_h'>" & "User" & "</td>" & gb.NewLine
-    Else If modBasic.$SHowDayDiagnosticReport = "None" Then
-    Else
-      xx = xx & "<td class='reportmid_table_h'>" & "Date" & "</td>" & gb.NewLine
-    Endif
-
-  Else
-    xx = xx & "<td class='reportmid_table_h'>" & "Variable" & "</td>" & gb.NewLine
-    xx = xx & "<td class='reportmid_table_h'>" & "Last Value" & "</td>" & gb.NewLine
-    If modBasic.$SHowDayDiagnosticReport = "User" Then
-      xx = xx & "<td class='reportmid_table_h'>" & "User" & "</td>" & gb.NewLine
-    Else If modBasic.$SHowDayDiagnosticReport = "Date+User" Then
-      xx = xx & "<td class='reportmid_table_h'>" & "Date" & "</td>" & gb.NewLine
-      xx = xx & "<td class='reportmid_table_h'>" & "User" & "</td>" & gb.NewLine
-    Else If modBasic.$SHowDayDiagnosticReport = "None" Then
-    Else
-      xx = xx & "<td class='reportmid_table_h'>" & "Date" & "</td>" & gb.NewLine
-    Endif
-  Endif
-  xx = xx & "</tr>" & gb.NewLine
-
-  For Each xtest In testList
-    xx = xx & "<tr>" & gb.NewLine
-    If sType = "First-LastVal" Then
-      xx = xx & "<td>" & xtest & "</td>" & gb.NewLine
-      asx = modClinic.GetExamClinValuePosition(encid, xtest, "FitsrVal")
-      xx = xx & "<td>" & modString.TextToHTML(asx[1]) & "</td>" & gb.NewLine
-      If modBasic.$SHowDayDiagnosticReport = "User" Then
-        xx = xx & "<td>" & asx[2] & "</td>" & gb.NewLine
-      Else If modBasic.$SHowDayDiagnosticReport = "Date+User" Then
-        xx = xx & "<td>" & asx[0] & "</td>" & gb.NewLine
-        xx = xx & "<td>" & asx[2] & "</td>" & gb.NewLine
-      Else If modBasic.$SHowDayDiagnosticReport = "None" Then
-      Else
-        xx = xx & "<td>" & asx[0] & "</td>" & gb.NewLine
-      Endif
-      asx.Clear()
-
-      bsx = modClinic.GetExamClinValuePosition(encid, xtest, "LastVal")
-      xx = xx & "<td>" & modString.TextToHTML(bsx[1]) & "</td>" & gb.NewLine
-      If modBasic.$SHowDayDiagnosticReport = "User" Then
-        xx = xx & "<td>" & bsx[2] & "</td>" & gb.NewLine
-      Else If modBasic.$SHowDayDiagnosticReport = "Date+User" Then
-        xx = xx & "<td>" & bsx[0] & "</td>" & gb.NewLine
-        xx = xx & "<td>" & bsx[2] & "</td>" & gb.NewLine
-      Else If modBasic.$SHowDayDiagnosticReport = "None" Then
-      Else
-        xx = xx & "<td>" & bsx[0] & "</td>" & gb.NewLine
-      Endif
-      bsx.Clear()
-
-    Else If sType = "FitsrVal" Then
-      xx = xx & "<td>" & xtest & "</td>" & gb.NewLine
-      asx = modClinic.GetExamClinValuePosition(encid, xtest, "FitsrVal")
-      xx = xx & "<td>" & modString.TextToHTML(asx[1]) & "</td>" & gb.NewLine
-      If modBasic.$SHowDayDiagnosticReport = "User" Then
-        xx = xx & "<td>" & asx[2] & "</td>" & gb.NewLine
-      Else If modBasic.$SHowDayDiagnosticReport = "Date+User" Then
-        xx = xx & "<td>" & asx[0] & "</td>" & gb.NewLine
-        xx = xx & "<td>" & asx[2] & "</td>" & gb.NewLine
-      Else If modBasic.$SHowDayDiagnosticReport = "None" Then
-      Else
-        xx = xx & "<td>" & asx[0] & "</td>" & gb.NewLine
-      Endif
-      asx.Clear()
-
-    Else
-      xx = xx & "<td>" & xtest & "</td>" & gb.NewLine
-      bsx = modClinic.GetExamClinValuePosition(encid, xtest, "LastVal")
-      xx = xx & "<td>" & modString.TextToHTML(bsx[1]) & "</td>" & gb.NewLine
-      If modBasic.$SHowDayDiagnosticReport = "User" Then
-        xx = xx & "<td>" & bsx[2] & "</td>" & gb.NewLine
-      Else If modBasic.$SHowDayDiagnosticReport = "Date+User" Then
-        xx = xx & "<td>" & bsx[0] & "</td>" & gb.NewLine
-        xx = xx & "<td>" & bsx[2] & "</td>" & gb.NewLine
-      Else If modBasic.$SHowDayDiagnosticReport = "None" Then
-      Else
-        xx = xx & "<td>" & bsx[0] & "</td>" & gb.NewLine
-      Endif
-      bsx.Clear()
-
-    Endif
-    xx = xx & "</tr>" & gb.NewLine
-  Next
-  xx = xx & "</table>" & gb.NewLine
-
-  Return xx
-
-End
-
-Private Function GetCompleteExamByEnc(encid As String, examList As String[], withChart As Boolean) As String
-
-  Dim xx As String[]
-  Dim sql As String
-  Dim res As Result
-  Dim i As Integer
-  Dim xtable As String
-  Dim xType As String
-  Dim xval As String
-  Dim strTest As String
-  Dim xall As String
-
-  xall = ""
-  For Each strTest In examList
-    If modFixClinic.GetExaminationType(strTest) = "Quantitative" And If withChart = True Then
-      xall = xall & strTest & gb.NewLine & modString.GetImageForHTML(GetChartImageExam(encid, strTest)) & "<br>"
-
-    Else
-
-      i = 1
-      sql = "select fldid,fldtime,fldhead,fldrepquali,fldrepquanti,fldtype,fldcomp,fldoption from tblpatientexam where fldencounterval=&1 and fldhead=&2 and fldsave=&3 and fldinput=&4" & GetLockClinicSQL()
-      res = modDatabase.$syConn.Exec(sql, encid, strTest, True, "Examination")
-      xx = New String[]
-      If res.Available Then
-        xx.Add(strTest & " [Dept: " & res["fldcomp"] & "]")
-        For Each res
-
-          If res["fldtype"] = "Quantitative" Then
-            xval = CStr(res["fldrepquanti"])
-          Else
-            If res["fldrepquali"] Then
-
-              xType = res["fldoption"]
-              If xType = "Clinical Scale" Then
-                If modBasic.$ShowScaleMedFormat = "GroupWise" Then
-                  xval = modString.GetJSONToDualHTMLTable(Trim(res["fldrepquali"]))
-                Else
-                  xval = CStr(res["fldrepquanti"])
-                Endif
-              Else If xType = "Left and Right" Then
-                xval = modString.GetJSONToDualHTMLTable(Trim(res["fldrepquali"]))
-              Else
-                xval = Trim(res["fldrepquali"])
-              Endif
-            Else
-              xval = ""
-            Endif
-            xtable = modClinic.GetSubExamQualiList(encid, res["fldoption"], res["fldid"])
-            If xtable Then
-              xval = xval & xtable
-            Endif
-          Endif
-
-          If modBasic.$SHowDayDiagnosticReport = "User" Then
-          Else If modBasic.$SHowDayDiagnosticReport = "Date+User" Then
-          Else If modBasic.$SHowDayDiagnosticReport = "None" Then
-            xval = CStr(i) & ".. " & modString.HTMLBlankSpace(3) & xval
-          Else
-            xval = CStr(i) & ".. " & modString.HTMLBlankSpace(3) & "[ " & modReportVar.GetDateTimeReport(res["fldtime"], gb.GeneralDate) & " ] " & " : " & xval
-          Endif
-          xx.Add(xval)
-
-          i = i + 1
-        Next
-      Endif
-      xall = xall & xx.Join(gb.NewLine) & "<br>" & "<br>"
-
-    Endif
-  Next
-  Return xall
-
-End
-
 ''------------------------------------- Radiology ---------------------------------------------
 Public Function GetRadiologyHTMLProfile(encid As String, examList As String[]) As String
 
@@ -3980,93 +3719,6 @@ Private Function GetCompleteRadioByEnc(encid As String, TestList As String[], wi
     Endif
   Next
   Return xall
-
-End
-
-''-------------------------- Recommended Examinations -----------------------------
-Public Function GetRecommendedExam(encid As String, sType As String) As String
-
-  Dim res As Result
-  Dim catlst As String[]
-  Dim xcateg As String
-
-  Dim res1 As Result
-  Dim xfull As String
-  Dim xType As String
-  Dim xquali As String
-
-  Dim aColl As Collection
-  Dim aVar As Variant[]
-  Dim xHead As String[]
-
-  If modBasic.$ShowDayMedReport = "User" Then
-    xHead = ["Variable", "Observation", "User"]
-  Else If modBasic.$ShowDayMedReport = "Date+User" Then
-    xHead = ["Variable", "Observation", "DateTime", "User"]
-  Else If modBasic.$ShowDayMedReport = "Date" Then
-    xHead = ["Variable", "Observation", "DateTime"]
-  Else
-    xHead = ["Variable", "Observation"]
-  Endif
-
-  xfull = ""
-  catlst = modMedicine.FillClinicalSubClass(sType)
-  If catlst And If catlst.Count Then
-    For Each xcateg In catlst
-
-      res = modDatabase.$syConn.Exec("select distinct(fldinput) as fldinput,flduserid from tblpatientexam where fldserialval like &1 and fldencounterval=&2 and fldmethod=&3 and fldsave=&4" & GetLockClinicSQL(), "%", encid, xcateg, True)
-      If res.Available Then
-        For Each res
-          xfull = xfull & "<li>" & xcateg & " : " & res["fldinput"] & "</li>"
-          aVar = New Variant[]
-
-          res1 = modDatabase.$syConn.Exec("select fldid,fldtime,fldhead,fldrepquali,fldrepquanti,fldtype,fldoption,flduserid from tblpatientexam where fldserialval like &1 and fldencounterval=&2 and fldmethod=&3 and fldinput=&4 and fldsave=&5" & GetLockClinicSQL(), "%", encid, xcateg, res["fldinput"], True)                                            ''
-          If res1.Available Then
-            For Each res1
-              aColl = New Collection
-              aColl.Add(res1["fldhead"], CStr(0))
-              If res1["fldtype"] = "Quantitative" Then
-                aColl.Add(CStr(res1["fldrepquanti"]) & Space(1) & modClinic.GetExamUnit(res1["fldhead"], encid), CStr(1))
-              Else
-                xType = res1["fldoption"]
-                If xType = "Clinical Scale" Then
-                  If modBasic.$ShowScaleMedFormat = "GroupWise" Then
-                    xquali = modString.GetJSONToDualHTMLTable(Trim(res1["fldrepquali"]))
-                  Else
-                    xquali = CStr(res1["fldrepquanti"])
-                  Endif
-                Else If xType = "Left and Right" Then
-                  xquali = modString.GetJSONToDualHTMLTable(Trim(res1["fldrepquali"]))
-                Else
-                  xquali = Trim(res1["fldrepquali"])
-                Endif
-                aColl.Add(xquali, CStr(1))
-              Endif
-
-              If modBasic.$ShowDayMedReport = "User" Then
-                aColl.Add(res["flduserid"])
-              Else If modBasic.$ShowDayMedReport = "Date+User" Then
-                aColl.Add(modReportVar.GetDateTimeReport(res1["fldtime"], gb.GeneralDate), CStr(2))
-                aColl.Add(res["flduserid"])
-              Else If modBasic.$ShowDayMedReport = "Date" Then
-                aColl.Add(modReportVar.GetDateTimeReport(res1["fldtime"], gb.GeneralDate), CStr(2))
-              Endif
-              aVar.Add(aColl)
-            Next
-          Endif
-
-          xfull = xfull & modString.GetRichTableStringFromVariant(xHead, aVar)
-        Next
-      Endif
-
-      xfull = xfull & "<br>"
-    Next
-
-  Else
-    xfull = ""
-  Endif
-
-  Return xfull
 
 End
 

@@ -1,0 +1,179 @@
+' Gambas module file
+
+''============================ General Examination =======================
+''$Examination[Encounter|"BloodPressure_Systolic"|"Physician Examinations"]
+''$Examination[Patient|"BloodPressure_Systolic"|"Physician Examinations"]
+Public Function GetReportExamsValueTable($encid As String, $Line As String) As String
+
+  Dim xx As String
+  Dim xval As String
+  Dim asx As String[]
+
+  Dim encList As String[]
+  Dim xenc As String
+  Dim xtable As String
+
+  If (String.InStr($Line, "$Examination[") > 0) Then
+    xx = modString.GetSelectedTextBetween($Line, "$Examination[", "]")
+    asx = Split(xx, "|")
+    If asx[0] = "Encounter" Then
+      xval = modClinicReport.GetCurrExamTimeValueSysConst($encid, UnQuote(asx[1]), UnQuote(asx[2]), True)
+    Else If asx[0] = "Patient" Then
+      encList = modPatient.GetPastEncListFromEncounter($encid)
+      xtable = ""
+      For Each xenc In encList
+        xtable = xtable & modClinicReport.GetCurrExamTimeValueSysConst(xenc, UnQuote(asx[1]), UnQuote(asx[2]), True) & "<br>"
+      Next
+      xval = xtable
+    Endif
+
+    If xval Then
+      $Line = Replace($Line, "$Examination[" & xx & "]", xval)
+    Else
+      $Line = Replace($Line, "$Examination[" & xx & "]", "__")
+    Endif
+  Endif
+
+  Return $Line
+
+End
+
+''$ExaminationTable[Encounter|"BloodPressure_Systolic;BloodPressure_Diastolic"|"Physician Examinations"]
+''$ExaminationTable[Patient|"BloodPressure_Systolic;BloodPressure_Diastolic"|"Physician Examinations"]
+Public Function GetReportExamsMultiTable($encid As String, $Line As String) As String
+
+  Dim xx As String
+  Dim xval As String
+  Dim asx As String[]
+
+  If (String.InStr($Line, "$ExaminationTable[") > 0) Then
+    xx = modString.GetSelectedTextBetween($Line, "$ExaminationTable[", "]")
+    asx = Split(xx, "|")
+    If asx[0] = "Encounter" Then
+      xval = modClinicReport.GetCurrExamTimeListSysConst([$encid], Split(UnQuote(asx[1]), ";"), UnQuote(asx[2]))
+    Else If asx[0] = "Patient" Then
+      xval = modClinicReport.GetCurrExamTimeListSysConst(modPatient.GetPastEncListFromEncounter($encid), Split(UnQuote(asx[1]), ";"), UnQuote(asx[2]))
+    Endif
+
+    If xval Then
+      $Line = Replace($Line, "$ExaminationTable[" & xx & "]", xval)
+    Else
+      $Line = Replace($Line, "$ExaminationTable[" & xx & "]", "__")
+    Endif
+  Endif
+
+  Return $Line
+
+End
+
+''====================== structured ===================
+''$Structured[Encounter|"Systolic12"]
+''$Structured[Patient|"Systolic12"]
+Public Function GetReportStructuredValueTable($encid As String, $Line As String) As String
+
+  Dim xx As String
+  Dim xval As String
+  Dim asx As String[]
+
+  Dim encList As String[]
+  Dim xenc As String
+  Dim xtable As String
+
+  If (String.InStr($Line, "$Structured[") > 0) Then
+    xx = modString.GetSelectedTextBetween($Line, "$Structured[", "]")
+    asx = Split(xx, "|")
+    If asx[0] = "Encounter" Then
+      xval = modClinicReport.GetCurrExamTimeValueStructured($encid, UnQuote(asx[1]), True)
+    Else If asx[0] = "Patient" Then
+      encList = modPatient.GetPastEncListFromEncounter($encid)
+      xtable = ""
+      For Each xenc In encList
+        xtable = xtable & modClinicReport.GetCurrExamTimeValueStructured(xenc, UnQuote(asx[1]), True) & "<br>"
+      Next
+      xval = xtable
+    Endif
+
+    If xval Then
+      $Line = Replace($Line, "$Structured[" & xx & "]", xval)
+    Else
+      $Line = Replace($Line, "$Structured[" & xx & "]", "__")
+    Endif
+  Endif
+
+  Return $Line
+
+End
+
+''$StructuredGroup[Encounter|"Chapter"|"Reference"|"Category"|"Exam Group"]
+''$StructuredGroup[Patient|"Chapter"|"Reference"|"Category"|"Exam Group"]
+Public Function GetReportStructuredFormatTable($encid As String, $Line As String) As String
+
+  Dim xx As String
+  Dim xval As String
+  Dim asx As String[]
+
+  Dim encList As String[]
+  Dim xenc As String
+  Dim xtable As String
+
+  If (String.InStr($Line, "$StructuredGroup[") > 0) Then
+    xx = modString.GetSelectedTextBetween($Line, "$StructuredGroup[", "]")
+    asx = Split(xx, "|")
+    If asx[0] = "Encounter" Then
+      xval = modClinicReport.GetSectionStructuredLastTable($encid, UnQuote(asx[1]), UnQuote(asx[2]), UnQuote(asx[3]), UnQuote(asx[4]))
+    Else If asx[0] = "Patient" Then
+      encList = modPatient.GetPastEncListFromEncounter($encid)
+      xtable = ""
+      For Each xenc In encList
+        xtable = xtable & modClinicReport.GetSectionStructuredLastTable(xenc, UnQuote(asx[1]), UnQuote(asx[2]), UnQuote(asx[3]), UnQuote(asx[4])) & "<br>"
+      Next
+      xval = xtable
+    Endif
+
+    If xval Then
+      $Line = Replace($Line, "$StructuredGroup[" & xx & "]", xval)
+    Else
+      $Line = Replace($Line, "$StructuredGroup[" & xx & "]", "__")
+    Endif
+  Endif
+
+  Return $Line
+
+End
+
+''$StructuredMultiGroup[Encounter|"Chapter"|"Reference"|"Category"|"Exam Group"]
+''$StructuredMultiGroup[Patient|"Chapter"|"Reference"|"Category"|"Exam Group"]
+Public Function GetReportStructuredFormatMultiTable($encid As String, $Line As String) As String
+
+  Dim xx As String
+  Dim xval As String
+  Dim asx As String[]
+
+  Dim encList As String[]
+  Dim xenc As String
+  Dim xtable As String
+
+  If (String.InStr($Line, "$StructuredGroup[") > 0) Then
+    xx = modString.GetSelectedTextBetween($Line, "$StructuredGroup[", "]")
+    asx = Split(xx, "|")
+    If asx[0] = "Encounter" Then
+      xval = modClinicReport.GetSectionStructuredMultiTable($encid, UnQuote(asx[1]), UnQuote(asx[2]), UnQuote(asx[3]), UnQuote(asx[4]))
+    Else If asx[0] = "Patient" Then
+      encList = modPatient.GetPastEncListFromEncounter($encid)
+      xtable = ""
+      For Each xenc In encList
+        xtable = xtable & modClinicReport.GetSectionStructuredMultiTable(xenc, UnQuote(asx[1]), UnQuote(asx[2]), UnQuote(asx[3]), UnQuote(asx[4])) & "<br>"
+      Next
+      xval = xtable
+    Endif
+
+    If xval Then
+      $Line = Replace($Line, "$StructuredGroup[" & xx & "]", xval)
+    Else
+      $Line = Replace($Line, "$StructuredGroup[" & xx & "]", "__")
+    Endif
+  Endif
+
+  Return $Line
+
+End

@@ -28,6 +28,7 @@ Private hOwnStockForm As FmWardStock
 Private hPtForm As FmClinHistory
 Private hDoseCount As FmDosecount
 
+Private $billReference As String
 Private $billModeTest As String
 Private $billModeRadio As String
 Private $billModePharmacy As String
@@ -423,10 +424,15 @@ End
 ''============================== MAIN FORM ================================
 Private Sub BasicInfoPatient()
 
+  Dim sHistoryList As String[]
+  Dim sDischList As String[]
+
   If txtencid.Text Then
     modRepository.$RepoDataStatus = False
     modAppSupport.RecordPatientActivity("Patient Data", Me.Name, "EncounterID", Trim(txtencid.Text))
     GetDefaultBillingmodes()
+    sHistoryList = modMedicine.GetClinHistoryList($billReference, txtgender.Text)
+    sDischList = modMedicine.GetClinDischargeList($billReference, txtgender.Text)
     ButtonControl()
     $dateReg = modPatient.GetRecordDate(Trim(txtencid.Text))
     If modBasic.$ClinPastDiagnosis Then
@@ -454,7 +460,7 @@ Private Sub BasicInfoPatient()
     hViewVital = New FmVitalView(Trim(txtencid.Text), pnlabexams)
     hinputVital = New FmVitalInput(Trim(txtencid.Text), pnlvitalinput)
     hOwnStockForm = New FmWardStock(Trim(txtencid.Text), $sTatus, $billModePharmacy, "height-tablet", pnlowninventory)
-    hPtForm = New FmClinHistory($PatientNum, "PatientID", False, "height-tablet", pnlhistory)
+    hPtForm = New FmClinHistory($PatientNum, "PatientID", sHistoryList, sDischList, False, "height-tablet", pnlhistory)
     hDoseCount = New FmDosecount(Trim(txtencid.Text), "height-tablet", pnldosecount)
 
     modPatientSub.PopUpPatientForm(Trim(txtencid.Text), Me.Tag)
@@ -469,6 +475,7 @@ Private Sub GetDefaultBillingmodes()
 
   Dim xpackage As String
 
+  $billReference = modNonMedical.GetFixedReference(Trim(txtencid.Text))
   Select $sTatus
     Case "Admitted", "Discharged", "LAMA", "Death", "Refer", "Absconder"
       $billModeTest = modNonMedical.GetAutoIPBillingPack("Test", Trim(txtencid.Text))

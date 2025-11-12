@@ -190,6 +190,7 @@ Private Sub GetEncounterValue()
   Dim yallow As Boolean
   Dim zallow As Boolean
   Dim xpaid As Float
+  Dim xdepart As String
 
   If Not txtpatientname.Text Then
     If Not txtencid.Text Then Return
@@ -212,11 +213,13 @@ Private Sub GetEncounterValue()
         modSettings.SaveValuesToLog("LastValue/Encounter", Trim(txtencid.Text))
       Endif
       If txtclinIndex.Value And If txtclinmode.Text Then
-        pnloutcome.Enabled = True
+        pnlsaveoutcome.Enabled = True
         pnlclinpara.Enabled = False
-        txtclindepart.Text = GetConsultDepartment(txtclinmode.Text, txtclinIndex.Value, Trim(txtencid.Text))
+        xdepart = GetConsultDepartment(txtclinmode.Text, txtclinIndex.Value, Trim(txtencid.Text))
+        txtclindepart.Text = xdepart
+        txtbedno.Text = xdepart
       Else
-        GetConsultParamIndex(False)
+        GetConsultParamIndex(True)
       Endif
       res = modDatabase.$myConn.Exec("select fldpatientval,flduserid from tblencounter where fldencounterval=&1", Trim(txtencid.Text))
       If res.Available = False Then
@@ -268,7 +271,9 @@ Private Sub GetEncounterValue()
             $PatientNum = modPatient.GetPatientNoByEnc(Trim(txtencid.Text))
             $sTatus = modPatient.CurrentAdmissionStatus(Trim(txtencid.Text))
             txtnow.Text = $sTatus
-            txtbedno.Text = modPatient.GetLocationSetting(Trim(txtencid.Text), $sTatus)
+            If Not txtbedno.Text Then
+              txtbedno.Text = modPatient.GetLocationSetting(Trim(txtencid.Text), $sTatus)
+            Endif
             txtpatdoa.Text = modReportVar.GetDateTimeReport(modPatient.GetRecordDate(Trim(txtencid.Text)), gb.GeneralDate)
             txtpatweight.Value = modClinic.GetBodyWeight(Trim(txtencid.Text))
             btnconsult.Tag = modPatient.GetAttendingConsultant(Trim(txtencid.Text))
@@ -471,6 +476,9 @@ End
 ''============================== MAIN FORM ================================
 Private Sub BasicInfoPatient()
 
+  Dim sHistoryList As String[]
+  Dim sDischList As String[]
+
   If txtencid.Text Then
     modRepository.$RepoDataStatus = False
     If modBasic.$AppSelect2JS = "Enable" Then
@@ -479,6 +487,8 @@ Private Sub BasicInfoPatient()
     Endif
     modAppSupport.RecordPatientActivity("Patient Data", Me.Name, "EncounterID", Trim(txtencid.Text))
     GetDefaultBillingmodes()
+    sHistoryList = modMedicine.GetClinHistoryList($billReference, txtgender.Text)
+    sDischList = modMedicine.GetClinDischargeList($billReference, txtgender.Text)
     cmbinpathistory.List = GetHistoryList()
     ButtonControl()
     $dateReg = modPatient.GetRecordDate(Trim(txtencid.Text))
@@ -502,7 +512,7 @@ Private Sub BasicInfoPatient()
     GetBasicCalulations()
     hDigForm = New FmDiagnosticTab(Trim(txtencid.Text), "height-tablet", pnlabexams)
     pnlhistory.Visible = True
-    hPtForm = New FmClinHistory($PatientNum, "PatientID", False, "height-tablet", pnlhistory)
+    hPtForm = New FmClinHistory($PatientNum, "PatientID", sHistoryList, sDischList, False, "height-tablet", pnlhistory)
     hOwnStockForm = New FmWardStock(Trim(txtencid.Text), $sTatus, $billModePharmacy, "height-tablet", pnlowninventory)
     If txtclinIndex.Value And If txtclinmode.Text Then
       hOwnStockForm.SetOwnDepartment(txtclinIndex.Value & "|" & txtclinmode.Text)
@@ -647,12 +657,19 @@ End
 Private Sub ButtonControl()
 
   Dim xx As Boolean
+  Dim xfinal As Boolean
   Dim xval As String
 
-  xx = modPatient.EnableClinicOPDForm(Trim(txtencid.Text))
-  If xx = True Then
-    xx = modPatient.EnableClinicForm($sTatus)
+  xfinal = modPatient.EnableClinicForm($sTatus)
+  If xfinal = True Then
+    xx = modPatient.EnableClinicOPDForm(Trim(txtencid.Text))
+  Else
+    xx = False
   Endif
+
+  ''consultation
+  mnuconsultplan.Enabled = xfinal
+
   ''complaints
   btnsympadd.Enabled = xx
   btnaddsymplist.Enabled = xx
@@ -707,8 +724,6 @@ Private Sub ButtonControl()
   mnuvaccine.Enabled = xx
   ''dosing
   mnupatdosing.Enabled = xx
-  ''consultation
-  mnuconsultplan.Enabled = xx
   ''major procedure
   mnumajor.Enabled = xx
   ''extra procedure
@@ -732,6 +747,7 @@ Private Sub ButtonControl()
   mnucustform.Enabled = xx
   mnustruct.Enabled = xx
   pnlowninventory.Enabled = xx
+  pnlsaveoutcome.Enabled = xx
 
   xval = modBasic.$LockDiagnosisList
   If xval = "No" Then
@@ -4157,6 +4173,7 @@ Private Sub GetConsultParamIndex(sPopUp As Boolean)
   Dim xdept As String
   Dim xval As String
   Dim asx As String[]
+  Dim xdepart As String
 
   If modBasic.$FixedDepartment Then
     xdept = modBasic.$FixedDepartment
@@ -4169,8 +4186,12 @@ Private Sub GetConsultParamIndex(sPopUp As Boolean)
     txtclinIndex.Value = CLong(asx[0])
     txtclinmode.Text = asx[1]
     If txtclinIndex.Value And If txtclinmode.Text Then
-      pnloutcome.Enabled = True
-      txtclindepart.Text = GetConsultDepartment(txtclinmode.Text, txtclinIndex.Value, Trim(txtencid.Text))
+      pnlsaveoutcome.Enabled = True
+      xdepart = GetConsultDepartment(txtclinmode.Text, txtclinIndex.Value, Trim(txtencid.Text))
+      txtclindepart.Text = xdepart
+      If xdepart Then
+        txtbedno.Text = xdepart
+      Endif
     Endif
   Endif
 
@@ -4272,7 +4293,7 @@ Public Sub btnoutcome_Click()
       modPatientSub.UpdateCurrentStatus(Trim(txtencid.Text), "LAMA(OPD)", "")
     Else If rbdeath.Value = True Then
       xmode = "Death"
-      modPatientSub.UpdateCurrentStatus(Trim(txtencid.Text), "Death(OPD)", "", dtfollowup.Value)
+      modPatientSub.UpdateCurrentStatus(Trim(txtencid.Text), "Death(OPD)", dtfollowup.Value)
     Else If rbimproved.Value = True Then
       xmode = "Improved"
     Endif
@@ -4287,6 +4308,7 @@ Public Sub btnoutcome_Click()
     modDatabase.$myConn.Commit
 
     ButtonControl()
+    btnoutcome.Enabled = False
     Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information updated", modBasic.$BalloonDelay))
   Endif
 

@@ -873,26 +873,38 @@ Public Function GetCalcValue(sVariable As String, encid As String) As String
     sLine = Replace(sLine, "{Body_Mass_Index}", CStr(modSysCons.GetCalculationAValue("Body_Mass_Index", encid)))
   Endif
 
+  ''-------------modReportVarMulti -------
+  While (String.InStr(sLine, "$Examination[") > 0)
+    sLine = modReportVarMulti.GetReportExamsValueTable(encid, sLine)
+  Wend
+  While (String.InStr(sLine, "$ExaminationTable[") > 0)
+    sLine = modReportVarMulti.GetReportExamsMultiTable(encid, sLine)
+  Wend
+  While (String.InStr(sLine, "$Structured[") > 0)
+    sLine = modReportVarMulti.GetReportStructuredValueTable(encid, sLine)
+  Wend
+  While (String.InStr(sLine, "$StructuredGroup[") > 0)
+    sLine = modReportVarMulti.GetReportStructuredFormatTable(encid, sLine)
+  Wend
+  While (String.InStr(sLine, "$StructuredMultiGroup[") > 0)
+    sLine = modReportVarMulti.GetReportStructuredFormatMultiTable(encid, sLine)
+  Wend
+
+  ''--------------- modReportVar -------------------
   While (String.InStr(sLine, "$Last_Exam:") > 0)
     sLine = modReportVar.GetReporExamLastVal(encid, sLine)
   Wend
   While (String.InStr(sLine, "$First_Exam:") > 0)
     sLine = modReportVar.GetReporExamFirstVal(encid, sLine)
   Wend
-  While (String.InStr(sLine, "$Struct_Exam:") > 0)
-    sLine = modReportVar.GetReporExamStructured(encid, sLine)
-  Wend
-  While (String.InStr(sLine, "$Triage_Exam:") > 0)
-    sLine = modReportVar.GetReporExamTriage(encid, sLine)
-  Wend
-  While (String.InStr(sLine, "$Discharge_Exam:") > 0)
-    sLine = modReportVar.GetReporExamDischarge(encid, sLine)
-  Wend
   While (String.InStr(sLine, "$Left_Exam:") > 0)
     sLine = modReportVar.GetReporExamLeft(encid, sLine)
   Wend
   While (String.InStr(sLine, "$Right_Exam:") > 0)
     sLine = modReportVar.GetReporExamRight(encid, sLine)
+  Wend
+  While (String.InStr(sLine, "$Struct_Exam:") > 0)
+    sLine = modReportVar.GetReporExamStructured(encid, sLine)
   Wend
 
   While (String.InStr(sLine, "$Last_Test:") > 0)
@@ -905,7 +917,6 @@ Public Function GetCalcValue(sVariable As String, encid As String) As String
   While (String.InStr(sLine, "$Last_Radio:") > 0)
     sLine = modReportVar.GetReporRadioLastVal(encid, sLine)
   Wend
-
   While (String.InStr(sLine, "$First_Radio:") > 0)
     sLine = modReportVar.GetReporRadioFirstVal(encid, sLine)
   Wend
@@ -1686,10 +1697,10 @@ Public Function GetReportVarHistory($encid As String, $Line As String) As String
     $Line = Replace($Line, "{NursingExaminations}", modString.TextToHTML(modPatReports.GetSelectFindingReport($encid, "Nursing Examinations").Join(gb.NewLine)))
   Endif
   If (String.InStr($Line, "PhysicianStructured") > 0) Then
-    $Line = Replace($Line, "{PhysicianStructured}", modString.TextToHTML(modPatReports.GetRecommendedExam($encid, "Physician Examinations")))
+    $Line = Replace($Line, "{PhysicianStructured}", modString.TextToHTML(modClinicReport.GetRecommendedExam($encid, "Physician Examinations")))
   Endif
   If (String.InStr($Line, "DepartmentStructured") > 0) Then
-    $Line = Replace($Line, "{DepartmentStructured}", modString.TextToHTML(modPatReports.GetRecommendedExam($encid, "Departmental")))
+    $Line = Replace($Line, "{DepartmentStructured}", modString.TextToHTML(modClinicReport.GetRecommendedExam($encid, "Departmental")))
   Endif
   If (String.InStr($Line, "EssentialExaminations") > 0) Then
     $Line = Replace($Line, "{EssentialExaminations}", modString.TextToHTML(modPatReports.GetSelectFindingReport($encid, "Essential Examinations").Join(gb.NewLine)))
@@ -1889,47 +1900,11 @@ Public Function GetReporExamStructured($encid As String, $Line As String) As Str
 
   If (String.InStr($Line, "$Struct_Exam:") > 0) Then
     xx = modString.GetSelectedTextBetween($Line, "$Struct_Exam:", "$")
-    xval = modClinic.GetCurrExamTimeValueStructured($encid, UnQuote(xx))
+    xval = modClinicReport.GetCurrExamTimeValueStructured($encid, UnQuote(xx), False)
     If xval Then
       $Line = Replace($Line, "{$Struct_Exam:" & xx & "$}", xval)
     Else
       $Line = Replace($Line, "{$Struct_Exam:" & xx & "$}", "__")
-    Endif
-  Endif
-  Return $Line
-
-End
-
-Public Function GetReporExamTriage($encid As String, $Line As String) As String
-
-  Dim xx As String
-  Dim xval As String
-
-  If (String.InStr($Line, "$Triage_Exam:") > 0) Then
-    xx = modString.GetSelectedTextBetween($Line, "$Triage_Exam:", "$")
-    xval = modClinic.GetCurrExamTimeValueSysConst($encid, UnQuote(xx), "ABC Examinations")
-    If xval Then
-      $Line = Replace($Line, "{$Triage_Exam:" & xx & "$}", xval)
-    Else
-      $Line = Replace($Line, "{$Triage_Exam:" & xx & "$}", "__")
-    Endif
-  Endif
-  Return $Line
-
-End
-
-Public Function GetReporExamDischarge($encid As String, $Line As String) As String
-
-  Dim xx As String
-  Dim xval As String
-
-  If (String.InStr($Line, "$Discharge_Exam:") > 0) Then
-    xx = modString.GetSelectedTextBetween($Line, "$Discharge_Exam:", "$")
-    xval = modClinic.GetCurrExamTimeValueSysConst($encid, UnQuote(xx), "Discharge Examinations")
-    If xval Then
-      $Line = Replace($Line, "{$Discharge_Exam:" & xx & "$}", xval)
-    Else
-      $Line = Replace($Line, "{$Discharge_Exam:" & xx & "$}", "__")
     Endif
   Endif
   Return $Line

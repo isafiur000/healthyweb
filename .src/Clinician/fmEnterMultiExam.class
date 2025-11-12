@@ -57,32 +57,23 @@ Private $viewSlider As Boolean
 Private $FocusTag As Integer
 
 ''----------------------------------------- create controls -----------------------------------------
-Public Sub _new(sPrompt As String, encid As String, sTable As String, idList As String[], sCategory As String)
+Public Sub _new(sPrompt As String, encid As String, sTable As String, idList As String[], sCategory As String, sExpand As Boolean, sClass As String)
 
-  Dim idx As String
-  Dim i As Integer
   Dim ht As String
-
-  Dim rsn As Result
-  Dim res As Result
-
-  Dim xcode As String
-  Dim xType As String
-  Dim xOption As String
-  Dim xitem As String
-  Dim xexam As String
-  Dim xopList As String[]
-  Dim xSysCons As String
-  Dim xsource As String
-  Dim xhelp As String
-  Dim xuniq As Integer
-  Dim xdefVal As String
 
   $encid = encid
   $sTable = sTable
   $idList = idList
   $sCategory = sCategory
   lblitem.Text = sPrompt
+  If sExpand = True Then
+    Me.Expand = True
+    pnlmain.Expand = True
+    btnBrChange.Visible = False
+  Else
+    Me.Class = "size-popupform"
+  Endif
+  pnlmain.Class = sClass
   modGeneralMain.GetOpenModalForm(Me)
 
   AppFactor = modBasic.$AppScaleFactor
@@ -97,6 +88,27 @@ Public Sub _new(sPrompt As String, encid As String, sTable As String, idList As 
   Else
     Slider1.Value = 3
   Endif
+  SetVariables()
+
+End
+
+Private Sub SetVariables()
+
+  Dim idx As String
+  Dim rsn As Result
+  Dim res As Result
+
+  Dim xcode As String
+  Dim xType As String
+  Dim xOption As String
+  Dim xitem As String
+  Dim xexam As String
+  Dim xopList As String[]
+  Dim xSysCons As String
+  Dim xsource As String
+  Dim xhelp As String
+  Dim xuniq As Integer
+  Dim xdefVal As String
 
   $xCode = New String[]
   $xType = New String[]
@@ -245,6 +257,13 @@ Public Sub _new(sPrompt As String, encid As String, sTable As String, idList As 
 
     Endif
   Next
+  CreateVariables()
+
+End
+
+Private Sub CreateVariables()
+
+  Dim i As Integer
 
   For i = 0 To $xitem.Count - 1
     If i < 49 Then
@@ -587,12 +606,6 @@ Private Sub DIsplayTextForm()
 
 End
 
-Public Sub chkautoption_Click()
-
-  modSettings.EnterCheckSetting(chkautoption, "EntrySetting/AutoDisplayOptions")
-
-End
-
 Public Sub btnrefresh_Click()
 
   modSettings.SaveSettingsToFile("MultipleTextBox/Height", Slider1.Value)
@@ -672,78 +685,80 @@ Private Sub FillExamSubExam()
 
   Dim i As Integer
   ' Dim xval As String
+  Dim xhash As String
 
+  xhash = $encid & ":" & $sTable & ":" & modMisc.GetWebIndexStr(modString.GetDateString(Now()))
   For i = 0 To $xitem.Count - 1
     If i < 49 Then
       If $xType[i] = "Quantitative" Then
         If aQuantiBox[i].Value Then
-          modClinSub.AddQuantiDataUniq($encid, $idList[i], $xitem[i], $xOption[i], aQuantiBox[i].Value, aAbnormCheck[i].Value, $sTable, $xSysCons[i], $sCategory, $xUniqList[i])
+          modClinSub.AddQuantiDataUniq($encid, $idList[i], $xitem[i], $xOption[i], aQuantiBox[i].Value, aAbnormCheck[i].Value, $sTable, $xSysCons[i], $sCategory, $xUniqList[i], xhash)
         Endif
       Else
         If $xOption[i] = "Multiple Selection" Then
           If aListBox[i].Count Then
-            modClinSub.AddQualiDataUniq($encid, $idList[i], $xitem[i], $xOption[i], aListBox[i].List.Join(gb.NewLine), aAbnormCheck[i].Value, $sTable, $xSysCons[i], $sCategory, $xUniqList[i])
+            modClinSub.AddQualiDataUniq($encid, $idList[i], $xitem[i], $xOption[i], aListBox[i].List.Join(gb.NewLine), aAbnormCheck[i].Value, $sTable, $xSysCons[i], $sCategory, $xUniqList[i], xhash)
           Endif
         Else If $xOption[i] = "Text Table" Then
           ' xval = GetTableData(Split($xOpList[i], "|"), aGridView[i])
           ' If xval Then
-          '   modClinSub.AddQualiDataUniq($encid, $idList[i], $xitem[i],$xOption[i], modString.GetTableFormatFromText(xval), aAbnormCheck[i].Value, $sTable, $xSysCons[i],$xUniqList[i])
+          '   modClinSub.AddQualiDataUniq($encid, $idList[i], $xitem[i],$xOption[i], modString.GetTableFormatFromText(xval), aAbnormCheck[i].Value, $sTable, $xSysCons[i],$xUniqList[i], xhash)
           ' Endif
         Else If $xOption[i] = "Single Selection" Then
           If aComboBox[i].Text Then
-            modClinSub.AddQualiDataUniq($encid, $idList[i], $xitem[i], $xOption[i], aComboBox[i].Text, aAbnormCheck[i].Value, $sTable, $xSysCons[i], $sCategory, $xUniqList[i])
+            modClinSub.AddQualiDataUniq($encid, $idList[i], $xitem[i], $xOption[i], aComboBox[i].Text, aAbnormCheck[i].Value, $sTable, $xSysCons[i], $sCategory, $xUniqList[i], xhash)
           Endif
         Else If $xOption[i] = "Dichotomous" Then
           If aDichoValue[i].Value Then
-            modClinSub.AddQualiDataUniq($encid, $idList[i], $xitem[i], $xOption[i], aDichoValue[i].Value, aAbnormCheck[i].Value, $sTable, $xSysCons[i], $sCategory, $xUniqList[i])
+            modClinSub.AddQualiDataUniq($encid, $idList[i], $xitem[i], $xOption[i], aDichoValue[i].Value, aAbnormCheck[i].Value, $sTable, $xSysCons[i], $sCategory, $xUniqList[i], xhash)
           Endif
         Else If $xOption[i] = "Left and Right" Then
           If aLeftRight[i].DataText Then
-            modClinSub.AddQualiDataUniq($encid, $idList[i], $xitem[i], $xOption[i], aLeftRight[i].DataText, aAbnormCheck[i].Value, $sTable, $xSysCons[i], $sCategory, $xUniqList[i])
+            modClinSub.AddQualiDataUniq($encid, $idList[i], $xitem[i], $xOption[i], aLeftRight[i].DataText, aAbnormCheck[i].Value, $sTable, $xSysCons[i], $sCategory, $xUniqList[i], xhash)
           Endif
         Else If $xOption[i] = "Left Right Qualitative" Then
           If aLeftRightText[i].DataText Then
-            modClinSub.AddQualiDataUniq($encid, $idList[i], $xitem[i], $xOption[i], aLeftRightText[i].DataText, aAbnormCheck[i].Value, $sTable, $xSysCons[i], $sCategory, $xUniqList[i])
+            modClinSub.AddQualiDataUniq($encid, $idList[i], $xitem[i], $xOption[i], aLeftRightText[i].DataText, aAbnormCheck[i].Value, $sTable, $xSysCons[i], $sCategory, $xUniqList[i], xhash)
           Endif
         Else If $xOption[i] = "Left Right Quantitative" Then
           If aLeftRightValue[i].DataValue Then
-            modClinSub.AddQualiDataUniq($encid, $idList[i], $xitem[i], $xOption[i], aLeftRightValue[i].DataValue, aAbnormCheck[i].Value, $sTable, $xSysCons[i], $sCategory, $xUniqList[i])
+            modClinSub.AddQualiDataUniq($encid, $idList[i], $xitem[i], $xOption[i], aLeftRightValue[i].DataValue, aAbnormCheck[i].Value, $sTable, $xSysCons[i], $sCategory, $xUniqList[i], xhash)
           Endif
         Else If $xOption[i] = "Date Time" Then
           If aDateBox[i].Value Then
-            modClinSub.AddQualiDataUniq($encid, $idList[i], $xitem[i], $xOption[i], modDate.DateStringForExam(aDateBox[i].Value), aAbnormCheck[i].Value, $sTable, $xSysCons[i], $sCategory, $xUniqList[i])
+            modClinSub.AddQualiDataUniq($encid, $idList[i], $xitem[i], $xOption[i], modDate.DateStringForExam(aDateBox[i].Value), aAbnormCheck[i].Value, $sTable, $xSysCons[i], $sCategory, $xUniqList[i], xhash)
           Endif
         Else If $xOption[i] = "BS Date" Then
           If aDateBox[i].Value Then
-            modClinSub.AddQualiDataUniq($encid, $idList[i], $xitem[i], $xOption[i], modDate.ConvertToLocaldate(aDateBox[i].Value), aAbnormCheck[i].Value, $sTable, $xSysCons[i], $sCategory, $xUniqList[i])
+            modClinSub.AddQualiDataUniq($encid, $idList[i], $xitem[i], $xOption[i], modDate.ConvertToLocaldate(aDateBox[i].Value), aAbnormCheck[i].Value, $sTable, $xSysCons[i], $sCategory, $xUniqList[i], xhash)
           Endif
         Else If $xOption[i] = "User Profile" Then
           If aLineText[i].Text Then
-            modClinSub.AddQualiDataUniq($encid, $idList[i], $xitem[i], $xOption[i], aLineText[i].Text, aAbnormCheck[i].Value, $sTable, $xSysCons[i], $sCategory, $xUniqList[i])
+            modClinSub.AddQualiDataUniq($encid, $idList[i], $xitem[i], $xOption[i], aLineText[i].Text, aAbnormCheck[i].Value, $sTable, $xSysCons[i], $sCategory, $xUniqList[i], xhash)
           Endif
         Else If $xOption[i] = "ImageValue" Then
           If aButtonBox[i].Text Then
-            modClinSub.AddQualiImageData($encid, $idList[i], $xitem[i], $xOption[i], $sTable, $xSysCons[i], aButtonBox[i].Text, $sCategory)
+            modClinSub.AddQualiImageData($encid, $idList[i], $xitem[i], $xOption[i], $sTable, $xSysCons[i], aButtonBox[i].Text, $sCategory, xhash)
           Endif
         Else If $xOption[i] = "Quantitative" Then
           If aValueBox[i].Value Then
-            modClinSub.AddQualiDataUniq($encid, $idList[i], $xitem[i], $xOption[i], CStr(aValueBox[i].Value) & Space(1) & aUnitText[i].Text, aAbnormCheck[i].Value, $sTable, $xSysCons[i], $sCategory, $xUniqList[i])
+            modClinSub.AddQualiDataUniq($encid, $idList[i], $xitem[i], $xOption[i], CStr(aValueBox[i].Value) & Space(1) & aUnitText[i].Text, aAbnormCheck[i].Value, $sTable, $xSysCons[i], $sCategory, $xUniqList[i], xhash)
           Endif
         Else If $xOption[i] = "Qualitative" Then
           If aLineText[i].Text Then
-            modClinSub.AddQualiDataUniq($encid, $idList[i], $xitem[i], $xOption[i], aLineText[i].Text, aAbnormCheck[i].Value, $sTable, $xSysCons[i], $sCategory, $xUniqList[i])
+            modClinSub.AddQualiDataUniq($encid, $idList[i], $xitem[i], $xOption[i], aLineText[i].Text, aAbnormCheck[i].Value, $sTable, $xSysCons[i], $sCategory, $xUniqList[i], xhash)
           Endif
         Else If $xOption[i] = "Clinical Scale" Then
           If aTextArea[i].Text Then
-            modClinSub.AddClinicExam($encid, $idList[i], $xitem[i], $xOption[i], aTextArea[i].Text, aClinBox[i].Value, aAbnormCheck[i].Value, $sTable, $xSysCons[i], $sCategory)
+            modClinSub.AddClinicExam($encid, $idList[i], $xitem[i], $xOption[i], aTextArea[i].Text, aClinBox[i].Value, aAbnormCheck[i].Value, $sTable, $xSysCons[i], $sCategory, xhash)
           Endif
         Else If $xOption[i] = "RichText Area" Then
           If aHTMLText[i].Text Then
-            modClinSub.AddQualiDataUniq($encid, $idList[i], $xitem[i], $xOption[i], aHTMLText[i].RichText, aAbnormCheck[i].Value, $sTable, $xSysCons[i], $sCategory, $xUniqList[i])
+            modClinSub.AddQualiDataUniq($encid, $idList[i], $xitem[i], $xOption[i], aHTMLText[i].RichText, aAbnormCheck[i].Value, $sTable, $xSysCons[i], $sCategory, $xUniqList[i], xhash)
           Endif
         Else
           If aGenTextArea[i].Text Then
-            modClinSub.AddQualiDataUniq($encid, $idList[i], $xitem[i], $xOption[i], aGenTextArea[i].Text, aAbnormCheck[i].Value, $sTable, $xSysCons[i], $sCategory, $xUniqList[i])
+            modClinSub.AddQualiDataUniq($encid, $idList[i], $xitem[i], $xOption[i], aGenTextArea[i].Text, aAbnormCheck[i].Value, $sTable, $xSysCons[i], $sCategory, $xUniqList[i], xhash)
           Endif
         Endif
       Endif
@@ -1020,19 +1035,6 @@ End
 '   Return xval
 '
 ' End
-
-Public Sub WebForm_Open()
-
-  Dim xoption As String
-
-  xoption = modSettings.ShowSettingFromFIle("EntrySetting/AutoDisplayOptions")
-  If xoption = "Yes" Then
-    chkautoption.Value = True
-  Else If xoption = "No" Then
-    chkautoption.Value = False
-  Endif
-
-End
 
 Private Function GetCalculateVariant(sFormula As String, encid As String) As Variant
 

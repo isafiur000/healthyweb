@@ -233,6 +233,27 @@ Public Function GetEncListFromPatNo(ptno As String, Optional sCon As Connection)
 
 End
 
+Public Function GetPastEncListFromEncounter(encid As String, Optional sCon As Connection) As String[]
+
+  Dim res1 As Result
+  Dim res As Result
+  Dim $con As Connection
+  Dim xx As String[]
+
+  If sCon Then
+    $con = sCon
+  Else
+    $con = modDatabase.$myConn
+  Endif
+  res1 = $con.Exec("select fldpatientval,fldregdate from tblencounter where fldencounterval=&1", encid)
+  If res1.Available Then
+    res = $con.Exec("select fldencounterval as col from tblencounter where fldpatientval=&1 and fldregdate<=&2 ORDER BY fldregdate", res1["fldpatientval"], res1["fldregdate"])
+    xx = modControlSub.GetDirectFillresult(res)
+  Endif
+  Return xx
+
+End
+
 Public Function GetEncListFromEncSetting(encid As String, Optional sCon As Connection) As String[]
 
   Dim xx As String[]

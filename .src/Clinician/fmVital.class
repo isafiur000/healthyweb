@@ -1,6 +1,7 @@
 ' Gambas class file
 
 Private $encid As String
+Private $PatientNum As String
 Private $rData As Result
 Private $aMyFields As String[]
 Private xFinal As Variant[]
@@ -21,10 +22,18 @@ Public Sub _new(encid As String, sWidth As String)
     btnclose.Visible = False
   Endif
 
+  $PatientNum = modPatient.GetPatientNoByEnc($encid)
   txtpatientname.Text = modPatient.GetPatientNameByEnc($encid)
   txtcolor.Background = modPatient.GetPatientColorStatic($encid)
   $sVitalsVar = modPathoSub.GetAllEssentialExams($encid)
   ListBox1.List = modString.GetListFromVariant($sVitalsVar, "ExamName", True)
+  rbdaily.Value = True
+
+End
+
+Public Sub btngridrefresh_Click()
+
+  FillDailyGrid()
 
 End
 
@@ -325,12 +334,21 @@ Private Sub FillDailyGrid()
 
   xFinal = New Variant[]
 
-  xfir = modDate.StartSqlHour(DateAdd(Now(), gb.Hour, -18))
-  xlast = modDate.StartSqlHour(DateAdd(Now(), gb.Hour, 1))
-
   GridView2.Clear()
   GridView2.Count = $sVitalsVar.Count
-  GridView2.Columns.Count = DateDiff(xfir, xlast, gb.Hour) + 1
+  If rbdaily.Value = True Then
+    xfir = modDate.StartSqlHour(DateAdd(Now(), gb.Hour, -12))
+    xlast = modDate.StartSqlHour(DateAdd(Now(), gb.Hour, 1))
+    GridView2.Columns.Count = DateDiff(xfir, xlast, gb.Hour) + 1
+  Else If rbmonthly.Value = True Then
+    xfir = modDate.StartSqlDate(DateAdd(Now(), gb.Day, -12))
+    xlast = modDate.StartSqlDate(DateAdd(Now(), gb.Day, 1))
+    GridView2.Columns.Count = DateDiff(xfir, xlast, gb.Day) + 1
+  Else If rbyearly.Value = True Then
+    xfir = modDate.StartSqlMonth(DateAdd(Now(), gb.Month, -12))
+    xlast = modDate.StartSqlMonth(DateAdd(Now(), gb.Month, 1))
+    GridView2.Columns.Count = DateDiff(xfir, xlast, gb.Month) + 1
+  Endif
 
   For i = 0 To GridView2.Count - 1
     xRowVal = New Collection
@@ -338,7 +356,13 @@ Private Sub FillDailyGrid()
       If j = 0 Then
         xRowVal.Add($sVitalsVar[i]["ExamName"], CStr(j))
       Else
-        xRowVal.Add(GetExamValueByDate($encid, $sVitalsVar[i]["ExamName"], DateAdd(xfir, gb.Hour, j)), CStr(j))
+        If rbdaily.Value = True Then
+          xRowVal.Add(GetExamValueByDate($PatientNum, $sVitalsVar[i]["ExamName"], DateAdd(xfir, gb.Hour, j)), CStr(j))
+        Else If rbmonthly.Value = True Then
+          xRowVal.Add(GetExamValueByDate($PatientNum, $sVitalsVar[i]["ExamName"], DateAdd(xfir, gb.Day, j)), CStr(j))
+        Else If rbyearly.Value = True Then
+          xRowVal.Add(GetExamValueByDate($PatientNum, $sVitalsVar[i]["ExamName"], DateAdd(xfir, gb.Month, j)), CStr(j))
+        Endif
       Endif
     Next
     xFinal.Add(xRowVal)
@@ -350,8 +374,14 @@ Private Sub FillDailyGrid()
         .Columns[j].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
         .Columns[j].Text = "Examination"
       Else
-        .Columns[j].Width = CStr(50 * modBasic.$AppWidthRatio) & "px"
-        .Columns[j].Text = modReportVar.GetDateTimeReport(DateAdd(xfir, gb.Hour, j), gb.ShortTime)
+        .Columns[j].Width = CStr(64 * modBasic.$AppWidthRatio) & "px"
+        If rbdaily.Value = True Then
+          .Columns[j].Text = modReportVar.GetDateTimeReport(DateAdd(xfir, gb.Hour, j), gb.ShortTime)
+        Else If rbmonthly.Value = True Then
+          .Columns[j].Text = modDate.GetDateOnlyInFormatForAll(DateAdd(xfir, gb.Day, j), modBasic.$DateFormat, "DateOnly")
+        Else If rbyearly.Value = True Then
+          .Columns[j].Text = modDate.GetDateOnlyInFormatForAll(DateAdd(xfir, gb.Month, j), modBasic.$DateFormat, "YearMonth")
+        Endif
       Endif
     Next
   End With
@@ -366,12 +396,25 @@ Public Sub GridView2_Data(Row As Integer, Column As Integer, Data As WebTableDat
 
 End
 
-Private Function GetExamValueByDate(encid As String, xexam As String, xDate As Date) As String
+Private Function GetExamValueByDate(patNo As String, xexam As String, xDate As Date) As String
 
   Dim res As Result
   Dim xx As String
+  Dim xfir As Date
+  Dim xlast As Date
 
-  res = modDatabase.$myConn.Exec("select fldrepquanti from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldhead=&3 and fldtime>=&4 and fldtime<=&5", encid, True, xexam, modDate.StartSqlHour(xDate), modDate.EndSqlHour(xDate))
+  If rbdaily.Value = True Then
+    xfir = modDate.StartSqlHour(xDate)
+    xlast = modDate.EndSqlHour(xDate)
+  Else If rbmonthly.Value = True Then
+    xfir = modDate.StartSqlDate(xDate)
+    xlast = modDate.EndSqlDate(xDate)
+  Else If rbyearly.Value = True Then
+    xfir = modDate.StartSqlMonth(xDate)
+    xlast = modDate.EndSqlMonth(xDate)
+  Endif
+
+  res = modDatabase.$myConn.Exec("select tblpatientexam.fldrepquanti as fldrepquanti from tblpatientexam inner join tblencounter on tblpatientexam.fldencounterval=tblencounter.fldencounterval  where tblencounter.fldpatientval=&1 and tblpatientexam.fldsave=&2 and tblpatientexam.fldhead=&3 and tblpatientexam.fldtime>=&4 and tblpatientexam.fldtime<=&5", patNo, True, xexam, xfir, xlast)
   If res.Available Then
     res.MoveFirst
     If res["fldrepquanti"] Then
