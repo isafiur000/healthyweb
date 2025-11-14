@@ -7,6 +7,7 @@ Private aLeftPanel As New Object[50]
 Private aRightPanel As New Object[50]
 Private aIndexVal As New Object[50]
 Private aTimeLabel As New Object[50]
+Private aTimeBox As New Object[50]
 Private aRegmLabel As New Object[50]
 Private aQuantiBox As New Object[50]
 Private aUnitLabel As New Object[50]
@@ -107,7 +108,12 @@ Private Sub LoadControlsWeb()
   If $rData.Available Then
     For Each $rData
       If i < 49 Then
-        xtime = GetCurrentTime($rData["fldid"], $rData["fldfreq"], $rData["fldstarttime"])
+        Select $rData["fldfreq"]
+          Case "stat", "PRN", "SOS"
+            xtime = Time(Now())
+          Case Else
+            xtime = GetCurrentTime($rData["fldid"], $rData["fldfreq"], $rData["fldstarttime"])
+        End Select
         If xtime Then
 
           aWebFrame[i] = New WebContainer(Frame1)
@@ -117,6 +123,7 @@ Private Sub LoadControlsWeb()
           aLeftPanel[i] = New WebHBox(aHorizPanel[i])
           aIndexVal[i] = New WebValueBox(aLeftPanel[i])
           aTimeLabel[i] = New WebLabel(aLeftPanel[i])
+          aTimeBox[i] = New WebDateBox(aLeftPanel[i])
           aRegmLabel[i] = New WebLabel(aLeftPanel[i])
 
           aRightPanel[i] = New WebHBox(aHorizPanel[i])
@@ -153,10 +160,16 @@ Private Sub LoadControlsWeb()
             .Tag = i
           End With
           With aTimeLabel[i]
-            .Width = "5em"
+            .Width = "4em"
             .Height = "2em"
             .Border = True
-            .Text = CStr(xtime)
+            .Text = modReportVar.GetDateTimeReport(xtime, gb.ShortTime)
+            .Tag = i
+          End With
+          With aTimeBox[i]
+            .DateTime = False
+            .Value = xtime
+            .Visible = False
             .Tag = i
           End With
           With aRegmLabel[i]
@@ -231,9 +244,9 @@ Public Sub btnsaveall_Click()
 
             If aTimeLabel[i].Text Then
               If aSkipBox[i].Value Then
-                modPharmSub.InsertNurDosing(aIndexVal[i].Value, Trim(txtencid.Text), 0, aDoseLabel[i].Text, CDate(aTimeLabel[i].Text))
+                modPharmSub.InsertNurDosing(aIndexVal[i].Value, Trim(txtencid.Text), 0, aDoseLabel[i].Text, aTimeBox[i].Value)
               Else
-                modPharmSub.InsertNurDosing(aIndexVal[i].Value, Trim(txtencid.Text), aQuantiBox[i].Value, aDoseLabel[i].Text, CDate(aTimeLabel[i].Text))
+                modPharmSub.InsertNurDosing(aIndexVal[i].Value, Trim(txtencid.Text), aQuantiBox[i].Value, aDoseLabel[i].Text, aTimeBox[i].Value)
               Endif
             Else
               modPharmSub.InsertNurDosing(aIndexVal[i].Value, Trim(txtencid.Text), aQuantiBox[i].Value, aDoseLabel[i].Text, "")

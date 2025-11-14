@@ -4340,3 +4340,47 @@ Public Sub ShowRepoSummExpensePatient(encid As String)
   Endif
 
 End
+
+''-------------------- summary ---------------------------
+Public Function GetOPDSummaryReportAllComp(encid As String) As String
+
+  Dim $BillingReport As CReportHTML
+  Dim xlist1 As String[]
+  Dim xlist2 As String[]
+  Dim xlist As String[]
+  Dim compLst As String[]
+  Dim xcomp As String
+  Dim curcomp As String
+
+  xlist = New String[]
+  xlist1 = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldcomp) as col from tblexamgeneral where fldencounterval=&1", encid))
+  xlist2 = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldcomp) as col from tblpatientexam where fldencounterval=&1 and fldsave=&2", encid, True))
+  xlist.Insert(xlist1)
+  xlist.Insert(xlist2)
+  If xlist.Count Then
+    compLst = modString.GetDistinctStringArray(xlist)
+
+    If modBasic.$MedRepoBody = "Paragraph" Then
+      $BillingReport = New CReportHTML([("Description")], "PatientReport", encid)
+    Else
+      $BillingReport = New CReportHTML([("Category"), ("Observations")], "PatientReport", encid)
+    Endif
+    $BillingReport.UserData.Add("REPORT", "Report")
+    $BillingReport.UserData.Add("OPD VISITS", "PARAM1")
+
+    curcomp = modBasic.$compID
+    For Each xcomp In compLst
+      $BillingReport.AddSection(xcomp)
+      modBasic.$compID = xcomp
+      $BillingReport.Add(AddChiefComplaints(encid))
+      $BillingReport.Add(AddEssentialFindings(encid))
+      $BillingReport.Add(AddPhysicianFindings(encid))
+      $BillingReport.Add(AddTreatmentAdvised(encid))
+      $BillingReport.Add(AddOPDAdvice(encid))
+    Next
+    modBasic.$compID = curcomp
+  Endif
+
+  Return $BillingReport.NewHTMLPath()
+
+End
