@@ -811,7 +811,7 @@ Public Sub GetAutoBillingClinic(encid As String, DiscPackage As String, sRoute A
   discper = modNonMedical.DiscPercentForCategoryValue(encid, DiscPackage, itemtyp, itemname, sBillingMode)
   xCshCrd = modNonMedical.CashInCreditPerForCategory(DiscPackage, itemtyp, itemname, sBillingMode)
 
-  res = modDatabase.$myConn.Exec("select fldid,flditemcost,flditemunit,fldtarget,fldtaxcode from tblservicecost where flditemname=&1 and flditemtype like &2", itemname, itemtyp)
+  res = modDatabase.$myConn.Exec("select fldid,flditemcost,flditemunit,fldtarget,fldtaxcode,fldgetcomment from tblservicecost where flditemname=&1 and flditemtype like &2", itemname, itemtyp)
   If res.Available Then
     If res["fldid"] Then
       itemNo = res["fldid"]
@@ -841,10 +841,20 @@ Public Sub GetAutoBillingClinic(encid As String, DiscPackage As String, sRoute A
       taxper = 0
     Endif
 
-    If sReason Then
-      InsertBlankBillItemNewApp(encid, sBilType, sBillingMode, DiscPackage, LedgerAC, itemtyp, itemNo, itemname, sRate, sQTY, taxper, discper, xCshCrd, status, parentNo, sav, prt, target, sPay, sRef, sReason, "", xexInfo)
+    If res["fldgetcomment"] = True Then
+      If sReason Then
+      Else
+        sReason = GetTextArea(itemname)
+      Endif
+      If sReason Then
+        InsertBlankBillItemNewApp(encid, sBilType, sBillingMode, DiscPackage, LedgerAC, itemtyp, itemNo, itemname, sRate, sQTY, taxper, discper, xCshCrd, status, parentNo, sav, prt, target, sPay, sRef, sReason, "", xexInfo)
+      Endif
     Else
-      InsertBlankBillItemNewApp(encid, sBilType, sBillingMode, DiscPackage, LedgerAC, itemtyp, itemNo, itemname, sRate, sQTY, taxper, discper, xCshCrd, status, parentNo, sav, prt, target, sPay, sRef, "", "", xexInfo)
+      If sReason Then
+        InsertBlankBillItemNewApp(encid, sBilType, sBillingMode, DiscPackage, LedgerAC, itemtyp, itemNo, itemname, sRate, sQTY, taxper, discper, xCshCrd, status, parentNo, sav, prt, target, sPay, sRef, sReason, "", xexInfo)
+      Else
+        InsertBlankBillItemNewApp(encid, sBilType, sBillingMode, DiscPackage, LedgerAC, itemtyp, itemNo, itemname, sRate, sQTY, taxper, discper, xCshCrd, status, parentNo, sav, prt, target, sPay, sRef, "", "", xexInfo)
+      Endif
     Endif
   Endif
   'dont catch error. Error will rollback

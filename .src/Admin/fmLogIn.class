@@ -48,20 +48,17 @@ Public Sub _new()
 
     Select MMain.$SISHAppMode
       Case "HMIS", "PHM"
-        cmbtarget.Visible = False
         panOption.Visible = False
         cmbusname.Visible = False
       Case "REP", "Dashboard", "TeleMed", "Insurance", "Registry"
-        cmbtarget.Visible = False
         panOption.Visible = False
         cmbusname.Visible = False
         btnChange.Visible = False
       Case Else
         panOption.Visible = True
         cmbusname.Visible = True
-        cmbtarget.Visible = True
-        cmbtarget.List = modGeneralMain.GetWebDepartList()
     End Select
+    pnllocation.Visible = False
 
     xver = " (Ver. " & Application.Version & ")"
     Select MMain.$SISHAppMode
@@ -89,9 +86,9 @@ Public Sub _new()
       btnlink.Text = "Send email to Support Team"
     Endif
 
-    If cmbtarget.List.Count Then
-      cmbtarget.Text = cmbtarget.List[0]
-    Endif
+    ' If cmbtarget.List.Count Then
+    '   cmbtarget.Text = cmbtarget.List[0]
+    ' Endif
 
   Endif
 
@@ -123,11 +120,10 @@ End
 
 Public Sub btnOK_Click()
 
-  Dim res As Result
-  Dim rs1 As Result
   Dim res2 As Result
   Dim xgo As Boolean
   Dim xList As String[]
+  Dim compLst As String[]
 
   ' ' modExternal.KillKeyBoardScript()
   ' ' Wait
@@ -145,14 +141,13 @@ Public Sub btnOK_Click()
     If xgo = True Then
 
       modHelpVariable.$GeoCoordinate = Trim(wbgeolocat.Text)
+      Select MMain.$SISHAppMode
+        Case "REP", "HMIS", "Dashboard", "TeleMed", "Insurance", "Registry"
+          modHelpVariable.$MACAddress = ""
+        Case Else
+          modHelpVariable.$MACAddress = modApplication.GetMACAddress()
+      End Select
       If modPassword.AloowMacAddressCheck(modHelpVariable.$MACAddress) = True Then
-        Select MMain.$SISHAppMode
-          Case "REP", "HMIS", "Dashboard", "TeleMed", "Insurance", "Registry"
-            modHelpVariable.$MACAddress = ""
-          Case Else
-            modHelpVariable.$MACAddress = modApplication.GetMACAddress()
-        End Select
-
         modHelpVariable.$localIP = CGI["REMOTE_ADDR"] & ":" & CGI["REMOTE_PORT"]
         If MMain.$SISHAppMode = "TeleMed" Then
           res2 = modDatabase.$myConn.Exec("select fldcategory,fldteleuser,fldpass,fldusercode,fldfromdate,fldtodate from tbltelemeduser where fldteleuser=&1 and fldpass=&2 and fldstatus=&3", Trim(txtuser.text), modPassword.EncryptSimple(txtpass.Text), "Active")
@@ -169,143 +164,72 @@ Public Sub btnOK_Click()
             modBasic.$lbluser = res2["flduserid"]
           Endif
 
-          If modPassword.GetLoginAuthentication(Trim(txtuser.text), modBasic.$compID) = True Then
+          ''login
+          If modPassword.LogInActiveDuration(res2["fldfromdate"], res2["fldtodate"]) Then
+            MMain.InitialAppMode()
+            If MMain.$SISHAppMode = "Dashboard" Then
+              MMain.$AppLogCategory = res2["fldcategory"]
+              MMain.$AppLogString = res2["fldusercode"]
+              WebForm.Current = fmDashboard
 
-            If modPassword.LogInActiveDuration(res2["fldfromdate"], res2["fldtodate"]) Then
-              MMain.InitialAppMode()
-              If MMain.$SISHAppMode = "Dashboard" Then
+            Else If MMain.$SISHAppMode = "REP" Then
+              MMain.$AppLogCategory = res2["fldcategory"]
+              MMain.$AppLogString = res2["fldusercode"]
+              WebForm.Current = fmRepository
+
+            Else If MMain.$SISHAppMode = "TeleMed" Then
+              ' MMain.$AppLogCategory = res2["fldcategory"]
+              ' MMain.$AppLogString = res2["fldusercode"]
+              WebForm.Current = fmTeleMedicine
+
+            Else If MMain.$SISHAppMode = "Insurance" Then
+              MMain.$AppLogCategory = res2["fldcategory"]
+              MMain.$AppLogString = res2["fldusercode"]
+              WebForm.Current = fmInsurer
+
+              ''different values for Govt=Yes and No
+            Else If MMain.$SISHAppMode = "HMIS" Then
+              MMain.$AppLogCategory = res2["fldcategory"]
+              MMain.$AppLogString = res2["fldusercode"]
+              WebForm.Current = fmHMISMatNeo
+
+              ''different values for Govt=Yes and No
+            Else If MMain.$SISHAppMode = "Registry" Then
+              MMain.$AppLogCategory = res2["fldcategory"]
+              MMain.$AppLogString = res2["fldusercode"]
+              WebForm.Current = fmRegistryMain
+
+            Else If MMain.$SISHAppMode = "PHM" Then
+              If Not modBasic.$compID Then
+                modBasic.$compID = "Pharmacy"
+              Endif
+              WebForm.Current = fmGPPTesting
+
+            Else  ''hmis
+              If MMain.$WebEntry = True Then
                 MMain.$AppLogCategory = res2["fldcategory"]
                 MMain.$AppLogString = res2["fldusercode"]
-                WebForm.Current = fmDashboard
-
-              Else If MMain.$SISHAppMode = "REP" Then
-                MMain.$AppLogCategory = res2["fldcategory"]
-                MMain.$AppLogString = res2["fldusercode"]
-                WebForm.Current = fmRepository
-
-              Else If MMain.$SISHAppMode = "TeleMed" Then
-                ' MMain.$AppLogCategory = res2["fldcategory"]
-                ' MMain.$AppLogString = res2["fldusercode"]
-                WebForm.Current = fmTeleMedicine
-
-              Else If MMain.$SISHAppMode = "Insurance" Then
-                MMain.$AppLogCategory = res2["fldcategory"]
-                MMain.$AppLogString = res2["fldusercode"]
-                WebForm.Current = fmInsurer
-
-                ''different values for Govt=Yes and No
-              Else If MMain.$SISHAppMode = "HMIS" Then
-                MMain.$AppLogCategory = res2["fldcategory"]
-                MMain.$AppLogString = res2["fldusercode"]
-                WebForm.Current = fmHMISMatNeo
-
-                ''different values for Govt=Yes and No
-              Else If MMain.$SISHAppMode = "Registry" Then
-                MMain.$AppLogCategory = res2["fldcategory"]
-                MMain.$AppLogString = res2["fldusercode"]
-                WebForm.Current = fmRegistryMain
-
-              Else If MMain.$SISHAppMode = "PHM" Then
-                If Not modBasic.$compID Then
-                  modBasic.$compID = "Pharmacy"
-                Endif
-                WebForm.Current = fmGPPTesting
-
-              Else  ''hmis
-                If MMain.$WebEntry = True Then
-                  MMain.$AppLogCategory = res2["fldcategory"]
-                  MMain.$AppLogString = res2["fldusercode"]
-                Endif
-                If Not modBasic.$compID Then
-                  If xList.Exist(Trim(cmbtarget.Text)) Then
-                    modBasic.$compID = Trim(cmbtarget.Text)
-                  Endif
-                Endif
-                If modBasic.$compID Then
-                  rs1 = modDatabase.$myConn.Exec("select fldid,fldcomp from tblcompaccess where flduserid=&1 and fldcomp=&2", Trim(txtuser.text), modBasic.$compID)
-                  If rs1.Available = False Then
-                    Me.Exec("Toastify({text: 'Access to this Computer not granted', duration: 3000}).showToast()")
-                  Else
-                    rs1.MoveFirst
-                    modBasic.$compID = rs1["fldcomp"]
-
-                    res = modDatabase.$myConn.Exec("select fldaccess from tbluseraccess where flduserid=&1 and fldaccess=&2", Trim(txtuser.text), Base64(cmbusname.Text))
-                    If res.Available = False Then
-                      Me.Exec("Toastify({text: 'Access not granted for one/all department', duration: 3000}).showToast()")
-                    Else If res.Available = True Then
-                      res.MoveFirst
-                      modBasic.DebugString("Log In User is " & Trim(txtuser.Text) & "@" & cmbusname.Text)
-
-                      If optadmin.Value = True And If cmbusname.Text = "Admin" Then
-                        modHelpVariable.$ApplKey = 0
-                      Else
-                        modHelpVariable.$ApplKey = modPassword.ValidateKey()
-                      Endif
-                      If modHelpVariable.$ApplKey = 3 Then
-                        Return
-                      Else
-
-                        If optadmin.Value = True Then
-                          If cmbusname.Text = "Medical" Then
-                            WebForm.Current = fmMedical
-                          Else If cmbusname.Text = "Record" Then
-                            WebForm.Current = fmRecord
-                          Else If cmbusname.Text = "Admin" Then
-                            WebForm.Current = fmAdmin
-                          Endif
-
-                        Else If optcash.Value = True Then
-                          If cmbusname.Text = "Cashier" Then
-                            WebForm.Current = fmCashier
-                          Else If cmbusname.Text = "Account" Then
-                            WebForm.Current = fmAccount
-                          Endif
-
-                        Else If optlab.Value = True Then
-                          If cmbusname.Text = "Technologist" Then
-                            WebForm.Current = fmTechnologist
-                          Else If cmbusname.Text = "Technician" Then
-                            WebForm.Current = fmTechnician
-                          Endif
-
-                        Else If optclinic.Value = True Then
-                          If cmbusname.Text = "Consultant" Then
-                            WebForm.Current = fmConsultant
-                          Else If cmbusname.Text = "Clinician" Then
-                            WebForm.Current = fmOfficer
-                          Else If cmbusname.Text = "Research" Then
-                            WebForm.Current = fmResearch
-                          Endif
-
-                        Else If optstore.Value = True Then
-                          If cmbusname.Text = "Purchase" Then
-                            WebForm.Current = fmPurchase
-                          Else If cmbusname.Text = "Store" Then
-                            WebForm.Current = fmStore
-                          Endif
-
-                        Else If optphm.Value = True Then
-                          If cmbusname.Text = "Pharmacist" Then
-                            WebForm.Current = fmPharmacist
-                          Else If cmbusname.Text = "Dispensar" Then
-                            WebForm.Current = fmDispensar
-                          Endif
-                        Endif
-
-                      Endif
-
-                    Endif
-
-                  Endif
-                Endif  ''comp
               Endif
 
-            Else
-              Me.Exec("Toastify({text: 'Account expired', duration: 3000}).showToast()")
+              If Not modBasic.$compID Then
+                compLst = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldcomp) from tblcompaccess where flduserid=&1", Trim(txtuser.text)))
+                If compLst And If compLst.Count = 1 Then
+                  cmbtarget.Text = compLst[0]
+                  modBasic.$compID = compLst[0]
+                  btnselect_Click()
+                Else
+                  cmbtarget.List = compLst
+                  pnluser.Visible = False
+                  pnllocation.Visible = True
+                Endif
+              Else
+                btnselect_Click()
+              Endif
+
             Endif
 
           Else
-            Me.Exec("Toastify({text: 'Authentication Error', duration: 3000}).showToast()")
+            Me.Exec("Toastify({text: 'Account expired', duration: 3000}).showToast()")
           Endif
 
         Endif
@@ -322,6 +246,106 @@ Public Sub btnOK_Click()
 
 End
 
+Public Sub btnselect_Click()
+
+  Dim res As Result
+  Dim rs1 As Result
+
+  If Not modBasic.$compID Then
+    modBasic.$compID = Trim(cmbtarget.Text)
+  Endif
+  If modBasic.$compID Then
+    If modPassword.GetLoginAuthentication(Trim(txtuser.text), modBasic.$compID) = True Then
+      rs1 = modDatabase.$myConn.Exec("select fldid,fldcomp from tblcompaccess where flduserid=&1 and fldcomp=&2", Trim(txtuser.text), modBasic.$compID)
+      If rs1.Available = False Then
+        Me.Exec("Toastify({text: 'Access to this Computer not granted', duration: 3000}).showToast()")
+      Else
+        rs1.MoveFirst
+        modBasic.$compID = rs1["fldcomp"]
+
+        res = modDatabase.$myConn.Exec("select fldaccess from tbluseraccess where flduserid=&1 and fldaccess=&2", Trim(txtuser.text), Base64(cmbusname.Text))
+        If res.Available = False Then
+          Me.Exec("Toastify({text: 'Access not granted for one/all department', duration: 3000}).showToast()")
+        Else If res.Available = True Then
+          res.MoveFirst
+          modBasic.DebugString("Log In User is " & Trim(txtuser.Text) & "@" & cmbusname.Text)
+
+          If optadmin.Value = True And If cmbusname.Text = "Admin" Then
+            modHelpVariable.$ApplKey = 0
+          Else
+            modHelpVariable.$ApplKey = modPassword.ValidateKey()
+          Endif
+          If modHelpVariable.$ApplKey = 3 Then
+            Return
+          Else
+
+            If optadmin.Value = True Then
+              If cmbusname.Text = "Medical" Then
+                WebForm.Current = fmMedical
+              Else If cmbusname.Text = "Record" Then
+                WebForm.Current = fmRecord
+              Else If cmbusname.Text = "Admin" Then
+                WebForm.Current = fmAdmin
+              Endif
+
+            Else If optcash.Value = True Then
+              If cmbusname.Text = "Cashier" Then
+                WebForm.Current = fmCashier
+              Else If cmbusname.Text = "Account" Then
+                WebForm.Current = fmAccount
+              Endif
+
+            Else If optlab.Value = True Then
+              If cmbusname.Text = "Technologist" Then
+                WebForm.Current = fmTechnologist
+              Else If cmbusname.Text = "Technician" Then
+                WebForm.Current = fmTechnician
+              Endif
+
+            Else If optclinic.Value = True Then
+              If cmbusname.Text = "Consultant" Then
+                WebForm.Current = fmConsultant
+              Else If cmbusname.Text = "Clinician" Then
+                WebForm.Current = fmOfficer
+              Else If cmbusname.Text = "Research" Then
+                WebForm.Current = fmResearch
+              Endif
+
+            Else If optstore.Value = True Then
+              If cmbusname.Text = "Purchase" Then
+                WebForm.Current = fmPurchase
+              Else If cmbusname.Text = "Store" Then
+                WebForm.Current = fmStore
+              Endif
+
+            Else If optphm.Value = True Then
+              If cmbusname.Text = "Pharmacist" Then
+                WebForm.Current = fmPharmacist
+              Else If cmbusname.Text = "Dispensar" Then
+                WebForm.Current = fmDispensar
+              Endif
+            Endif
+
+          Endif
+
+        Endif
+
+      Endif
+
+    Else
+      Me.Exec("Toastify({text: 'Authentication Error', duration: 3000}).showToast()")
+    Endif
+  Endif  ''comp
+
+End
+
+Public Sub btncancel_Click()
+
+  pnllocation.Visible = False
+  pnluser.Visible = True
+
+End
+
 Public Sub cmbusname_Activate()
 
   txtuser.SetFocus
@@ -334,15 +358,9 @@ Public Sub txtuser_Activate()
 
 End
 
-Public Sub txtpass_Activate()
-
-  cmbtarget.SetFocus
-
-End
-
 Public Sub cmbtarget_Activate()
 
-  btnOK_Click()
+  btnselect_Click()
 
 End
 

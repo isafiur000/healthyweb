@@ -2677,24 +2677,42 @@ End
 'NOTE: --------------------- Consult -------------------------------
 Public Function GetPatientCOnsultList(encid As String) As String[]
 
+  Dim tbList As String[] = ["tblconsult", "tblopvisit"]
+  Dim xtable As String
   Dim xxx As String[]
   Dim res As Result
+  Dim xval As String
 
   xxx = New String[]
-  res = modDatabase.$myConn.Exec("select fldconsultname,fldconsulttime,fldstatus,fldorduserid from tblconsult where fldencounterval=&1", encid)
-  If res.Available Then
-    For Each res
-      If modBasic.$ShowDayMedReport = "User" Then
-        xxx.Add(res["fldconsultname"] & " (" & res["fldstatus"] & ")" & gb.NewLine & "[User: " & res["fldorduserid"] & "]")
-      Else If modBasic.$ShowDayMedReport = "Date+User" Then
-        xxx.Add(modReportVar.GetDateTimeReport(res["fldconsulttime"], gb.GeneralDate) & " : " & res["fldconsultname"] & " (" & res["fldstatus"] & ")" & gb.NewLine & "[User: " & res["fldorduserid"] & "]")
-      Else If modBasic.$ShowDayMedReport = "Date" Then
-        xxx.Add(modReportVar.GetDateTimeReport(res["fldconsulttime"], gb.GeneralDate) & " : " & res["fldconsultname"] & " (" & res["fldstatus"] & ")")
-      Else
-        xxx.Add(res["fldconsultname"] & " (" & res["fldstatus"] & ")")
-      Endif
-    Next
-  Endif
+  For Each xtable In tbList
+    If xtable = "tblconsult" Then
+      res = modDatabase.$myConn.Exec("select fldconsultname,fldconsulttime,fldstatus,fldorduserid as flduserid,fldoutcome,fldpresummary,fldsummary from tblconsult where fldencounterval=&1", encid)
+    Else If xtable = "tblopvisit"
+      res = modDatabase.$myConn.Exec("select fldconsultname,fldconsulttime,fldstatus,flduserid,fldoutcome,fldpresummary,fldsummary from tblopvisit where fldencounterval=&1", encid)
+    Endif
+    If res.Available Then
+      For Each res
+        xval = "<p>"
+        xval = xval & "<b>" & res["fldconsultname"] & "</b> (" & res["fldstatus"] & ")" & "<br>"
+        If res["fldpresummary"] Then
+          xval = xval & "REQUESTED FOR<br>" & res["fldpresummary"] & "<br>"
+        Endif
+        If res["fldoutcome"] Then
+          xval = xval & "OUTCOME: " & res["fldoutcome"] & "<br>" & res["fldsummary"] & "<br>"
+        Endif
+        If modBasic.$ShowDayMedReport = "User" Then
+          xxx.Add(xval & "[User: " & res["flduserid"] & "]</p>")
+        Else If modBasic.$ShowDayMedReport = "Date+User" Then
+          xxx.Add(xval & "[Date: " & modReportVar.GetDateTimeReport(res["fldconsulttime"], gb.GeneralDate) & " User: " & res["flduserid"] & "]</p>")
+        Else If modBasic.$ShowDayMedReport = "Date" Then
+          xxx.Add(xval & "[Date: " & modReportVar.GetDateTimeReport(res["fldconsulttime"], gb.GeneralDate) & "]</p>")
+        Else
+          xxx.Add(xval & "</p>")
+        Endif
+      Next
+    Endif
+  Next
+
   Return xxx
 
 End

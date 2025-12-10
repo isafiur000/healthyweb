@@ -4145,16 +4145,19 @@ Public Sub btngroup_Click()
           Else
             xdose = modMedDosing.GetDoseInMg(res["flddose"], res["flddoseunit"], Trim(txtencid.Text))
             If modMedConstant.GetNarcoticType(res["flditem"]) = "Yes" Then
-              xnarcotic = DualGridValue(("Select Narcotic Prescriber"), $ClinicianLst, False)
-              If xnarcotic Then
-                txprescriber = xnarcotic[1]
-                txpresno = xnarcotic[0]
+              If Not txpresno Then
+                xnarcotic = DualGridValue(("Select Narcotic Prescriber"), $ClinicianLst, False)
+                If xnarcotic Then
+                  txprescriber = xnarcotic[1]
+                  txpresno = xnarcotic[0]
+                Endif
+              Endif
+              If txprescriber And If txpresno Then
+                modPharmSub.InsertDosingEntry(Trim(txtencid.Text), hPatient.GetCashCreditMode(), cmbmode.Text, cmbdisctype.Text, cmbledgerac.Text, res["fldroute"], res["flditem"], xdose, res["fldfreq"], res["fldday"], res["fldqty"], sType, txprescriber, txpresno, res["fldstart"], xtax, discval, xfixname, xfixrate, "UseOwn", dispmode, res["fldadvice"], False)
               Endif
             Else
-              txprescriber = ""
-              txpresno = ""
+              modPharmSub.InsertDosingEntry(Trim(txtencid.Text), hPatient.GetCashCreditMode(), cmbmode.Text, cmbdisctype.Text, cmbledgerac.Text, res["fldroute"], res["flditem"], xdose, res["fldfreq"], res["fldday"], res["fldqty"], sType, "", "", res["fldstart"], xtax, discval, xfixname, xfixrate, "UseOwn", dispmode, res["fldadvice"], False)
             Endif
-            modPharmSub.InsertDosingEntry(Trim(txtencid.Text), hPatient.GetCashCreditMode(), cmbmode.Text, cmbdisctype.Text, cmbledgerac.Text, res["fldroute"], res["flditem"], xdose, res["fldfreq"], res["fldday"], res["fldqty"], sType, txprescriber, txpresno, res["fldstart"], xtax, discval, xfixname, xfixrate, "UseOwn", dispmode, res["fldadvice"], False)
           Endif
 
         Next
@@ -4204,48 +4207,30 @@ Private Sub EnterDosingRecord()
         CPharmFix = New CFixRatePharmacy(itemtype, cmbmedicine.Text, cmbmode.Text)
         xfixrate = CPharmFix.GetFixRate()
         xfixname = CPharmFix.GetFixItem()
-        ' xvarfix = modStock.GetSellingPriceFixByStockID(itemtype, cmbmedicine.Text, cmbmode.Text)
-        ' If xvarfix Then
-        '   xfixrate = xvarfix[1]
-        '   xfixname = xvarfix[0]
-        ' Else
-        '   xfixrate = 0
-        '   xfixname = ""
-        ' Endif
         itemmode = cmbmode.Text
         xtax = modNonMedical.ShowTaxValues(itemtype, cmbmedicine.Text)
         discval = modNonMedical.DiscPercentForCategoryValue(Trim(txtencid.Text), cmbdisctype.Text, itemtype, cmbmedicine.Text, itemmode)
-
         modPharmSub.InsertNonMedDosingEntry(itemtype, Trim(txtencid.Text), hPatient.GetCashCreditMode(), cmbmode.Text, cmbdisctype.Text, cmbledgerac.Text, cmbroute.Text, cmbmedicine.Text, txtqtymed.Value, sType, 0, xtax, discval, xfixname, xfixrate, "UseOwn", dispmode, "", False)
 
       Else
+        CPharmFix = New CFixRatePharmacy(itemtype, cmbmedicine.Text, cmbmode.Text)
+        xfixrate = CPharmFix.GetFixRate()
+        xfixname = CPharmFix.GetFixItem()
+        itemmode = cmbmode.Text
+        xtax = modNonMedical.ShowTaxValues(itemtype, cmbmedicine.Text)
+        discval = modNonMedical.DiscPercentForCategoryValue(Trim(txtencid.Text), cmbdisctype.Text, itemtype, cmbmedicine.Text, itemmode)
         If modMedConstant.GetNarcoticType(cmbmedicine.Text) = "Yes" Then
           xnarcotic = DualGridValue(("Select Narcotic Prescriber"), $ClinicianLst, False)
           If xnarcotic Then
             txprescriber = xnarcotic[1]
             txpresno = xnarcotic[0]
           Endif
+          If txprescriber And If txpresno Then
+            modPharmSub.InsertDosingEntry(Trim(txtencid.Text), hPatient.GetCashCreditMode(), cmbmode.Text, cmbdisctype.Text, cmbledgerac.Text, cmbroute.Text, cmbmedicine.Text, txtdose.Value, cmbfreq.Text, txtday.Value, txtqtymed.Value, sType, txprescriber, txpresno, 0, xtax, discval, xfixname, xfixrate, "UseOwn", dispmode, "", False)                    '
+          Endif
         Else
-          txprescriber = ""
-          txpresno = ""
+          modPharmSub.InsertDosingEntry(Trim(txtencid.Text), hPatient.GetCashCreditMode(), cmbmode.Text, cmbdisctype.Text, cmbledgerac.Text, cmbroute.Text, cmbmedicine.Text, txtdose.Value, cmbfreq.Text, txtday.Value, txtqtymed.Value, sType, "", "", 0, xtax, discval, xfixname, xfixrate, "UseOwn", dispmode, "", False)                    '
         Endif
-        CPharmFix = New CFixRatePharmacy(itemtype, cmbmedicine.Text, cmbmode.Text)
-        xfixrate = CPharmFix.GetFixRate()
-        xfixname = CPharmFix.GetFixItem()
-        ' xvarfix = modStock.GetSellingPriceFixByStockID(itemtype, cmbmedicine.Text, cmbmode.Text)
-        ' If xvarfix Then
-        '   xfixrate = xvarfix[1]
-        '   xfixname = xvarfix[0]
-        ' Else
-        '   xfixrate = 0
-        '   xfixname = ""
-        ' Endif
-        itemmode = cmbmode.Text
-        xtax = modNonMedical.ShowTaxValues(itemtype, cmbmedicine.Text)
-        discval = modNonMedical.DiscPercentForCategoryValue(Trim(txtencid.Text), cmbdisctype.Text, itemtype, cmbmedicine.Text, itemmode)
-
-        modPharmSub.InsertDosingEntry(Trim(txtencid.Text), hPatient.GetCashCreditMode(), cmbmode.Text, cmbdisctype.Text, cmbledgerac.Text, cmbroute.Text, cmbmedicine.Text, txtdose.Value, cmbfreq.Text, txtday.Value, txtqtymed.Value, sType, txprescriber, txpresno, 0, xtax, discval, xfixname, xfixrate, "UseOwn", dispmode, "", False)                    '
-
       Endif
 
       cmbroute.Text = ""

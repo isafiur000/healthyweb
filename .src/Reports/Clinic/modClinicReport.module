@@ -1,5 +1,464 @@
 ' Gambas module file
 
+''======================== General Variables ===================================
+Public Function GetCourseOfTreatment(encid As String) As String[]
+
+  Dim res As Result
+  Dim res1 As Result
+  Dim xx As String[]
+  Dim xcom As String
+
+  xx = New String[]
+  res = modDatabase.$syConn.Exec("select fldhead,fldtime,fldcomment from tblpatientdate where fldencounterval=&1", encid)
+  If res.Available Then
+    For Each res
+      xcom = ""
+      If res["fldcomment"] Then
+        xcom = " (" & res["fldcomment"] & ")"
+      Endif
+      xx.Add("Date: " & modReportVar.GetDateTimeReport(res["fldtime"], gb.GeneralDate) & "::" & res["fldhead"] & xcom)
+    Next
+  Endif
+
+  res1 = modDatabase.$syConn.Exec("select fldreferto,fldfollowdate from tblencounter where fldencounterval=&1", encid)
+  If res.Available Then
+    If res["fldreferto"] Then
+      If res["fldfollowdate"] Then
+        xx.Add("Refer To: " & res["fldreferto"] & " [" & modReportVar.GetDateTimeReport(res["fldfollowdate"], gb.GeneralDate) & " ]")
+      Else
+        xx.Add("Refer To: " & res["fldreferto"])
+      Endif
+    Else
+      If res["fldfollowdate"] Then
+        xx.Add("Follow-up: " & modReportVar.GetDateTimeReport(res["fldfollowdate"], gb.GeneralDate))
+      Endif
+    Endif
+  Endif
+
+  Return xx
+
+End
+
+Public Function GetPatientChiefComplaintsReport(encid As String, sMulti As Boolean) As String[]
+
+  Dim compLst As String[]
+  Dim xcomp As String
+
+  Dim xUnitLst As String[]
+  Dim res As Result
+  Dim res1 As Result
+  Dim xx As String[]
+  Dim xstr As String
+
+  xUnitLst = modMedicine.$SymptomFrequency
+  xx = New String[]
+  If sMulti = True Then
+    compLst = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldcomp) as col from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and fldsave=&3", encid, "Presenting Symptoms", True))
+    For Each xcomp In compLst
+      ''formatted complaints
+      res = modDatabase.$syConn.Exec("select fldtime,flditem,fldreportquali,fldreportquanti,flddetail,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and fldsave=&3 and fldcomp=&4", encid, "Presenting Symptoms", True, xcomp)
+      If res.Available Then
+        xx.Add(xcomp)
+        For Each res
+
+          If xUnitLst.Exist(res["fldreportquali"]) Then
+            If res["fldreportquali"] = "Absent" Then
+              xstr = res["fldreportquali"]
+            Else
+              xstr = CStr(res["fldreportquanti"]) & Space(1) & res["fldreportquali"]
+            Endif
+          Else
+            If res["fldreportquanti"] Then
+              xstr = modDate.ConvertHoursToString(res["fldreportquanti"])
+            Else
+              xstr = ""
+            Endif
+            If res["fldreportquali"] Then
+              xstr = xstr & Space(1) & res["fldreportquali"]
+            Endif
+          Endif
+
+          If res["flddetail"] Then
+            If modBasic.$ShowDayMedReport = "User" Then
+              xx.Add(res["flditem"] & " : " & xstr & " [" & res["flddetail"] & "]" & gb.NewLine & "[User: " & res["flduserid"] & "]")
+            Else If modBasic.$ShowDayMedReport = "Date+User" Then
+              xx.Add("[ " & modReportVar.GetDateTimeReport(res["fldtime"], gb.GeneralDate) & " ] " & res["flditem"] & " : " & xstr & " [" & res["flddetail"] & "]" & gb.NewLine & "[User: " & res["flduserid"] & "]")
+            Else If modBasic.$ShowDayMedReport = "Date" Then
+              xx.Add("[ " & modReportVar.GetDateTimeReport(res["fldtime"], gb.GeneralDate) & " ] " & res["flditem"] & " : " & xstr & " [" & res["flddetail"] & "]")
+            Else
+              xx.Add(res["flditem"] & " : " & xstr & " [" & res["flddetail"] & "]")
+            Endif
+          Else
+            If modBasic.$ShowDayMedReport = "User" Then
+              xx.Add(res["flditem"] & " : " & xstr & gb.NewLine & "[User: " & res["flduserid"] & "]")
+            Else If modBasic.$ShowDayMedReport = "Date+User" Then
+              xx.Add("[ " & modReportVar.GetDateTimeReport(res["fldtime"], gb.GeneralDate) & " ] " & res["flditem"] & " : " & xstr & gb.NewLine & "[User: " & res["flduserid"] & "]")
+            Else If modBasic.$ShowDayMedReport = "Date" Then
+              xx.Add("[ " & modReportVar.GetDateTimeReport(res["fldtime"], gb.GeneralDate) & " ] " & res["flditem"] & " : " & xstr)
+            Else
+              xx.Add(res["flditem"] & " : " & xstr)
+            Endif
+          Endif
+
+        Next
+      Endif
+
+      ''general complaints
+      res1 = modDatabase.$myConn.Exec("select flddetail,fldreportquali,fldtime,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and flditem=&3 and fldcomp=&4", encid, "History", "General Complaints", xcomp)
+      If res1.Available Then
+        res1.MoveLast
+        xx.Add(res1["flddetail"])
+      Endif
+
+    Next
+
+  Else If sMulti = False Then
+    res = modDatabase.$syConn.Exec("select fldtime,flditem,fldreportquali,fldreportquanti,flddetail,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and fldsave=&3" & modPatReports.GetLockClinicSQL(), encid, "Presenting Symptoms", True)
+    If res.Available Then
+      For Each res
+
+        If xUnitLst.Exist(res["fldreportquali"]) Then
+          If res["fldreportquali"] = "Absent" Then
+            xstr = res["fldreportquali"]
+          Else
+            xstr = CStr(res["fldreportquanti"]) & Space(1) & res["fldreportquali"]
+          Endif
+        Else
+          If res["fldreportquanti"] Then
+            xstr = modDate.ConvertHoursToString(res["fldreportquanti"])
+          Else
+            xstr = ""
+          Endif
+          If res["fldreportquali"] Then
+            xstr = xstr & Space(1) & res["fldreportquali"]
+          Endif
+        Endif
+
+        If res["flddetail"] Then
+          xx.Add(res["flditem"] & " : " & xstr & " [" & res["flddetail"] & "]")
+        Else
+          xx.Add(res["flditem"] & " : " & xstr)
+        Endif
+        xx.Add(modPatReports.GetPatientHistoryReport(encid, "General Complaints"))
+
+      Next
+    Endif
+
+  Endif
+
+  Return xx
+
+End
+
+Public Function GetPatientDemographicReport(encid As String, sMulti As Boolean) As String[]
+
+  Dim compLst As String[]
+  Dim xcomp As String
+
+  Dim res As Result
+  Dim xx As String[]
+
+  xx = New String[]
+  If sMulti = True Then
+    compLst = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldcomp) as col from tblexamgeneral where fldencounterval=&1 and fldinput=&2", encid, "Demographics"))
+    For Each xcomp In compLst
+      res = modDatabase.$syConn.Exec("select fldtime,flditem,fldreportquali,flddetail,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and fldcomp=&3", encid, "Demographics", xcomp)
+      If res.Available Then
+        xx.Add(xcomp)
+        For Each res
+          If res["fldreportquali"] Then
+            If modBasic.$ShowDayMedReport = "User" Then
+              xx.Add(res["flditem"] & " : " & res["fldreportquali"] & gb.NewLine & "[User: " & res["flduserid"] & "]")
+            Else If modBasic.$ShowDayMedReport = "Date+User" Then
+              xx.Add("[" & modReportVar.GetDateTimeReport(res["fldtime"], gb.GeneralDate) & "] " & res["flditem"] & " : " & res["fldreportquali"] & gb.NewLine & "[User: " & res["flduserid"] & "]")
+            Else If modBasic.$ShowDayMedReport = "Date" Then
+              xx.Add("[" & modReportVar.GetDateTimeReport(res["fldtime"], gb.GeneralDate) & "] " & res["flditem"] & " : " & res["fldreportquali"])
+            Else
+              xx.Add(res["flditem"] & " : " & res["fldreportquali"])
+            Endif
+          Endif
+        Next
+      Endif
+    Next
+
+  Else If sMulti = False Then
+    res = modDatabase.$syConn.Exec("select fldtime,flditem,fldreportquali,flddetail,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2" & modPatReports.GetLockClinicSQL(), encid, "Demographics")
+    If res.Available Then
+      For Each res
+        If res["fldreportquali"] Then
+          xx.Add(res["flditem"] & " : " & res["fldreportquali"])
+        Endif
+      Next
+    Endif
+  Endif
+
+  Return xx
+
+End
+
+Public Function GetPatientHistoryAllTypes(encid As String) As String[]
+
+  Dim compLst As String[]
+  Dim xcomp As String
+
+  Dim xList As String[]
+  Dim xtype As String
+  Dim res As Result
+  Dim xx As String
+  Dim xval As String[]
+
+  xval = New String[]
+  compLst = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldcomp) as col from tblexamgeneral where fldencounterval=&1 and fldinput=&2", encid, "History"))
+  For Each xcomp In compLst
+    xval.Add("<b>" & xcomp & "</b>")
+    xList = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(flditem) as col from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and fldcomp=&3", encid, "History", xcomp))
+    If xList And If xList.Count Then
+      For Each xtype In xList
+        res = modDatabase.$myConn.Exec("select flddetail,fldreportquali,fldtime,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and flditem=&3 and fldcomp=&4 ORDER BY fldtime", encid, "History", xtype, xcomp)
+        If res.Available = True Then
+          res.MoveLast
+
+          xx = ""
+          xx = "<p><b>" & xtype & "</b><br>" & res["flddetail"] & "<br>"
+          If modBasic.$ShowDayMedReport = "User" Then
+            xx = xx & gb.NewLine & "[User: " & res["flduserid"] & "]"
+          Else If modBasic.$ShowDayMedReport = "Date+User" Then
+            xx = xx & gb.NewLine & "[Date:" & modReportVar.GetDateTimeReport(res["fldtime"], gb.GeneralDate) & " ]" & "[ User: " & res["flduserid"] & "]"
+          Else If modBasic.$ShowDayMedReport = "Date" Then
+            xx = xx & gb.NewLine & "[Date:" & modReportVar.GetDateTimeReport(res["fldtime"], gb.GeneralDate) & " ]"
+          Endif
+          xx = xx & "</p>"
+          xval.Add(xx)
+
+        Endif
+      Next
+    Endif
+  Next
+
+  Return xval
+
+End
+
+''========================= Medicines ==================================
+Private Function GetMedicineTable(sType As String, rs As Result) As String
+
+  Dim xx As String
+  Dim xFinal As Variant[]
+  Dim i As Integer
+  Dim xRowVal As Collection
+  Dim colLst As String[]
+
+  xFinal = New Variant[]
+  i = 1
+
+  If sType = "Medicines" Then
+    If modBasic.$ShowDayMesStartReport = "Yes" Then
+      colLst = ["", "Medicines", "Regimen", "QTY", "Direction", "Date"]
+    Else
+      colLst = ["", "Medicines", "Regimen", "QTY", "Direction"]
+    Endif
+
+    For Each rs
+      xRowVal = New Collection
+      xRowVal.Add(CStr(i), CStr(0))
+      xRowVal.Add(modPharmacy.GetMedFormatForMedReport(rs["flditem"], rs["fldroute"]), CStr(1))
+      If rs["flddose"] Then
+        If rs["fldfreq"] = "Tapering" Then
+          xRowVal.Add(modPharmacy.GetTaperingRegimen(rs["fldid"]).Join("<br>"), CStr(2))
+        Else
+          xRowVal.Add(modMedConstant.GetMedicineRegimenInFormat(rs["fldroute"], rs["flditem"], rs["flddose"], rs["fldfreq"], rs["flddays"]), CStr(2))
+        Endif
+      Else
+        xRowVal.Add("", CStr(2))
+      Endif
+      xRowVal.Add(rs["fldqtydisp"], CStr(3))
+      If rs["flddirection"] Then
+        xRowVal.Add(rs["flddirection"], CStr(4))
+      Else
+        xRowVal.Add("", CStr(4))
+      Endif
+      If modBasic.$ShowDayMesStartReport = "Yes" Then
+        xRowVal.Add(modReportVar.GetDateTimeReport(rs["fldstarttime"], gb.GeneralDate), CStr(5))
+      Endif
+
+      xFinal.Add(xRowVal)
+      i = i + 1
+    Next
+
+  Else
+    If modBasic.$ShowDayMesStartReport = "Yes" Then
+      colLst = ["", "Particulars", "QTY", "Date"]
+    Else
+      colLst = ["", "Particulars", "QTY"]
+    Endif
+
+    For Each rs
+      xRowVal = New Collection
+      xRowVal.Add(CStr(i), CStr(0))
+      xRowVal.Add(rs["flditem"], CStr(1))
+      xRowVal.Add(rs["fldqtydisp"], CStr(2))
+      If modBasic.$ShowDayMesStartReport = "Yes" Then
+        xRowVal.Add(modReportVar.GetDateTimeReport(rs["fldstarttime"], gb.GeneralDate), CStr(3))
+      Endif
+
+      xFinal.Add(xRowVal)
+      i = i + 1
+    Next
+  Endif
+  xx = modString.GetRichTableStringFromVariant(colLst, xFinal)
+
+  Return xx
+
+End
+
+Public Function NonAvailableMedString(encid As String, sType As String, sMulti As Boolean) As String
+
+  Dim xx As String
+  Dim rs As Result
+  Dim compLst As String[]
+  Dim xcomp As String
+
+  If sMulti = True Then
+    compLst = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldcomp) as col from tblpatoutdosing where fldencounterval=&1 and flditemtype=&2", encid, sType))
+    xx = ""
+    For Each xcomp In compLst
+      rs = modDatabase.$myConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,flditemtype,fldqtydisp,flddirection,fldstarttime from tblpatoutdosing where fldencounterval=&1 and flditemtype=&2 and fldcomp=&3", encid, sType, xcomp)                 ''
+      If rs.Available Then
+        xx = xx & xcomp & "<br>" & GetMedicineTable(sType, rs) & "<br>"
+      Endif
+    Next
+  Else
+    rs = modDatabase.$myConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,flditemtype,fldqtydisp,flddirection,fldstarttime from tblpatoutdosing where fldencounterval=&1 and flditemtype=&2" & modPatReports.GetLockClinicSQL(), encid, sType)                 ''
+    If rs.Available Then
+      xx = GetMedicineTable(sType, rs)
+    Else
+      xx = ""
+    Endif
+  Endif
+
+  Return xx
+
+End
+
+Public Function GetRequestMedString(encid As String, sType As String, sMulti As Boolean) As String
+
+  Dim xx As String
+  Dim rs As Result
+  Dim compLst As String[]
+  Dim xcomp As String
+
+  If sMulti = True Then
+    compLst = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldcomp_order) as col from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and fldorder=&3 and fldcurval=&4", encid, sType, "Request", "Continue"))
+    xx = ""
+    For Each xcomp In compLst
+      rs = modDatabase.$myConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,flditemtype,(fldqtydisp-fldqtyret) as fldqtydisp,flddirection,fldstarttime from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and fldorder=&3 and fldcurval=&4 and fldcomp_order=&5", encid, sType, "Request", "Continue", xcomp)
+      If rs.Available Then
+        xx = xx & xcomp & "<br>" & GetMedicineTable(sType, rs) & "<br>"
+      Endif
+    Next
+  Else
+    rs = modDatabase.$myConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,flditemtype,(fldqtydisp-fldqtyret) as fldqtydisp,flddirection,fldstarttime from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and fldorder=&3 and fldcurval=&4" & modPatReports.GetLockClinicSQL("tblpatdosing"), encid, sType, "Request", "Continue")                 ''
+    If rs.Available Then
+      xx = GetMedicineTable(sType, rs)
+    Else
+      xx = ""
+    Endif
+  Endif
+
+  Return xx
+
+End
+
+Public Function PendingRequestMedString(encid As String, sType As String, sMulti As Boolean) As String
+
+  Dim xx As String
+  Dim rs As Result
+  Dim compLst As String[]
+  Dim xcomp As String
+
+  If sMulti = True Then
+    compLst = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldcomp_order) as col from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and fldorder=&3 and fldsave_order=&4 and fldlevel=&5 and fldcurval=&6", encid, sType, "Request", False, "Requested", "Continue"))
+    xx = ""
+    For Each xcomp In compLst
+      rs = modDatabase.$myConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,flditemtype,(fldqtydisp-fldqtyret) as fldqtydisp,flddirection,fldstarttime from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and fldorder=&3 and fldsave_order=&4 and fldlevel=&5 and fldcurval=&6 and fldcomp_order=&7", encid, sType, "Request", False, "Requested", "Continue", xcomp)                 ''
+      If rs.Available Then
+        xx = xx & xcomp & "<br>" & GetMedicineTable(sType, rs) & "<br>"
+      Endif
+    Next
+  Else
+    rs = modDatabase.$myConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,flditemtype,(fldqtydisp-fldqtyret) as fldqtydisp,flddirection,fldstarttime from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and fldorder=&3 and fldsave_order=&4 and fldlevel=&5 and fldcurval=&6" & modPatReports.GetLockClinicSQL("tblpatdosing"), encid, sType, "Request", False, "Requested", "Continue")                 ''
+    If rs.Available Then
+      xx = GetMedicineTable(sType, rs)
+    Else
+      xx = ""
+    Endif
+  Endif
+
+  Return xx
+
+End
+
+Public Function GetDispensedPharm(encid As String, sType As String, sMulti As Boolean) As String
+
+  Dim xx As String
+  Dim rs As Result
+  Dim compLst As String[]
+  Dim xcomp As String
+
+  If sMulti = True Then
+    compLst = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldcomp_order) as col from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and (fldorder=&3 or fldorder=&4) and fldsave_order=&5 and fldlevel=&6 and fldqtydisp>fldqtyret", encid, sType, "Request", "UseOwn", True, "Dispensed"))
+    xx = ""
+    For Each xcomp In compLst
+      rs = modDatabase.$syConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,flditemtype,(fldqtydisp-fldqtyret) as fldqtydisp,flddirection,fldstarttime from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and (fldorder=&3 or fldorder=&4) and fldsave_order=&5 and fldlevel=&6 and fldcomp_order=&7 and fldqtydisp>fldqtyret", encid, sType, "Request", "UseOwn", True, "Dispensed", xcomp)       ''
+      If rs.Available Then
+        xx = xx & xcomp & "<br>" & GetMedicineTable(sType, rs) & "<br>"
+      Endif
+    Next
+  Else
+    rs = modDatabase.$syConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,flditemtype,(fldqtydisp-fldqtyret) as fldqtydisp,flddirection,fldstarttime from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and (fldorder=&3 or fldorder=&4) and fldsave_order=&5 and fldlevel=&6 and fldqtydisp>fldqtyret" & modPatReports.GetLockClinicSQL(), encid, sType, "Request", "UseOwn", True, "Dispensed")       ''
+    If rs.Available Then
+      xx = GetMedicineTable(sType, rs)
+    Else
+      xx = ""
+    Endif
+  Endif
+
+  Return xx
+
+End
+
+Public Function AdmittedMedString(encid As String) As String
+
+  Dim xx As String
+  Dim rs As Result
+
+  rs = modDatabase.$myConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,flditemtype,(fldqtydisp-fldqtyret) as fldqtydisp,flddirection,fldstarttime from tblpatdosing where fldencounterval=&1 and fldstatus=&2 and fldcurval=&3 and flditemtype=&4", encid, "Admitted", "Continue", "Medicines")
+  If rs.Available Then
+    xx = GetMedicineTable("Medicines", rs)
+  Else
+    xx = ""
+  Endif
+
+  Return xx
+
+End
+
+Public Function DischargeMedString(encid As String) As String
+
+  Dim xx As String
+  Dim rs As Result
+
+  rs = modDatabase.$myConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,flditemtype,(fldqtydisp-fldqtyret) as fldqtydisp,flddirection,fldstarttime from tblpatdosing where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3 or fldstatus=&4 or fldstatus=&5 or fldstatus=&6) and fldcurval=&7 and flditemtype=&8", encid, "Discharged", "LAMA", "Death", "Refer", "Absconder", "Continue", "Medicines")
+  If rs.Available Then
+    xx = GetMedicineTable("Medicines", rs)
+  Else
+    xx = ""
+  Endif
+
+  Return xx
+
+End
+
 ''=================== General examination =====================
 Public Function GetCurrExamTimeValueSysConst(encid As String, xSysConst As String, sType As String, sTable As Boolean) As String
 

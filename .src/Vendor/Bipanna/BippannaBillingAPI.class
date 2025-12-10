@@ -1,0 +1,92 @@
+' Gambas class file
+
+Private $patID As String
+Private $sDiseaseId As Integer
+Private $sBillNo As String
+Private $xOutput As String
+
+Public Sub _new(sPatID As String, sDiseaseID As Integer, sBillNo As String)
+
+  $patID = sPatID
+  $sDiseaseId = sDiseaseID
+  $sBillNo = sBillNo
+
+  ExecuteAPI()
+
+End
+
+Private Function GetFileData(sBillNo As String) As String
+
+  Dim sPath As String
+  Dim xcmd As String[]
+  Dim imgData As String
+
+  sPath = modBILLFormat.GetInvoiceCopyPDFPath(sBillNo, False, False)
+  If Exist(sPath) Then
+    xcmd = ["base64", "-w", "0", sPath]
+    modBasic.DebugString("Execute " & xcmd.Join(Space(1)))
+    Exec xcmd To imgData
+  Endif
+
+  Return imgData
+
+End
+
+Private Sub SetCollectionPath() As String
+
+  Dim res As Result
+  Dim aColl As Collection
+  Dim ximg As String
+  Dim asx As String[]
+  Dim xnepdate As String
+  Dim xPath As String
+
+  res = modDatabase.$myConn.Exec("select fldtime,fldchargedamt from tblpatbilldetail where fldbillno=&1", $sBillNo)
+  If res.Available Then
+    ximg = GetFileData($sBillNo)
+    asx = Split(modDate.ConvertToLocaldate(res["fldtime"]), "/")
+    xnepdate = asx[0] & "-" & asx[1] & "-" & asx[2]
+
+    aColl = New Collection
+    aColl.Add($patID, "patient_id")
+    aColl.Add($sDiseaseId, "patient_disease_id")
+    aColl.Add(xnepdate, "issueddate")
+    aColl.Add($sBillNo, "bill_no")
+    aColl.Add(res["fldchargedamt"], "bill_amount")
+    aColl.Add(ximg, "attachment")
+
+    xPath = Temp()
+    File.Save(xPath, JSON.Encode(aColl))
+  Endif
+  Return xPath
+
+End
+
+Private Sub ExecuteAPI()
+
+  Dim acmd As String
+  Dim xurl As String
+  Dim xauth As String
+  Dim xcont As String
+  Dim ycont As String
+
+  Dim aPath As String
+
+  xurl = modBasic.$BipannaBillingtURL
+  xauth = "Authorization: Bearer " & modBasic.$BipannaHospitalCode
+  xcont = "Content-Type: application/json"
+  ycont = "Accept: application/json"
+  aPath = SetCollectionPath()
+
+  acmd = "curl -H " & Quote(xauth) & " -H " & Quote(xcont) & " -H " & Quote(ycont) & " -d @" & aPath & " -X POST " & xurl
+  modBasic.DebugAPIString(Replace("Execute " & acmd, xauth, "****"))
+  Shell acmd To $xOutput
+  modBasic.DebugAPIString("Response: " & $xOutput)
+
+End
+
+Public Function GetUploadAPI() As String
+
+  Return $xOutput
+
+End

@@ -1,0 +1,83 @@
+' Gambas class file
+
+Private $sType As String
+Private $patID As String
+Private $sDiseaseId As Integer
+Private $sCode As String
+Private $xCost As String
+Private $xOutput As String
+
+Public Sub _new(sType As String, sPatID As String, sDiseaseID As Integer, sCode As String, sCost As Float)
+
+  $sType = sType
+  $patID = sPatID
+  $sDiseaseId = sDiseaseID
+  $sCode = sCode
+  $xCost = sCost
+
+  ExecuteAPI()
+
+End
+
+Private Sub SetCollection() As Collection
+
+  Dim aColl As Collection
+  Dim asx As String[]
+  Dim xnepdate As String
+
+  asx = Split(modDate.ConvertToLocaldate(Now()), "/")
+  xnepdate = asx[0] & "-" & asx[1] & "-" & asx[2]
+
+  aColl = New Collection
+  aColl.Add($patID, "patient_id")
+  aColl.Add($sDiseaseId, "patient_disease_id")
+  If $sType = "Treatment" Then
+    aColl.Add(xnepdate, "treatmentdate")
+    aColl.Add($sCode, "service_id")
+    aColl.Add(1, "service_quantity")
+    aColl.Add($xCost, "service_price")
+
+  Else If $sType = "Kidney Session" Then
+    aColl.Add(xnepdate, "session_date")
+    aColl.Add($sCode, "treatment_type_id")
+    aColl.Add(1, "quantity")
+    aColl.Add($xCost, "rate")
+
+  Endif
+
+  Return aColl
+
+End
+
+Private Sub ExecuteAPI()
+
+  Dim acmd As String
+  Dim xurl As String
+  Dim xauth As String
+  Dim xcont As String
+  Dim ycont As String
+
+  Dim aColl As Collection
+
+  If $sType = "Treatment" Then
+    xurl = modBasic.$BipannaTreatmentURL
+  Else If $sType = "Kidney Session" Then
+    xurl = modBasic.$BipannaKidneyURL
+  Endif
+  xauth = "Authorization: Bearer " & modBasic.$BipannaHospitalCode
+  xcont = "Content-Type: application/json"
+  ycont = "Accept: application/json"
+  aColl = SetCollection()
+
+  acmd = "curl -H " & Quote(xauth) & " -H " & Quote(xcont) & " -H " & Quote(ycont) & " -d '" & JSON.Encode(aColl) & "' -X POST " & xurl
+  modBasic.DebugAPIString(Replace("Execute " & acmd, xauth, "****"))
+  Shell acmd To $xOutput
+  modBasic.DebugAPIString("Response: " & $xOutput)
+
+End
+
+Public Function GetUploadAPI() As String
+
+  Return $xOutput
+
+End

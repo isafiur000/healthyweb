@@ -250,11 +250,9 @@ Public Function GetCustomReportValue(sType As String, encid As String, sHead As 
     xval = modPatReports.AddNutritionUsed(encid, sHead)
   Else If sType = "Delivery Profile" Then
     xval = modPatReports.AddDeliveryProfile(encid, sHead)
-  Else If sType = "Extra Procedures" Then
-    xval = modPatReports.AddExtraProcedures(encid, sHead)
 
   Else If sType = "Clinical Notes" Then
-    xval = modPatReports.AddClinicalNotes(encid, sHead)
+    xval = modPatReports.AddInpatientNotes(encid, sHead)
   Else If sType = "Progress Note" Then
     xval = modPatReports.AddProgressNotes(encid, sHead)
   Else If sType = "Clinicians Note" Then
@@ -279,7 +277,7 @@ Public Function GetCustomReportValue(sType As String, encid As String, sHead As 
     xval = modPatReports.AddAdviceDischarge(encid, sHead)
 
   Else If sType = "Clinical Findings" Then
-    xval = modPatReports.AddClinFindingsAll(encid, "Non-Vital")
+    xval = modPatReports.AddExaminationsAll(encid, "Non-Vital")
   Else If sType = "Physician Examinations" Then
     xval = modPatReports.AddPhysicianFindings(encid, "Physician Examinations")
   Else If sType = "Essential Examinations" Then
@@ -623,13 +621,13 @@ Public Function GetColumnValueRaw(sType As String, encid As String, Optional sUn
   Endif
 
   If sType = "Course of Treatment" Then
-    xval = modPatReports.GetCourseOfTreatment(encid).Join(gb.NewLine)
+    xval = modClinicReport.GetCourseOfTreatment(encid).Join(gb.NewLine)
   Else If sType = "Bed Transitions" Then
     xval = modPatPatho.GetPatientTransition(encid).Join(gb.NewLine)
   Else If sType = "Demographics" Then
-    xval = modPatReports.GetPatientDemographicReport(encid).Join(gb.NewLine)
+    xval = modClinicReport.GetPatientDemographicReport(encid, False).Join(gb.NewLine)
   Else If sType = "Chief Complaints" Then
-    xval = modPatReports.GetPatientPresentingSymptomReport(encid).Join(gb.NewLine) & gb.NewLine & modPatPatho.ShowSelectedHistory(encid, "General Complaints")
+    xval = modClinicReport.GetPatientChiefComplaintsReport(encid).Join(gb.NewLine)
   Else If sType = "Presenting Complaints" Then
     xval = modPatReports.GetPatientPresentingSymptomReport(encid).Join(gb.NewLine)
   Else If sType = "Provisional Diagnosis" Then
@@ -1681,7 +1679,7 @@ Public Function GetReportVarHistory($encid As String, $Line As String) As String
 
   ''from exam table
   If (String.InStr($Line, "PresentingSymptoms") > 0) Then
-    $Line = Replace($Line, "{PresentingSymptoms}", modString.TextToHTML(modPatReports.GetPatientPresentingSymptomReport($encid).Join(gb.NewLine)))
+    $Line = Replace($Line, "{PresentingSymptoms}", modString.TextToHTML(modPatReports.GetPatientPresentingSymptomReport($encid, False).Join(gb.NewLine)))
   Endif
   If (String.InStr($Line, "GeneralComplaints") > 0) Then
     $Line = Replace($Line, "{GeneralComplaints}", modPatPatho.ShowSelectedHistory($encid, "General Complaints"))
@@ -1749,30 +1747,30 @@ Public Function GetReportVarHistory($encid As String, $Line As String) As String
     $Line = Replace($Line, "{InvestigationAdvised}", modString.TextToHTML(modPatReports.OPDOrderLabRequest($encid).Join(gb.NewLine)))
   Endif
   If (String.InStr($Line, "TreatmentAdvised") > 0) Then
-    $Line = Replace($Line, "{TreatmentAdvised}", modString.TextToHTML(modPatReports.GetRequestMedString($encid, "Medicines")))
+    $Line = Replace($Line, "{TreatmentAdvised}", modString.TextToHTML(modClinicReport.GetRequestMedString($encid, "Medicines", False)))
   Endif
   If (String.InStr($Line, "UnavailableMedicines") > 0) Then
-    $Line = Replace($Line, "{UnavailableMedicines}", modString.TextToHTML(modPatReports.NonAvailableMedString($encid, "Medicines")))
+    $Line = Replace($Line, "{UnavailableMedicines}", modString.TextToHTML(modClinicReport.NonAvailableMedString($encid, "Medicines", False)))
   Endif
   If (String.InStr($Line, "PendingMedicines") > 0) Then
-    $Line = Replace($Line, "{PendingMedicines}", modString.TextToHTML(modPatReports.PendingRequestMedString($encid, "Medicines")))
+    $Line = Replace($Line, "{PendingMedicines}", modString.TextToHTML(modClinicReport.PendingRequestMedString($encid, "Medicines", False)))
   Endif
 
   If (String.InStr($Line, "SurgicalRequests") > 0) Then
-    $Line = Replace($Line, "{SurgicalRequests}", modString.TextToHTML(modPatReports.GetRequestMedString($encid, "Surgicals")))
+    $Line = Replace($Line, "{SurgicalRequests}", modString.TextToHTML(modClinicReport.GetRequestMedString($encid, "Surgicals", False)))
   Endif
   If (String.InStr($Line, "ExtraRequests") > 0) Then
-    $Line = Replace($Line, "{ExtraRequests}", modString.TextToHTML(modPatReports.GetRequestMedString($encid, "Extra Items")))
+    $Line = Replace($Line, "{ExtraRequests}", modString.TextToHTML(modClinicReport.GetRequestMedString($encid, "Extra Items", False)))
   Endif
 
   If (String.InStr($Line, "MedicinesDispensed") > 0) Then
-    $Line = Replace($Line, "{MedicinesDispensed}", modString.TextToHTML(modPatReports.GetDispensedPharm($encid, "Medicines")))
+    $Line = Replace($Line, "{MedicinesDispensed}", modString.TextToHTML(modClinicReport.GetDispensedPharm($encid, "Medicines", False)))
   Endif
   If (String.InStr($Line, "SurgicalsDispensed") > 0) Then
-    $Line = Replace($Line, "{SurgicalsDispensed}", modString.TextToHTML(modPatReports.GetDispensedPharm($encid, "Surgicals")))
+    $Line = Replace($Line, "{SurgicalsDispensed}", modString.TextToHTML(modClinicReport.GetDispensedPharm($encid, "Surgicals", False)))
   Endif
   If (String.InStr($Line, "ExtraItemsDispensed") > 0) Then
-    $Line = Replace($Line, "{ExtraItemsDispensed}", modString.TextToHTML(modPatReports.GetDispensedPharm($encid, "Extra Items")))
+    $Line = Replace($Line, "{ExtraItemsDispensed}", modString.TextToHTML(modClinicReport.GetDispensedPharm($encid, "Extra Items", False)))
   Endif
 
   If (String.InStr($Line, "OPDRecommendation") > 0) Then
@@ -1785,10 +1783,10 @@ Public Function GetReportVarHistory($encid As String, $Line As String) As String
     $Line = Replace($Line, "{DischargeOutcome}", modPatient.GetPatExitComment($encid, "Discharged"))
   Endif
   If (String.InStr($Line, "IndoorMedicines") > 0) Then
-    $Line = Replace($Line, "{IndoorMedicines}", modString.TextToHTML(modPatReports.AdmittedMedString($encid)))
+    $Line = Replace($Line, "{IndoorMedicines}", modString.TextToHTML(modClinicReport.AdmittedMedString($encid)))
   Endif
   If (String.InStr($Line, "DischargeMedicines") > 0) Then
-    $Line = Replace($Line, "{DischargeMedicines}", modString.TextToHTML(modPatReports.DischargeMedString($encid)))
+    $Line = Replace($Line, "{DischargeMedicines}", modString.TextToHTML(modClinicReport.DischargeMedString($encid)))
   Endif
   If (String.InStr($Line, "DischargeCondition") > 0) Then
     $Line = Replace($Line, "{DischargeCondition}", modPatReports.GetPatientNoteReport($encid, "Condition of Discharge"))

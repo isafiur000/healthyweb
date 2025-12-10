@@ -160,6 +160,10 @@ Public Function CheckIMISValues(encid As String) As Variant[]
   Dim res As Result
   Dim xmsg As Variant[]
 
+  Dim xPatVar As Variant[]
+  Dim aColl As Collection
+  Dim policyLst As String[]
+  Dim xpolicy As String
   Dim xexpdate As Date
   Dim xcredamt As Float
 
@@ -171,9 +175,25 @@ Public Function CheckIMISValues(encid As String) As Variant[]
     Endif
 
     hCElig = New CimisAPIEligible(xnhis)
-    xexpdate = hCElig.GetexpiryDaye()
-    xcredamt = hCElig.GetAllowedAmt()
-    xmsg = [xcredamt, xexpdate]
+    xPatVar = hCElig.GetPatientPolicyData()
+    If xPatVar And If xPatVar.Count Then
+      policyLst = modString.GetListFromVariant(xPatVar, "Policy Name", True)
+      If policyLst.Count Then
+        xpolicy = InputCombo("Select Policy", "Health Insurance", policyLst, "", True)
+        If xpolicy Then
+
+          For Each aColl In xPatVar
+            If aColl["Policy Name"] = xpolicy Then
+              xexpdate = aColl["Expiry Date"]
+              xcredamt = aColl["Credit Limit"]
+              xmsg = [xcredamt, xexpdate, xpolicy]
+              Break
+            Endif
+          Next
+
+        Endif
+      Endif
+    Endif
   Endif
   Return xmsg
 

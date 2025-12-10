@@ -1,0 +1,647 @@
+' Gambas module file
+
+''----------------------------- Report -------------------------------------
+Public Function MultiShowCompleteReport(xList As String[], encidList As String[], lablist As String[], radiolist As String[], strUnit As String) As String
+
+  Dim $BillingReport As CReportHTML
+  Dim xTitle As String[]
+
+  xTitle = New String[]
+  xTitle.Add("Category")
+  xTitle.Insert(encidList)
+  $BillingReport = New CReportHTML(xTitle, "", "")
+  $BillingReport.UserData.Add("COMPARISON : SELECTED PARAMETERS", "PARAM1")
+  $BillingReport.UserData.Add(modReportVar.GetDateTimeReport(Now(), gb.GeneralDate), "PARAM2")
+
+  $BillingReport.Add(MultiGeneralProfile(encidList))
+
+  $BillingReport.AddSection("General", True)
+  If xList Then
+
+    If xList.Exist("Course of Treatment") Then
+      $BillingReport.Add(AddCourseOfTreatment(encidList))
+    Endif
+    If xList.Exist("Demographics") Then
+      $BillingReport.Add(AddPatDemographics(encidList))
+    Endif
+    If xList.Exist("Cause of Admission") Then
+      $BillingReport.Add(AddCauseofAdmission(encidList))
+    Endif
+    If xList.Exist("Chief Complaints") Then
+      $BillingReport.Add(AddChiefComplaints(encidList))
+    Endif
+    If xList.Exist("History") Then
+      $BillingReport.Add(AddHistoryAllTypes(encidList))
+    Endif
+    If xList.Exist("Consultations") Then
+      $BillingReport.Add(AddConsultationAll(encidList))
+    Endif
+    If xList.Exist("Drug Allergy") Then
+      $BillingReport.Add(AddDrugAllergy(encidList))
+    Endif
+    If xList.Exist("Provisional Diagnosis") Then
+      $BillingReport.Add(AddProvisionalDiagnosis(encidList))
+    Endif
+    If xList.Exist("Final Diagnosis") Then
+      $BillingReport.Add(AddFinalDiagnosis(encidList))
+    Endif
+    If xList.Exist("Treatment Advised") Then
+      $BillingReport.Add(AddTreatmentAdvised(encidList))
+    Endif
+
+    If xList.Exist("Outpatient Advice") Then
+      $BillingReport.Add(AddOutpatientAdvice(encidList))
+    Endif
+    If xList.Exist("Orders for New Visit") Then
+      $BillingReport.Add(AddOrderForNewVisit(encidList))
+    Endif
+    If xList.Exist("Planned Procedures") Then
+      $BillingReport.Add(AddPlannedProcedures(encidList))
+    Endif
+    If xList.Exist("Unavailable Medicines") Then
+      $BillingReport.Add(AddUnavailableMeds(encidList))
+    Endif
+
+    If xList.Exist("Clinical Finding") Then
+      $BillingReport.Add(AddExaminationsAll(encidList))
+    Endif
+    If xList.Exist("Laboratory Tests") Then
+      $BillingReport.Add(MultiAddSelectedTest(encidList, lablist, strUnit))
+    Endif
+    If xList.Exist("Radiological Findings") Then
+      $BillingReport.Add(MultiAddSelectedRadio(encidList, radiolist))
+    Endif
+
+    If xList.Exist("Major Procedures") Then
+      $BillingReport.Add(AddMajorProcedures(encidList))
+    Endif
+    If xList.Exist("Minor Procedures") Then
+      $BillingReport.Add(AddMinorProcedures(encidList))
+    Endif
+    If xList.Exist("Equipments Used") Then
+      $BillingReport.Add(AddEquipmentsUsed(encidList))
+    Endif
+    If xList.Exist("Event Timings") Then
+      $BillingReport.Add(AddEventProfile(encidList))
+    Endif
+    If xList.Exist("Devices Used") Then
+      $BillingReport.Add(AddDevicesUsed(encidList))
+    Endif
+
+    If xList.Exist("Medication Used") Then
+      $BillingReport.Add(AddMedicationUsed(encidList))
+    Endif
+    If xList.Exist("Nutrition Consumed") Then
+      $BillingReport.Add(AddNutritionUsed(encidList))
+    Endif
+
+    If xList.Exist("Delivery Profile") Then
+      $BillingReport.Add(MultiAddDeliveryProfile(encidList))
+    Endif
+
+    If xList.Exist("Inpatient Notes") Then
+      $BillingReport.Add(AddInpatientNotes(encidList))
+    Endif
+    If xList.Exist("Medical Planning") Then
+      $BillingReport.Add(AddTherapeuticPlanning(encidList))
+    Endif
+    If xList.Exist("IP Monitoring") Then
+      $BillingReport.Add(AddIPMonitoring(encidList))
+    Endif
+
+    If xList.Exist("Discharge Notes") Then
+      $BillingReport.Add(AddDischargeNotes(encidList))
+    Endif
+    If xList.Exist("Discharge Medication") Then
+      $BillingReport.Add(AddDischargeMedication(encidList))
+    Endif
+
+  Endif
+
+  Return $BillingReport.NewHTMLPath()
+
+End
+
+Private Function MultiGeneralProfile(encidList As String[]) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+  Dim xx As String
+
+  With asx
+    .Add("General Information")
+    For Each encid In encidList
+      xx = "Patient No: " & modPatient.GetPatientNoByEnc(encid) & gb.NewLine
+      xx = xx & "Patient Name: " & modPatient.GetPatientNameByEnc(encid, modDatabase.$syConn) & gb.NewLine
+      xx = xx & "Address: " & modPatient.GetPatientAddressByEnc(encid, modDatabase.$syConn) & gb.NewLine
+      xx = xx & "Gender: " & modPatient.GetPatientSex(encid, modDatabase.$syConn) & gb.NewLine
+      xx = xx & "Age on Registration: " & modPatient.GetPatientAgeString(encid, modPatient.GetRecordDate(encid)) & gb.NewLine
+      xx = xx & "Ethnicity: " & modPatient.GetPatientEthnicity(encid) & gb.NewLine
+      xx = xx & "Consultant: " & modPatient.GetAttendingConsultant(encid) & gb.NewLine
+      xx = xx & "Visit Mode: " & modPatient.GetPatVisitType(encid) & gb.NewLine
+      xx = xx & "File Number: " & modPatient.GetPatientFileByEnc(encid)
+      .Add(xx)
+    Next
+  End With
+  Return asx
+
+End
+
+''--------------- Attached: General -----------------------
+Private Function AddCourseOfTreatment(encidList As String[]) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+
+  With asx
+    .Add("Course of Treatment")
+    For Each encid In encidList
+      .Add(modString.GetHTMLListFormat(modString.GetHTMLListFormat(modClinicReport.GetCourseOfTreatment(encid))))
+    Next
+  End With
+  Return asx
+
+End
+
+Private Function AddBedTransition(encidList As String[]) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+
+  With asx
+    .Add("Bed Transitions")
+    For Each encid In encidList
+      .Add(modString.GetHTMLListFormat(modPatPatho.GetPatientTransition(encid)))
+    Next
+  End With
+  Return asx
+
+End
+
+Private Function AddChiefComplaints(encidList As String[]) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+
+  With asx
+    .Add("Chief Complaints")
+    For Each encid In encidList
+      .Add(modString.GetHTMLListFormat(modClinicReport.GetPatientChiefComplaintsReport(encid, True)))
+    Next
+  End With
+  Return asx
+
+End
+
+Private Function AddPatDemographics(encidList As String[]) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+
+  With asx
+    .Add("Demographics")
+    For Each encid In encidList
+      .Add(modString.GetHTMLListFormat(modClinicReport.GetPatientDemographicReport(encid, True)))
+    Next
+  End With
+  Return asx
+
+End
+
+Private Function AddCauseofAdmission(encidList As String[]) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+
+  With asx
+    .Add("Cause of Admission")
+    For Each encid In encidList
+      .Add(modString.TextToHTML(modPatReports.GetPatientHistoryReport(encid, "Cause of Admission")))
+    Next
+  End With
+  Return asx
+
+End
+
+Private Function AddHistoryAllTypes(encidList As String[]) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+
+  With asx
+    .Add("History")
+    For Each encid In encidList
+      .Add(modString.GetHTMLListFormat(modClinicReport.GetPatientHistoryAllTypes(encid)))
+    Next
+  End With
+  Return asx
+
+End
+
+Private Function AddConsultationAll(encidList As String[]) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+
+  With asx
+    .Add("Consultations")
+    For Each encid In encidList
+      .Add(modString.GetHTMLListFormat(modPatient.GetPatientCOnsultList(encid)))
+    Next
+  End With
+  Return asx
+
+End
+
+Private Function AddProvisionalDiagnosis(encidList As String[]) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+
+  With asx
+    .Add("Provisional Diagnosis")
+    For Each encid In encidList
+      .Add(modString.GetHTMLListFormat(modPatient.PatientFindingList(encid, "Provisional Diagnosis")))
+    Next
+  End With
+  Return asx
+
+End
+
+Private Function AddFinalDiagnosis(encidList As String[]) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+
+  With asx
+    .Add("Final Diagnosis")
+    For Each encid In encidList
+      .Add(modString.GetHTMLListFormat(modPatient.PatientFindingList(encid, "Final Diagnosis")))
+    Next
+  End With
+  Return asx
+
+End
+
+Private Function AddDrugAllergy(encidList As String[]) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+
+  With asx
+    .Add("Drug Allergy")
+    For Each encid In encidList
+      .Add(modString.GetHTMLListFormat(modPatient.PatientFindingList(encid, "Allergic Drugs")))
+    Next
+  End With
+  Return asx
+
+End
+
+Private Function AddTreatmentAdvised(encidList As String[]) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+
+  With asx
+    .Add("Treatment Advised")
+    For Each encid In encidList
+      .Add(modString.TextToHTML(modClinicReport.GetRequestMedString(encid, "Medicines", True)))
+    Next
+  End With
+  Return asx
+
+End
+
+Private Function AddUnavailableMeds(encidList As String[]) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+
+  With asx
+    .Add("Unavailable Medicines")
+    For Each encid In encidList
+      .Add(modString.TextToHTML(modClinicReport.NonAvailableMedString(encid, "Medicines", True)))
+    Next
+  End With
+  Return asx
+
+End
+
+Private Function AddOutpatientAdvice(encidList As String[]) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+
+  With asx
+    .Add("Outpatient Advic")
+    For Each encid In encidList
+      .Add(modString.TextToHTML(modPatReports.GetPatientNotesAllTypes(encid, "Outpatient Notes").Join(gb.NewLine)))
+    Next
+  End With
+  Return asx
+
+End
+
+Private Function AddOrderForNewVisit(encidList As String[]) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+
+  With asx
+    .Add("Orders for New Visit")
+    For Each encid In encidList
+      .Add(modString.TextToHTML(modPatReports.GetPastBillingOrders(encid)))
+    Next
+  End With
+  Return asx
+
+End
+
+Private Function AddPlannedProcedures(encidList As String[]) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+
+  With asx
+    .Add("Planned Procedures")
+    For Each encid In encidList
+      .Add(modString.GetHTMLListFormat(modPatReports.GetPatProcedureList(encid, "Procedures", "Planned")))
+    Next
+  End With
+  Return asx
+
+End
+
+''------------------ Attached: Lab/Radio/Exam
+Private Function AddExaminationsAll(encidList As String[]) As String[]
+
+  Dim asx As New String[0]
+  Dim categList As String[]
+  Dim xcateg As String
+  Dim xlist As String[]
+  Dim xexams As String[]
+  Dim encid As String
+
+  categList = ["ABC Examinations", "Essential Examinations", "Physician Examinations", "Nursing Examinations", "Discharge Examinations"]
+
+  With asx
+    .Add("Clinical Findings")
+    For Each encid In encidList
+
+      xexams = New String[]
+      For Each xcateg In categList
+        xlist = modPatReports.PaientSelExamNameArray(encid, xcateg)
+        If xlist Then
+          xexams.Add(xcateg & gb.NewLine & modClinicReport.GetExaminationHTMLProfile(encid, xlist))
+        Endif
+      Next
+
+      .Add(modString.GetHTMLListFormat(xexams))
+    Next
+  End With
+  Return asx
+
+End
+
+''---------------------- Attached: Services ------------------------------
+Private Function AddMajorProcedures(encidList As String[]) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+
+  With asx
+    .Add("Major Procedures")
+    For Each encid In encidList
+      .Add(modString.TextToHTML(modPatPatho.PatSelectProcedureString(encid, "Procedures", "Done")))
+    Next
+  End With
+  Return asx
+
+End
+
+Private Function AddMinorProcedures(encidList As String[]) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+
+  With asx
+    .Add("Minor Procedures")
+    For Each encid In encidList
+      .Add(modString.GetHTMLListFormat(modPatReports.GetPatProcedureList(encid, "Minor Procedures", "Done")))
+    Next
+  End With
+  Return asx
+
+End
+
+Private Function AddEquipmentsUsed(encidList As String[]) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+
+  With asx
+    .Add("Equipments Used")
+    For Each encid In encidList
+      .Add(modString.GetHTMLListFormat(modPatPatho.GetPatientEquipmentUse(encid)))
+    Next
+  End With
+  Return asx
+
+End
+
+Private Function AddEventProfile(encidList As String[]) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+
+  With asx
+    .Add("Event Timings")
+    For Each encid In encidList
+      .Add(modString.GetHTMLListFormat(modPatPatho.GetPatientEventProfile(encid, "Events")))
+    Next
+  End With
+  Return asx
+
+End
+
+Private Function AddDevicesUsed(encidList As String[]) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+
+  With asx
+    .Add("Devices Used")
+    For Each encid In encidList
+      .Add(modString.GetHTMLListFormat(modPatPatho.GetPatientEventProfile(encid, "Devices")))
+    Next
+  End With
+  Return asx
+
+End
+
+Private Function AddMedicationUsed(encidList As String[]) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+
+  With asx
+    .Add("Medication Used")
+    For Each encid In encidList
+      .Add(modString.TextToHTML(modPharmacy.NurDosingString(encid)))
+    Next
+  End With
+  Return asx
+
+End
+
+Private Function AddNutritionUsed(encidList As String[]) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+
+  With asx
+    .Add("Nutrition Consumed")
+    For Each encid In encidList
+      .Add("")
+    Next
+  End With
+  Return asx
+
+End
+
+''-------------------------- Attached: Inpatient -------------------
+Private Function AddInpatientNotes(encidList As String[]) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+
+  With asx
+    .Add("Inpatient Notes")
+    For Each encid In encidList
+      .Add(modString.GetHTMLListFormat(modPatReports.GetPatientNotesAllTypes(encid, "Inpatient Notes")))
+    Next
+  End With
+  Return asx
+
+End
+
+Private Function AddTherapeuticPlanning(encidList As String[]) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+
+  With asx
+    .Add("Medical Planning")
+    For Each encid In encidList
+      .Add(modString.GetHTMLListFormat(modPatReports.GetPatientPlanningReport(encid)))
+    Next
+  End With
+  Return asx
+
+End
+
+Private Function AddIPMonitoring(encidList As String[]) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+
+  With asx
+    .Add("IP Monitoring")
+    For Each encid In encidList
+      .Add(modString.GetHTMLListFormat(modPatReports.GetPatientMonitorReport(encid)))
+    Next
+  End With
+  Return asx
+
+End
+
+Private Function AddDischargeNotes(encidList As String[]) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+
+  With asx
+    .Add("Discharge Notes")
+    For Each encid In encidList
+      .Add(modString.GetHTMLListFormat(modPatReports.GetPatientNotesAllTypes(encid, "Discharge Notes")))
+    Next
+  End With
+  Return asx
+
+End
+
+Private Function AddDeliveryProfile(encidList As String[]) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+
+  With asx
+    .Add("Delivery Profile")
+    For Each encid In encidList
+      .Add(modString.GetHTMLListFormat(modPatReports.DeliveryReportbyMother(encid)))
+    Next
+  End With
+  Return asx
+
+End
+
+Private Function AddDischargeMedication(encidList As String[]) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+
+  With asx
+    .Add("Discharge Medication")
+    For Each encid In encidList
+      .Add(modString.TextToHTML(modClinicReport.DischargeMedString(encid)))
+    Next
+  End With
+  Return asx
+
+End
+
+Private Function MultiAddDeliveryProfile(encidList As String[]) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+
+  With asx
+    .Add("Delivery Profile")
+    For Each encid In encidList
+      .Add(modString.GetHTMLListFormat(modPatReports.DeliveryReportbyMother(encid)))
+    Next
+  End With
+  Return asx
+
+End
+
+Private Function MultiAddSelectedTest(encidList As String[], testList As String[], sUnit As String) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+
+  With asx
+    .Add("Laboratory")
+    For Each encid In encidList
+      .Add(modPatReports.GetlaboratoryHTMLProfile(encid, testList, sUnit))
+    Next
+  End With
+  Return asx
+
+End
+
+Private Function MultiAddSelectedRadio(encidList As String[], testList As String[]) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+
+  With asx
+    .Add("Radio Diagnostics")
+    For Each encid In encidList
+      .Add(modPatReports.GetRadiologyHTMLProfile(encid, testList))
+    Next
+  End With
+  Return asx
+
+End

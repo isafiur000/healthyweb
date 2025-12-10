@@ -1,5 +1,7 @@
 ' Gambas class file
 
+Private $SpecialForms As String[] = ["Neurology Form", "Refraction Form", "ANC Visit Form"]
+
 Public Sub _new()
 
   Dim xList As String[]
@@ -26,12 +28,16 @@ Public Sub _new()
   cmbdietapprove.List = ["Enable", "Disable"]
   cmbicdgroup.List = ["Enable", "Disable"]
   cmbhistdisch.List = ["Selected", "All"]
-  cmbradiocomment.List = ["Optional", "Essential"]
   cmbconsultcomment.List = ["Optional", "Essential"]
 
   cmbtriage.List = ["Manual", "Dynamic"]
   cmbdosing.List = ["Enable", "Disable"]
   xList = modControlSub.GetDirectFillresultNoNull(modDatabase.$medConn.Exec("select distinct(fldsubclass) as col from tblstructexam where fldclass like &1", "Physician Examinations"))
+  If xList.Count Then
+    xList.Insert($SpecialForms)
+  Else
+    xList = $SpecialForms
+  Endif
   cmbdefopdexam.List = xList
   cmbdefipdexam.List = xList
   cmbdefhistory.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldformat) as col from tblhistory"))
@@ -312,7 +318,7 @@ Private Sub ShowDataEntry()
   cmbdietapprove.Text = modGlobalSetting.ShowSettingFromDBAny("ClinicForms/User_DietApproval", cmbtarget.Text)
   cmbicdgroup.Text = modGlobalSetting.ShowSettingFromDBAny("ClinicForms/ICDGroup_Diagnosis", cmbtarget.Text)
   cmbhistdisch.Text = modGlobalSetting.ShowSettingFromDBAny("ClinicForms/History_Discharge_Variables", cmbtarget.Text)
-  cmbradiocomment.Text = modGlobalSetting.ShowSettingFromDBAny("ClinicForms/RadiologyComment", cmbtarget.Text)
+
   cmbconsultcomment.Text = modGlobalSetting.ShowSettingFromDBAny("ClinicForms/ConsultationComment", cmbtarget.Text)
 
 End
@@ -384,13 +390,6 @@ End
 Public Sub btnhistdisch_Click()
 
   modGlobalSetting.SaveSettingToDB("ClinicForms/History_Discharge_Variables", cmbhistdisch.Text, cmbtarget.Text)
-  Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
-
-End
-
-Public Sub btnradiocomment_Click()
-
-  modGlobalSetting.SaveSettingToDB("ClinicForms/RadiologyComment", cmbradiocomment.Text, cmbtarget.Text)
   Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
 
 End
@@ -537,7 +536,6 @@ Public Sub btnsettall_Click()
   xList.Add("ClinicForms/User_DietApproval")
   xList.Add("ClinicForms/ICDGroup_Diagnosis")
   xList.Add("ClinicForms/History_Discharge_Variables")
-  xList.Add("ClinicForms/RadiologyComment")
   xList.Add("ClinicForms/ConsultationComment")
 
   xList.Add("IPClinic/SymptomCauseScale")

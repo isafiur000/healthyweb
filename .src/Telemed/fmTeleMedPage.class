@@ -122,9 +122,6 @@ End
 
 Public Sub WebTabPanel1_Click()
 
-  Dim sHistoryList As New String[]
-  Dim sDischList As New String[]
-
   If WebTabPanel1.Index = 0 Then
     txtchaturl.Text = $rData["fldvidserver"] &/ "room" &/ $rData["fldvidroom"]
     txtpass.Text = $rData["fldvidpass"]
@@ -152,7 +149,7 @@ Public Sub WebTabPanel1_Click()
     If pnlhistory.Children.Count Then
       pnlhistory.DeleteChildren()
     Endif
-    hPtForm = New FmClinHistory($PatientNum, "PatientID", sHistoryList, sDischList, False, "height-tablet-full-less", pnlhistory)
+    hPtForm = New FmClinHistory($PatientNum, "PatientID", False, "height-tablet-full-less", pnlhistory)
 
   Else If WebTabPanel1.Index = 6 Then
     If GridView1.Selection.Count Then
@@ -177,7 +174,7 @@ Private Sub ShowChiefSymptomData()
 
   txtcomplaints.Html = ""
   txthistory.Html = ""
-  txtcomplaints.Html = "<p>" & modString.TextToHTML(modPatReports.GetPatientPresentingSymptomReport($encid).Join(gb.NewLine) & gb.NewLine & modPatPatho.ShowSelectedHistoryValue($encid, "General Complaints")) & "</p>"
+  txtcomplaints.Html = "<p>" & modString.TextToHTML(modClinicReport.GetPatientChiefComplaintsReport($encid).Join(gb.NewLine)) & "</p>"
 
   HistLst = New Collection
   res = modDatabase.$myConn.Exec("select flditem,flddetail from tblexamgeneral where fldencounterval=&1 and fldinput=&2 ORDER BY fldtime", $encid, "History")
@@ -461,29 +458,16 @@ Public Sub mnucomplete_Click()
   Dim xPath As String
   Dim xpatno As String
   Dim xList As String[]
-  Dim xvarList As Variant[]
-  Dim examlist As String[]
-  Dim lablist As String[]
-  Dim radiolist As String[]
 
   If $encid Then
     xpatno = $PatientNum
     If modPatientSub.GetPatPassCheck(modDatabase.$myConn, xpatno) = True Then
-      xList = SelectMedBody("")
+      xList = SelectMedBody("", "View")
       Wait
       If xList Then
-        If xList.Exist("Selected Investigations") Then
-          xvarList = ListViewMulti($encid)
-          If xvarList Then
-            examlist = xvarList[0]
-            lablist = xvarList[1]
-            radiolist = xvarList[2]
-          Endif
-        Endif
+        xPath = modPatReportAll.ShowAllEncounterReport($encid, xList, LabUnitForm())
+        modControlSub.OpenHTMLPreview($encid, xPath, "ReportSize")
       Endif
-
-      xPath = modPatReports.ShowAllEncounterReport($encid, xList, examlist, lablist, radiolist, LabUnitForm())
-      modControlSub.OpenHTMLPreview($encid, xPath, "ReportSize")
     Endif
   Endif
 
@@ -673,39 +657,26 @@ Private Sub ShowReportQuery(encid As String)
 
   Dim xPath As String
   Dim xList As String[]
-  Dim xvarList As Variant[]
-  Dim examlist As String[]
-  Dim lablist As String[]
-  Dim radiolist As String[]
   Dim sColl As Collection
 
   If encid Then
-    xList = SelectMedBody("")
+    xList = SelectMedBody("", "View")
     Wait
+
     If xList Then
-      If xList.Exist("Selected Investigations") Then
-        xvarList = ListViewMulti(encid)
-        If xvarList Then
-          examlist = xvarList[0]
-          lablist = xvarList[1]
-          radiolist = xvarList[2]
+      If txtquery.RichText Then
+        sColl = New Collection
+        sColl.Add(txtquery.RichText, "Query")
+        If txtresponse.RichText Then
+          sColl.Add(txtresponse.RichText, "Response")
         Endif
+        If cmbcomment.Text Then
+          sColl.Add(cmbcomment.Text, "Comment")
+        Endif
+        xPath = modPatReportAll.ShowCompleteReport(encid, xList, MMain.$defUnit, False, sColl)
+      Else
+        xPath = modPatReportAll.ShowCompleteReport(encid, xList, MMain.$defUnit, False)
       Endif
-    Endif
-
-    If txtquery.RichText Then
-      sColl = New Collection
-      sColl.Add(txtquery.RichText, "Query")
-      If txtresponse.RichText Then
-        sColl.Add(txtresponse.RichText, "Response")
-      Endif
-      If cmbcomment.Text Then
-        sColl.Add(cmbcomment.Text, "Comment")
-      Endif
-      xPath = modPatReports.ShowCompleteReport(encid, xList, examlist, lablist, radiolist, MMain.$defUnit, False, sColl)
-
-    Else
-      xPath = modPatReports.ShowCompleteReport(encid, xList, examlist, lablist, radiolist, MMain.$defUnit, False)
     Endif
     modControlSub.OpenHTMLPreview(encid, xPath, "ReportSize")
 
