@@ -146,21 +146,25 @@ Public Sub btnsubOK_Click()
 
   Dim xrefer As String
   Dim xTarg As String
+  Dim xList As String[]
 
   If $encid And If cmbprocedure.Text And If cmbstatus.Text Then
     If modMisc.AllowDiagnoBilling($encid) = True Then
       If modNonMedical.AllowEntryWithDeposit($encid, "Procedure") = True Then
 
         If cmbstatus.Text = "Planned" Then
-          xrefer = modBillings.GetReferralUserSetting("Procedure", $encid)
-          xTarg = GetProcTarget(cmbprocedure.Text)
-          If modBasic.$AutoBillProcedure = "Standard" Or If modBasic.$AutoBillProcedure = "Full" Or If modBasic.$AutoBillProcedure = "Partial" Then
-            If chknextvisit.Value = True Then
-              modBillings.GetAutoBillingEntry($encid, cmbdisctype.Text, "Procedure", cmbprocedure.Text, 1, "Planned", 0, False, False, "", xrefer, xTarg)
-            Else
-              modBillings.GetAutoBillingEntry($encid, cmbdisctype.Text, "Procedure", cmbprocedure.Text, 1, "Punched", 0, False, False, "", xrefer, xTarg)
+          xList = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(flditemname) as col from tblpatbilling where fldencounterval=&1 and flditemname in(select flditemname as col from tblservicecost where flditemtype=&2)", $encid, "Procedures"))
+          If modMisc.GetDuplicationAllow(xList, cmbprocedure.Text) = True Then
+            xrefer = modBillings.GetReferralUserSetting("Procedure", $encid)
+            xTarg = GetProcTarget(cmbprocedure.Text)
+            If modBasic.$AutoBillProcedure = "Standard" Or If modBasic.$AutoBillProcedure = "Full" Or If modBasic.$AutoBillProcedure = "Partial" Then
+              If chknextvisit.Value = True Then
+                modBillings.GetAutoBillingEntry($encid, cmbdisctype.Text, "Procedure", cmbprocedure.Text, 1, "Planned", 0, False, False, "", xrefer, xTarg)
+              Else
+                modBillings.GetAutoBillingEntry($encid, cmbdisctype.Text, "Procedure", cmbprocedure.Text, 1, "Punched", 0, False, False, "", xrefer, xTarg)
+              Endif
+              SHowUnpaidGrid()
             Endif
-            SHowUnpaidGrid()
           Endif
         Endif
         Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
