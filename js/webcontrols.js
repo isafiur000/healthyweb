@@ -230,7 +230,7 @@ domReady(function () {
 
     let htmlscanner = new Html5QrcodeScanner(
       "my-qr-reader",
-      { fps: 10, qrbos: 250 }
+      { fps: 10, qrbos: 250, supportedScanTypes: [ Html5QrcodeScanType.SCAN_TYPE_CAMERA ] }
     );
     htmlscanner.render(onScanSuccess);
 });
