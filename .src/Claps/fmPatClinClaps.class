@@ -49,9 +49,6 @@ Public Sub _new(encid As String, sIndex As Long, sMode As String)
   modLabSub.DisplayDefaultTestUnit(rbsi, rbmetric)
   cmbrefer.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select fldlocation as col from tblreferlist"))
 
-  SetHtmlTextOption(txtgencomplaint)
-  SetHtmlTextOption(txtplan)
-  SetHtmlTextOption(txtcomment)
   rbimproved.Value = True
   rbimproved_Click()
 
@@ -347,6 +344,7 @@ Private Sub BasicInfoPatient()
   Dim hLabForm As FmLabOrder
   Dim hMedForm As FmDrugOrder
   Dim hMinForm As FmMinorProcOrder
+  Dim hPtForm As FmClinHistory
 
   If txtencid.Text Then
     modRepository.$RepoDataStatus = False
@@ -361,7 +359,7 @@ Private Sub BasicInfoPatient()
           txtpastdiagnosis.Text = "<p>" & "<b>Past " & modBasic.$ClinPastDiagnosis & "</b><br>" & modPathoSub.GetSelectedPastDiagnosisList(modBasic.$ClinPastDiagnosis, $PatientNum, Trim(txtencid.Text)).Join(", ") & "</p>"
       End Select
     Endif
-    txtgencomplaint.RichText = modPatPatho.ShowSelectedHistoryValue(Trim(txtencid.Text), "General Complaints")
+    txtgencomplaint.Text = modPatPatho.ShowSelectedHistoryValue(Trim(txtencid.Text), "General Complaints")
     lstallergy.List = modPathoSub.GetAllergyMedicineList(Trim(txtencid.Text), chkallergy.Value)
     lstsyndrome.List = modPathoSub.GetSelectedDiagnosisList("Provisional Diagnosis", Trim(txtencid.Text))
     ShowEssentialExamRange()
@@ -375,6 +373,7 @@ Private Sub BasicInfoPatient()
     hMinForm = New FmMinorProcOrder(Trim(txtencid.Text), $billModeProcedure, WebContainer8)
     hDigForm = New FmDiagnosticTab(Trim(txtencid.Text), "height-tablet", pnlabexams)
     hMedForm = New FmDrugOrder(Trim(txtencid.Text), $sTatus, $billModePharmacy, "height-tablet", WebContainer11)
+    hPtForm = New FmClinHistory($PatientNum, "PatientID", False, "height-tablet", pnlhistoryold)
 
     modPatientSub.PopUpPatientForm(Trim(txtencid.Text), Me.Tag)
   Endif
@@ -472,7 +471,7 @@ Private Sub ButtonControl()
   ''demographics
   mnudemo.Enabled = xx
   ''images
-  btnaddchart.Enabled = xx
+  btnaddvital.Enabled = xx
   ''vaccines
   mnuvaccine.Enabled = xx
   ''outcome
@@ -623,7 +622,7 @@ Public Sub btnallergymanual_Click()
   Dim xx As String
 
   If txtencid.Text Then
-    xx = InputBox(("Enter custom Drug Allergy"), ("Drug Allergy"), "")
+    xx = InputBox(("Enter Other Allergy"), ("Drug Allergy"), "")
     If xx Then
       modPatientGeneral.AddPatientFindings("Allergic Drugs", Trim(txtencid.Text), xx, "", "")
       Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
@@ -670,12 +669,12 @@ Public Sub txtfinding_Activate() ''''from got focus
 
 End
 
-Public Sub btnaddexamlist_Click()
+Public Sub btnaddexamlistall_Click()
 
   Dim hForm As FmEnterGroupExam
 
   If txtencid.Text Then
-    hForm = New FmEnterGroupExam(Trim(txtencid.Text), "Physician Examinations", "Group")
+    hForm = New FmEnterGroupExam(Trim(txtencid.Text), "Physician Examinations", "All")
     hForm.ShowModal
     FillExamtable()
     ShowEssentialExam()
@@ -683,12 +682,12 @@ Public Sub btnaddexamlist_Click()
 
 End
 
-Public Sub btnaddexamlistall_Click()
+Public Sub btnaddexamlist_Click()
 
   Dim hForm As FmEnterGroupExam
 
   If txtencid.Text Then
-    hForm = New FmEnterGroupExam(Trim(txtencid.Text), "Physician Examinations", "All")
+    hForm = New FmEnterGroupExam(Trim(txtencid.Text), "Physician Examinations", "Group")
     hForm.ShowModal
     FillExamtable()
     ShowEssentialExam()
@@ -705,6 +704,18 @@ Public Sub btnaddscales_Click()
     hForm.ShowModal
     FillExamtable()
     ShowEssentialExam()
+  Endif
+
+End
+
+Public Sub btnaddvital_Click()
+
+  Dim hForm As FmVital
+
+  If txtencid.Text
+    hForm = New FmVital(Trim(txtencid.Text), "widesize-popupform")
+    hForm.ShowModal
+    UpdateTriage()
   Endif
 
 End
@@ -1195,7 +1206,7 @@ Public Sub btnplan_Click()
   Endif
 
   If txtplan.Text Then
-    modPatientGeneral.AddExamGeneralQualiData(Trim(txtencid.Text), "Notes", "Initial Planning", txtplan.KeyList.Join(";"), txtplan.RichText, xboolean)
+    modPatientGeneral.AddExamGeneralQualiData(Trim(txtencid.Text), "Notes", "Initial Planning", "", txtplan.Text, xboolean)
     Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
   Endif
 
@@ -1212,7 +1223,7 @@ Public Sub btngencompln_Click()
   Endif
 
   If txtgencomplaint.Text Then
-    modPatientGeneral.AddExamGeneralQualiData(Trim(txtencid.Text), "History", "General Complaints", txtgencomplaint.KeyList.Join(";"), txtgencomplaint.RichText, xboolean)
+    modPatientGeneral.AddExamGeneralQualiData(Trim(txtencid.Text), "History", "General Complaints", "", txtgencomplaint.Text, xboolean)
     Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
   Endif
   modSettings.SaveSettingsToFile("OPDForm/Complaints", "General")
@@ -1443,58 +1454,58 @@ End
 
 Public Sub btndataopd_Click()
 
-  txtplan.RichText = AddHistory("Discharge", Trim(txtencid.Text), "Initial Planning")
+  txtplan.Text = AddHistory("Discharge", Trim(txtencid.Text), "Initial Planning")
 
 End
 
 ''----------- pen
 Public Sub btnpancompl_Click()
 
-  txtgencomplaint.RichText = txtgencomplaint.RichText & Space(1) & modFillContainer.GetExtraTextArea("General Complaints", txtgencomplaint.Text)
+  txtgencomplaint.Text = txtgencomplaint.Text & Space(1) & modFillContainer.GetExtraTextArea("General Complaints", txtgencomplaint.Text)
 
 End
 
 Public Sub btnpanopd_Click()
 
-  txtplan.RichText = txtplan.RichText & Space(1) & modFillContainer.GetExtraTextArea("Clinician Advice", txtplan.Text)
+  txtplan.Text = txtplan.Text & Space(1) & modFillContainer.GetExtraTextArea("Clinician Advice", txtplan.Text)
 
 End
 
 ''--------------- exec
 Public Sub btnexeccompl_Click()
 
-  txtgencomplaint.RichText = txtgencomplaint.RichText & modString.TextToHTML(modCloudAI.GetPatCloudAIResponse(Trim(txtencid.Text), txtgencomplaint.Text))
+  txtgencomplaint.Text = txtgencomplaint.Text & modString.TextToHTML(modCloudAI.GetPatCloudAIResponse(Trim(txtencid.Text), txtgencomplaint.Text))
 
 End
 
 Public Sub btnexecopd_Click()
 
-  txtplan.RichText = txtplan.RichText & modString.TextToHTML(modCloudAI.GetPatCloudAIResponse(Trim(txtencid.Text), txtplan.Text))
+  txtplan.Text = txtplan.Text & modString.TextToHTML(modCloudAI.GetPatCloudAIResponse(Trim(txtencid.Text), txtplan.Text))
 
 End
 
 ''---------------- attach
 Public Sub btnattcompl_Click()
 
-  txtgencomplaint.RichText = txtgencomplaint.RichText & DictionaryVIew("General Complaints")
+  txtgencomplaint.Text = txtgencomplaint.Text & DictionaryVIew("General Complaints")
 
 End
 
 Public Sub btnattopd_Click()
 
-  txtplan.RichText = txtplan.RichText & DictionaryVIew("Clinician Advice")
+  txtplan.Text = txtplan.Text & DictionaryVIew("Clinician Advice")
 
 End
 
 Public Sub btnclearinitial_Click()
 
-  txtplan.RichText = ""
+  txtplan.Text = ""
 
 End
 
 Public Sub btnclearcompl_Click()
 
-  txtgencomplaint.RichText = ""
+  txtgencomplaint.Text = ""
 
 End
 
@@ -1620,9 +1631,9 @@ Public Sub btnoutcome_Click()
 
     If xmode Then
       If txtclinmode.Text = "Consultation" Then
-        modPatientSub.UpdateConsultData(txtclinIndex.Value, Trim(txtencid.Text), "Done", txtcomment.RichText, xmode)                       ''
+        modPatientSub.UpdateConsultData(txtclinIndex.Value, Trim(txtencid.Text), "Done", txtcomment.Text, xmode)                       ''
       Else If txtclinmode.Text = "OP Visit" Then
-        modPatientSub.UpdateOPVisitData(txtclinIndex.Value, Trim(txtencid.Text), "Done", txtcomment.RichText, xmode)
+        modPatientSub.UpdateOPVisitData(txtclinIndex.Value, Trim(txtencid.Text), "Done", txtcomment.Text, xmode)
       Endif
     Endif
     modDatabase.$myConn.Commit

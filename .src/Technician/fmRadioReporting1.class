@@ -3,7 +3,6 @@
 Private $encid As String
 Private $PatientNum As String
 Private $InvoiceFormat As Boolean
-
 Private $package As String
 Private $BillMode As String
 
@@ -11,18 +10,18 @@ Private $ProcBill As Long
 Private $sBillMode As String
 Private $sItemName As String
 Private $sLevel As String
-Private $HelpReport As String
-
 Private $rDataAp As Result
 Private $aMyFieldsAp As String[]
 
 Private $rData As Result
 Private $aMyFields As String[]
+
 Private $rData2 As Result
 Private $aMyFields2 As String[]
 
 Private $rData3 As Result
 Private $aMyFields3 As String[]
+
 Private $rData4 As Result
 Private $aMyFields4 As String[]
 Private $PositionList As String[]
@@ -44,14 +43,10 @@ Public Sub _new()
   xdefault = modSettings.ShowSettingFromFIle("Radiology/DefaultDepartment")
   If xdefault Then
     cmbcategorynew.Text = xdefault
-    cmbcategory.Text = xdefault
   Else
     cmbcategorynew.Text = "%"
-    cmbcategory.Text = "%"
   Endif
-
   cmbsourcedept.List = modGeneral.GetDepartmentAllList("%")
-  modSettings.ShowCheckBox(chkall, "RadioReporting/ShowAll")
   dtsort.Value = Now()
   dtplan.Value = Now()
   xoption = modSettings.ShowSettingFromFIle("EntrySetting/Radiology_DateSelect")
@@ -73,36 +68,58 @@ Public Sub _new()
   Else
     $sLevel = "Active"
   Endif
+  modSettings.ShowCheckBox(chkall, "RadioReporting/ShowAll")
   If modGlobalSetting.ShowSettingFromDB("GeneralSettings/Radiology_TestAddition") = "Yes" Then
-    mnuaddtest.Enabled = True
-    mnuaddgroup.Enabled = True
+    mnuaddtest.Visible = True
+    mnuaddgroup.Visible = True
   Endif
   rbwaiting.Value = True
   If modBasic.$ShareRadiologyAccess = "Yes" Then
     btnaddperson.Visible = True
-    mnudelsurguser.Visible = True
+    btnpersondelete.Visible = True
   Else
     btnaddperson.Visible = False
-    mnudelsurguser.Visible = False
+    btnpersondelete.Visible = False
   Endif
   $counterLst = modControlSub.GetDirectFillresultNoNull(modDatabase.$myConn.Exec("select fldcounter as col from tblradiocounter"))
-  cmbcounter.List = $counterLst
-  cmbrepocounter.List = $counterLst
 
-  $HelpReport = modSettings.ShowSettingFromFIle("Diagnostic Help/Name")
   modRepository.ReadRemoteRepoConfig()
   If modRepository.$RepoPACSHost Then
-    btnupload.Enabled = True
+    btnupload.Visible = True
   Endif
 
   ShowInputForm()
   modAccount.PasInvoiceSetting(cmbfiscal, False)
   LoadTableNames()
-  rbdate.Value = True
-  rbpending.Value = True
-  rbencrepo.Value = True
 
 End
+
+' Public Sub Form_KeyRelease()
+'
+'   If Key.Code = Key.F2 Then
+'     TabPanel1.Index = 0
+'   Else If Key.Code = Key.F3 Then
+'     TabPanel1.Index = 1
+'   Else If Key.Code = Key.F1 Then
+'     btnnewsearch_Click()
+'   Else If Key.Code = Key["O"] And If Key.Control Then
+'     btnwebcam_Click()
+'   Else If Key.Code = Key["F"] And If Key.Control Then
+'   Else If Key.Code = Key["B"] And If Key.Control Then
+'     Me.Close
+'     Wait
+'     modAppSupport.AddNewFormToWorkspace(fmRadioReporting)
+'   Else If Key.Code = Key["R"] And If Key.Control Then
+'     If TabPanel1.Index = 0 Then
+'       btnnewrefresh_Click()
+'     Else If TabPanel1.Index = 1 Then
+'       btnrefresh_Click()
+'     Endif
+'   Else If Key.Code = Key["X"] And If Key.Control Then
+'     Me.Close()
+'   Endif
+'
+' End
 
 Private Sub ShowInputForm()
 
@@ -126,45 +143,12 @@ Private Sub ShowInputForm()
     xx = modSettings.ShowSettingFromFIle("Radiology/InputFormat")
     If xx = "Invoice" Then
       rbinvoice.Value = True
-    Else If xx = "Saved" Then
-      rbindoor.Value = True
     Else
       rbencounter.Value = True
     Endif
-
   Endif
 
 End
-
-' Public Sub Form_KeyRelease()
-'
-'   If Key.Code = Key.F5 Then
-'     TabPanel1.Index = 0
-'   Else If Key.Code = Key.F6 Then
-'     TabPanel1.Index = 1
-'   Else If Key.Code = Key.F1 Then
-'     btnnewsearch_Click()
-'   Else If Key.Code = Key.F2 Then
-'     btnsearname_Click()
-'   Else If Key.Code = Key["O"] And If Key.Control Then
-'     btnwebcam_Click()
-'   Else If Key.Code = Key["F"] And If Key.Control Then
-'     txtencid.Text = GetEncid()
-'   Else If Key.Code = Key["B"] And If Key.Control Then
-'     Me.Close
-'     Wait
-'     modWorkSpace.Add(fmRadioReporting)
-'   Else If Key.Code = Key["R"] And If Key.Control Then
-'     If TabPanel1.Index = 0 Then
-'       btnnewrefresh_Click()
-'     Else If TabPanel1.Index = 1 Then
-'       btnrefresh_Click()
-'     Endif
-'   Else If Key.Code = Key["X"] And If Key.Control Then
-'     Me.Close()
-'   Endif
-'
-' End
 
 Private Sub LoadTableNames()
 
@@ -193,12 +177,6 @@ Public Sub cmbfiscal_Click()
 
 End
 
-Public Sub chkall_Click()
-
-  modSettings.EnterCheckSetting(chkall, "RadioReporting/ShowAll")
-
-End
-
 Public Sub rbencounter_Click()
 
   modSettings.SaveSettingsToFile("Radiology/InputFormat", "Encounter")
@@ -208,12 +186,6 @@ End
 Public Sub rbinvoice_Click()
 
   modSettings.SaveSettingsToFile("Radiology/InputFormat", "Invoice")
-
-End
-
-Public Sub rbindoor_Click()
-
-  modSettings.SaveSettingsToFile("Radiology/InputFormat", "Saved")
 
 End
 
@@ -234,24 +206,9 @@ Public Sub chklist_Click()
 
 End
 
-Public Sub btnnewrefresh_Click()
+Public Sub chkall_Click()
 
-  If rbencounter.Value = True Then
-    If modBasic.$AutoBillAllowRadiology = "Unpaid" Then
-      FillNewUnpaidEncounters()
-      ShowUnpaidEncounterTests("")
-    Else
-      FillNewSamplingEncounters()
-      ShowNewEncounterTests("")
-    Endif
-  Else If rbinvoice.Value = True Then
-    FillNewSamplingInvoices()
-    ShowNewInvoiceTests("")
-  Else If rbindoor.Value = True Then
-    FillNewSamplingSaved()
-    ShowNewEncSavedTests("")
-  Endif
-  ShowSampled("")
+  modSettings.EnterCheckSetting(chkall, "RadioReporting/ShowAll")
 
 End
 
@@ -283,55 +240,59 @@ Public Sub chkdate_Click()
 
 End
 
+Public Sub btnnewrefresh_Click()
+
+  If rbencounter.Value = True Then
+    FillNewSamplingEncounters()
+    ShowNewEncounterTests("")
+  Else If rbinvoice.Value = True Then
+    FillNewSamplingInvoices()
+    ShowNewInvoiceTests("")
+  Else If rbindoor.Value = True Then
+    FillNewSamplingSaved()
+    ShowNewEncSavedTests("")
+  Endif
+  ShowSampled("")
+  GridView3.SetFocus
+
+End
+
 ''---------------------------- sample grids -------------------------
 Public Sub btnnewsearch_Click()
 
   Dim enc As String
   Dim xbillno As String
-  Dim xlast As String
 
   rbwaiting.Value = True
   If rbencounter.Value = True Then
-    If modBasic.$AutoEncounterF1 = "Yes" Then
-      xlast = modSettings.ShowLogValues("LastValue/Encounter")
-    Else
-      xlast = ""
-    Endif
-
     If modBasic.$AutoEncPrefix Then
-      enc = InputBox(("Encounter ID of Patient"), ("Search Patient"), modBasic.$EncIdPrefix & xlast)
+      enc = InputBox(("Encounter ID of Patient"), ("Search Patient"), modBasic.$EncIdPrefix)
     Else
-      enc = InputBox(("Encounter ID of Patient"), ("Search Patient"), xlast)
+      enc = InputBox(("Encounter ID of Patient"), ("Search Patient"), "")
     Endif
     If enc Then
-      txtlabbill.Text = ""
-      FillNewSamplingSelectedEncounter(Trim(enc))
-      If modBasic.$AutoBillAllowRadiology = "Unpaid" Then
-        ShowUnpaidEncounterTests(Trim(enc))
-      Else
-        ShowNewEncounterTests(Trim(enc))
+      If txtlabbill.Text Then
+        txtlabbill.Text = ""
       Endif
+      FillNewSamplingSelectedEncounter(Trim(enc))
+      ShowNewEncounterTests(Trim(enc))
     Endif
 
   Else If rbinvoice.Value = True Then
     xbillno = InputBox(("Laboratory Invoice No"), ("Search Patient"), "")
     If xbillno Then
-      txtlabbill.Text = ""
+      If txtlabbill.Text Then
+        txtlabbill.Text = ""
+      Endif
       FillNewSamplingSelectedInvoice(Trim(xbillno))
       ShowNewInvoiceTests(Trim(xbillno))
     Endif
 
   Else If rbindoor.Value = True Then
-    If modBasic.$AutoEncounterF1 = "Yes" Then
-      xlast = modSettings.ShowLogValues("LastValue/Encounter")
-    Else
-      xlast = ""
-    Endif
-
     If modBasic.$AutoEncPrefix Then
-      enc = InputBox(("Encounter ID of Patient"), ("Search Patient"), modBasic.$EncIdPrefix & xlast)
+      enc = InputBox(("Encounter ID of Patient"), ("Search Patient"), modBasic.$EncIdPrefix)
     Else
-      enc = InputBox(("Encounter ID of Patient"), ("Search Patient"), xlast)
+      enc = InputBox(("Encounter ID of Patient"), ("Search Patient"), "")
     Endif
     If enc Then
       txtlabbill.Text = ""
@@ -361,23 +322,21 @@ Public Sub btnsearname_Click()
 
     rbencounter.Value = True
     $InvoiceFormat = False
-    txtlabbill.Text = ""
+    If txtlabbill.Text Then
+      txtlabbill.Text = ""
+    Endif
 
     $aMyFields3 = New String[]
     modGridView.ReadSmallData(GridView3, $rData3, $aMyFields3)
     DisplayInitialGrid()
-    If modBasic.$AutoBillAllowRadiology = "Unpaid" Then
-      ShowUnpaidEncounterTests("")
-    Else
-      ShowNewEncounterTests("")
-    Endif
+    ShowNewEncounterTests("")
     ShowSampled("")
-
+    GridView4.SetFocus
   Endif
 
 End
 
-Private Sub FillNewUnpaidEncounters()
+Private Sub FillNewSamplingSaved()
 
   Dim sql As String
   Dim xcomp As String
@@ -402,20 +361,20 @@ Private Sub FillNewUnpaidEncounters()
 
   If chklist.Value = True Then
     If cmbcategorynew.Text = "%" Then
-      sql = "select distinct(fldencounterval) as fldencounterval,fldencounterval,fldencounterval,fldordcomp,fldencounterval,fldencounterval from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and (fldtarget=&3 or fldtarget=&4) and fldordtime>=&5 and fldordtime<=&6 and flditemname like &7 and " & xstr & "&8" & xsource                                                    ''
-      $rData3 = modDatabase.$myConn.Exec(sql, "Radio Diagnostics", "Waiting", modBasic.$compID, "%", modDate.StartSqlDate(dtlisted.Value), modDate.EndSqlDate(DateAdd(dtlisted.Value, gb.Day, txtrange.Value)), "%", xcomp)
+      sql = "select distinct(fldencounterval) as fldencounterval,fldencounterval,fldencounterval,fldordcomp,fldencounterval,fldencounterval from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldsave=&3 and (fldtarget=&4 or fldtarget=&5) and fldtime>=&6 and fldtime<=&7 and flditemname like &8 and flditemqty>fldretqty and fldbillno IS NULL and " & xstr & "&9" & xsource                                                    ''
+      $rData3 = modDatabase.$myConn.Exec(sql, "Radio Diagnostics", "Waiting", True, modBasic.$compID, "%", modDate.StartSqlDate(dtlisted.Value), modDate.EndSqlDate(DateAdd(dtlisted.Value, gb.Day, txtrange.Value)), "%", xcomp)
     Else
-      sql = "select distinct(fldencounterval) as fldencounterval,fldencounterval,fldencounterval,fldordcomp,fldencounterval,fldencounterval from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and (fldtarget=&3 or fldtarget=&4) and fldordtime>=&5 and fldordtime<=&6 and flditemname in(select fldgroupname from tblgroupradio where fldtestid in(select fldexamid from tblradio where fldcategory like &7)) and " & xstr & "&8" & xsource                                                    ''
-      $rData3 = modDatabase.$myConn.Exec(sql, "Radio Diagnostics", "Waiting", modBasic.$compID, "%", modDate.StartSqlDate(dtlisted.Value), modDate.EndSqlDate(DateAdd(dtlisted.Value, gb.Day, txtrange.Value)), cmbcategorynew.Text, xcomp)
+      sql = "select distinct(fldencounterval) as fldencounterval,fldencounterval,fldencounterval,fldordcomp,fldencounterval,fldencounterval from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldsave=&3 and (fldtarget=&4 or fldtarget=&5) and fldtime>=&6 and fldtime<=&7 and flditemname in(select fldgroupname from tblgroupradio where fldtestid in(select fldexamid from tblradio where fldcategory like &8)) and flditemqty>fldretqty and fldbillno IS NULL and " & xstr & "&9" & xsource                                                     ''
+      $rData3 = modDatabase.$myConn.Exec(sql, "Radio Diagnostics", "Waiting", True, modBasic.$compID, "%", modDate.StartSqlDate(dtlisted.Value), modDate.EndSqlDate(DateAdd(dtlisted.Value, gb.Day, txtrange.Value)), cmbcategorynew.Text, xcomp)
     Endif
 
   Else
     If cmbcategorynew.Text = "%" Then
-      sql = "select distinct(fldencounterval) as fldencounterval,fldencounterval,fldencounterval,fldordcomp,fldencounterval,fldencounterval from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and (fldtarget=&3 or fldtarget=&4) and flditemname like &5 and " & xstr & "&6" & xsource                                                       ''
-      $rData3 = modDatabase.$myConn.Exec(sql, "Radio Diagnostics", "Waiting", modBasic.$compID, "%", "%", xcomp)
+      sql = "select distinct(fldencounterval) as fldencounterval,fldencounterval,fldencounterval,fldordcomp,fldencounterval,fldencounterval from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldsave=&3 and (fldtarget=&4 or fldtarget=&5) and flditemname like &6 and flditemqty>fldretqty and fldbillno IS NULL and " & xstr & "&7" & xsource                                                     ''
+      $rData3 = modDatabase.$myConn.Exec(sql, "Radio Diagnostics", "Waiting", True, modBasic.$compID, "%", "%", xcomp)
     Else
-      sql = "select distinct(fldencounterval) as fldencounterval,fldencounterval,fldencounterval,fldordcomp,fldencounterval,fldencounterval from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and (fldtarget=&3 or fldtarget=&4) and flditemname in(select fldgroupname from tblgroupradio where fldtestid in(select fldexamid from tblradio where fldcategory like &5)) and " & xstr & "&6" & xsource                                                  ''
-      $rData3 = modDatabase.$myConn.Exec(sql, "Radio Diagnostics", "Waiting", modBasic.$compID, "%", cmbcategorynew.Text, xcomp)
+      sql = "select distinct(fldencounterval) as fldencounterval,fldencounterval,fldencounterval,fldordcomp,fldencounterval,fldencounterval from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldsave=&3 and (fldtarget=&4 or fldtarget=&5) and flditemname in(select fldgroupname from tblgroupradio where fldtestid in(select fldexamid from tblradio where fldcategory like &6)) and flditemqty>fldretqty and fldbillno IS NULL and " & xstr & "&7" & xsource                                                   ''
+      $rData3 = modDatabase.$myConn.Exec(sql, "Radio Diagnostics", "Waiting", True, modBasic.$compID, "%", cmbcategorynew.Text, xcomp)
     Endif
 
   Endif
@@ -454,66 +413,17 @@ Private Sub FillNewSamplingEncounters()
       sql = "select distinct(fldencounterval) as fldencounterval,fldencounterval,fldencounterval,fldordcomp,fldencounterval,fldencounterval from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldsave=&3 and (fldtarget=&4 or fldtarget=&5) and fldtime>=&6 and fldtime<=&7 and flditemname like &8 and flditemqty>fldretqty and fldbillno IS NOT NULL and " & xstr & "&9" & xsource                                                    ''
       $rData3 = modDatabase.$myConn.Exec(sql, "Radio Diagnostics", "Waiting", True, modBasic.$compID, "%", modDate.StartSqlDate(dtlisted.Value), modDate.EndSqlDate(DateAdd(dtlisted.Value, gb.Day, txtrange.Value)), "%", xcomp)
     Else
-      sql = "select distinct(fldencounterval) as fldencounterval,fldencounterval,fldencounterval,fldordcomp,fldencounterval,fldencounterval from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldsave=&3 and (fldtarget=&4 or fldtarget=&5) and fldtime>=&6 and fldtime<=&7 and flditemname in(select fldgroupname from tblgroupradio where fldtestid in(select fldexamid from tblradio where fldcategory like &8)) and flditemqty>fldretqty and fldbillno IS NOT NULL and " & xstr & "&9" & xsource                                                    ''
+      sql = "select distinct(fldencounterval) as fldencounterval,fldencounterval,fldencounterval,fldordcomp,fldencounterval,fldencounterval from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldsave=&3 and (fldtarget=&4 or fldtarget=&5) and fldtime>=&6 and fldtime<=&7 and flditemname in(select fldgroupname from tblgroupradio where fldtestid in(select fldexamid from tblradio where fldcategory like &8)) and flditemqty>fldretqty and fldbillno IS NOT NULL and " & xstr & "&9" & xsource                                                     ''
       $rData3 = modDatabase.$myConn.Exec(sql, "Radio Diagnostics", "Waiting", True, modBasic.$compID, "%", modDate.StartSqlDate(dtlisted.Value), modDate.EndSqlDate(DateAdd(dtlisted.Value, gb.Day, txtrange.Value)), cmbcategorynew.Text, xcomp)
     Endif
 
   Else
     If cmbcategorynew.Text = "%" Then
-      sql = "select distinct(fldencounterval) as fldencounterval,fldencounterval,fldencounterval,fldordcomp,fldencounterval,fldencounterval from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldsave=&3 and (fldtarget=&4 or fldtarget=&5) and flditemname like &6 and flditemqty>fldretqty and fldbillno IS NOT NULL and " & xstr & "&7" & xsource                                                       ''
+      sql = "select distinct(fldencounterval) as fldencounterval,fldencounterval,fldencounterval,fldordcomp,fldencounterval,fldencounterval from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldsave=&3 and (fldtarget=&4 or fldtarget=&5) and flditemname like &6 and flditemqty>fldretqty and fldbillno IS NOT NULL and " & xstr & "&7" & xsource                                                     ''
       $rData3 = modDatabase.$myConn.Exec(sql, "Radio Diagnostics", "Waiting", True, modBasic.$compID, "%", "%", xcomp)
     Else
-      sql = "select distinct(fldencounterval) as fldencounterval,fldencounterval,fldencounterval,fldordcomp,fldencounterval,fldencounterval from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldsave=&3 and (fldtarget=&4 or fldtarget=&5) and flditemname in(select fldgroupname from tblgroupradio where fldtestid in(select fldexamid from tblradio where fldcategory like &6)) and flditemqty>fldretqty and fldbillno IS NOT NULL and " & xstr & "&7" & xsource                                                  ''
+      sql = "select distinct(fldencounterval) as fldencounterval,fldencounterval,fldencounterval,fldordcomp,fldencounterval,fldencounterval from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldsave=&3 and (fldtarget=&4 or fldtarget=&5) and flditemname in(select fldgroupname from tblgroupradio where fldtestid in(select fldexamid from tblradio where fldcategory like &6)) and flditemqty>fldretqty and fldbillno IS NOT NULL and " & xstr & "&7" & xsource                                                    ''
       $rData3 = modDatabase.$myConn.Exec(sql, "Radio Diagnostics", "Waiting", True, modBasic.$compID, "%", cmbcategorynew.Text, xcomp)
-    Endif
-
-  Endif
-  $aMyFields3 = New String[]
-  modGridView.ReadSmallData(GridView3, $rData3, $aMyFields3)
-  DisplayInitialGrid()
-  $InvoiceFormat = False
-
-End
-
-Private Sub FillNewSamplingSaved()
-
-  Dim sql As String
-  Dim xcomp As String
-  Dim xstr As String
-  Dim xsource As String
-
-  If modBasic.$LabSamplingComp Then
-    xcomp = modBasic.$LabSamplingComp
-  Else
-    xcomp = "%"
-  Endif
-  If modBasic.$LabSamplingFrom = "Not From" Then
-    xstr = "fldordcomp not like "
-  Else
-    xstr = "fldordcomp like "
-  Endif
-  If cmbsourcedept.Text Then
-    xsource = db.Subst(" and fldcurrlocat like &1", cmbsourcedept.Text)
-  Else
-    xsource = ""
-  Endif
-
-  If chklist.Value = True Then
-    If cmbcategorynew.Text = "%" Then
-      sql = "select distinct(fldencounterval) as fldencounterval,fldencounterval,fldencounterval,fldordcomp,fldencounterval,fldencounterval from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldsave=&3 and (fldtarget=&4 or fldtarget=&5) and fldtime>=&6 and fldtime<=&7 and flditemname like &8 and flditemqty>fldretqty and fldprint=&9 and " & xstr & "&{10}" & xsource                                                      ''
-      $rData3 = modDatabase.$myConn.Exec(sql, "Radio Diagnostics", "Waiting", True, modBasic.$compID, "%", modDate.StartSqlDate(dtlisted.Value), modDate.EndSqlDate(DateAdd(dtlisted.Value, gb.Day, txtrange.Value)), "%", False, xcomp)
-    Else
-      sql = "select distinct(fldencounterval) as fldencounterval,fldencounterval,fldencounterval,fldordcomp,fldencounterval,fldencounterval from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldsave=&3 and (fldtarget=&4 or fldtarget=&5) and fldtime>=&6 and fldtime<=&7 and flditemname in(select fldgroupname from tblgroupradio where fldtestid in(select fldexamid from tblradio where fldcategory like &8)) and flditemqty>fldretqty and fldprint=&9 and " & xstr & "&{10}" & xsource                                                      ''
-      $rData3 = modDatabase.$myConn.Exec(sql, "Radio Diagnostics", "Waiting", True, modBasic.$compID, "%", modDate.StartSqlDate(dtlisted.Value), modDate.EndSqlDate(DateAdd(dtlisted.Value, gb.Day, txtrange.Value)), cmbcategorynew.Text, False, xcomp)
-    Endif
-
-  Else
-    If cmbcategorynew.Text = "%" Then
-      sql = "select distinct(fldencounterval) as fldencounterval,fldencounterval,fldencounterval,fldordcomp,fldencounterval,fldencounterval from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldsave=&3 and (fldtarget=&4 or fldtarget=&5) and flditemname like &6 and flditemqty>fldretqty and fldprint=&7 and " & xstr & "&8" & xsource                                                      ''
-      $rData3 = modDatabase.$myConn.Exec(sql, "Radio Diagnostics", "Waiting", True, modBasic.$compID, "%", "%", False, xcomp)
-    Else
-      sql = "select distinct(fldencounterval) as fldencounterval,fldencounterval,fldencounterval,fldordcomp,fldencounterval,fldencounterval from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldsave=&3 and (fldtarget=&4 or fldtarget=&5) and flditemname in(select fldgroupname from tblgroupradio where fldtestid in(select fldexamid from tblradio where fldcategory like &6)) and flditemqty>fldretqty and fldprint=&7 and " & xstr & "&8" & xsource                                                   ''
-      $rData3 = modDatabase.$myConn.Exec(sql, "Radio Diagnostics", "Waiting", True, modBasic.$compID, "%", cmbcategorynew.Text, False, xcomp)
     Endif
 
   Endif
@@ -549,20 +459,20 @@ Private Sub FillNewSamplingInvoices()
 
   If chklist.Value = True Then
     If cmbcategorynew.Text = "%" Then
-      sql = "select distinct(fldbillno) as fldbillno,fldencounterval,fldencounterval,fldordcomp,fldencounterval,fldencounterval from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldsave=&3 and (fldtarget=&4 or fldtarget=&5) and fldtime>=&6 and fldtime<=&7 and flditemname like &8 and flditemqty>fldretqty and fldprint=&9 and " & xstr & "&{10}" & xsource                                                    ''
-      $rData3 = modDatabase.$myConn.Exec(sql, "Radio Diagnostics", "Waiting", True, modBasic.$compID, "%", modDate.StartSqlDate(dtlisted.Value), modDate.EndSqlDate(DateAdd(dtlisted.Value, gb.Day, txtrange.Value)), "%", True, xcomp)
+      sql = "select distinct(fldbillno) as fldbillno,fldencounterval,fldencounterval,fldordcomp,fldencounterval,fldencounterval from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldsave=&3 and (fldtarget=&4 or fldtarget=&5) and fldtime>=&6 and fldtime<=&7 and flditemname like &8 and flditemqty>fldretqty and " & xstr & "&9" & xsource                                                  ''
+      $rData3 = modDatabase.$myConn.Exec(sql, "Radio Diagnostics", "Waiting", True, modBasic.$compID, "%", modDate.StartSqlDate(dtlisted.Value), modDate.EndSqlDate(DateAdd(dtlisted.Value, gb.Day, txtrange.Value)), "%", xcomp)
     Else
-      sql = "select distinct(fldbillno) as fldbillno,fldencounterval,fldencounterval,fldordcomp,fldencounterval,fldencounterval from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldsave=&3 and (fldtarget=&4 or fldtarget=&5) and fldtime>=&6 and fldtime<=&7 and flditemname in(select fldgroupname from tblgroupradio where fldtestid in(select fldexamid from tblradio where fldcategory like &8)) and flditemqty>fldretqty and fldprint=&9 and " & xstr & "&{10}" & xsource                                                    ''
-      $rData3 = modDatabase.$myConn.Exec(sql, "Radio Diagnostics", "Waiting", True, modBasic.$compID, "%", modDate.StartSqlDate(dtlisted.Value), modDate.EndSqlDate(DateAdd(dtlisted.Value, gb.Day, txtrange.Value)), cmbcategorynew.Text, True, xcomp)
+      sql = "select distinct(fldbillno) as fldbillno,fldencounterval,fldencounterval,fldordcomp,fldencounterval,fldencounterval from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldsave=&3 and (fldtarget=&4 or fldtarget=&5) and fldtime>=&6 and fldtime<=&7 and flditemname in(select fldgroupname from tblgroupradio where fldtestid in(select fldexamid from tblradio where fldcategory like &8)) and flditemqty>fldretqty and " & xstr & "&9" & xsource                                                    ''
+      $rData3 = modDatabase.$myConn.Exec(sql, "Radio Diagnostics", "Waiting", True, modBasic.$compID, "%", modDate.StartSqlDate(dtlisted.Value), modDate.EndSqlDate(DateAdd(dtlisted.Value, gb.Day, txtrange.Value)), cmbcategorynew.Text, xcomp)
     Endif
 
   Else
     If cmbcategorynew.Text = "%" Then
-      sql = "select distinct(fldbillno) as fldbillno,fldencounterval,fldencounterval,fldordcomp,fldencounterval,fldencounterval from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldsave=&3 and (fldtarget=&4 or fldtarget=&5) and flditemname like &6 and flditemqty>fldretqty and fldprint=&7 and " & xstr & "&8" & xsource                                                     ''
-      $rData3 = modDatabase.$myConn.Exec(sql, "Radio Diagnostics", "Waiting", True, modBasic.$compID, "%", "%", True, xcomp)
+      sql = "select distinct(fldbillno) as fldbillno,fldencounterval,fldencounterval,fldordcomp,fldencounterval,fldencounterval from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldsave=&3 and (fldtarget=&4 or fldtarget=&5) and flditemname like &6 and flditemqty>fldretqty and " & xstr & "&7" & xsource                                                   ''
+      $rData3 = modDatabase.$myConn.Exec(sql, "Radio Diagnostics", "Waiting", True, modBasic.$compID, "%", "%", xcomp)
     Else
-      sql = "select distinct(fldbillno) as fldbillno,fldencounterval,fldencounterval,fldordcomp,fldencounterval,fldencounterval from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldsave=&3 and (fldtarget=&4 or fldtarget=&5) and flditemname in(select fldgroupname from tblgroupradio where fldtestid in(select fldexamid from tblradio where fldcategory like &6)) and flditemqty>fldretqty and fldprint=&7 and " & xstr & "&8" & xsource                                                  ''
-      $rData3 = modDatabase.$myConn.Exec(sql, "Radio Diagnostics", "Waiting", True, modBasic.$compID, "%", cmbcategorynew.Text, True, xcomp)
+      sql = "select distinct(fldbillno) as fldbillno,fldencounterval,fldencounterval,fldordcomp,fldencounterval,fldencounterval from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldsave=&3 and (fldtarget=&4 or fldtarget=&5) and flditemname in(select fldgroupname from tblgroupradio where fldtestid in(select fldexamid from tblradio where fldcategory like &6)) and flditemqty>fldretqty and " & xstr & "&7" & xsource                                                     ''
+      $rData3 = modDatabase.$myConn.Exec(sql, "Radio Diagnostics", "Waiting", True, modBasic.$compID, "%", cmbcategorynew.Text, xcomp)
     Endif
 
   Endif
@@ -630,14 +540,10 @@ End
 Private Sub DisplayInitialGrid()
 
   With GridView3
-    If rbinvoice.Value = True Then
-      .Columns[0].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
-    Else
-      .Columns[0].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
-    Endif
+    .Columns[0].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
     .Columns[1].Width = CStr(10 * modBasic.$AppWidthRatio) & "px"
-    .Columns[2].Width = CStr(200 * modBasic.$AppWidthRatio) & "px"
-    .Columns[3].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
+    .Columns[2].Width = CStr(175 * modBasic.$AppWidthRatio) & "px"
+    .Columns[3].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
     .Columns[4].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
     .Columns[5].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
 
@@ -673,12 +579,6 @@ Public Sub GridView3_Data(Row As Integer, Column As Integer, Data As WebTableDat
 
 End
 
-Public Sub GridView3_Select()
-
-  SHowPAtientRadioList()
-
-End
-
 Private Sub SHowPAtientRadioList()
 
   If GridView3.Selection.Count Then
@@ -688,11 +588,7 @@ Private Sub SHowPAtientRadioList()
       ShowNewInvoiceTests($rData3["fldbillno"])
     Else
       If rbencounter.Value = True Then
-        If modBasic.$AutoBillAllowRadiology = "Unpaid" Then
-          ShowUnpaidEncounterTests($rData3["fldencounterval"])
-        Else
-          ShowNewEncounterTests($rData3["fldencounterval"])
-        Endif
+        ShowNewEncounterTests($rData3["fldencounterval"])
       Else If rbindoor.Value = True Then
         ShowNewEncSavedTests($rData3["fldencounterval"])
       Endif
@@ -703,10 +599,17 @@ Private Sub SHowPAtientRadioList()
       btnpayto.Text = modGeneral.GetUserFullName(btnpayto.Tag)
     Endif
     If modBasic.$PayableLockEntry = "Yes" Then
-      btnpayto.Enabled = False
+      btnselectuser.Enabled = False
     Endif
-
+    txtcolor.Background = modPatient.GetPatientColor($rData3["fldencounterval"])
+    ShowSampled("")
   Endif
+
+End
+
+Public Sub GridView3_Select()
+
+  SHowPAtientRadioList()
 
 End
 
@@ -726,18 +629,17 @@ Public Sub btnaddedsearch_Click()
 
 End
 
-Private Sub ShowUnpaidEncounterTests(encid As String)
+Private Sub ShowNewEncSavedTests(encid As String)
 
   Dim sql As String
-  Dim res As Result
 
   If rbwaiting.Value = True Then
     If cmbcategorynew.Text = "%" Then
-      sql = "select flditemname,fldreason,fldid,fldencounterval,fldcurrlocat,(flditemqty-fldretqty) as xqty,fldtime,fldextrarow from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldencounterval=&3 and (fldtarget=&4 or fldtarget=&5)"
+      sql = "select flditemname,fldreason,fldid,fldencounterval,fldcurrlocat,(flditemqty-fldretqty) as xqty,fldtime from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldencounterval=&3 and fldsave=&4 and (fldtarget=&5 or fldtarget=&6) and flditemqty>fldretqty and fldbillno IS NULL"
     Else
-      sql = "select flditemname,fldreason,fldid,fldencounterval,fldcurrlocat,(flditemqty-fldretqty) as xqty,fldtime,fldextrarow from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldencounterval=&3 and (fldtarget=&4 or fldtarget=&5) and flditemname in(select fldgroupname from tblgroupradio where fldtestid in(select fldexamid from tblradio where fldcategory like &6))"
+      sql = "select flditemname,fldreason,fldid,fldencounterval,fldcurrlocat,(flditemqty-fldretqty) as xqty,fldtime from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldencounterval=&3 and fldsave=&4 and (fldtarget=&5 or fldtarget=&6) and flditemname in(select fldgroupname from tblgroupradio where fldtestid in(select fldexamid from tblradio where fldcategory like &7)) and flditemqty>fldretqty and fldbillno IS NULL"
     Endif
-    $rData4 = modDatabase.$myConn.Exec(sql, "Radio Diagnostics", "Waiting", encid, modBasic.$compID, "%", cmbcategorynew.Text)
+    $rData4 = modDatabase.$myConn.Exec(sql, "Radio Diagnostics", "Waiting", encid, True, modBasic.$compID, "%", cmbcategorynew.Text)
     $aMyFields4 = New String[]
     modGridView.ReadSmallData(GridView4, $rData4, $aMyFields4)
     ShowLeftGridView()
@@ -748,32 +650,12 @@ End
 Private Sub ShowNewEncounterTests(encid As String)
 
   Dim sql As String
-  Dim res As Result
 
   If rbwaiting.Value = True Then
     If cmbcategorynew.Text = "%" Then
-      sql = "select flditemname,fldreason,fldid,fldencounterval,fldcurrlocat,(flditemqty-fldretqty) as xqty,fldtime,fldextrarow from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldencounterval=&3 and fldsave=&4 and (fldtarget=&5 or fldtarget=&6) and flditemqty>fldretqty and fldbillno IS NOT NULL"
+      sql = "select flditemname,fldreason,fldid,fldencounterval,fldcurrlocat,(flditemqty-fldretqty) as xqty,fldtime from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldencounterval=&3 and fldsave=&4 and (fldtarget=&5 or fldtarget=&6) and flditemqty>fldretqty and fldbillno IS NOT NULL"
     Else
-      sql = "select flditemname,fldreason,fldid,fldencounterval,fldcurrlocat,(flditemqty-fldretqty) as xqty,fldtime,fldextrarow from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldencounterval=&3 and fldsave=&4 and (fldtarget=&5 or fldtarget=&6) and flditemname in(select fldgroupname from tblgroupradio where fldtestid in(select fldexamid from tblradio where fldcategory like &7)) and flditemqty>fldretqty and fldbillno IS NOT NULL"
-    Endif
-    $rData4 = modDatabase.$myConn.Exec(sql, "Radio Diagnostics", "Waiting", encid, True, modBasic.$compID, "%", cmbcategorynew.Text)
-    $aMyFields4 = New String[]
-    modGridView.ReadSmallData(GridView4, $rData4, $aMyFields4)
-    ShowLeftGridView()
-  Endif
-
-End
-
-Private Sub ShowNewEncSavedTests(encid As String)
-
-  Dim sql As String
-  Dim res As Result
-
-  If rbwaiting.Value = True Then
-    If cmbcategorynew.Text = "%" Then
-      sql = "select flditemname,fldreason,fldid,fldencounterval,fldcurrlocat,(flditemqty-fldretqty) as xqty,fldtime,fldextrarow from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldencounterval=&3 and fldsave=&4 and (fldtarget=&5 or fldtarget=&6) and flditemqty>fldretqty and fldbillno IS NULL"
-    Else
-      sql = "select flditemname,fldreason,fldid,fldencounterval,fldcurrlocat,(flditemqty-fldretqty) as xqty,fldtime,fldextrarow from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldencounterval=&3 and fldsave=&4 and (fldtarget=&5 or fldtarget=&6) and flditemname in(select fldgroupname from tblgroupradio where fldtestid in(select fldexamid from tblradio where fldcategory like &7)) and flditemqty>fldretqty and fldbillno IS NULL"
+      sql = "select flditemname,fldreason,fldid,fldencounterval,fldcurrlocat,(flditemqty-fldretqty) as xqty,fldtime from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldencounterval=&3 and fldsave=&4 and (fldtarget=&5 or fldtarget=&6) and flditemname in(select fldgroupname from tblgroupradio where fldtestid in(select fldexamid from tblradio where fldcategory like &7)) and flditemqty>fldretqty and fldbillno IS NOT NULL"
     Endif
     $rData4 = modDatabase.$myConn.Exec(sql, "Radio Diagnostics", "Waiting", encid, True, modBasic.$compID, "%", cmbcategorynew.Text)
     $aMyFields4 = New String[]
@@ -786,13 +668,12 @@ End
 Private Sub ShowNewInvoiceTests(xBillNo As String)
 
   Dim sql As String
-  Dim res As Result
 
   If rbwaiting.Value = True Then
     If cmbcategorynew.Text = "%" Then
-      sql = "select flditemname,fldreason,fldid,fldencounterval,fldcurrlocat,(flditemqty-fldretqty) as xqty,fldtime,fldextrarow from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldbillno=&3 and fldsave=&4 and (fldtarget=&5 or fldtarget=&6) and flditemqty>fldretqty"
+      sql = "select flditemname,fldreason,fldid,fldencounterval,fldcurrlocat,(flditemqty-fldretqty) as xqty,fldtime from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldbillno=&3 and fldsave=&4 and (fldtarget=&5 or fldtarget=&6) and flditemqty>fldretqty"
     Else
-      sql = "select flditemname,fldreason,fldid,fldencounterval,fldcurrlocat,(flditemqty-fldretqty) as xqty,fldtime,fldextrarow from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldbillno=&3 and fldsave=&4 and (fldtarget=&5 or fldtarget=&6) and flditemname in(select fldgroupname from tblgroupradio where fldtestid in(select fldexamid from tblradio where fldcategory like &7)) and flditemqty>fldretqty"
+      sql = "select flditemname,fldreason,fldid,fldencounterval,fldcurrlocat,(flditemqty-fldretqty) as xqty,fldtime from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldbillno=&3 and fldsave=&4 and (fldtarget=&5 or fldtarget=&6) and flditemname in(select fldgroupname from tblgroupradio where fldtestid in(select fldexamid from tblradio where fldcategory like &7)) and flditemqty>fldretqty"
     Endif
     $rData4 = modDatabase.$myConn.Exec(sql, "Radio Diagnostics", "Waiting", xBillNo, True, modBasic.$compID, "%", cmbcategorynew.Text)
     $aMyFields4 = New String[]
@@ -806,13 +687,12 @@ End
 Private Sub ShowAddedEncounterTests(encid As String)
 
   Dim sql As String
-  Dim res As Result
 
   If rbadded.Value = True Then
     If cmbcategorynew.Text = "%" Then
-      sql = "select flditemname,fldreason,fldid,fldencounterval,fldcurrlocat,(flditemqty-fldretqty) as xqty,fldtime,fldextrarow from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldencounterval=&3 and fldsave=&4 and (fldtarget=&5 or fldtarget=&6) and flditemqty>fldretqty"
+      sql = "select flditemname,fldreason,fldid,fldencounterval,fldcurrlocat,(flditemqty-fldretqty) as xqty,fldtime from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldencounterval=&3 and fldsave=&4 and (fldtarget=&5 or fldtarget=&6) and flditemqty>fldretqty"
     Else
-      sql = "select flditemname,fldreason,fldid,fldencounterval,fldcurrlocat,(flditemqty-fldretqty) as xqty,fldtime,fldextrarow from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldencounterval=&3 and fldsave=&4 and (fldtarget=&5 or fldtarget=&6) and flditemname in(select fldgroupname from tblgroupradio where fldtestid in(select fldexamid from tblradio where fldcategory like &7)) and flditemqty>fldretqty"
+      sql = "select flditemname,fldreason,fldid,fldencounterval,fldcurrlocat,(flditemqty-fldretqty) as xqty,fldtime from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldencounterval=&3 and fldsave=&4 and (fldtarget=&5 or fldtarget=&6) and flditemname in(select fldgroupname from tblgroupradio where fldtestid in(select fldexamid from tblradio where fldcategory like &7)) and flditemqty>fldretqty"
     Endif
     $rData4 = modDatabase.$myConn.Exec(sql, "Radio Diagnostics", "Sampled", encid, True, modBasic.$compID, "%", cmbcategorynew.Text)
     $aMyFields4 = New String[]
@@ -826,19 +706,16 @@ Private Sub ShowLeftGridView()
 
   With GridView4
     .Columns[0].Width = CStr(250 * modBasic.$AppWidthRatio) & "px"
-    .Columns[1].Width = CStr(350 * modBasic.$AppWidthRatio) & "px"
+    .Columns[1].Width = CStr(200 * modBasic.$AppWidthRatio) & "px"
     .Columns[2].Hidden = True
     .Columns[3].Hidden = True
     .Columns[4].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
     .Columns[5].Hidden = True
     .Columns[6].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
-    .Columns[7].Width = CStr(200 * modBasic.$AppWidthRatio) & "px"
-
-    .Columns[0].Text = "Particulars"
+    .Columns[0].Text = "Test Name"
     .Columns[1].Text = "Comment"
     .Columns[4].Text = "Location"
     .Columns[6].Text = "DateTime"
-    .Columns[7].Text = "Test Name"
   End With
 
 End
@@ -847,7 +724,9 @@ Public Sub GridView4_Data(Row As Integer, Column As Integer, Data As WebTableDat
 
   $rData4.MoveTo(Row)
   modGridView.GridViewDecoration(Data, Row)
-  If Column = 6 Then
+  If Column = 1 Then
+    Data.Control = GetPresenceIcon($rData4[$aMyFields4[Column]])
+  Else If Column = 6 Then
     Data.Text = modReportVar.GetDateTimeReport($rData4[$aMyFields4[Column]], gb.GeneralDate)
   Else
     Data.Text = $rData4[$aMyFields4[Column]]
@@ -866,18 +745,27 @@ Public Sub btnopeninfo_Click()
 
 End
 
-Public Sub GridView4_Select()
+Private Function GetPresenceIcon(sText As String) As WebControl
+
+  Dim sval As WebControl
+
+  If sText Then
+    sval = btnopeninfo
+  Else
+    sText = Null
+  Endif
+  Return sval
+
+End
+
+Private Sub ShowEntryRadioName()
 
   Dim xx As String[]
 
   cmbformat.Clear()
   If GridView4.Selection.Count Then
     $rData4.MoveTo(GridView4.Selection[0])
-    If $rData4["fldextrarow"] Then
-      xx = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldptsex) as col from tblgroupradio where fldgroupname=&1 and fldtestid=&2", $rData4["flditemname"], $rData4["fldextrarow"]))
-    Else
-      xx = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldptsex) as col from tblgroupradio where fldgroupname=&1", $rData4["flditemname"]))
-    Endif
+    xx = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldptsex) as col from tblgroupradio where fldgroupname=&1", $rData4["flditemname"]))
     cmbformat.List = xx
     If xx.Count = 1 Then
       cmbformat.Text = xx[0]
@@ -887,50 +775,9 @@ Public Sub GridView4_Select()
 
 End
 
-Public Sub btnenchelp_Click()
+Public Sub GridView4_Select()
 
-  Dim hCls As CReportCustom
-
-  If GridView4.Selection.Count Then
-    $rData4.MoveTo(GridView4.Selection[0])
-    If $HelpReport Then
-      hCls = New CReportCustom($rData4["fldencounterval"], "Diagnostic Help", "ReportSize", MMain.$defUnit)
-      hCls.Preview()
-    Endif
-  Endif
-
-End
-
-Public Sub btnservbill_Click()
-
-  Dim hForm14 As FmMiniService
-  Dim xservmode As String
-  Dim xprocmode As String
-  Dim xothermode As String
-
-  If GridView4.Selection.Count Then
-    $rData4.MoveTo(GridView4.Selection[0])
-    xservmode = modNonMedical.GetAutoIPBillingPack("Service", $rData4["fldencounterval"])
-    xprocmode = modNonMedical.GetAutoIPBillingPack("Procedure", $rData4["fldencounterval"])
-    xothermode = modNonMedical.GetAutoIPBillingPack("Others", $rData4["fldencounterval"])
-    hForm14 = New FmMiniService($rData4["fldencounterval"], xservmode, xprocmode, xothermode)
-    hForm14.ShowModal
-  Endif
-
-End
-
-Public Sub btnformatlist_Click()
-
-  Dim xlist As String[]
-
-  If GridView4.Selection.Count Then
-    $rData4.MoveTo(GridView4.Selection[0])
-    ' xlist = InMultiCombo("Radio Diagnostics", $rData4["xqty"], cmbformat.List)
-    If xlist And If xlist.Count Then
-      cmbformat.Text = xlist[0]
-      btnformatlist.Tag = xlist.Join("|")
-    Endif
-  Endif
+  ShowEntryRadioName()
 
 End
 
@@ -961,10 +808,10 @@ Public Sub btnnewexpotree_Click()
   If res.Available Then
     For Each res
       With asx
-        .Add(res["fldencounterval"])
-        .Add(modPatient.GetPatientNameByEnc(res["fldencounterval"]))
-        .Add(modPatient.GetPatientAgeString(res["fldencounterval"], Now()) & "/" & modPatient.GetPatientSex(res["fldencounterval"]))
-        .Add(GetTestListForSample(res["fldencounterval"]).Join("; "))
+        .Add(res!fldencounterval)
+        .Add(modPatient.GetPatientNameByEnc(res!fldencounterval))
+        .Add(modPatient.GetPatientAgeString(res!fldencounterval, Now()) & "/" & modPatient.GetPatientSex(res!fldencounterval))
+        .Add(GetTestListForSample(res!fldencounterval).Join("; "))
         .Add("")
       End With
       $BillingReport.Add(asx)
@@ -1025,11 +872,7 @@ Private Sub AddSampling(plandate As Date, sFormat As String)
           res = modDatabase.$myConn.Exec("select fldtestid,fldtesttype,fldactive from tblgroupradio where fldgroupname=&1 and fldptsex=&2", $rData4["flditemname"], xformat)
           If res.Available = True Then
             For Each res
-              If cmbcounter.Text Then
-                modRadioSub.InsertRadioTestOrder($rData4["fldencounterval"], res["fldtestid"], res["fldtesttype"], res["fldactive"], $rData4["fldid"], modGeneral.GetUserFullNamePrint(res2["fldrefer"]), res2["fldbillno"], res2["fldreason"], plandate, xformat, cmbcounter.Text)
-              Else
-                modRadioSub.InsertRadioTestOrder($rData4["fldencounterval"], res["fldtestid"], res["fldtesttype"], res["fldactive"], $rData4["fldid"], modGeneral.GetUserFullNamePrint(res2["fldrefer"]), res2["fldbillno"], res2["fldreason"], plandate, xformat)
-              Endif
+              modRadioSub.InsertRadioTestOrder($rData4["fldencounterval"], res["fldtestid"], res["fldtesttype"], res["fldactive"], $rData4["fldid"], modGeneral.GetUserFullNamePrint(res2["fldrefer"]), res2["fldbillno"], res2["fldreason"], plandate, xformat)
             Next
           Endif
         Next
@@ -1042,26 +885,24 @@ Private Sub AddSampling(plandate As Date, sFormat As String)
         res1 = modDatabase.$myConn.Edit($tblpatbilling, "fldid=&1", $rData4["fldid"])
         res1["fldsample"] = "Sampled"
         res1["fldpayto"] = btnpayto.Tag
-        res1["fldhostmac"] = modHelpVariable.$MACAddress
+        res1["fldhostmac"] = CGI["REMOTE_ADDR"] & ":" & CGI["REMOTE_PORT"]
         res1["xyz"] = False
         res1.Update()
         modDatabase.$myConn.Commit
 
-        $encid = $rData4["fldencounterval"]
-        BasicInfoPatient()
         If $InvoiceFormat = True Then
+          $encid = $rData4["fldencounterval"]
+          BasicInfoPatient()
           txtlabbill.Text = txtencid.Text
           ShowSampledBill($encid, txtlabbill.Text)
           ShowNewInvoiceTests(txtencid.Text)
         Else
+          $encid = $rData4["fldencounterval"]
+          BasicInfoPatient()
           txtlabbill.Text = ""
           ShowSampled($encid)
           If rbencounter.Value = True Then
-            If modBasic.$AutoBillAllowRadiology = "Unpaid" Then
-              ShowUnpaidEncounterTests(txtencid.Text)
-            Else
-              ShowNewEncounterTests(txtencid.Text)
-            Endif
+            ShowNewEncounterTests(txtencid.Text)
           Else If rbindoor.Value = True Then
             ShowNewEncSavedTests(txtencid.Text)
           Endif
@@ -1087,8 +928,8 @@ Private Sub UpdateSampledTest()
   Dim res2 As Result
 
   If GridView4.Selection.Count Then
-    $rData4.MoveTo(GridView4.Selection[0])
     If Message.Question("Are you sure to alter the selected Test addition ?", ("No"), ("Yes")) = 2 Then
+      $rData4.MoveTo(GridView4.Selection[0])
       resx = modDatabase.$myConn.Edit("tblpatradiotest", "fldgroupid=&1 and fldstatus=&2", $rData4["fldid"], "Sampled")
       If resx.Available Then
 
@@ -1111,7 +952,7 @@ Private Sub UpdateSampledTest()
             res1 = modDatabase.$myConn.Edit($tblpatbilling, "fldid=&1", $rData4["fldid"])
             res1["fldsample"] = "Sampled"
             res1["fldpayto"] = btnpayto.Tag
-            res1["fldhostmac"] = modHelpVariable.$MACAddress
+            res1["fldhostmac"] = CGI["REMOTE_ADDR"] & ":" & CGI["REMOTE_PORT"]
             res1["xyz"] = False
             res1.Update()
 
@@ -1127,22 +968,18 @@ Private Sub UpdateSampledTest()
           Endif
 
           If $InvoiceFormat = True Then
-            $encid = $rData3["fldencounterval"]
+            $encid = $rData4["fldencounterval"]
             BasicInfoPatient()
             txtlabbill.Text = txtencid.Text
             ShowSampledBill($encid, txtlabbill.Text)
             ShowNewInvoiceTests(txtencid.Text)
           Else
-            $encid = $rData3["fldencounterval"]
+            $encid = $rData4["fldencounterval"]
             BasicInfoPatient()
             txtlabbill.Text = ""
             ShowSampled($encid)
             If rbencounter.Value = True Then
-              If modBasic.$AutoBillAllowRadiology = "Unpaid" Then
-                ShowUnpaidEncounterTests(txtencid.Text)
-              Else
-                ShowNewEncounterTests(txtencid.Text)
-              Endif
+              ShowNewEncounterTests(txtencid.Text)
             Else If rbindoor.Value = True Then
               ShowNewEncSavedTests(txtencid.Text)
             Endif
@@ -1156,19 +993,6 @@ Private Sub UpdateSampledTest()
 Catch
   modDatabase.$myConn.Rollback
   modHelpVariable.CreateErrorReport()
-
-End
-
-Public Sub btnaddin_Click()
-
-  If cmbformat.Text Then
-    If rbwaiting.Value = True Then
-      AddSampling(dtplan.Value, cmbformat.Text)
-    Else If rbadded.Value = True Then
-      UpdateSampledTest()
-    Endif
-  Endif
-  btnformatlist.Tag = ""
 
 End
 
@@ -1216,17 +1040,19 @@ Public Sub mnudel_Click()
         modDatabase.$myConn.Commit
       Endif
 
-      If modBasic.$AutoBillAllowRadiology = "Unpaid" Then
-        ShowUnpaidEncounterTests($rData3["fldencounterval"])
-      Else
-        ShowNewEncounterTests($rData3["fldencounterval"])
-      Endif
+      ShowNewEncounterTests($rData3["fldencounterval"])
     Endif
   Endif
 
 Catch
   modDatabase.$myConn.Rollback
   modHelpVariable.CreateErrorReport()
+
+End
+
+Public Sub btnaddmenu_Menu()
+
+  mnutest.Popup(btnaddmenu)
 
 End
 
@@ -1244,18 +1070,14 @@ Public Sub mnutransf_Click()
       res["xyz"] = False
       res.Update()
       If xx <> modBasic.$compID Then
-        If modBasic.$AutoBillAllowRadiology = "Unpaid" Then
-          ShowUnpaidEncounterTests($rData3["fldencounterval"])
-        Else
-          ShowNewEncounterTests($rData3["fldencounterval"])
-        Endif
+        ShowNewEncounterTests($rData3["fldencounterval"])
       Endif
     Endif
   Endif
 
 End
 
-Public Sub btnpayto_Click()
+Public Sub btnselectuser_Click()
 
   Dim xMedUser As String[]
 
@@ -1279,6 +1101,9 @@ Public Sub btnpayto_Change()
 End
 
 Public Sub mnublank_Click()
+
+  Me.Parent.DeleteChildren()
+  modGeneralMain.LoadRadioReporting()
 
 End
 
@@ -1320,7 +1145,7 @@ Public Sub mnuaddgroup_Click()
           res = modDatabase.$myConn.Exec("select fldtestid,fldtesttype,fldactive from tblgroupradio where fldgroupname=&1 and fldptsex=&2", xitem, xformat)
           If res.Available = True Then
             For Each res
-              modRadioSub.InsertRadioTestOrder(Trim(txtencid.Text), res["fldtestid"], res["fldtesttype"], res["fldactive"], 0, "", "", "", "", xformat)
+              modRadioSub.InsertRadioTestOrder(Trim(txtencid.Text), res!fldtestid, res!fldtesttype, res!fldactive, 0, "", "", "", "", xformat)
             Next
           Endif
           modDatabase.$myConn.Commit
@@ -1334,18 +1159,6 @@ Public Sub mnuaddgroup_Click()
 Catch
   modDatabase.$myConn.Rollback
   modHelpVariable.CreateErrorReport()
-
-End
-
-Public Sub mnuaddpacs_Click()
-
-  ' Dim hForm As FmAddPacsEntry
-  '
-  ' If txtencid.Text Then
-  '   hForm = New FmAddPacsEntry(Trim(txtencid.Text))
-  '   hForm.ShowModal()
-  '   ShowSampled(Trim(txtencid.Text))
-  ' Endif
 
 End
 
@@ -1364,22 +1177,6 @@ Public Sub mnulastencid_Click()
 End
 
 ''---------------------------- Added Grids -------------------------
-Public Sub btnaddcounter_Click()
-
-  Dim hForm As FmAddVariableGrid
-  Dim xPass As String
-
-  xPass = InputPassword("Provide Root Password", "Verification", "")
-  If modPassword.GetSuperVerification(modBasic.$lbluser, xPass) = True Then
-    hform = New FmAddVariableGrid("fldcounter", "tblradiocounter")
-    hform.ShowModal
-    $counterLst = modControlSub.GetDirectFillresultNoNull(modDatabase.$myConn.Exec("select fldcounter as col from tblradiocounter"))
-    cmbcounter.List = $counterLst
-    cmbrepocounter.List = $counterLst
-  Endif
-
-End
-
 Public Sub btnrefresh_Click()
 
   FillSamplingEncounters()
@@ -1392,14 +1189,9 @@ Private Sub FillSamplingEncounters()
   Dim sql As String
   Dim xdate As String
   Dim xcateg As String
-  Dim xsample As String
-  Dim xsearch As String
-  Dim xpreun As String
-  Dim xunion As String
-  Dim xorder As String
 
   If chkdate.Value = True Then
-    xdate = " and tblpatradiotest.fldnewdate>=&4 and tblpatradiotest.fldnewdate<=&5"
+    xdate = " and fldnewdate>=&4 and fldnewdate<=&5"
   Else
     xdate = ""
   Endif
@@ -1407,86 +1199,33 @@ Private Sub FillSamplingEncounters()
   If cmbcategory.Text = "%" Then
     xcateg = ""
   Else
-    xcateg = " and tblpatradiotest.fldtestid in(select fldexamid from tblradio where fldcategory like &6)"
+    xcateg = " and fldtestid in(select fldexamid from tblradio where fldcategory like &6)"
   Endif
 
-  If cmbrepocounter.Text Then
-    xsample = " and tblpatradiotest.fldbcounter like &7"
-  Else
-    xsample = ""
+  If rbencounter.Value = True Then
+    sql = "select fldencounterval,fldencounterval,fldencounterval,fldencounterval,fldtestid,fldnewdate,fldid,fldnewdate from tblpatradiotest where fldstatus=&1 and fldsave_report=&2 and fldcomp_report=&3" & xdate & xcateg                                        ''
+  Else If rbinvoice.Value = True Then
+    sql = "select fldbillno,fldencounterval,fldencounterval,fldencounterval,fldtestid,fldnewdate,fldid,fldnewdate from tblpatradiotest where fldstatus=&1 and fldsave_report=&2 and fldcomp_report=&3" & xdate & xcateg
+  Else If rbindoor.Value = True Then
+    sql = "select fldencounterval,fldencounterval,fldencounterval,fldencounterval,fldtestid,fldnewdate,fldid,fldnewdate from tblpatradiotest where fldstatus=&1 and fldsave_report=&2 and fldcomp_report=&3" & xdate & xcateg                                        ''
   Endif
-
-  If txtsearch.Text Then
-    If rbencrepo.Value = True Then
-      xsearch = " and lower(tblpatradiotest.fldencounterval) like &8"
-    Else If rbinvoicrepo.Value = True Then
-      xsearch = " and lower(tblpatradiotest.fldbillno) like &8"
-    Else If rbindoorrepo.Value = True Then
-      xsearch = " and lower(tblpatradiotest.fldencounterval) like &8"
-    Endif
-  Else
-    xsearch = ""
-  Endif
-
-  If rbdate.Value = True Then
-    xpreun = ""
-    xunion = ""
-    xorder = " ORDER BY tblpatradiotest.fldnewdate"
-  Else If rbtriage.Value = True Then
-    xpreun = ""
-    xunion = " inner join tblencounter on tblpatradiotest.fldencounterval=tblencounter.fldencounterval"
-    xorder = " ORDER BY FIELD(tblencounter.fldheight, '0', '65280', '16776960', '16711680') DESC"
-  Else If rbname.Value = True Then
-    xpreun = "("
-    xunion = " inner join tblencounter on tblpatradiotest.fldencounterval=tblencounter.fldencounterval) inner join tblpatientinfo on tblencounter.fldpatientval=tblpatientinfo.fldpatientval"
-    xorder = " ORDER BY tblpatientinfo.fldptnamefir"
-  Endif
-
-  If rbencrepo.Value = True Then
-    sql = "select tblpatradiotest.fldencounterval as fldparent,tblpatradiotest.fldencounterval,tblpatradiotest.fldencounterval,tblpatradiotest.fldencounterval as fldencounterval,tblpatradiotest.fldtestid as fldtestid,tblpatradiotest.fldencounterval,tblpatradiotest.fldid as fldid,tblpatradiotest.fldnewdate as fldnewdate,tblpatradiotest.fldsampletype as fldsampletype,tblpatradiotest.fldmethod,tblpatradiotest.fldbcounter as fldbcounter,tblpatradiotest.fldnewdate,tblpatradiotest.fldencounterval,tblpatradiotest.fldencounterval from " & xpreun & "tblpatradiotest" & xunion & " where tblpatradiotest.fldstatus=&1 and tblpatradiotest.fldsave_report=&2 and tblpatradiotest.fldcomp_report=&3" & xdate & xcateg & xsample & xsearch & xorder                                        ''
-  Else If rbinvoicrepo.Value = True Then
-    sql = "select tblpatradiotest.fldbillno as fldparent,tblpatradiotest.fldencounterval,tblpatradiotest.fldencounterval,tblpatradiotest.fldencounterval as fldencounterval,tblpatradiotest.fldtestid as fldtestid,tblpatradiotest.fldencounterval,tblpatradiotest.fldid as fldid,tblpatradiotest.fldnewdate as fldnewdate,tblpatradiotest.fldsampletype as fldsampletype,tblpatradiotest.fldmethod,tblpatradiotest.fldbcounter as fldbcounter,tblpatradiotest.fldnewdate,tblpatradiotest.fldencounterval,tblpatradiotest.fldencounterval from " & xpreun & "tblpatradiotest" & xunion & " where tblpatradiotest.fldstatus=&1 and tblpatradiotest.fldsave_report=&2 and tblpatradiotest.fldcomp_report=&3" & xdate & xcateg & xsample & xsearch & xorder
-  Else If rbindoorrepo.Value = True Then
-    sql = "select tblpatradiotest.fldencounterval as fldparent,tblpatradiotest.fldencounterval,tblpatradiotest.fldencounterval,tblpatradiotest.fldencounterval as fldencounterval,tblpatradiotest.fldtestid as fldtestid,tblpatradiotest.fldencounterval,tblpatradiotest.fldid as fldid,tblpatradiotest.fldnewdate as fldnewdate,tblpatradiotest.fldsampletype as fldsampletype,tblpatradiotest.fldmethod,tblpatradiotest.fldbcounter as fldbcounter,tblpatradiotest.fldnewdate,tblpatradiotest.fldencounterval,tblpatradiotest.fldencounterval from " & xpreun & "tblpatradiotest" & xunion & " where tblpatradiotest.fldstatus=&1 and tblpatradiotest.fldsave_report=&2 and tblpatradiotest.fldcomp_report=&3" & xdate & xcateg & xsample & xsearch & xorder                                      ''
-  Endif
-  If rbpending.Value = True Then
-    $rData2 = modDatabase.$myConn.Exec(sql, "Sampled", False, modBasic.$compID, modDate.StartSqlDate(dtsort.value), modDate.EndSqlDate(DateAdd(dtsort.Value, gb.Day, txtrangerepo.Value)), cmbcategory.Text, cmbrepocounter.Text & "%", LCase(Trim(txtsearch.Text)))
-  Else If rbreported.Value = True Then
-    $rData2 = modDatabase.$myConn.Exec(sql, "Reported", True, modBasic.$compID, modDate.StartSqlDate(dtsort.value), modDate.EndSqlDate(DateAdd(dtsort.Value, gb.Day, txtrangerepo.Value)), cmbcategory.Text, cmbrepocounter.Text & "%", LCase(Trim(txtsearch.Text)))
-  Endif
+  $rData2 = modDatabase.$myConn.Exec(sql, "Sampled", False, modBasic.$compID, modDate.StartSqlDate(dtsort.value), modDate.EndSqlDate(dtsort.value), cmbcategory.Text)
   $aMyFields2 = New String[]
   modGridView.ReadSmallData(GridView2, $rData2, $aMyFields2)
   With GridView2
-    If rbinvoice.Value = True Then
-      .Columns[0].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
-      .Columns[0].Text = "Invoice"
-    Else
-      .Columns[0].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
-      .Columns[0].Text = "EncID"
-    Endif
+    .Columns[0].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
     .Columns[1].Width = CStr(10 * modBasic.$AppWidthRatio) & "px"
-    .Columns[2].Width = CStr(200 * modBasic.$AppWidthRatio) & "px"
+    .Columns[2].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
     .Columns[3].Hidden = True
-    .Columns[4].Width = CStr(225 * modBasic.$AppWidthRatio) & "px"
-    .Columns[5].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
+    .Columns[4].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+    .Columns[5].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
     .Columns[6].Hidden = True
     .Columns[7].Hidden = True
-    .Columns[8].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
-    .Columns[9].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
-    .Columns[10].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
-    .Columns[11].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
-    .Columns[12].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
-    .Columns[13].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
 
+    .Columns[0].Text = "EncID"
     .Columns[2].Text = "Name"
     .Columns[4].Text = "TestName"
-    .Columns[5].Text = "Location"
-    .Columns[8].Text = "Format"
-    .Columns[9].Text = "Method"
-    .Columns[10].Text = "Counter"
-    .Columns[11].Text = "Planned"
-    .Columns[12].Text = "Contact"
-    .Columns[13].Text = "Scheme"
+    .Columns[5].Text = "PlanDate"
   End With
 
 End
@@ -1501,13 +1240,7 @@ Public Sub GridView2_Data(Row As Integer, Column As Integer, Data As WebTableDat
   Else If Column = 2 Then
     Data.Text = modPatient.GetPatientNameByEnc($rData2[$aMyFields2[Column]])
   Else If Column = 5 Then
-    Data.Text = modPatient.GetPatientWardName($rData2[$aMyFields2[Column]])
-  Else If Column = 11 Then
     Data.Text = modReportVar.GetDateTimeReport($rData2[$aMyFields2[Column]], gb.GeneralDate)
-  Else If Column = 12 Then
-    Data.Text = modPatient.GetPatientContactByEnc($rData2[$aMyFields2[Column]])
-  Else If Column = 13 Then
-    Data.Text = modPatient.ShowDiscountCategEnc($rData2[$aMyFields2[Column]])
   Else
     Data.Text = $rData2[$aMyFields2[Column]]
   Endif
@@ -1516,12 +1249,26 @@ End
 
 Public Sub GridView2_Select()
 
+  Dim xstatus As String
+
   If GridView2.Selection.Count Then
     $rData2.MoveTo(GridView2.Selection[0])
     modRepository.$RepoDataStatus = False
-    txtencid.Text = $rData2["fldparent"]
+    If rbencounter.Value = True Then
+      txtencid.Text = $rData2["fldencounterval"]
+    Else If rbinvoice.Value = True Then
+      txtencid.Text = $rData2["fldbillno"]
+    Else If rbindoor.Value = True Then
+      txtencid.Text = $rData2["fldencounterval"]
+    Endif
     $encid = $rData2["fldencounterval"]
-    BasicInfoPatient()
+    $PatientNum = modPatient.GetPatientNoByEnc($encid)
+    txtpatientname.Text = modPatient.GetPatientNameByEnc($encid)
+    txtgender.Text = modPatient.GetPatientAgeString($encid, Now()) & "/" & modPatient.GetPatientSex($encid)
+    txtpatientaddress.Text = modPatient.GetPatientAddressByEnc($encid)
+
+    xstatus = modPatient.CurrentAdmissionStatus($encid)
+    txtlocation.Text = modPatient.GetLocationSetting($encid, xstatus)
     ShowGridMain()
   Endif
 
@@ -1539,48 +1286,23 @@ Private Sub ShowGridMain()
 
 End
 
-Public Sub mnucounter_Click()
-
-  Dim res As Result
-  Dim xlocat As String
-  Dim Row As Integer
-  Dim Column As Integer
-
-  If GridView2.Selection.Count Then
-    $rData2.MoveTo(GridView2.Selection[0])
-    xlocat = InputCombo(("Select Counter for ") & $rData2["fldtestid"], $rData2["fldparent"], $counterLst, $rData2["fldbcounter"], True)
-    If xlocat Then
-      res = modDatabase.$myConn.Edit("tblpatradiotest", "fldid=&1 and fldsave_report=&2", $rData2["fldid"], False)
-      If res.Available Then
-        res["fldbcounter"] = xlocat
-        res["xyz"] = False
-        res.Update
-        FillSamplingEncounters()
-      Endif
-    Endif
-  Endif
-
-End
-
 Public Sub mnueditdate_Click()
 
   Dim res As Result
   Dim xdate As Date
-  Dim Row As Integer
-  Dim Column As Integer
 
   If GridView2.Selection.Count Then
-    $rData2.MoveTo(GridView2.Selection[0])
-    xdate = GetDateValue(("Select Plan Date for ") & $rData2["fldtestid"], $rData2["fldparent"], $rData2["fldnewdate"])
+    $rData.MoveTo(GridView2.Selection[0])
+
+    xdate = GetDateValue(("Select Plan Date for ") & $rData2["fldtestid"], $rData2["fldencounterval"], $rData2["fldnewdate"])
     If xdate Then
-      res = modDatabase.$myConn.Edit("tblpatradiotest", "fldid=&1 and fldsave_report=&2", $rData2["fldid"], False)
-      If res.Available Then
-        res["fldnewdate"] = xdate
-        res["xyz"] = False
-        res.Update
-        FillSamplingEncounters()
-      Endif
+      res = modDatabase.$myConn.Edit("tblpatradiotest", "fldid=&1", $rData2["fldid"])
+      res["fldnewdate"] = xdate
+      res["xyz"] = False
+      res.Update
+      FillSamplingEncounters()
     Endif
+
   Endif
 
 End
@@ -1606,17 +1328,21 @@ Public Sub btnshow_Click()
       txtlabbill.Text = ""
       $InvoiceFormat = False
       $encid = Trim(txtencid.Text)
+      BasicInfoPatient()
+      ShowSampled($encid)
     Else If rbinvoice.Value = True Then
       txtlabbill.Text = Trim(txtencid.Text)
       $InvoiceFormat = True
       $encid = modNonMedical.GetEncounterFromBillNo(txtencid.Text)
+      BasicInfoPatient()
+      ShowSampledBill($encid, txtlabbill.Text)
     Else If rbindoor.Value = True Then
       txtlabbill.Text = ""
       $InvoiceFormat = False
       $encid = Trim(txtencid.Text)
+      BasicInfoPatient()
+      ShowSampled($encid)
     Endif
-    BasicInfoPatient()
-    ShowGridMain()
   Endif
 
 End
@@ -1640,9 +1366,6 @@ Private Sub BasicInfoPatient()
   Endif
   modAppSupport.RecordPatientActivity("Patient Data", Me.Name, "EncounterID", $encid)
 
-  btnshow.Enabled = False
-  modImage.ShowPhotoSplash("Patient", $PatientNum)
-
 End
 
 Public Sub btnwebcam_Click()
@@ -1653,47 +1376,16 @@ Public Sub btnwebcam_Click()
 
 End
 
-Public Sub btnpatbill_Click()
-
-  Dim hForm14 As FmMiniService
-  Dim xservmode As String
-  Dim xprocmode As String
-  Dim xothermode As String
-
-  If txtencid.Text Then
-    xservmode = modNonMedical.GetAutoIPBillingPack("Service", Trim(txtencid.Text))
-    xprocmode = modNonMedical.GetAutoIPBillingPack("Procedure", Trim(txtencid.Text))
-    xothermode = modNonMedical.GetAutoIPBillingPack("Others", Trim(txtencid.Text))
-    hForm14 = New FmMiniService(Trim(txtencid.Text), xservmode, xprocmode, xothermode)
-    hForm14.ShowModal
-  Endif
-
-End
-
 '''------------------------------------------ added tests -------------------------------------------
 Private Sub ShowSampled(encid As String)
 
-  Dim res As Result
   Dim sql As String
-  Dim xdept As String
-  Dim xcateg As String
-
-  If TabPanel1.Index = 0 Then
-    xdept = cmbcategorynew.Text
-  Else If TabPanel1.Index = 1 Then
-    xdept = cmbcategory.Text
-  Endif
-  If xdept = "%" Then
-    xcateg = ""
-  Else
-    xcateg = db.Subst(" and fldtestid in(select fldexamid from tblradio where fldcategory like &1)", xdept)
-  Endif
 
   If chkall.Value = False Then
-    sql = "select fldid,fldchk,fldtestid,fldreportquali,flvisible,fldsampletype,fldreportquanti,fldtest_type,fldmethod,fldcondition,fldcomment,fldtime_report,fldencounterval,fldstatus,fldabnormal,fldpacstudy,fldgroupid,fldsampleid,fldreportquali,fldbillno,fldnewdate,fldbcounter from tblpatradiotest where (fldstatus=&1 or fldstatus=&2) and fldencounterval=&3 and fldcomp_report=&4" & xcateg
+    sql = "select fldid,fldchk,fldtestid,fldreportquali,flvisible,fldsampletype,fldreportquanti,fldtest_type,fldmethod,fldcondition,fldcomment,fldtime_report,fldencounterval,fldstatus,fldabnormal,fldpacstudy,fldgroupid,fldsampleid,fldreportquali,fldbillno,fldnewdate from tblpatradiotest where (fldstatus=&1 or fldstatus=&2) and fldencounterval=&3 and fldcomp_report=&4"
     $rData = modDatabase.$myConn.Exec(sql, "Ordered", "Sampled", encid, modBasic.$compID)
   Else
-    sql = "select fldid,fldchk,fldtestid,fldreportquali,flvisible,fldsampletype,fldreportquanti,fldtest_type,fldmethod,fldcondition,fldcomment,fldtime_report,fldencounterval,fldstatus,fldabnormal,fldpacstudy,fldgroupid,fldsampleid,fldreportquali,fldbillno,fldnewdate,fldbcounter from tblpatradiotest where (fldstatus=&1 or fldstatus=&2 or fldstatus=&3) and fldencounterval=&4 and fldcomp_report=&5" & xcateg
+    sql = "select fldid,fldchk,fldtestid,fldreportquali,flvisible,fldsampletype,fldreportquanti,fldtest_type,fldmethod,fldcondition,fldcomment,fldtime_report,fldencounterval,fldstatus,fldabnormal,fldpacstudy,fldgroupid,fldsampleid,fldreportquali,fldbillno,fldnewdate from tblpatradiotest where (fldstatus=&1 or fldstatus=&2 or fldstatus=&3) and fldencounterval=&4 and fldcomp_report=&5"
     $rData = modDatabase.$myConn.Exec(sql, "Ordered", "Sampled", "Reported", encid, modBasic.$compID)
   Endif
   FillSamplingGrid()
@@ -1702,27 +1394,13 @@ End
 
 Private Sub ShowSampledBill(encid As String, billno As String)
 
-  Dim res As Result
   Dim sql As String
-  Dim xdept As String
-  Dim xcateg As String
-
-  If TabPanel1.Index = 0 Then
-    xdept = cmbcategorynew.Text
-  Else If TabPanel1.Index = 1 Then
-    xdept = cmbcategory.Text
-  Endif
-  If xdept = "%" Then
-    xcateg = ""
-  Else
-    xcateg = db.Subst(" and fldtestid in(select fldexamid from tblradio where fldcategory like &1)", xdept)
-  Endif
 
   If chkall.Value = False Then
-    sql = "select fldid,fldchk,fldtestid,fldreportquali,flvisible,fldsampletype,fldreportquanti,fldtest_type,fldmethod,fldcondition,fldcomment,fldtime_report,fldencounterval,fldstatus,fldabnormal,fldpacstudy,fldgroupid,fldsampleid,fldreportquali,fldbillno,fldnewdate,fldbcounter from tblpatradiotest where (fldstatus=&1 or fldstatus=&2) and fldencounterval=&3 and fldcomp_report=&4 and fldbillno=&5" & xcateg
+    sql = "select fldid,fldchk,fldtestid,fldreportquali,flvisible,fldsampletype,fldreportquanti,fldtest_type,fldmethod,fldcondition,fldcomment,fldtime_report,fldencounterval,fldstatus,fldabnormal,fldpacstudy,fldgroupid,fldsampleid,fldreportquali,fldbillno,fldnewdate from tblpatradiotest where (fldstatus=&1 or fldstatus=&2) and fldencounterval=&3 and fldcomp_report=&4 and fldbillno=&5"
     $rData = modDatabase.$myConn.Exec(sql, "Ordered", "Sampled", encid, modBasic.$compID, billno)
   Else
-    sql = "select fldid,fldchk,fldtestid,fldreportquali,flvisible,fldsampletype,fldreportquanti,fldtest_type,fldmethod,fldcondition,fldcomment,fldtime_report,fldencounterval,fldstatus,fldabnormal,fldpacstudy,fldgroupid,fldsampleid,fldreportquali,fldbillno,fldnewdate,fldbcounter from tblpatradiotest where (fldstatus=&1 or fldstatus=&2 or fldstatus=&3) and fldencounterval=&4 and fldcomp_report=&5 and fldbillno=&6" & xcateg
+    sql = "select fldid,fldchk,fldtestid,fldreportquali,flvisible,fldsampletype,fldreportquanti,fldtest_type,fldmethod,fldcondition,fldcomment,fldtime_report,fldencounterval,fldstatus,fldabnormal,fldpacstudy,fldgroupid,fldsampleid,fldreportquali,fldbillno,fldnewdate from tblpatradiotest where (fldstatus=&1 or fldstatus=&2 or fldstatus=&3) and fldencounterval=&4 and fldcomp_report=&5 and fldbillno=&6"
     $rData = modDatabase.$myConn.Exec(sql, "Ordered", "Sampled", "Reported", encid, modBasic.$compID, billno)
   Endif
   FillSamplingGrid()
@@ -1755,18 +1433,16 @@ Private Sub FillSamplingGrid()
     .Columns[17].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
     .Columns[18].Hidden = True
     .Columns[19].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
-    .Columns[20].Hidden = True  ''book date
-    .Columns[21].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"  ''counter
+    .Columns[20].Hidden = True
 
     .Columns[2].Text = "Examination"
     .Columns[3].Text = "Observation"     ''5
     .Columns[4].Text = "Visible" ''4
-    .Columns[5].Text = "Format"      ''3
+    .Columns[5].Text = "EvalSite"      ''3
     .Columns[8].Text = "Method"
     .Columns[11].Text = "ReportDate"
     .Columns[17].Text = "Index"
     .Columns[19].Text = "Invoice"
-    .Columns[21].Text = "Counter"
   End With
 
   ' modGridView.SetLabReportIcon(GridView1, 13, 14, 3)
@@ -1781,6 +1457,14 @@ Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableDat
     Data.Text = modReportVar.GetDateTimeReport($rData[$aMyFields[Column]], gb.GeneralDate)
   Else
     Data.Text = $rData[$aMyFields[Column]]
+  Endif
+
+End
+
+Public Sub btnflag_Click()
+
+  If GridView1.Selection.Count Then
+    $rData.MoveTo(GridView1.Selection[0])
   Endif
 
 End
@@ -1847,7 +1531,7 @@ Public Sub btnshowcomponents_Click()
 
 End
 
-Private Sub AddSubTestData(Row As Integer)
+Private Sub AddSubTestData()
 
   Dim rs As Result
   Dim rsx As Result
@@ -1966,7 +1650,7 @@ Public Sub btnrepo_Click()
   Dim hCls As CReportCustom
 
   If $encid Then
-    If $HelpReport Then
+    If modSettings.ShowSettingFromFIle("Diagnostic Help/Name") Then
       hCls = New CReportCustom($encid, "Diagnostic Help", "ReportSize", MMain.$defUnit)
       hCls.Preview()
     Endif
@@ -1976,11 +1660,51 @@ End
 
 Public Sub btnpacs_Click()
 
-  Dim hForm As FmPacsFind
+  Dim hForm As FmPacsShow
 
   If txtencid.Text Then
-    hForm = New FmPacsFind($encid, "History")
+    hForm = New FmPacsShow($encid, "History")
     hForm.ShowModal
+  Endif
+
+End
+
+Public Sub mnuopenview_Click()
+
+  If $sPath Then
+    Me.Exec("window.open('" & $sPath & "'); ")
+  Endif
+
+End
+
+Public Sub btnplay_Click()
+
+  Dim res As Result
+  Dim xserver As String
+  Dim hForm As FmPacsShow
+
+  If GridView1.Selection.Count Then
+    $rData.MoveTo(GridView1.Selection[0])
+    If $rData["fldpacstudy"] Then
+
+      res = modDatabase.$myConn.Exec("select fldpacstudy,fldpacseries,fldpacsform from tblpatradiotest where fldid=&1", $rData["fldid"])
+      If res.Available Then
+        If res["fldpacseries"] Then
+          xserver = InputCombo("Select PACS Node to Use", "PACS", modMisc.GetPacsServerList(), "", True)
+          If xserver Then
+            modpacs.GetPacsSetting(xserver)
+            $sPath = modPACS.DicomSeriesWebView(res["fldpacsform"], $encid, res["fldpacstudy"], res["fldpacseries"])
+            mnuopenview_Click()
+          Endif
+        Endif
+      Endif
+
+    Else
+      hForm = New FmPacsShow($encid, CStr($rData["fldid"]))
+      hForm.ShowModal
+      ShowGridMain()
+
+    Endif
   Endif
 
 End
@@ -2030,9 +1754,16 @@ Public Sub btnrepoall_Click()
   Dim hForm As FmRadioRepPrint
 
   If txtencid.Text Then
-    hForm = New FmRadioRepPrint($encid)
-    modAppSupport.FindWorSpace(modHelpVariable.$LogInCategory).Add(hForm)
+    modGeneralMain.$LastEncounterID = Trim(txtencid.Text)
+    Try Me.Parent.DeleteChildren()
+    hForm = New FmRadioRepPrint(modGeneralMain.$LastEncounterID, fmTechnician.Workspace1)
   Endif
+
+End
+
+Public Sub btnhistory_Menu()
+
+  mnuhistory.Popup(btnhistory)
 
 End
 
@@ -2148,46 +1879,6 @@ Public Sub btndicom_Click()
 
 End
 
-Public Sub btnplay_Click()
-
-  Dim res As Result
-  Dim xserver As String
-  Dim hForm As FmPacsShow
-
-  If GridView1.Selection.Count Then
-    $rData.MoveTo(GridView1.Selection[0])
-    If $rData["fldpacstudy"] Then
-
-      res = modDatabase.$myConn.Exec("select fldpacstudy,fldpacseries,fldpacsform from tblpatradiotest where fldid=&1", $rData["fldid"])
-      If res.Available Then
-        If res["fldpacseries"] Then
-          xserver = InputCombo("Select PACS Node to Use", "PACS", modMisc.GetPacsServerList(), "", True)
-          If xserver Then
-            modpacs.GetPacsSetting(xserver)
-            $sPath = modPACS.DicomSeriesWebView(res["fldpacsform"], $encid, res["fldpacstudy"], res["fldpacseries"])
-            mnuopenview_Click()
-          Endif
-        Endif
-      Endif
-
-    Else
-      hForm = New FmPacsShow($encid, CStr($rData["fldid"]))
-      hForm.ShowModal
-      ShowGridMain()
-
-    Endif
-  Endif
-
-End
-
-Public Sub mnuopenview_Click()
-
-  If $sPath Then
-    Me.Exec("window.open('" & $sPath & "'); ")
-  Endif
-
-End
-
 Public Sub btnsms_Click()
 
   Dim xmsg As String
@@ -2214,6 +1905,16 @@ Public Sub mnudemog_Click()
 End
 
 ''============================= Professional involved ====================================
+Public Sub GridView1_Select()
+
+  If GridView1.Selection.Count Then
+    $rData.MoveTo(GridView1.Selection[0])
+    $ProcBill = $rData["fldgroupid"]
+    ShowShareUsers($ProcBill)
+  Endif
+
+End
+
 Private Sub ShowShareUsers(sID As Long)
 
   Dim res As Result
@@ -2233,6 +1934,13 @@ Private Sub ShowShareUsers(sID As Long)
   Endif
 
 End
+
+' Public Sub cmbpertype_KeyRelease()
+'
+'   modFillContainer.AutoFillComboBox(cmbpertype)
+'   modFillContainer.RestrictComboToContent(cmbpertype)
+'
+' End
 
 Public Sub cmbpertype_Click()
 
@@ -2272,7 +1980,7 @@ Private Function GetDefaultUser(xUserType As String) As String
 
 End
 
-Public Sub btnconsult_Click()
+Public Sub btnselectadd_Click()
 
   Dim xMedUser As String[]
 
@@ -2302,6 +2010,7 @@ Public Sub btnaddperson_Click()
         cmbpertype.Text = ""
         btnaddconsult.Tag = ""
         btnaddconsult.Text = ""
+        btnaddconsult.Enabled = True
         btnselectadd.Enabled = True
         cmbpertype.SetFocus
       Endif
@@ -2352,7 +2061,7 @@ Public Sub grdperson_Data(Row As Integer, Column As Integer, Data As WebTableDat
 
 End
 
-Public Sub grdperson_Select()
+Public Sub btnpersoncomment_Click()
 
   Dim res As Result
   Dim xx As String
@@ -2372,13 +2081,26 @@ Public Sub grdperson_Select()
 
 End
 
-Public Sub mnudelsurguser_Click()
+Public Sub btnpersondelete_Click()
 
   If grdperson.Selection.Count Then
     $rDataAp.MoveTo(grdperson.Selection[0])
     modDatabase.$myConn.Delete("tblpatgenshare", "fldid=&1 and fldsave=&2", $rDataAp["fldid"], True)
     ShowSurgUser()
   Endif
+
+End
+
+''======================== Menus ===============
+Public Sub mnuenc_Click()
+
+  btnnewsearch_Click()
+
+End
+
+Public Sub mnuname_Click()
+
+  btnsearname_Click()
 
 End
 
@@ -2426,7 +2148,7 @@ Public Sub btnbarcode_Click()
 
 End
 
-''====================== Repository ================
+''================== Repository ====================
 Public Sub btnupload_Click()
 
   Dim rsx1 As Result

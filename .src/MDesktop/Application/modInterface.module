@@ -656,3 +656,164 @@ Public Sub SyncInterfacingSelectedData(sampleList As String[])
   Endif
 
 End
+
+''================ CLAPS ========================
+Public Sub SyncCLAPSInterfacingDataDaily(xdebug As Boolean)
+
+  Dim res As Result
+  Dim res1 As Result
+  Dim abn As Boolean
+  Dim xType As String
+  Dim xrange As Float[]
+  Dim xgo As Boolean
+  Dim xusercol As String
+
+  Dim res2 As Result
+  Dim xnew As String
+  Dim xfinl As String
+
+  If xdebug = True Then
+    modBasic.$DebugMode = True
+    db.Debug = True
+  Endif
+
+  ReadIntfaceConfig()
+  $machineCon = modDBApp.OpenConnection($IntfaceService, $IntfaceHost, $IntfaceDatabase, $IntfaceUser, $IntfacePassword, $IntfacePort)
+  If $machineCon.Opened = True Then
+
+    res = $machineCon.Edit("machine_results", "(pending_copy=&1 or pending_copy IS NULL) and created_at>=&2", False, DateAdd(Now(), gb.Hour, -24))
+    If res.Available Then
+      For Each res
+        If res["result"] Then
+          If res["result"] <> "NA" Then
+            xgo = False
+
+            xType = modFixLab.GetLabTestType(res["test_name"])
+            If xType = "Quantitative" Then
+              res1 = modDatabase.$myConn.Edit("tblpatlabtest", "fldsampleid=&1 and fldtestid=&2 and fldstatus=&3", res["specimen_id"], res["test_name"], "Sampled")
+              If res1.Available Then
+                res1.MoveFirst
+
+                xnew = ""
+                xfinl = ""
+                If res["result"] Like "<" & "*" Then
+                  xnew = Trim(Replace(res["result"], "<", ""))
+                  xfinl = CStr(CFloat(xnew) - 1)
+                Else If res["result"] Like ">" & "*" Then
+                  xnew = Trim(Replace(res["result"], ">", ""))
+                  xfinl = CStr(CFloat(xnew) + 1)
+                Else
+                  If IsNumber(res["result"]) Then
+                    xfinl = res["result"]
+                  Endif
+                Endif
+                If xfinl Then
+                  xrange = modLabTest.LabBothLimitValue(res["test_name"], res1["fldencounterval"], $IntfaceUnit, res1["fldmethod"])
+                  If xrange[0] = xrange[1] Then
+                    abn = False
+                  Else
+                    If CFloat(xfinl) < xrange[0] Or If CFloat(xfinl) > xrange[1] Then
+                      abn = True
+                    Else
+                      abn = False
+                    Endif
+                  Endif
+
+                  If res["testing_machine"] Then
+                    res1["fldmethod"] = res["testing_machine"]
+                  Endif
+
+                  res1["fldreportquali"] = res["result"]
+                  res1["fldreportquanti"] = CFloat(xfinl)
+                  res1["fldstatus"] = "Reported"
+                  ' res1["fldtime_start"] = res["ResultTransferDtTm"]
+                  res1["flduserid_report"] = $IntfaceVendor
+                  If res["date_tested"] Then
+                    res1["fldtime_report"] = res["date_tested"]
+                  Else
+                    res1["fldtime_report"] = Now()
+                  Endif
+                  res1["fldcomp_report"] = modBasic.$compID
+                  res1["fldsave_report"] = True
+                  res1["fldabnormal"] = abn
+                  res1["fldtestunit"] = $IntfaceUnit
+                  res1["xyz"] = False
+                  res1.Update
+                  xgo = True
+                Endif
+              Endif
+
+            Else
+              If modFixLab.GetLabTestOptionType(res["test_name"]) = "Fixed Components" Then
+                res1 = modDatabase.$myConn.Edit("tblpatlabtest", "fldsampleid=&1 and fldtestid=&2", res["specimen_id"], res["test_name"])
+                If res1.Available Then
+                  res1.MoveFirst
+                  res2 = modDatabase.$myConn.Edit("tblpatlabsubtest", "fldsubtest=&1 and fldparent=&2 and fldtestid=&3", res["specimen_id"], res["test_name"], res1["fldid"])
+                  If res2.Available Then
+                    res2["fldreport"] = res["result"]
+                    res2["fldsave"] = True
+                    res2["xyz"] = False
+                    res2.Update
+                    If res1["fldstatus"] = "Sampled" Then
+                      res1["fldreportquali"] = ""
+                      res1["fldreportquanti"] = 0
+                      res1["fldstatus"] = "Reported"
+                      ' res1["fldtime_start"] = res["ResultTransferDtTm"]
+                      res1["flduserid_report"] = $IntfaceVendor
+                      If res["date_tested"] Then
+                        res1["fldtime_report"] = res["date_tested"]
+                      Else
+                        res1["fldtime_report"] = Now()
+                      Endif
+                      res1["fldcomp_report"] = modBasic.$compID
+                      res1["fldsave_report"] = True
+                      res1["fldabnormal"] = abn
+                      res1["fldtestunit"] = $IntfaceUnit
+                      res1["xyz"] = False
+                      res1.Update
+                    Endif
+                    xgo = True
+                  Endif
+                Endif
+
+              Else
+                res1 = modDatabase.$myConn.Edit("tblpatlabtest", "fldsampleid=&1 and fldtestid=&2 and fldstatus=&3", res["specimen_id"], res["test_name"], "Sampled")
+                If res1.Available Then
+                  res1.MoveFirst
+                  res1["fldreportquali"] = res["result"]
+                  res1["fldreportquanti"] = 0
+                  res1["fldstatus"] = "Reported"
+                  ' res1["fldtime_start"] = res["ResultTransferDtTm"]
+                  res1["flduserid_report"] = $IntfaceVendor
+                  If res["date_tested"] Then
+                    res1["fldtime_report"] = res["date_tested"]
+                  Else
+                    res1["fldtime_report"] = Now()
+                  Endif
+                  res1["fldcomp_report"] = modBasic.$compID
+                  res1["fldsave_report"] = True
+                  res1["fldabnormal"] = abn
+                  res1["fldtestunit"] = $IntfaceUnit
+                  res1["xyz"] = False
+                  res1.Update
+                  xgo = True
+                Endif
+              Endif
+
+            Endif
+
+            If xgo = True Then
+              res["pending_copy"] = True
+              res.Update
+              modBasic.PrintErrorString("Data Imported from Machine for " & res["test_name"] & " with Samp ID of " & res["specimen_id"])
+            Endif
+
+          Endif
+        Endif
+      Next
+    Endif
+
+    Try $machineCon.Close()
+  Endif
+
+End

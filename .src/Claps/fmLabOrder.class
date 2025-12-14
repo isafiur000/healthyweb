@@ -146,8 +146,8 @@ Public Sub cmbtestgroup_Select()
     ListView1.List = modString.SelectStringArrayToText(txtsearch.Text, $TestList, chkleftmain.Value)
     If modBasic.$TabletModeEnable = "Yes" Then
     Else
-    txtsearch.SetFocus
-    Endif 
+      txtsearch.SetFocus
+    Endif
   Endif
 
 End
@@ -293,7 +293,7 @@ Private Sub ShowGrid()
   Dim sql As String
   Dim res As Result
 
-  sql = "select fldid,flditemname,fldstatus,fldreason,fldordtime,fldtarget from tblpatbilling where fldencounterval=&1 and flditemtype=&2 and fldsave=&3"
+  sql = "select fldid,flditemname,fldstatus,fldreason,fldordtime,fldditemamt from tblpatbilling where fldencounterval=&1 and flditemtype=&2 and fldsave=&3"
   res = modDatabase.$myConn.Exec(sql, $encid, "Diagnostic Tests", False)
   ShowInitialGridView(res)
 
@@ -301,9 +301,19 @@ End
 
 Private Sub ShowInitialGridView(res As Result)
 
+  Dim xtot As Float
+
   $rData3 = res
   $aMyFields3 = New String[]
   modGridView.ReadSmallData(GridView1, $rData3, $aMyFields3)
+
+  xtot = 0
+  For Each $rData3
+    If $rData3["fldditemamt"] Then
+      xtot = xtot + $rData3["fldditemamt"]
+    Endif
+  Next
+  txttotalamt.Value = xtot
 
   With GridView1
     .Columns[0].Hidden = True
@@ -311,12 +321,12 @@ Private Sub ShowInitialGridView(res As Result)
     .Columns[2].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
     .Columns[3].Hidden = True
     .Columns[4].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
-    .Columns[5].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
+    .Columns[5].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
 
     .Columns[1].Text = "Particulars"
     .Columns[2].Text = "Status"
-    .Columns[4].Text = "Date Time"
-    .Columns[5].Text = "Target"
+    .Columns[4].Text = "DateTime"
+    .Columns[5].Text = "Total"
   End With
 
 End

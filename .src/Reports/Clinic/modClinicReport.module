@@ -41,6 +41,9 @@ End
 
 Public Function GetPatientChiefComplaintsReport(encid As String, sMulti As Boolean) As String[]
 
+  Dim compLst2 As String[]
+  Dim compLst1 As String[]
+  Dim xCompAll As String[]
   Dim compLst As String[]
   Dim xcomp As String
 
@@ -53,7 +56,16 @@ Public Function GetPatientChiefComplaintsReport(encid As String, sMulti As Boole
   xUnitLst = modMedicine.$SymptomFrequency
   xx = New String[]
   If sMulti = True Then
-    compLst = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldcomp) as col from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and fldsave=&3", encid, "Presenting Symptoms", True))
+    xCompAll = New String[]
+    compLst2 = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldcomp) as col from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and fldsave=&3", encid, "Presenting Symptoms", True))
+    If compLst2.Count Then
+      xCompAll.Insert(compLst2)
+    Endif
+    compLst1 = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldcomp) as col from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and flditem=&3", encid, "History", "General Complaints"))
+    If compLst1.Count Then
+      xCompAll.Insert(compLst1)
+    Endif
+    compLst = modString.GetDistinctStringArray(xCompAll)
     For Each xcomp In compLst
       ''formatted complaints
       res = modDatabase.$syConn.Exec("select fldtime,flditem,fldreportquali,fldreportquanti,flddetail,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and fldsave=&3 and fldcomp=&4", encid, "Presenting Symptoms", True, xcomp)
@@ -139,10 +151,10 @@ Public Function GetPatientChiefComplaintsReport(encid As String, sMulti As Boole
         Else
           xx.Add(res["flditem"] & " : " & xstr)
         Endif
-        xx.Add(modPatReports.GetPatientHistoryReport(encid, "General Complaints"))
 
       Next
     Endif
+    xx.Add(modPatReports.GetPatientHistoryReport(encid, "General Complaints"))
 
   Endif
 
