@@ -7,6 +7,9 @@ Private $aMyFields As String[]
 Private xFinal As Variant[]
 Private $ExamList As String[]
 
+Private $GenHeaders As String[] = ["Index", "Parameter", "Observation", "Comment", "Time"]
+Private $StructHeaders As String[] = ["Index", "Parameter", "Observation", "DateTime"]
+
 Public Sub _new(encid As String, PanelClass As String)
 
   $encid = encid
@@ -14,7 +17,9 @@ Public Sub _new(encid As String, PanelClass As String)
 
   rbmetric.Value = True
   rblabs.Value = True
-  rbdaterepo.Value = True
+  rbdesc.Value = True
+  rbdate.Value = True
+  rbtext.Value = True
 
   If modBasic.$WebZoomValue Then
     Slider1.Value = modBasic.$WebZoomValue * 100
@@ -42,13 +47,13 @@ Private Function LabUnitForm() As String
 
 End
 
-Public Sub rbdaterepo_Click()
+Public Sub rbdate_Click()
 
   btnshowexams_Click()
 
 End
 
-Public Sub rbnamerepo_Click()
+Public Sub rbname_Click()
 
   btnshowexams_Click()
 
@@ -57,7 +62,27 @@ End
 ''======================= List ============================
 Private Sub ShowGridViewList()
 
-  If rbnamerepo.Value = True Then
+  Dim xorder As String
+
+  If rbdesc.Value = True Then
+    If rblabs.Value = True Then
+      xorder = " ORDER BY fldtime_sample DESC"
+    Else If rbradio.Value = True Then
+      xorder = " ORDER BY fldtime_report DESC"
+    Else
+      xorder = " ORDER BY fldtime DESC"
+    Endif
+  Else
+    If rblabs.Value = True Then
+      xorder = " ORDER BY fldtime_sample ASC"
+    Else If rbradio.Value = True Then
+      xorder = " ORDER BY fldtime_report ASC"
+    Else
+      xorder = " ORDER BY fldtime ASC"
+    Endif
+  Endif
+
+  If rbname.Value = True Then
     If rblabs.Value = True Then
       $rData = modDatabase.$myConn.Exec("select fldtestid,fldtestid as col from tblpatlabtest where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3) and flvisible=&4 GROUP BY fldtestid ORDER BY fldtestid", $encid, "Reported", "Verified", "Visible")
     Else If rbradio.Value = True Then
@@ -68,15 +93,15 @@ Private Sub ShowGridViewList()
       $rData = modDatabase.$myConn.Exec("select fldinput,fldinput as col from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldserialval like &3 GROUP BY fldinput ORDER BY fldinput", $encid, True, "%")
     Endif
 
-  Else If rbdaterepo.Value = True Then
+  Else If rbdate.Value = True Then
     If rblabs.Value = True Then
-      $rData = modDatabase.$myConn.Exec("select DATE(fldtime_sample),DATE(fldtime_sample) as col from tblpatlabtest where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3) and flvisible=&4 GROUP BY DATE(fldtime_sample) ORDER BY fldtime_sample", $encid, "Reported", "Verified", "Visible")
+      $rData = modDatabase.$myConn.Exec("select DATE(fldtime_sample),DATE(fldtime_sample) as col from tblpatlabtest where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3) and flvisible=&4 GROUP BY DATE(fldtime_sample)" & xorder, $encid, "Reported", "Verified", "Visible")
     Else If rbradio.Value = True Then
-      $rData = modDatabase.$myConn.Exec("select DATE(fldtime_report),DATE(fldtime_report) as col from tblpatradiotest where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3) and flvisible=&4 GROUP BY DATE(fldtime_report) ORDER BY fldtime_report", $encid, "Reported", "Verified", "Visible")
+      $rData = modDatabase.$myConn.Exec("select DATE(fldtime_report),DATE(fldtime_report) as col from tblpatradiotest where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3) and flvisible=&4 GROUP BY DATE(fldtime_report)" & xorder, $encid, "Reported", "Verified", "Visible")
     Else If rbexam.Value = True Then
-      $rData = modDatabase.$myConn.Exec("select DATE(fldtime),DATE(fldtime) as col from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldserialval IS NULL GROUP BY DATE(fldtime) ORDER BY fldtime", $encid, True)
+      $rData = modDatabase.$myConn.Exec("select DATE(fldtime),DATE(fldtime) as col from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldserialval IS NULL GROUP BY DATE(fldtime)" & xorder, $encid, True)
     Else If rbstruct.Value = True Then
-      $rData = modDatabase.$myConn.Exec("select DATE(fldtime),DATE(fldtime) as col from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldserialval like &3 GROUP BY DATE(fldtime) ORDER BY fldtime", $encid, True, "%")
+      $rData = modDatabase.$myConn.Exec("select DATE(fldtime),DATE(fldtime) as col from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldserialval like &3 GROUP BY DATE(fldtime)" & xorder, $encid, True, "%")
     Endif
 
   Endif
@@ -96,9 +121,9 @@ Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableDat
   $rData.MoveTo(Row)
   modGridView.GridViewDecoration(Data, Row)
   If Column = 0 Then
-    If rbnamerepo.Value = True Then
+    If rbname.Value = True Then
       Data.Text = $rData[$aMyFields[Column]]
-    Else If rbdaterepo.Value = True Then
+    Else If rbdate.Value = True Then
       Data.Text = modReportVar.GetDateTimeReport($rData[$aMyFields[Column]], gb.MediumDate)
     Endif
   Else
@@ -110,23 +135,45 @@ End
 Public Sub GridView1_Select()
 
   Dim xformat As String
+  Dim xorder As Integer
+  Dim xVar As Variant[]
 
-  If rbdaterepo.Value = True Then
+  If rbdate.Value = True Then
     xformat = "Date"
-  Else If rbnamerepo.Value = True Then
+  Else If rbname.Value = True Then
     xformat = "Name"
+  Endif
+
+  If rbasc.Value = True Then
+    xorder = gb.Ascent
+  Else If rbdesc.Value = True Then
+    xorder = gb.Descent
   Endif
 
   If GridView1.Selection.Count Then
     $rData.MoveTo(GridView1.Selection[0])
-    If rblabs.Value = True Then
-      WebView1.Html = modDiagnosticReport.GetLaboratoryPanelReport($encid, xformat, LabUnitForm(), $rData["col"])
-    Else If rbradio.Value = True Then
-      WebView1.Html = modDiagnosticReport.GetRadiologyPanelReport($encid, xformat, $rData["col"])
-    Else If rbexam.Value = True Then
-      WebView1.Html = modDiagnosticReport.GetExaminationPanelReport($encid, "Physician Examinations", xformat, $rData["col"])
-    Else If rbstruct.Value = True Then
-      WebView1.Html = modDiagnosticReport.GetStructuredPanelReport($encid, xformat, $rData["col"])
+    If rbgrid.Value = True Then
+      If rblabs.Value = True Then
+        xVar = modDiagnosticReport.GetLaboratoryPanelCollection($encid, xformat, xorder, LabUnitForm(), $rData["col"])
+      Else If rbradio.Value = True Then
+        xVar = modDiagnosticReport.GetRadiologyPanelCollection($encid, xformat, xorder, $rData["col"])
+      Else If rbexam.Value = True Then
+        xVar = modDiagnosticReport.GetExaminationPanelCollection($encid, "Physician Examinations", xformat, xorder, $rData["col"])
+      Else If rbstruct.Value = True Then
+        xVar = modDiagnosticReport.GetStructuredPanelCollection($encid, xformat, xorder, $rData["col"])
+      Endif
+      GetGridFormat(xVar)
+
+    Else
+      If rblabs.Value = True Then
+        WebView1.Html = modDiagnosticReport.GetLaboratoryPanelReport($encid, xformat, xorder, LabUnitForm(), $rData["col"])
+      Else If rbradio.Value = True Then
+        WebView1.Html = modDiagnosticReport.GetRadiologyPanelReport($encid, xformat, xorder, $rData["col"])
+      Else If rbexam.Value = True Then
+        WebView1.Html = modDiagnosticReport.GetExaminationPanelReport($encid, "Physician Examinations", xformat, xorder, $rData["col"])
+      Else If rbstruct.Value = True Then
+        WebView1.Html = modDiagnosticReport.GetStructuredPanelReport($encid, xformat, xorder, $rData["col"])
+      Endif
     Endif
   Endif
 
@@ -136,38 +183,102 @@ End
 Public Sub btnshowexams_Click()
 
   Dim xformat As String
+  Dim xorder As Integer
+  Dim xVar As Variant[]
 
-  If rbdaterepo.Value = True Then
+  If rbdate.Value = True Then
     xformat = "Date"
-  Else If rbnamerepo.Value = True Then
+  Else If rbname.Value = True Then
     xformat = "Name"
+  Endif
+
+  If rbasc.Value = True Then
+    xorder = gb.Ascent
+  Else If rbdesc.Value = True Then
+    xorder = gb.Descent
   Endif
 
   If $encid Then
     ShowGridViewList()
-    If rblabs.Value = True Then
-      WebContainer4.Visible = True
-      GridView2.Visible = False
-      WebView1.Html = modDiagnosticReport.GetLaboratoryPanelReport($encid, xformat, LabUnitForm())
-    Else If rbradio.Value = True Then
-      WebContainer4.Visible = True
-      GridView2.Visible = False
-      WebView1.Html = modDiagnosticReport.GetRadiologyPanelReport($encid, xformat)
-    Else If rbexam.Value = True Then
-      WebContainer4.Visible = True
-      GridView2.Visible = False
-      WebView1.Html = modDiagnosticReport.GetExaminationPanelReport($encid, "Physician Examinations", xformat)
-    Else If rbstruct.Value = True Then
-      WebContainer4.Visible = True
-      GridView2.Visible = False
-      WebView1.Html = modDiagnosticReport.GetStructuredPanelReport($encid, xformat)
-    Else If rbvitals.Value = True Then
+    If rbvitals.Value = True Then
       WebContainer4.Visible = False
       GridView2.Visible = True
       $ExamList = modString.GetListFromCompareVariant(modFixPatho.$ExaminationCompVar, "fldexamid", "fldcategory", "Essential Examinations", True)
       FillDailyGrid()
+
+    Else
+      If rbgrid.Value = True Then
+        WebContainer4.Visible = False
+        GridView2.Visible = True
+        If rblabs.Value = True Then
+          xVar = modDiagnosticReport.GetLaboratoryPanelCollection($encid, xformat, xorder, LabUnitForm())
+        Else If rbradio.Value = True Then
+          xVar = modDiagnosticReport.GetRadiologyPanelCollection($encid, xformat, xorder)
+        Else If rbexam.Value = True Then
+          xVar = modDiagnosticReport.GetExaminationPanelCollection($encid, "Physician Examinations", xformat, xorder)
+        Else If rbstruct.Value = True Then
+          xVar = modDiagnosticReport.GetStructuredPanelCollection($encid, xformat, xorder)
+        Endif
+        GetGridFormat(xVar)
+
+      Else
+        WebContainer4.Visible = True
+        GridView2.Visible = False
+        If rblabs.Value = True Then
+          WebView1.Html = modDiagnosticReport.GetLaboratoryPanelReport($encid, xformat, xorder, LabUnitForm())
+        Else If rbradio.Value = True Then
+          WebView1.Html = modDiagnosticReport.GetRadiologyPanelReport($encid, xformat, xorder)
+        Else If rbexam.Value = True Then
+          WebView1.Html = modDiagnosticReport.GetExaminationPanelReport($encid, "Physician Examinations", xformat, xorder)
+        Else If rbstruct.Value = True Then
+          WebView1.Html = modDiagnosticReport.GetStructuredPanelReport($encid, xformat, xorder)
+        Endif
+      Endif
+
     Endif
   Endif
+
+End
+
+Private Sub GetGridFormat(xVar As Variant[])
+
+  Dim xHeaders As String[]
+  Dim j As Integer
+
+  If rblabs.Value = True Then
+    xHeaders = $GenHeaders
+  Else If rbradio.Value = True Then
+    xHeaders = $GenHeaders
+  Else If rbexam.Value = True Then
+    xHeaders = $GenHeaders
+  Else If rbstruct.Value = True Then
+    xHeaders = $StructHeaders
+  Endif
+
+  GridView2.Clear()
+  GridView2.Count = xVar.Count
+  GridView2.Columns.Count = xHeaders.Count
+  xFinal = xVar
+  With GridView2
+    For j = 0 To xHeaders.Count - 1
+      If j = 0 Then
+        .Columns[j].Hidden = True
+      Else If j = 1 Then
+        .Columns[j].Width = CStr(250 * modBasic.$AppWidthRatio) & "px"
+        .Columns[j].Text = xHeaders[j]
+      Else If j = 2 Then
+        .Columns[j].Width = CStr(400 * modBasic.$AppWidthRatio) & "px"
+        .Columns[j].Text = xHeaders[j]
+      Else If j = 3 Then
+        .Columns[j].Width = CStr(250 * modBasic.$AppWidthRatio) & "px"
+        .Columns[j].Text = xHeaders[j]
+      Else
+        .Columns[j].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+        .Columns[j].Text = xHeaders[j]
+      Endif
+    Next
+
+  End With
 
 End
 
@@ -220,7 +331,15 @@ End
 Public Sub GridView2_Data(Row As Integer, Column As Integer, Data As WebTableData)
 
   modGridView.GridViewDecoration(Data, Row)
-  Data.Text = xFinal[Row][CStr(Column)]
+  If Column = 2 Then
+    If rbvitals.Value = True Then
+      Data.Text = xFinal[Row][CStr(Column)]
+    Else
+      Data.Html = xFinal[Row][CStr(Column)]
+    Endif
+  Else
+    Data.Text = xFinal[Row][CStr(Column)]
+  Endif
 
 End
 

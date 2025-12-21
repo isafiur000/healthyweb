@@ -17,6 +17,7 @@ Public Sub _new(encid As String, sLock As Boolean)
   Endif
   If modGlobalSetting.ShowSettingFromDB("GeneralSettings/Registration_PatNoEdit") = "Yes" Then
     txtpatno.Enabled = True
+    btnpatnoedit.Visible = True
   Endif
   If txtencid.Text Then
     btnrefresh_Click()
@@ -156,6 +157,25 @@ Private Sub LockFilledControls()
 
 End
 
+Public Sub btnpatnoedit_Click()
+
+  Dim xPass As String
+  Dim res As Result
+
+  xPass = InputPassword("Provide Root Password", "Verification", "")
+  If modPassword.GetSuperVerification(modBasic.$lbluser, xPass) = True Then
+    If txtencid.Text Then
+      If txtpatno.Text Then
+        res = modDatabase.$myConn.Edit("tblencounter", "fldencounterval=&1", Trim(txtencid.Text))
+        res["fldpatientval"] = Trim(txtpatno.Text)
+        res.Update
+        Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information updated", modBasic.$BalloonDelay))
+      Endif
+    Endif
+  Endif
+
+End
+
 Public Sub btnedit_Click()
 
   Dim res As Result
@@ -165,7 +185,7 @@ Public Sub btnedit_Click()
     If cmbbillmode.Text And If cmbdiscmode.Text Then
       If txtpatno.Text Then
         res = modDatabase.$myConn.Edit("tblencounter", "fldencounterval=&1", Trim(txtencid.Text))
-        res["fldpatientval"] = Trim(txtpatno.Text)
+        ' res["fldpatientval"] = Trim(txtpatno.Text)
         res["fldbillingmode"] = cmbbillmode.Text
         res["flddisctype"] = cmbdiscmode.Text
         res["fldcashcredit"] = txtcredit.Value

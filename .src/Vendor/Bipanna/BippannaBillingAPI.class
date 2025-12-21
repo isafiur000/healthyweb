@@ -15,50 +15,29 @@ Public Sub _new(sPatID As String, sDiseaseID As Integer, sBillNo As String)
 
 End
 
-Private Function GetFileData(sBillNo As String) As String
-
-  Dim sPath As String
-  Dim xcmd As String[]
-  Dim imgData As String
-
-  sPath = modBILLFormat.GetInvoiceCopyPDFPath(sBillNo, False, False)
-  If Exist(sPath) Then
-    xcmd = ["base64", "-w", "0", sPath]
-    modBasic.DebugString("Execute " & xcmd.Join(Space(1)))
-    Exec xcmd To imgData
-  Endif
-
-  Return imgData
-
-End
-
-Private Sub SetCollectionPath() As String
+Private Sub GetCollectionData() As String[]
 
   Dim res As Result
-  Dim aColl As Collection
+  Dim aData As String[]
   Dim ximg As String
   Dim asx As String[]
   Dim xnepdate As String
-  Dim xPath As String
 
   res = modDatabase.$myConn.Exec("select fldtime,fldchargedamt from tblpatbilldetail where fldbillno=&1", $sBillNo)
   If res.Available Then
-    ximg = GetFileData($sBillNo)
+    ximg = modBILLFormat.GetInvoiceCopyPDFPath($sBillNo, False, False)
     asx = Split(modDate.ConvertToLocaldate(res["fldtime"]), "/")
     xnepdate = asx[0] & "-" & asx[1] & "-" & asx[2]
 
-    aColl = New Collection
-    aColl.Add($patID, "patient_id")
-    aColl.Add($sDiseaseId, "patient_disease_id")
-    aColl.Add(xnepdate, "issueddate")
-    aColl.Add($sBillNo, "bill_no")
-    aColl.Add(res["fldchargedamt"], "bill_amount")
-    aColl.Add(ximg, "attachment")
-
-    xPath = Temp()
-    File.Save(xPath, JSON.Encode(aColl))
+    aData = New String[]
+    aData.Add("--form 'patient_id=" & Quote($patID) & "'")
+    aData.Add("--form 'patient_disease_id=" & Quote($sDiseaseId) & "'")
+    aData.Add("--form 'issueddate=" & Quote(xnepdate) & "'")
+    aData.Add("--form 'bill_no=" & Quote($sBillNo) & "'")
+    aData.Add("--form 'bill_amount=" & res["fldchargedamt"] & "'")
+    aData.Add("--form 'attachment=@" & Quote(ximg) & "'")
   Endif
-  Return xPath
+  Return aData
 
 End
 
@@ -70,15 +49,15 @@ Private Sub ExecuteAPI()
   Dim xcont As String
   Dim ycont As String
 
-  Dim aPath As String
+  Dim aData As String[]
 
   xurl = modBasic.$BipannaBillingtURL
   xauth = "Authorization: Bearer " & modBasic.$BipannaHospitalCode
   xcont = "Content-Type: application/json"
   ycont = "Accept: application/json"
-  aPath = SetCollectionPath()
+  aData = GetCollectionData()
 
-  acmd = "curl -H " & Quote(xauth) & " -H " & Quote(xcont) & " -H " & Quote(ycont) & " -d @" & aPath & " -X POST " & xurl
+  acmd = "curl -H " & Quote(xauth) & " --location " & xurl & Space(1) & aData.Join(Space(1))
   modBasic.DebugAPIString(Replace("Execute " & acmd, xauth, "****"))
   Shell acmd To $xOutput
   modBasic.DebugAPIString("Response: " & $xOutput)

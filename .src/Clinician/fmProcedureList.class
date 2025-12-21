@@ -1,0 +1,652 @@
+' Gambas class file
+
+Private $rData2 As Result
+Private $aMyFields2 As String[]
+Private $rData As Result
+Private $aMyFields As String[]
+
+Private $counterLst As String[]
+
+Private $tblpatbilling As String
+Private $tblpatlabtest As String
+Private $tblpatlabsubtest As String
+
+Public Sub _new()
+
+  Dim xoption As String
+  Dim xx As String
+
+  cmbcategory.List = ["Major", "Intermediate", "Extra", "Any"]
+  cmbcategory.Text = "Any"
+  cmbstatus.List = ["Planned", "Referred", "On Hold", "Cancelled", "Done"]
+  cmbstatus.Text = "Planned"
+  LoadProcedureList()
+  cmbsection.List = modControlSub.GetDirectFillresultNoNull(modDatabase.$myConn.Exec("select distinct(fldreport) as col from tblservicecost where flditemtype=&1", "Procedures"))
+  cmbsection.Add("All Sections")
+  cmbsection.Text = "All Sections"
+  cmbsourcedept.List = modGeneral.GetDepartmentAllList("%")
+  $counterLst = modControlSub.GetDirectFillresultNoNull(modDatabase.$myConn.Exec("select fldsection as col from tblsurgerysection"))
+  cmbprocteam.List = $counterLst
+  cmbaddprocteam.List = $counterLst
+  cmbaddprocteam.Text = "%"
+
+  modAccount.PasInvoiceSetting(cmbfiscal, False)
+  LoadTableNames()
+
+  xoption = modSettings.ShowSettingFromFIle("EntrySetting/Procedure_DateSelect")
+  If xoption = "Yes" Then
+    chklist.Value = True
+  Else If xoption = "No" Then
+    chklist.Value = False
+  Endif
+  DateSelectionSett()
+
+  xx = modSettings.ShowSettingFromFIle("Procedure/InputFormat")
+  If xx = "Invoice" Then
+    rbinvoice.Value = True
+  Else If xx = "Saved" Then
+    rbindoor.Value = True
+  Else
+    rbencounter.Value = True
+  Endif
+  dtlisted.Value = Now()
+  dtbillplan.Value = Now()
+  dtprocedure.Value = Now()
+
+End
+
+' Public Sub Form_KeyRelease()
+'
+'   If Key.Code = Key["R"] And If Key.Control Then
+'     btnnewrefresh_Click()
+'   Else If Key.Code = Key["A"] And If Key.Control Then
+'     ' AddSampling()
+'   Else If Key.Code = Key["X"] And If Key.Control Then
+'     Me.Close()
+'   Else If Key.Code = Key["B"] And If Key.Control Then
+'     Me.Close
+'     Wait
+'     modWorkSpace.Add(fmProcedureList)
+'   Endif
+'
+' End
+
+Private Sub LoadTableNames()
+
+  Dim res As Result
+
+  If cmbfiscal.Text = "Current" Then
+    $tblpatbilling = "tblpatbilling"
+    $tblpatlabtest = "tblpatlabtest"
+    $tblpatlabsubtest = "tblpatlabsubtest"
+  Else
+    res = modDatabase.$myConn.Exec("select fldpatbilling,fldpatbilldetail,fldtempbilldetail,fldpatlabtest,fldpatlabsubtest from tblfisclosing where fldindex=&1 and (fldstate=&2 or fldstate IS NULL)", cmbfiscal.Text, "Active")
+    If res.Available Then
+      If res["fldpatbilling"] Then
+        $tblpatbilling = res["fldpatbilling"]
+      Else
+        $tblpatbilling = "tblpatbilling"
+      Endif
+      If res["fldpatlabtest"] Then
+        $tblpatlabtest = res["fldpatlabtest"]
+      Else
+        $tblpatlabtest = "tblpatlabtest"
+      Endif
+      If res["fldpatlabsubtest"] Then
+        $tblpatlabsubtest = res["fldpatlabsubtest"]
+      Else
+        $tblpatlabsubtest = "tblpatlabsubtest"
+      Endif
+    Else
+      $tblpatbilling = "tblpatbilling"
+      $tblpatlabtest = "tblpatlabtest"
+      $tblpatlabsubtest = "tblpatlabsubtest"
+    Endif
+  Endif
+
+End
+
+Private Sub LoadProcedureList()
+
+  Dim aList As String[]
+
+  If cmbcategory.Text = "Any" Then
+    aList = modNonMedical.NonStockBillActiveItemArray("Procedures", "%")
+  Else
+    aList = modNonMedical.NonStockBillActiveItemArray("Procedures", "%", cmbcategory.Text)
+  Endif
+  aList.Add("%")
+
+  cmbprocedure.List = aList
+  cmbprocedure.Text = "%"
+
+End
+
+Public Sub cmbcategory_Click()
+
+  LoadProcedureList()
+
+End
+
+Public Sub btnaddcounter_Click()
+
+  Dim hForm As FmAddVariableGrid
+
+  hform = New FmAddVariableGrid("fldsection", "tblsurgerysection")
+  hform.ShowModal
+  $counterLst = modControlSub.GetDirectFillresultNoNull(modDatabase.$myConn.Exec("select fldsection as col from tblsurgerysection"))
+  cmbprocteam.List = $counterLst
+  cmbaddprocteam.List = $counterLst
+
+End
+
+Public Sub cmbfiscal_Click()
+
+  LoadTableNames()
+
+End
+
+Public Sub rbencounter_Click()
+
+  modSettings.SaveSettingsToFile("Procedure/InputFormat", "Encounter")
+
+End
+
+Public Sub rbinvoice_Click()
+
+  modSettings.SaveSettingsToFile("Procedure/InputFormat", "Invoice")
+
+End
+
+Public Sub rbindoor_Click()
+
+  modSettings.SaveSettingsToFile("Procedure/InputFormat", "Saved")
+
+End
+
+Public Sub chklist_Click()
+
+  modSettings.EnterCheckSetting(chklist, "EntrySetting/Procedure_DateSelect")
+  DateSelectionSett()
+
+End
+
+Private Sub DateSelectionSett()
+
+  If chklist.Value = True Then
+    Panel13.Enabled = True
+  Else
+    Panel13.Enabled = False
+  Endif
+
+End
+
+Public Sub dtneplist_Click()
+
+  Dim xx As String
+
+  xx = BSDateFormat(("Enter BS Date in yyyy/mm/dd format"), ("Date Converter"), modDate.ConvertToLocaldate(dtlisted.Value))
+  If xx Then
+    dtlisted.Value = modDate.ConvertToEnglishdate(xx)
+  Endif
+
+End
+
+Public Sub dtnepbilllan_Click()
+
+  Dim xx As String
+
+  xx = BSDateFormat(("Enter BS Date in yyyy/mm/dd format"), ("Date Converter"), modDate.ConvertToLocaldate(dtbillplan.Value))
+  If xx Then
+    dtbillplan.Value = modDate.ConvertToEnglishdate(xx)
+  Endif
+
+End
+
+Public Sub btnselectuser_Click()
+
+  Dim xMedUser As String[]
+
+  xMedUser = MedicalSelectedValue(("Select Payable User"), modBasic.$IPConsultUserList)
+  If xMedUser And If xMedUser.Count Then
+    btnpayto.Tag = xMedUser[0]
+    btnpayto.Text = xMedUser[1]
+  Else
+    btnpayto.Tag = ""
+    btnpayto.Text = ""
+  Endif
+
+End
+
+Public Sub btnpayto_Change()
+
+  If btnpayto.Text = "" Then
+    btnpayto.Tag = ""
+  Endif
+
+End
+
+Public Sub btnnewrefresh_Click()
+
+  If rbencounter.Value = True Then
+    If modBasic.$AutoBillAllowProcedure = "Unpaid" Then
+      FillUnpaidEncounters()
+    Else
+      FillSamplingEncounters()
+    Endif
+  Else If rbinvoice.Value = True Then
+    FillSamplingInvoices()
+  Else If rbindoor.Value = True Then
+    FillSamplingSaved()
+  Endif
+
+  GridView2.SetFocus
+
+End
+
+Private Sub FillUnpaidEncounters()
+
+  Dim sql As String
+  Dim xsource As String
+  Dim xsection As String
+
+  If cmbsection.Text = "All Sections" Then
+    xsection = ""
+  Else
+    xsection = db.Subst(" and flditemname in(select flditemname from tblservicecost where fldreport=&1 and flditemtype=&2)", cmbsection.Text, "Procedures")
+  Endif
+  If cmbsourcedept.Text Then
+    xsource = db.Subst(" and fldcurrlocat like &1", cmbsourcedept.Text)
+  Else
+    xsource = ""
+  Endif
+
+  If chklist.Value = True Then
+    If cmbcategory.Text = "Any" Then
+      sql = "select fldid,fldencounterval,fldencounterval,flditemname,fldordcomp,fldencounterval,fldencounterval,fldtarget from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and (fldtarget=&3 or fldtarget=&4 or fldtarget=&5) and fldordtime>=&6 and fldordtime<=&7 and flditemqty>fldretqty" & xsource & xsection                                               ''
+      $rData2 = modDatabase.$myConn.Exec(sql, "Procedures", "Waiting", "Major", "Intermediate", "Extra", modDate.StartSqlDate(dtlisted.Value), modDate.EndSqlDate(DateAdd(dtlisted.Value, gb.Day, txtrange.Value)))
+    Else
+      sql = "select fldid,fldencounterval,fldencounterval,flditemname,fldordcomp,fldencounterval,fldencounterval,fldtarget from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldtarget=&3 and fldordtime>=&4 and fldordtime<=&5 and flditemqty>fldretqty" & xsource & xsection                                               ''
+      $rData2 = modDatabase.$myConn.Exec(sql, "Procedures", "Waiting", cmbcategory.Text, modDate.StartSqlDate(dtlisted.Value), modDate.EndSqlDate(DateAdd(dtlisted.Value, gb.Day, txtrange.Value)))
+    Endif
+  Else
+    If cmbcategory.Text = "Any" Then
+      sql = "select fldid,fldencounterval,fldencounterval,flditemname,fldordcomp,fldencounterval,fldencounterval,fldtarget from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and (fldtarget=&3 or fldtarget=&4 or fldtarget=&5) and flditemqty>fldretqty" & xsource & xsection                                                ''
+      $rData2 = modDatabase.$myConn.Exec(sql, "Procedures", "Waiting", "Major", "Intermediate", "Extra")
+    Else
+      sql = "select fldid,fldencounterval,fldencounterval,flditemname,fldordcomp,fldencounterval,fldencounterval,fldtarget from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldtarget=&3 and flditemqty>fldretqty" & xsource & xsection                                                ''
+      $rData2 = modDatabase.$myConn.Exec(sql, "Procedures", "Waiting", cmbcategory.Text)
+    Endif
+  Endif
+  $aMyFields2 = New String[]
+  modGridView.ReadSmallData(GridView2, $rData2, $aMyFields2)
+  SHowPatientGrid()
+
+End
+
+Private Sub FillSamplingEncounters()
+
+  Dim sql As String
+  Dim xsource As String
+  Dim xsection As String
+
+  If cmbsection.Text = "All Sections" Then
+    xsection = ""
+  Else
+    xsection = db.Subst(" and flditemname in(select flditemname from tblservicecost where fldreport=&1 and flditemtype=&2)", cmbsection.Text, "Procedures")
+  Endif
+  If cmbsourcedept.Text Then
+    xsource = db.Subst(" and fldcurrlocat like &1", cmbsourcedept.Text)
+  Else
+    xsource = ""
+  Endif
+
+  If chklist.Value = True Then
+    If cmbcategory.Text = "Any" Then
+      sql = "select fldid,fldencounterval,fldencounterval,flditemname,fldordcomp,fldencounterval,fldencounterval,fldtarget from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldsave=&3 and (fldtarget=&4 or fldtarget=&5 or fldtarget=&6) and fldtime>=&7 and fldtime<=&8 and flditemqty>fldretqty and fldbillno IS NOT NULL" & xsource & xsection                                               ''
+      $rData2 = modDatabase.$myConn.Exec(sql, "Procedures", "Waiting", True, "Major", "Intermediate", "Extra", modDate.StartSqlDate(dtlisted.Value), modDate.EndSqlDate(DateAdd(dtlisted.Value, gb.Day, txtrange.Value)))
+    Else
+      sql = "select fldid,fldencounterval,fldencounterval,flditemname,fldordcomp,fldencounterval,fldencounterval,fldtarget from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldsave=&3 and fldtarget=&4 and fldtime>=&5 and fldtime<=&6 and flditemqty>fldretqty and fldbillno IS NOT NULL" & xsource & xsection                                               ''
+      $rData2 = modDatabase.$myConn.Exec(sql, "Procedures", "Waiting", True, cmbcategory.Text, modDate.StartSqlDate(dtlisted.Value), modDate.EndSqlDate(DateAdd(dtlisted.Value, gb.Day, txtrange.Value)))
+    Endif
+  Else
+    If cmbcategory.Text = "Any" Then
+      sql = "select fldid,fldencounterval,fldencounterval,flditemname,fldordcomp,fldencounterval,fldencounterval,fldtarget from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldsave=&3 and (fldtarget=&4 or fldtarget=&5 or fldtarget=&6) and flditemqty>fldretqty and fldbillno IS NOT NULL" & xsource & xsection                                                ''
+      $rData2 = modDatabase.$myConn.Exec(sql, "Procedures", "Waiting", True, "Major", "Intermediate", "Extra")
+    Else
+      sql = "select fldid,fldencounterval,fldencounterval,flditemname,fldordcomp,fldencounterval,fldencounterval,fldtarget from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldsave=&3 and fldtarget=&4 and flditemqty>fldretqty and fldbillno IS NOT NULL" & xsource & xsection                                                ''
+      $rData2 = modDatabase.$myConn.Exec(sql, "Procedures", "Waiting", True, cmbcategory.Text)
+    Endif
+  Endif
+  $aMyFields2 = New String[]
+  modGridView.ReadSmallData(GridView2, $rData2, $aMyFields2)
+  SHowPatientGrid()
+
+End
+
+Private Sub FillSamplingInvoices()
+
+  Dim sql As String
+  Dim xsource As String
+  Dim xsection As String
+
+  If cmbsection.Text = "All Sections" Then
+    xsection = ""
+  Else
+    xsection = db.Subst(" and flditemname in(select flditemname from tblservicecost where fldreport=&1 and flditemtype=&2)", cmbsection.Text, "Procedures")
+  Endif
+  If cmbsourcedept.Text Then
+    xsource = db.Subst(" and fldcurrlocat like &1", cmbsourcedept.Text)
+  Else
+    xsource = ""
+  Endif
+
+  If chklist.Value = True Then
+    If cmbcategory.Text = "Any" Then
+      sql = "select fldid,fldbillno,fldencounterval,flditemname,fldordcomp,fldencounterval,fldencounterval,fldtarget from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldsave=&3 and (fldtarget=&4 or fldtarget=&5 or fldtarget=&6) and fldtime>=&7 and fldtime<=&8 and flditemqty>fldretqty and fldprint=&9" & xsource & xsection                                                ''
+      $rData2 = modDatabase.$myConn.Exec(sql, "Procedures", "Waiting", True, "Major", "Intermediate", "Extra", modDate.StartSqlDate(dtlisted.Value), modDate.EndSqlDate(DateAdd(dtlisted.Value, gb.Day, txtrange.Value)), True)
+    Else
+      sql = "select fldid,fldbillno,fldencounterval,flditemname,fldordcomp,fldencounterval,fldencounterval,fldtarget from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldsave=&3 and fldtarget=&4 and fldtime>=&5 and fldtime<=&6 and flditemqty>fldretqty and fldprint=&7" & xsource & xsection                                                ''
+      $rData2 = modDatabase.$myConn.Exec(sql, "Procedures", "Waiting", True, cmbcategory.Text, modDate.StartSqlDate(dtlisted.Value), modDate.EndSqlDate(DateAdd(dtlisted.Value, gb.Day, txtrange.Value)), True)
+    Endif
+  Else
+    If cmbcategory.Text = "Any" Then
+      sql = "select fldid,fldbillno,fldencounterval,flditemname,fldordcomp,fldencounterval,fldencounterval,fldtarget from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldsave=&3 and (fldtarget=&4 or fldtarget=&5 or fldtarget=&6) and flditemqty>fldretqty and fldprint=&7" & xsource & xsection                                             ''
+      $rData2 = modDatabase.$myConn.Exec(sql, "Procedures", "Waiting", True, "Major", "Intermediate", "Extra", True)
+    Else
+      sql = "select fldid,fldbillno,fldencounterval,flditemname,fldordcomp,fldencounterval,fldencounterval,fldtarget from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldsave=&3 and fldtarget=&4 and flditemqty>fldretqty and fldprint=&5" & xsource & xsection                                             ''
+      $rData2 = modDatabase.$myConn.Exec(sql, "Procedures", "Waiting", True, cmbcategory.Text, True)
+    Endif
+  Endif
+  $aMyFields2 = New String[]
+  modGridView.ReadSmallData(GridView2, $rData2, $aMyFields2)
+  SHowPatientGrid()
+
+End
+
+Private Sub FillSamplingSaved()
+
+  Dim sql As String
+  Dim xsource As String
+  Dim xsection As String
+
+  If cmbsection.Text = "All Sections" Then
+    xsection = ""
+  Else
+    xsection = db.Subst(" and flditemname in(select flditemname from tblservicecost where fldreport=&1 and flditemtype=&2)", cmbsection.Text, "Procedures")
+  Endif
+  If cmbsourcedept.Text Then
+    xsource = db.Subst(" and fldcurrlocat like &1", cmbsourcedept.Text)
+  Else
+    xsource = ""
+  Endif
+
+  If chklist.Value = True Then
+    If cmbcategory.Text = "Any" Then
+      sql = "select fldid,fldencounterval,fldencounterval,flditemname,fldordcomp,fldencounterval,fldencounterval,fldtarget from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldsave=&3 and (fldtarget=&4 or fldtarget=&5 or fldtarget=&6) and fldtime>=&7 and fldtime<=&8 and flditemqty>fldretqty and fldprint=&9" & xsource & xsection                                               ''
+      $rData2 = modDatabase.$myConn.Exec(sql, "Procedures", "Waiting", True, "Major", "Intermediate", "Extra", modDate.StartSqlDate(dtlisted.Value), modDate.EndSqlDate(DateAdd(dtlisted.Value, gb.Day, txtrange.Value)), False)
+    Else
+      sql = "select fldid,fldencounterval,fldencounterval,flditemname,fldordcomp,fldencounterval,fldencounterval,fldtarget from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldsave=&3 and fldtarget=&4 and fldtime>=&5 and fldtime<=&6 and flditemqty>fldretqty and fldprint=&7" & xsource & xsection                                               ''
+      $rData2 = modDatabase.$myConn.Exec(sql, "Procedures", "Waiting", True, cmbcategory.Text, modDate.StartSqlDate(dtlisted.Value), modDate.EndSqlDate(DateAdd(dtlisted.Value, gb.Day, txtrange.Value)), False)
+    Endif
+  Else
+    If cmbcategory.Text = "Any" Then
+      sql = "select fldid,fldencounterval,fldencounterval,flditemname,fldordcomp,fldencounterval,fldencounterval,fldtarget from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldsave=&3 and (fldtarget=&4 or fldtarget=&5 or fldtarget=&6) and flditemqty>fldretqty and fldprint=&7" & xsource & xsection                                                ''
+      $rData2 = modDatabase.$myConn.Exec(sql, "Procedures", "Waiting", True, "Major", "Intermediate", "Extra", False)
+    Else
+      sql = "select fldid,fldencounterval,fldencounterval,flditemname,fldordcomp,fldencounterval,fldencounterval,fldtarget from " & $tblpatbilling & " where flditemtype=&1 and fldsample=&2 and fldsave=&3 and fldtarget=&4 and flditemqty>fldretqty and fldprint=&5" & xsource & xsection                                                ''
+      $rData2 = modDatabase.$myConn.Exec(sql, "Procedures", "Waiting", True, cmbcategory.Text, False)
+    Endif
+  Endif
+  $aMyFields2 = New String[]
+  modGridView.ReadSmallData(GridView2, $rData2, $aMyFields2)
+  SHowPatientGrid()
+
+End
+
+Private Sub SHowPatientGrid()
+
+  With GridView2
+    .Columns[0].Hidden = True
+    .Columns[1].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
+    .Columns[2].Width = CStr(10 * modBasic.$AppWidthRatio) & "px"
+    .Columns[3].Width = CStr(250 * modBasic.$AppWidthRatio) & "px"
+    .Columns[4].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
+    .Columns[5].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
+    .Columns[6].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
+    .Columns[7].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
+
+    If rbencounter.Value = True Then
+      .Columns[1].Text = "EncID"
+    Else If rbinvoice.Value = True Then
+      .Columns[1].Text = "Invoice"
+    Else If rbindoor.Value = True Then
+      .Columns[1].Text = "EncID"
+    Endif
+    .Columns[3].Text = "Procedure"
+    .Columns[4].Text = "Sender"
+    .Columns[5].Text = "EncID"
+    .Columns[6].Text = "Location"
+    .Columns[7].Text = "Type"
+  End With
+
+End
+
+Public Sub GridView2_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  $rData2.MoveTo(Row)
+  modGridView.GridViewDecoration(Data, Row)
+  If Column = 2 Then
+    Data.Text = ""
+    Data.Background = modPatient.GetPatientColor($rData2[$aMyFields2[Column]])
+  Else If Column = 6 Then
+    Data.Text = modPatient.GetPatientLocation($rData2[$aMyFields2[Column]])
+  Else
+    Data.Text = $rData2[$aMyFields2[Column]]
+  Endif
+
+End
+
+Public Sub btnaddin_Click()
+
+  AddProcedureData()
+
+End
+
+Private Sub AddProcedureData()
+
+  Dim res2 As Result
+
+  If GridView2.Selection.Count Then
+    $rData2.MoveTo(GridView2.Selection[0])
+    res2 = modDatabase.$myConn.Edit($tblpatbilling, "fldid=&1 and (flditemqty-fldretqty)>&2", $rData2["fldid"], 0)
+    If res2.Available Then
+
+      modDatabase.$myConn.Begin
+      modPatientGeneral.AddProcedureData(res2["fldencounterval"], res2["fldid"], "Procedures", res2["flditemname"], "Planned", res2["fldbillingmode"], dtbillplan.Value, cmbprocteam.Text, "")
+      res2["fldsample"] = "Sampled"
+      res2["xyz"] = False
+      res2.Update()
+      modDatabase.$myConn.Commit
+
+      If rbencounter.Value = True Then
+        If modBasic.$AutoBillAllowProcedure = "Unpaid" Then
+          FillUnpaidEncounters()
+        Else
+          FillSamplingEncounters()
+        Endif
+      Else If rbinvoice.Value = True Then
+        FillSamplingInvoices()
+      Else If rbindoor.Value = True Then
+        FillSamplingSaved()
+      Endif
+      ShowPlanProcedures()
+
+    Endif
+  Endif
+
+Catch
+  modDatabase.$myConn.Rollback
+  modHelpVariable.CreateErrorReport()
+
+End
+
+''=================================== Planned Procedures ==================================
+Public Sub btnepsort_Click()
+
+  Dim xx As String
+
+  xx = BSDateFormat(("Enter BS Date in yyyy/mm/dd format"), ("Date Converter"), modDate.ConvertToLocaldate(dtprocedure.Value))
+  If xx Then
+    dtprocedure.Value = modDate.ConvertToEnglishdate(xx)
+  Endif
+
+End
+
+Public Sub btnrefresh_Click()
+
+  ShowPlanProcedures()
+
+End
+
+Private Sub ShowPlanProcedures()
+
+  Dim sql As String
+  Dim xencid As String
+  Dim xsection As String
+
+  If cmbaddprocteam.Text Then
+    If cmbaddprocteam.Text = "%" Then
+      xsection = ""
+    Else
+      xsection = " and fldstatus like &6"
+    Endif
+  Else
+    xsection = ""
+  Endif
+
+  If txtsearch.Text Then
+    xencid = db.Subst(" and fldencounterval=&1", Trim(txtsearch.Text))
+  Else
+    xencid = ""
+  Endif
+
+  If chkalldate.Value = True Then
+    sql = "select fldid,fldencounterval,fldnewdate,fldnewdate,fldstatus,flditem,flduserid,fldencounterval,fldencounterval,fldencounterval,fldencounterval,fldreportquali from tblpatgeneral where fldinput=&3 and flditem like &4 and fldreportquali=&5" & xsection & xencid & " ORDER BY fldnewdate"
+  Else
+    sql = "select fldid,fldencounterval,fldnewdate,fldnewdate,fldstatus,flditem,flduserid,fldencounterval,fldencounterval,fldencounterval,fldencounterval,fldreportquali from tblpatgeneral where fldnewdate>=&1 and fldnewdate<=&2 and fldinput=&3 and flditem like &4 and fldreportquali=&5" & xsection & xencid & " ORDER BY fldnewdate"
+  Endif
+  $rData = modDatabase.$myConn.Exec(sql, modDate.StartSqlDate(dtprocedure.Value), modDate.EndSqlDate(dtprocedure.Value), "Procedures", cmbprocedure.Text, cmbstatus.Text, cmbaddprocteam.Text)
+  $aMyFields = New String[]
+  modGridView.ReadSmallData(GridView1, $rData, $aMyFields)
+
+  With GridView1
+    .Columns[0].Hidden = True
+    .Columns[1].Width = CStr(25 * modBasic.$AppWidthRatio) & "px" ''triage
+    .Columns[2].Hidden = True ''datetime
+    If chkalldate.Value = True Then
+      .Columns[3].Width = CStr(150 * modBasic.$AppWidthRatio) & "px" ''Time
+    Else
+      .Columns[3].Width = CStr(100 * modBasic.$AppWidthRatio) & "px" ''Time
+    Endif
+    .Columns[4].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"  ''section
+    .Columns[5].Width = CStr(300 * modBasic.$AppWidthRatio) & "px" ''Procedure
+    .Columns[6].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"  ''surgeon
+
+    .Columns[7].Width = CStr(125 * modBasic.$AppWidthRatio) & "px" ''encid
+    .Columns[8].Width = CStr(200 * modBasic.$AppWidthRatio) & "px"  ''name
+    .Columns[9].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"  ''age/sex
+    .Columns[10].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"  ''contact
+    .Columns[11].Width = CStr(75 * modBasic.$AppWidthRatio) & "px" ''Time
+
+    .Columns[3].Text = "Time"
+    .Columns[4].Text = "Section"
+    .Columns[5].Text = "Procedure"
+    .Columns[6].Text = "Surgeon"
+    .Columns[7].Text = "EncID"
+    .Columns[8].Text = "Name"
+    .Columns[9].Text = "Age/Sex"
+    .Columns[10].Text = "Contact"
+    .Columns[11].Text = "Status"
+  End With
+
+End
+
+Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  $rData.MoveTo(Row)
+  modGridView.GridViewDecoration(Data, Row)
+  If Column = 1 Then
+    Data.Text = ""
+    Data.Background = modPatient.GetPatientColor($rData[$aMyFields[Column]])
+  Else If Column = 3 Then
+    If chkalldate.Value = True Then
+      Data.Text = modReportVar.GetDateTimeReport($rData[$aMyFields[Column]], gb.GeneralDate)
+    Else
+      Data.Text = modReportVar.GetDateTimeReport($rData[$aMyFields[Column]], gb.MediumTime)
+    Endif
+  Else If Column = 6 Then
+    Data.Text = modGeneral.GetUserFullName($rData[$aMyFields[Column]])
+  Else If Column = 8 Then
+    Data.Text = modPatient.GetPatientNameByEnc($rData[$aMyFields[Column]])
+  Else If Column = 9 Then
+    Data.Text = modPatient.GetPatientAgeString($rData[$aMyFields[Column]], Now()) & "/" & modPatient.GetPatientSex($rData[$aMyFields[Column]])
+  Else If Column = 10 Then
+    Data.Text = modPatient.GetPatientContactByEnc($rData[$aMyFields[Column]])
+  Else
+    Data.Text = $rData[$aMyFields[Column]]
+  Endif
+
+End
+
+Public Sub mnueditdate_Click()
+
+  Dim res As Result
+  Dim xdate As Date
+
+  If GridView1.Selection.Count Then
+    $rData.MoveTo(GridView1.Selection[0])
+    xdate = GetDateValue("Select Procedure Plan Date", $rData["fldencounterval"], $rData["fldnewdate"])
+    If xdate Then
+      res = modDatabase.$myConn.Edit("tblpatgeneral", "fldid=&1", $rData["fldid"])
+      res["fldnewdate"] = xdate
+      res["xyz"] = False
+      res.Update
+      ShowPlanProcedures()
+    Endif
+  Endif
+
+End
+
+Public Sub mnueditsection_Click()
+
+  Dim res As Result
+  Dim xval As String
+
+  If GridView1.Selection.Count Then
+    $rData.MoveTo(GridView1.Selection[0])
+    xval = InputCombo("Select Procedure Section", $rData["fldencounterval"], $counterLst, $rData["fldstatus"], True)
+    If xval Then
+      res = modDatabase.$myConn.Edit("tblpatgeneral", "fldid=&1", $rData["fldid"])
+      res["fldstatus"] = xval
+      res["xyz"] = False
+      res.Update
+      ShowPlanProcedures()
+    Endif
+  Endif
+
+End
+
+Public Sub btnform_Click()
+
+  ' Dim hForm As FmPatProcedure
+
+  If GridView1.Selection.Count Then
+    $rData.MoveTo(GridView1.Selection[0])
+    If $rData["fldreportquali"] = "Planned" Then
+      ' hForm = New FmPatProcedure($rData["fldencounterval"], $rData["fldid"], True)
+
+    Endif
+  Endif
+
+End
