@@ -2,8 +2,6 @@
 
 Private $ItemList As String[]
 Private $CustText As Boolean
-
-Private $sCategoryList As String[]
 Private $sValueList As String[]
 
 Private $aMyFields As String[]
@@ -16,8 +14,7 @@ Public Sub Run(Prompt As String, ItemList As String[], CustomText As Boolean) As
   $CustText = CustomText
   modGeneralMain.GetOpenModalForm(Me)
 
-  GetItemListData()
-  ListBox1.List = $sCategoryList
+  GetCategoriesList()
   lstletter.List = modString.GetFirstLetterArray($sValueList)
   chkleftmain.Value = modBasic.$SearchBothSide
   FillItemGrid($sValueList)
@@ -37,47 +34,31 @@ Public Sub chkleftmain_Click()
 
 End
 
-Public Sub ListBox1_Select()
+Private Sub GetCategoriesList()
 
-  Dim xval As String[]
+  Dim xcategList As String[]
   Dim xx As String
   Dim asx As String[]
 
-  If ListBox1.Text Then
-    xval = New String[]
-    For Each xx In $ItemList
+  xcategList = New String[]
+  xcategList.Add("All Categories")
+  For Each xx In $ItemList
+    If xx Then
+      asx = Split(xx, "|")
 
-      If xx Then
-        asx = Split(xx, "|")
-        If asx[0] = ListBox1.Text Then
-          If xval.Count = 0 Then
-            xval.Add(asx[1])
-          Else
-            If xval.Exist(asx[1]) = False Then
-              xval.Add(asx[1])
-            Endif
+      If asx[0] Then
+        If xcategList.Count = 0 Then
+          xcategList.Add(asx[0])
+        Else
+          If xcategList.Exist(asx[0]) = False Then
+            xcategList.Add(asx[0])
           Endif
         Endif
       Endif
-
-    Next
-    If modBasic.$TabletModeEnable = "Yes" Then
-    Else
-      txtname.SetFocus
     Endif
-
-  Endif
-  $sValueList = xval
-  lstletter.List = modString.GetFirstLetterArray($sValueList)
-  FillItemGrid($sValueList)
-
-End
-
-Public Sub chkallcateg_Click()
-
-  GetItemListData()
-  FillItemGrid($sValueList)
-  ListBox1.Index = -1
+  Next
+  ListBox1.List = xcategList
+  ListBox1.Index = 0
 
 End
 
@@ -87,21 +68,10 @@ Private Sub GetItemListData()
   Dim asx As String[]
   Dim xval As String[]
 
-  $sCategoryList = New String[]
   xval = New String[]
   For Each xx In $ItemList
     If xx Then
       asx = Split(xx, "|")
-
-      If asx[0] Then
-        If $sCategoryList.Count = 0 Then
-          $sCategoryList.Add(asx[0])
-        Else
-          If $sCategoryList.Exist(asx[0]) = False Then
-            $sCategoryList.Add(asx[0])
-          Endif
-        Endif
-      Endif
 
       If asx[1] Then
         If xval.Count = 0 Then
@@ -116,6 +86,50 @@ Private Sub GetItemListData()
     Endif
   Next
   $sValueList = xval
+
+End
+
+Public Sub ListBox1_Select()
+
+  Dim xval As String[]
+  Dim xx As String
+  Dim asx As String[]
+
+  If ListBox1.Text Then
+    If ListBox1.Text = "All Categories" Then
+      GetItemListData()
+    Else
+
+      xval = New String[]
+      For Each xx In $ItemList
+        If xx Then
+          asx = Split(xx, "|")
+          If asx[0] = ListBox1.Text Then
+            If xval.Count = 0 Then
+              xval.Add(asx[1])
+            Else
+              If xval.Exist(asx[1]) = False Then
+                xval.Add(asx[1])
+              Endif
+            Endif
+          Endif
+        Endif
+      Next
+      $sValueList = xval
+      txtname.SetFocus
+    Endif
+  Endif
+
+  lstletter.List = modString.GetFirstLetterArray($sValueList)
+  FillItemGrid($sValueList)
+
+End
+
+Public Sub chkallcateg_Click()
+
+  GetItemListData()
+  FillItemGrid($sValueList)
+  ListBox1.Index = -1
 
 End
 

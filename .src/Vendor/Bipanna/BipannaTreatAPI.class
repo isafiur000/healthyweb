@@ -4,16 +4,22 @@ Private $sType As String
 Private $patID As String
 Private $sDiseaseId As Integer
 Private $sCode As String
-Private $xCost As String
+Private $xInvoice As String
+Private $sAmt As Float
 Private $xOutput As String
 
-Public Sub _new(sType As String, sPatID As String, sDiseaseID As Integer, sCode As String, sCost As Float)
+Public Sub _new(sType As String, sPatID As String, sDiseaseID As Integer, sCode As String, sInvoice As String, Optional sAmt As Float)
 
   $sType = sType
   $patID = sPatID
   $sDiseaseId = sDiseaseID
   $sCode = sCode
-  $xCost = sCost
+  $xInvoice = sInvoice
+  If sAmt Then
+    $sAmt = sAmt
+  Else
+    $sAmt = ""
+  Endif
 
   ExecuteAPI()
 
@@ -21,12 +27,22 @@ End
 
 Private Sub SetCollection() As Collection
 
+  Dim res As Result
   Dim aColl As Collection
   Dim asx As String[]
   Dim xnepdate As String
+  Dim xtot As Float
 
-  asx = Split(modDate.ConvertToLocaldate(Now()), "/")
-  xnepdate = asx[0] & "-" & asx[1] & "-" & asx[2]
+  res = modDatabase.$myConn.Exec("select fldtime,(flditemamt+fldtaxamt-flddiscountamt-fldreceivedamt) as totamt from tblpatbilldetail where fldbillno=&1", $xInvoice)                                    ''
+  If res.Available Then
+    asx = Split(modDate.ConvertToLocaldate(res["fldtime"]), "/")
+    xnepdate = asx[0] & "-" & asx[1] & "-" & asx[2]
+    If $sAmt Then
+      xtot = $sAmt
+    Else
+      xtot = res["totamt"]
+    Endif
+  Endif
 
   aColl = New Collection
   aColl.Add($patID, "patient_id")
@@ -35,13 +51,13 @@ Private Sub SetCollection() As Collection
     aColl.Add(xnepdate, "treatmentdate")
     aColl.Add($sCode, "service_id")
     aColl.Add(1, "service_quantity")
-    aColl.Add($xCost, "service_price")
+    aColl.Add(xtot, "service_price")
 
   Else If $sType = "Kidney Session" Then
     aColl.Add(xnepdate, "session_date")
     aColl.Add($sCode, "treatment_type_id")
     aColl.Add(1, "quantity")
-    aColl.Add($xCost, "rate")
+    aColl.Add(xtot, "rate")
 
   Endif
 

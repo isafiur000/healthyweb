@@ -1,6 +1,7 @@
 ' Gambas class file
 
 Private $encid As String
+Private $BillMode As String
 Private $sValue As Collection
 
 Private $ItemList As String[]
@@ -15,10 +16,13 @@ Private $PatientNum As String
 Private $curEncid As String
 Private $lstEncid As String
 
-Public Sub Run(Optional encid As String) As Collection
+Public Sub Run(encid As String, Optional sBillMode As String) As Collection
 
-  If encid Then
-    $encid = encid
+  $encid = encid
+  If sBillMode Then
+    $BillMode = sBillMode
+  Else
+    $BillMode = ""
   Endif
   modGeneralMain.GetOpenModalForm(Me)
 
@@ -210,12 +214,24 @@ End
 Private Sub SHowPastGrid()
 
   Dim sql As String
+  Dim xstr As String
 
-  sql = "select fldid,fldid,flditem,CONCAT(fldroute, '|', flditem, '|', flddose, '|', fldfreq, '|', flddays) as fldregimen,fldroute,fldqtydisp,flddirection from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and flditemtype=&3 and fldcurval=&4 and flddose>&5 and lower(flditem) like &6 and fldroute like &7 ORDER BY flditem"   ''and fldid IN (SELECT MAX(fldid) FROM tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and flditemtype=&3 and fldcurval=&4 GROUP BY flditem)
-  If chkleftmain.Value = True Then
-    $rData = modDatabase.$myConn.Exec(sql, $curEncid, True, "Medicines", "Continue", 0, "%" & LCase(Trim(txtname.Text)) & "%", GetRoute())
+  If $BillMode And If modBasic.$BillPharmFixedModes.Exist($BillMode) = True Then
+    If modBasic.$BillFixedRateSale = "Brand" Then
+      xstr = " and flditem in (select fldstockid from tblstockrate where fldbillingmode like &8)"
+    Else If modBasic.$BillFixedRateSale = "Generic" Then
+      xstr = " and flditem in(select fldbrandid from tblmedbrand where flddrug in(select flddrug from tblstockrate where fldbillingmode like &8))"
+    Else
+      xstr = ""
+    Endif
+    sql = "select fldid,fldid,flditem,CONCAT(fldroute, '|', flditem, '|', flddose, '|', fldfreq, '|', flddays) as fldregimen,fldroute,fldqtydisp,flddirection from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and flditemtype=&3 and fldcurval=&4 and flddose>&5 and lower(flditem) like &6 and fldroute like &7" & xstr & " ORDER BY flditem"   ''and fldid IN (SELECT MAX(fldid) FROM tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and flditemtype=&3 and fldcurval=&4 GROUP BY flditem)
   Else
-    $rData = modDatabase.$myConn.Exec(sql, $curEncid, True, "Medicines", "Continue", 0, LCase(Trim(txtname.Text)) & "%", GetRoute())
+    sql = "select fldid,fldid,flditem,CONCAT(fldroute, '|', flditem, '|', flddose, '|', fldfreq, '|', flddays) as fldregimen,fldroute,fldqtydisp,flddirection from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and flditemtype=&3 and fldcurval=&4 and flddose>&5 and lower(flditem) like &6 and fldroute like &7 ORDER BY flditem"   ''and fldid IN (SELECT MAX(fldid) FROM tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and flditemtype=&3 and fldcurval=&4 GROUP BY flditem)
+  Endif
+  If chkleftmain.Value = True Then
+    $rData = modDatabase.$myConn.Exec(sql, $curEncid, True, "Medicines", "Continue", 0, "%" & LCase(Trim(txtname.Text)) & "%", GetRoute(), $BillMode)
+  Else
+    $rData = modDatabase.$myConn.Exec(sql, $curEncid, True, "Medicines", "Continue", 0, LCase(Trim(txtname.Text)) & "%", GetRoute(), $BillMode)
   Endif
   $aMyFields = New String[]
   modGridView.ReadSmallData(GridView1, $rData, $aMyFields)
@@ -307,11 +323,24 @@ End
 Private Sub ShowNewRegimen()
 
   Dim sql As String
+  Dim xstr As String
+
+  If $BillMode And If modBasic.$BillPharmFixedModes.Exist($BillMode) = True Then
+    If modBasic.$BillFixedRateSale = "Brand" Then
+      xstr = db.Subst(" and flditem in (select fldstockid from tblstockrate where fldbillingmode like &1)", $BillMode)
+    Else If modBasic.$BillFixedRateSale = "Generic" Then
+      xstr = db.Subst(" and flditem in(select fldbrandid from tblmedbrand where flddrug in(select flddrug from tblstockrate where fldbillingmode like &1))", $BillMode)
+    Else
+      xstr = ""
+    Endif
+  Else
+    xstr = ""
+  Endif
 
   If lstcategory.Text = "All Categories" Then
-    sql = "select fldid,fldid,fldbrandid,CONCAT(fldroute, '|', fldbrandid, '|', flddose, '|', fldfreq, '|', fldday) as fldregimen,fldroute,fldqty,fldusage from tblmedregimen where (fldcomp=&1 or fldcomp=&2) and lower(fldbrandid) like &3 and fldroute like &4 ORDER BY fldbrandid"
+    sql = "select fldid,fldid,fldbrandid,CONCAT(fldroute, '|', fldbrandid, '|', flddose, '|', fldfreq, '|', fldday) as fldregimen,fldroute,fldqty,fldusage from tblmedregimen where (fldcomp=&1 or fldcomp=&2) and lower(fldbrandid) like &3 and fldroute like &4" & xstr & " ORDER BY fldbrandid"
   Else
-    sql = "select fldid,fldid,fldbrandid,CONCAT(fldroute, '|', fldbrandid, '|', flddose, '|', fldfreq, '|', fldday) as fldregimen,fldroute,fldqty,fldusage from tblmedregimen where (fldcomp=&1 or fldcomp=&2) and lower(fldbrandid) like &3 and fldroute like &4 and fldbrandid in(select fldbrandid from tblmedbrand where flddrug in(select flddrug from tbldrug where fldcodename in(select fldcodename from tblcode where fldcategory=&5))) ORDER BY fldbrandid"
+    sql = "select fldid,fldid,fldbrandid,CONCAT(fldroute, '|', fldbrandid, '|', flddose, '|', fldfreq, '|', fldday) as fldregimen,fldroute,fldqty,fldusage from tblmedregimen where (fldcomp=&1 or fldcomp=&2) and lower(fldbrandid) like &3 and fldroute like &4 and fldbrandid in(select fldbrandid from tblmedbrand where flddrug in(select flddrug from tbldrug where fldcodename in(select fldcodename from tblcode where fldcategory=&5)))" & xstr & " ORDER BY fldbrandid"
   Endif
   If chkleftmain.Value = True Then
     $rData1 = modDatabase.$myConn.Exec(sql, modBasic.$compID, "%", "%" & LCase(Trim(txtname.Text)) & "%", GetRoute(), lstcategory.Text)

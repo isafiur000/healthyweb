@@ -473,12 +473,34 @@ Public Function GetPatientVariableValue(sVariable As String, encid As String) As
     xval = modGeneral.GetUserFullName(GetLastValue("tblconsult", "flduserid", "fldencounterval", encid))
   Else If sVariable = "{LastConsultBillMode}" Then
     xval = GetLastValue("tblconsult", "fldbillingmode", "fldencounterval", encid)
+  Else If sVariable = "{LastConsultRequest}" Then
+    xval = GetLastValue("tblconsult", "fldpresummary", "fldencounterval", encid)
+  Else If sVariable = "{LastConsultResponse}" Then
+    xval = GetLastValue("tblconsult", "fldsummary", "fldencounterval", encid)
+  Else If sVariable = "{LastConsultOutcome}" Then
+    xval = GetLastValue("tblconsult", "fldoutcome", "fldencounterval", encid)
   Else If sVariable = "{LastVisitDate}" Then
     xval = GetDateTimeReport(modPatient.GetLastVisitDate(encid), gb.MediumDate)
   Else If sVariable = "{LastVisitTime}" Then
     xval = GetDateTimeReport(modPatient.GetLastVisitDate(encid), gb.MediumTime)
   Else If sVariable = "{LastVisitLocation}" Then
     xval = modPatient.GetLastVisitLocation(encid)
+
+    ''past visit
+  Else If sVariable = "{PastConsultDate}" Then
+    xval = GetDateTimeReport(GetLastValue("tblconsult", "fldconsulttime", "fldencounterval", modPatient.GetSecondLastEncidPatient(encid)), gb.MediumDate)
+  Else If sVariable = "{PastConsultDept}" Then
+    xval = GetLastValue("tblconsult", "fldconsultname", "fldencounterval", modPatient.GetSecondLastEncidPatient(encid))
+  Else If sVariable = "{PastConsultant}" Then
+    xval = modGeneral.GetUserFullName(GetLastValue("tblconsult", "flduserid", "fldencounterval", modPatient.GetSecondLastEncidPatient(encid)))
+  Else If sVariable = "{PastConsultBillMode}" Then
+    xval = GetLastValue("tblconsult", "fldbillingmode", "fldencounterval", modPatient.GetSecondLastEncidPatient(encid))
+  Else If sVariable = "{PastConsultRequest}" Then
+    xval = GetLastValue("tblconsult", "fldpresummary", "fldencounterval", modPatient.GetSecondLastEncidPatient(encid))
+  Else If sVariable = "{PastConsultResponse}" Then
+    xval = GetLastValue("tblconsult", "fldsummary", "fldencounterval", modPatient.GetSecondLastEncidPatient(encid))
+  Else If sVariable = "{PastConsultOutcome}" Then
+    xval = GetLastValue("tblconsult", "fldoutcome", "fldencounterval", modPatient.GetSecondLastEncidPatient(encid))
 
   Else If sVariable = "{LaboratoryExpense}" Then
     xval = modNonMedical.TotalExpenseAmountbyCategory(modDatabase.$myConn, encid, "Diagnostic Tests")
@@ -1448,6 +1470,12 @@ Public Function GetReportLastConsult($encid As String, $Line As String) As Strin
   If (String.InStr($Line, "LastConsultOutcome") > 0) Then
     $Line = Replace($Line, "{LastConsultOutcome}", GetLastValue("tblconsult", "fldoutcome", "fldencounterval", $encid))
   Endif
+  If (String.InStr($Line, "LastConsultRequest") > 0) Then
+    $Line = Replace($Line, "{LastConsultRequest}", GetLastValue("tblconsult", "fldpresummary", "fldencounterval", $encid))
+  Endif
+  If (String.InStr($Line, "LastConsultResponse") > 0) Then
+    $Line = Replace($Line, "{LastConsultResponse}", GetLastValue("tblconsult", "fldsummary", "fldencounterval", $encid))
+  Endif
 
   If (String.InStr($Line, "LastConsultQue") > 0) Then
     res = modDatabase.$myConn.Exec("select fldconsultname,fldconsulttime,fldstatus,flduserid,fldbillingmode from tblconsult where fldencounterval=&1", $encid)
@@ -1457,6 +1485,29 @@ Public Function GetReportLastConsult($encid As String, $Line As String) As Strin
     Else
       $Line = Replace($Line, "{LastConsultQue}", "")
     Endif
+  Endif
+
+  ''past consult
+  If (String.InStr($Line, "PastConsultDate") > 0) Then
+    $Line = Replace($Line, "{PastConsultDate}", GetDateTimeReport(GetLastValue("tblconsult", "fldconsulttime", "fldencounterval", modPatient.GetSecondLastEncidPatient($encid)), gb.MediumDate))
+  Endif
+  If (String.InStr($Line, "PastConsultDept") > 0) Then
+    $Line = Replace($Line, "{PastConsultDept}", GetLastValue("tblconsult", "fldconsultname", "fldencounterval", modPatient.GetSecondLastEncidPatient($encid)))
+  Endif
+  If (String.InStr($Line, "PastConsultant") > 0) Then
+    $Line = Replace($Line, "{PastConsultant}", modGeneral.GetUserFullName(GetLastValue("tblconsult", "flduserid", "fldencounterval", modPatient.GetSecondLastEncidPatient($encid))))
+  Endif
+  If (String.InStr($Line, "PastConsultBillMode") > 0) Then
+    $Line = Replace($Line, "{PastConsultBillMode}", GetLastValue("tblconsult", "fldbillingmode", "fldencounterval", modPatient.GetSecondLastEncidPatient($encid)))
+  Endif
+  If (String.InStr($Line, "PastConsultRequest") > 0) Then
+    $Line = Replace($Line, "{PastConsultRequest}", GetLastValue("tblconsult", "fldpresummary", "fldencounterval", modPatient.GetSecondLastEncidPatient($encid)))
+  Endif
+  If (String.InStr($Line, "PastConsultResponse") > 0) Then
+    $Line = Replace($Line, "{PastConsultResponse}", GetLastValue("tblconsult", "fldsummary", "fldencounterval", modPatient.GetSecondLastEncidPatient($encid)))
+  Endif
+  If (String.InStr($Line, "PastConsultOutcome") > 0) Then
+    $Line = Replace($Line, "{PastConsultOutcome}", GetLastValue("tblconsult", "fldoutcome", "fldencounterval", modPatient.GetSecondLastEncidPatient($encid)))
   Endif
 
   ''OP Visit

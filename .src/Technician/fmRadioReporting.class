@@ -729,7 +729,6 @@ End
 Private Sub ShowUnpaidEncounterTests(encid As String)
 
   Dim sql As String
-  Dim res As Result
 
   If rbwaiting.Value = True Then
     If cmbcategorynew.Text = "%" Then
@@ -748,7 +747,6 @@ End
 Private Sub ShowNewEncounterTests(encid As String)
 
   Dim sql As String
-  Dim res As Result
 
   If rbwaiting.Value = True Then
     If cmbcategorynew.Text = "%" Then
@@ -767,7 +765,6 @@ End
 Private Sub ShowNewEncSavedTests(encid As String)
 
   Dim sql As String
-  Dim res As Result
 
   If rbwaiting.Value = True Then
     If cmbcategorynew.Text = "%" Then
@@ -786,7 +783,6 @@ End
 Private Sub ShowNewInvoiceTests(xBillNo As String)
 
   Dim sql As String
-  Dim res As Result
 
   If rbwaiting.Value = True Then
     If cmbcategorynew.Text = "%" Then
@@ -806,7 +802,6 @@ End
 Private Sub ShowAddedEncounterTests(encid As String)
 
   Dim sql As String
-  Dim res As Result
 
   If rbadded.Value = True Then
     If cmbcategorynew.Text = "%" Then
@@ -921,15 +916,15 @@ End
 
 Public Sub btnformatlist_Click()
 
-  Dim xlist As String[]
+  ' Dim xlist As String[]
 
   If GridView4.Selection.Count Then
     $rData4.MoveTo(GridView4.Selection[0])
     ' xlist = InMultiCombo("Radio Diagnostics", $rData4["xqty"], cmbformat.List)
-    If xlist And If xlist.Count Then
-      cmbformat.Text = xlist[0]
-      btnformatlist.Tag = xlist.Join("|")
-    Endif
+    ' If xlist And If xlist.Count Then
+    '   cmbformat.Text = xlist[0]
+    '   btnformatlist.Tag = xlist.Join("|")
+    ' Endif
   Endif
 
 End
@@ -1543,8 +1538,6 @@ Public Sub mnucounter_Click()
 
   Dim res As Result
   Dim xlocat As String
-  Dim Row As Integer
-  Dim Column As Integer
 
   If GridView2.Selection.Count Then
     $rData2.MoveTo(GridView2.Selection[0])
@@ -1566,8 +1559,6 @@ Public Sub mnueditdate_Click()
 
   Dim res As Result
   Dim xdate As Date
-  Dim Row As Integer
-  Dim Column As Integer
 
   If GridView2.Selection.Count Then
     $rData2.MoveTo(GridView2.Selection[0])
@@ -1673,7 +1664,6 @@ End
 '''------------------------------------------ added tests -------------------------------------------
 Private Sub ShowSampled(encid As String)
 
-  Dim res As Result
   Dim sql As String
   Dim xdept As String
   Dim xcateg As String
@@ -1702,7 +1692,6 @@ End
 
 Private Sub ShowSampledBill(encid As String, billno As String)
 
-  Dim res As Result
   Dim sql As String
   Dim xdept As String
   Dim xcateg As String
@@ -1785,6 +1774,16 @@ Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableDat
 
 End
 
+Public Sub GridView1_Select()
+
+  If GridView1.Selection.Count Then
+    $rData.MoveTo(GridView1.Selection[0])
+    $ProcBill = $rData["fldgroupid"]
+    ShowShareUsers($ProcBill)
+  Endif
+
+End
+
 Public Sub btnvisible_Click()
 
   Dim xopt As String[] = ["Visible", "Hidden"]
@@ -1852,17 +1851,20 @@ Private Sub AddSubTestData(Row As Integer)
   Dim rs As Result
   Dim rsx As Result
 
-  rs = modDatabase.$myConn.Exec("select fldid,fldsubtest from tblpatradiosubtest where fldtestid=&1", $rData["fldid"])
-  If rs.Available = False Then
-    Select modFixRadio.GetRadioTestOption($rData["fldtestid"])
-      Case "Fixed Components", "Left/Right Components"
-        rsx = modDatabase.$myConn.Exec("select fldsubexam,fldtanswertype,fldindex from tblradioquali where fldexamid=&1 GROUP BY fldsubexam", $rData["fldtestid"])
-        If rsx.Available Then
-          For Each rsx
-            modRadioSub.InsertRadioSubTestUnit($rData["fldencounterval"], $rData["fldid"], $rData["fldtestid"], rsx["fldsubexam"], rsx["fldtanswertype"], rsx["fldindex"])
-          Next
-        Endif
-    End Select
+  If GridView1.Selection.Count Then
+    $rData.MoveTo(Row)
+    rs = modDatabase.$myConn.Exec("select fldid,fldsubtest from tblpatradiosubtest where fldtestid=&1", $rData["fldid"])
+    If rs.Available = False Then
+      Select modFixRadio.GetRadioTestOption($rData["fldtestid"])
+        Case "Fixed Components", "Left/Right Components"
+          rsx = modDatabase.$myConn.Exec("select fldsubexam,fldtanswertype,fldindex from tblradioquali where fldexamid=&1 GROUP BY fldsubexam", $rData["fldtestid"])
+          If rsx.Available Then
+            For Each rsx
+              modRadioSub.InsertRadioSubTestUnit($rData["fldencounterval"], $rData["fldid"], $rData["fldtestid"], rsx["fldsubexam"], rsx["fldtanswertype"], rsx["fldindex"])
+            Next
+          Endif
+      End Select
+    Endif
   Endif
 
 End

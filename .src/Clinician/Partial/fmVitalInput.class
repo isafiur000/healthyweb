@@ -58,8 +58,18 @@ Private Sub ShowVitalExamEntry()
         txtexamval.Visible = False
         lblunit.Visible = False
         lblunit.Text = ""
-        If sColl["OptionType"] = "Single Selection" Or If sColl["OptionType"] = "Dichotomous" Then
-          txtquali.List = modAllExam.SelectExamOptionList("Exam", sColl["ExamName"])
+        If $sSysCons Then
+          FillComboBox(modFixClinic.GetExamIDFromSysConst($sSysCons))
+        Else
+          If sColl["OptionList"] Then
+            If $sOption = "Single Selection" Or If $sOption = "Dichotomous" Then
+              txtquali.List = JSON.Decode(sColl["OptionList"])
+            Endif
+          Else
+            If $sOption = "Dichotomous" Then
+              txtquali.List = ["Yes", "No"]
+            Endif
+          Endif
         Endif
       Endif
       ShowExamGrid(sColl["ExamName"])
@@ -76,6 +86,37 @@ Private Sub ShowVitalExamEntry()
       txtquali.SetFocus
     Endif
   Endif
+
+End
+
+Private Sub FillComboBox(xExamName As String)
+
+  Dim xscle As String[]
+
+  If txtquali.Count Then
+    txtquali.Clear()
+  Endif
+  txtquali.Text = ""
+  If xExamName Then
+    If $sOption = "Single Selection" Or If $sOption = "Dichotomous" Then
+      txtquali.List = modAllExam.SelectExamOptionList("Exam", xExamName)
+    Else If $sOption = "Clinical Scale" Then
+      xscle = modExamOption.GetClinScalePopUp("Exam", xExamName)
+      If xscle Then
+        txtexamval.Value = CFloat(xscle[0])
+        txtquali.Text = xscle[1]
+        txtexamval.Visible = True
+        txtquali.Visible = False
+      Endif
+    Else If $sOption = "Visual Input" Then
+      txtquali.Text = modExamOption.GetVisualDataExamVal(xExamName)
+    Else
+      If modBasic.$DisplayQualiArea = "Yes" Then
+        txtquali.Text = GetTextArea(xExamName, "")
+      Endif
+    Endif
+  Endif
+  txtquali.SetFocus
 
 End
 

@@ -75,6 +75,7 @@ Public Sub rbroute_Click()
   chkall.Value = False
   chkall.Enabled = False
   cmbgroup.List = modMedicine.ComboRoute()
+  btnselect.Text = "+1"
 
 End
 
@@ -82,6 +83,7 @@ Public Sub rbcash_Click()
 
   chkall.Enabled = True
   cmbgroup.List = modMedicine.GetMedicineProcolsList()
+  btnselect.Text = ""
 
 End
 
@@ -181,6 +183,68 @@ Public Sub GridView3_Data(Row As Integer, Column As Integer, Data As WebTableDat
     Endif
   Else
     Data.Text = $rData[$aMyFields[Column]]
+  Endif
+
+End
+
+Public Sub GridView3_Select()
+
+  If GridView3.Selection.Count Then
+    $rData.MoveTo(GridView3.Selection[0])
+    txtbreakitem.Text = $rData["xitem"]
+    SHowBreakPanel($rData["xitem"])
+  Endif
+
+End
+
+Private Sub SHowBreakPanel(sItem As String)
+
+  Dim xbreak As String
+
+  If rbroute.Value = True Then
+    Select cmbgroup.Text
+      Case "oral", "liquid", "fluid", "injection", "resp", "topical", "eye/ear", "anal/vaginal"
+        xbreak = modMedError.GetAllowTabBreak(sItem)
+        If xbreak = "Yes" Then
+          pnldose.Visible = True
+          lblunit.Text = modMedConstant.GetDrugDosingUnit(sItem)
+        Else
+          pnldose.Visible = False
+        Endif
+      Case Else
+        pnldose.Visible = False
+    End Select
+  Else
+    pnldose.Visible = False
+  Endif
+
+End
+
+Public Sub txtdose_Change()
+
+  Dim xstr As Float
+  Dim xpack As Float
+
+  If txtdose.Value Then
+    xstr = modMedConstant.GetDrugInitialStrength(txtbreakitem.Text)
+    xpack = modPharmLabel.GetPackVolValue(txtbreakitem.Text)
+    If xstr And If xpack Then
+      txtqty.Value = txtdose.Value / (xstr * xpack)
+    Endif
+  Endif
+
+End
+
+Public Sub btnselbreak_Click()
+
+  If cmbgroup.Text Then
+    If txtqty.Value Then
+      EntryUseOwndata(cmbgroup.Text, txtbreakitem.Text, txtqty.Value)
+      GridView3.UnselectAll()
+      txtdose.Value = 0
+      txtqty.Value = 0
+      ShowUsedGridViewList()
+    Endif
   Endif
 
 End

@@ -9,14 +9,14 @@ Private TablePath As String
 Private TableFile As String[]
 
 Private Template As String
-Private Columns As String[]
+Private $TableColumns As String[]
 Private $encid As String
 Private $Type As String
 Private $sBillNo As String
 
 Public Sub _new(hColumns As String[], hType As String, encid As String, sBillNo As String)
 
-  Columns = hColumns
+  $TableColumns = hColumns
   Template = modHelpVariable.$htmlDirectory
   $Type = hType
   $encid = encid
@@ -30,12 +30,12 @@ Public Sub Add(col_content As String[])
   Dim counter As Integer
   Dim xcolalign As String
 
-  If Not (col_content.Count = Columns.Count) Then
+  If Not (col_content.Count = $TableColumns.Count) Then
     Error.Raise("col_content must be equivalent to Columns")
   Endif
 
   TableFile.Add("  <tr>")
-  For counter = 0 To Columns.Count - 1
+  For counter = 0 To $TableColumns.Count - 1
     xcolalign = modSettings.ShowSettingFromFIle("Invoice/ColumnAlign" & CStr(counter + 1))
     If xcolalign Then
       TableFile.Add("    <td style='text-align: " & xcolalign & ";'>" & col_content[counter] & "</td>")                                                                              ''
@@ -50,8 +50,16 @@ End
 Public Sub AddChapter(col_content As String)
 
   TableFile.Add("  <tr class='row_chapter'>")
-  TableFile.Add("    <td colspan='" & Columns.Count & "'>" & col_content & "</td>")
+  TableFile.Add("    <td colspan='" & $TableColumns.Count & "'>" & col_content & "</td>")
   TableFile.Add("  </tr>")
+
+End
+
+Public Sub AddSummary(col_content As String)
+
+  TableFile.Add("<tr align='left'>")
+  TableFile.Add("<td colspan='" & $TableColumns.Count & "' rowspan='1'>" & col_content & "</span></td>")
+  TableFile.Add("</tr>")
 
 End
 
@@ -62,13 +70,14 @@ Public Function NewHTMLPath() As String
   TablePath = Temp()
   If modHelpVariable.$ApplKey < 2 Then
     File.Save(TablePath, TableFile.Join(gb.NewLine))
-    hCls = New CHTMLBillFormat($encid, Columns, $Type, TablePath, Template, $sBillNo, UserData, SPecData)
+    hCls = New CHTMLBillFormat($encid, $TableColumns, $Type, TablePath, Template, $sBillNo, UserData, SPecData)
     ReportPath = hCls.GetHTMLFile()
     TableFile.Clear()
     Return ReportPath
   Endif
 
 End
+
 
 Public Sub Preview(strSize As String)
 
@@ -77,7 +86,7 @@ Public Sub Preview(strSize As String)
   TablePath = Temp()
   If modHelpVariable.$ApplKey < 2 Then
     File.Save(TablePath, TableFile.Join(gb.NewLine))
-    hCls = New CHTMLBillFormat($encid, Columns, $Type, TablePath, Template, $sBillNo, UserData, SPecData)
+    hCls = New CHTMLBillFormat($encid, $TableColumns, $Type, TablePath, Template, $sBillNo, UserData, SPecData)
     TableFile.Clear()
 
     modControlSub.OpenHTMLPreview($encid, hCls.GetHTMLFile(), strSize)

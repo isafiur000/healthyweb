@@ -2457,23 +2457,50 @@ Public Function GetOutOfHospitalPharmacy(encid As String, sHash As String) As St
   Dim $BillingReport As CReportBILL
   Dim res As Result
   Dim asx As New String[0]
+  Dim xdr As Integer
+  Dim xColl As Collection
+  Dim xList As String[]
+  Dim xval As String
+  Dim avx As String[]
 
-  $BillingReport = New CReportBILL([("SNO"), ("PARTICULARS"), ("REGIMEN"), ("QTY")], "Report", encid, sHash)
+  $BillingReport = New CReportBILL([("SNO"), ("PARTICULARS"), ("REGIMEN"), ("QTY"), ("DR")], "Report", encid, sHash)
   $BillingReport.UserData.Add("PENDING PHARMACY ORDER", "InvoiceType")
   $BillingReport.UserData.Add(modReportVar.GetDateTimeReport(Now(), gb.GeneralDate), "BillDateTime")
 
-  res = modDatabase.$myConn.Exec("select fldid,flditemtype,fldroute,flditem,flddose,fldfreq,flddays,fldqtydisp,flddirection from tblpatoutdosing where fldencounterval=&1 and fldreference=&2", encid, sHash)
+  xColl = New Collection
+  res = modDatabase.$myConn.Exec("select fldid,flditemtype,fldroute,flditem,flddose,fldfreq,flddays,fldqtydisp,flddirection,fldprescriber,fldregno from tblpatoutdosing where fldencounterval=&1 and fldreference=&2", encid, sHash)
   If res.Available Then
+    xdr = 1
     For Each res
       With asx
         .Add(CStr(res.Index + 1))
         .Add(modPharmacy.GetMedFormatForMedReport(res["flditem"], res["fldroute"]))
         .Add(res["fldroute"] & Space(2) & modMedConstant.GetMedicineRegimenInFormat(res["fldroute"], res["flditem"], res["flddose"], res["fldfreq"], res["flddays"]))
         .Add(res["fldqtydisp"])
+        If res["fldprescriber"] Then
+          If xColl.Exist(res["fldprescriber"] & "|" & res["fldregno"]) Then
+            .Add(xColl[res["fldprescriber"] & "|" & res["fldregno"]])
+          Else
+            xColl.Add(CStr(xdr), res["fldprescriber"] & "|" & res["fldregno"])
+            .Add(CStr(xdr))
+            xdr = xdr + 1
+          Endif
+        Else
+          .Add("")
+        Endif
       End With
       $BillingReport.Add(asx)
       asx.Clear()
     Next
+  Endif
+
+  If xColl.Count Then
+    xList = New String[]
+    For Each xval In xColl
+      avx = Split(xColl.Key, "|")
+      xList.Add(xval & " : Prescribed By Dr " & avx[0] & " NMC No: " & avx[1])
+    Next
+    $BillingReport.AddSummary(xList.Join("<br>"))
   Endif
 
   Return $BillingReport.NewHTMLPath()

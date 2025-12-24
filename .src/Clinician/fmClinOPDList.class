@@ -980,9 +980,15 @@ End
 Public Sub btnIPform_Click()
 
   Dim hForm As FmPatCliNew
+  Dim xcomm As String
+  Dim xval As String
 
   If GridView1.Selection.Count Then
     $rData.MoveTo(GridView1.Selection[0])
+    xcomm = GetConsultPrecomment($rData["fldid"])
+    If xcomm Then
+      xval = MessageHtml("Pre Comment", xcomm, ["Proceed"])
+    Endif
     Me.Parent.DeleteChildren()
     modGeneralMain.$FormOpenList.Add(["FmClinOPDList", $sTable])
     If $sTable = "tblconsult" Then
@@ -2237,17 +2243,28 @@ Public Sub mnuscanner_Click()
 
 End
 
-Public Sub mnuviewcomment_Click()
+Private Function GetConsultPrecomment(sIndex As Long) As String
 
   Dim res As Result
+  Dim xx As String
+
+  res = modDatabase.$myConn.Exec(Subst("select fldpresummary from &1", $sTable) & " where fldid=&1", sIndex)
+  If res.Available Then
+    xx = res["fldpresummary"]
+  Else
+    xx = ""
+  Endif
+  Return xx
+
+End
+
+Public Sub mnuviewcomment_Click()
+
   Dim xval As String
 
   If GridView1.Selection.Count Then
     $rData.MoveTo(GridView1.Selection[0])
-    res = modDatabase.$myConn.Exec(Subst("select fldencounterval,fldpresummary from &1", $sTable) & " where fldid=&1", $rData["fldid"])
-    If res.Available Then
-      xval = GetTextArea("Pre Comment", res["fldpresummary"])
-    Endif
+    xval = MessageHtml("Pre Comment", GetConsultPrecomment($rData["fldid"]), ["OK"])
   Endif
 
 End
