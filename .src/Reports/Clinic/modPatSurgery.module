@@ -1,0 +1,544 @@
+' Gambas module file
+
+Public Function ShowUniProcedureReport(itemid As Long, encid As String) As String
+
+  Dim $BillingReport As CReportHTML
+  Dim asx As New String[0]
+  Dim res As Result
+  Dim xfinal As String[]
+  Dim xdetail As String
+
+  $BillingReport = New CReportHTML([("Category"), ("Observation")], "PatientReport", encid)
+  $BillingReport.UserData.Add("PROCEDURE:  ", "Report")
+  $BillingReport.UserData.Add(itemid, "PARAM1")
+
+  res = modDatabase.$syConn.Exec("select fldencounterval,fldinput,flditem,fldreportquali,flddetail,fldnewdate,fldstatus,flduserid from tblpatgeneral where fldid=&1 and fldencounterval=&2", itemid, encid)
+  '-----General
+  $BillingReport.AddChapter("General")
+
+  With asx
+    .Add("Planned Date")
+    .Add(modReportVar.GetDateTimeReport(res["fldnewdate"], gb.GeneralDate) & " : " & res["fldstatus"])
+  End With
+  $BillingReport.Add(asx)
+  asx.Clear()
+  With asx
+    .Add("Status")
+    .Add(res["fldreportquali"])
+  End With
+  $BillingReport.Add(asx)
+  asx.Clear()
+  With asx
+    .Add("Surgery Team")
+    .Add(GetUserAllUniProcedure(res["fldencounterval"], itemid))
+  End With
+  $BillingReport.Add(asx)
+  asx.Clear()
+  xfinal = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditemname as col from tblpatbilling where fldencounterval=&1 and flditemtype=&2 and fldparent=&3", encid, "Procedures", itemid))
+  With asx
+    .Add("Final Procedures")
+    If xfinal.Count Then
+      .Add(modString.GetHTMLListFormat(xfinal))
+    Else
+      .Add("")
+    Endif
+  End With
+  $BillingReport.Add(asx)
+  asx.Clear()
+  With asx
+    .Add("Procedure Note")
+    .Add(res["flddetail"])
+  End With
+  $BillingReport.Add(asx)
+  asx.Clear()
+
+  '---------------preoperative
+  $BillingReport.AddChapter("Pre-Operative")
+  With asx
+    .Add("Indication")
+    .Add(GetProcedureItemValue(res["fldencounterval"], itemid, "Pre-Operative Indication"))
+  End With
+  $BillingReport.Add(asx)
+  asx.Clear()
+  With asx
+    .Add("Examination")
+    .Add(UniProcedureExamination(res["fldencounterval"], itemid, "Pre-Operative Exam").Join(gb.NewLine))
+  End With
+  $BillingReport.Add(asx)
+  asx.Clear()
+  With asx
+    .Add("Summary")
+    .Add(GetUniProcedureDetail(res["fldencounterval"], itemid, "Pre-Operative Note"))
+  End With
+  $BillingReport.Add(asx)
+  asx.Clear()
+  With asx
+    .Add("Consumables")
+    .Add(UniProcedureMedString(res["fldencounterval"], itemid, "Pre-Operative").Join(gb.NewLine))
+  End With
+  $BillingReport.Add(asx)
+  asx.Clear()
+
+  '--------------procedure
+  $BillingReport.AddChapter("Procedure")
+  With asx
+    .Add("Indication")
+    .Add(GetProcedureItemValue(res["fldencounterval"], itemid, "Operative Indication"))
+  End With
+  $BillingReport.Add(asx)
+  asx.Clear()
+  With asx
+    .Add("Parameters")
+    .Add(UniProcedureExamination(res["fldencounterval"], itemid, "Operative Exam").Join(gb.NewLine))
+  End With
+  $BillingReport.Add(asx)
+  asx.Clear()
+  With asx
+    .Add("Summary")
+    .Add(GetUniProcedureDetail(res["fldencounterval"], itemid, "Operation Note"))
+  End With
+  $BillingReport.Add(asx)
+  asx.Clear()
+
+  xdetail = "Incision : " & GetUniProcedureDetail(res["fldencounterval"], itemid, "Incision")
+  xdetail = xdetail & "<br>" & "Findings : " & GetUniProcedureDetail(res["fldencounterval"], itemid, "Findings")
+  xdetail = xdetail & "<br>" & "Proedures : " & GetUniProcedureDetail(res["fldencounterval"], itemid, "Proedures")
+  xdetail = xdetail & "<br>" & "Closure : " & GetUniProcedureDetail(res["fldencounterval"], itemid, "Closure")
+  With asx
+    .Add("Description")
+    .Add(xdetail)
+  End With
+  $BillingReport.Add(asx)
+  asx.Clear()
+  With asx
+    .Add("Consumables")
+    .Add(UniProcedureMedString(res["fldencounterval"], itemid, "Operative").Join(gb.NewLine))
+  End With
+  $BillingReport.Add(asx)
+  asx.Clear()
+
+  '-------------anesthesia
+  $BillingReport.AddChapter("Anaesthesia")
+  With asx
+    .Add("Technique")
+    .Add(GetProcedureItemValue(res["fldencounterval"], itemid, "Anaesthesia Technique"))
+  End With
+  $BillingReport.Add(asx)
+  asx.Clear()
+  With asx
+    .Add("Parameters")
+    .Add(UniProcedureExamination(res["fldencounterval"], itemid, "Anaesthesia").Join(gb.NewLine))
+  End With
+  $BillingReport.Add(asx)
+  asx.Clear()
+  With asx
+    .Add("Summary")
+    .Add(GetUniProcedureDetail(res["fldencounterval"], itemid, "Anaesthesia Note"))
+  End With
+  $BillingReport.Add(asx)
+  asx.Clear()
+  With asx
+    .Add("Consumables")
+    .Add(UniProcedureMedString(res["fldencounterval"], itemid, "Anaesthesia").Join(gb.NewLine))
+  End With
+  $BillingReport.Add(asx)
+  asx.Clear()
+
+  '-----------post operative
+  $BillingReport.AddChapter("Post-Operative")
+  With asx
+    .Add("Indication")
+    .Add(GetProcedureItemValue(res["fldencounterval"], itemid, "Post-Operative Indication"))
+  End With
+  $BillingReport.Add(asx)
+  asx.Clear()
+  With asx
+    .Add("Examination")
+    .Add(UniProcedureExamination(res["fldencounterval"], itemid, "Post-Operative Exam").Join(gb.NewLine))
+  End With
+  $BillingReport.Add(asx)
+  asx.Clear()
+  With asx
+    .Add("Summary")
+    .Add(GetUniProcedureDetail(res["fldencounterval"], itemid, "Post-Operative Note"))
+  End With
+  $BillingReport.Add(asx)
+  asx.Clear()
+  With asx
+    .Add("Consumables")
+    .Add(UniProcedureMedString(res["fldencounterval"], itemid, "Post-Operative").Join(gb.NewLine))
+  End With
+  $BillingReport.Add(asx)
+  asx.Clear()
+
+  Return $BillingReport.NewHTMLPath()
+
+End
+
+Public Function GetProcedureReportAll(encid As String) As String
+
+  Dim $BillingReport As CReportHTML
+  Dim asx As New String[0]
+  Dim xList As String[]
+  Dim xdata As String
+  Dim i As Integer
+
+  $BillingReport = New CReportHTML([("SNO"), ("Description")], "", "")
+  $BillingReport.UserData.Add("MAJOR PROCEDURE", "PARAM1")
+  $BillingReport.UserData.Add("Date: " & modReportVar.GetDateTimeReport(Now(), gb.MediumDate), "PARAM2")
+
+  i = 0
+  xList = GetCustomProcedureMajor(encid)
+  If xList.Count Then
+    For i = 0 To xList.Count - 1
+      With asx
+        .Add(CStr(i + 1))
+        .Add(xList[i])
+      End With
+      $BillingReport.Add(asx)
+      asx.Clear()
+    Next
+  Endif
+
+  Return $BillingReport.NewHTMLPath()
+
+End
+
+Public Function GetCustomProcedureMajor(encid As String) As String[]
+
+  Dim res As Result
+  Dim aList As String[]
+  Dim xx As String
+  Dim xval As String
+  Dim itemid As Long
+
+  Dim xfinal As String[]
+  Dim xdetail As String
+
+  aList = New String[]
+  res = modDatabase.$myConn.Exec("select fldid,fldencounterval,fldnewdate,flditem,flddetail,fldreportquali,fldstatus from tblpatgeneral where fldencounterval=&1 and fldinput=&2", encid, "Procedures")
+  If res.Available = True Then
+    For Each res
+      itemid = res["fldid"]
+      xfinal = New String[]
+      xdetail = ""
+
+      xx = modRepoTemplete.HTMLTableSyntax()
+      xx = xx & "<tr>" & gb.NewLine
+      xx = xx & "<td class='reportmid_table_h'>" & "Variable" & "</td>" & gb.NewLine
+      xx = xx & "<td class='reportmid_table_h'>" & "Value" & "</td>" & gb.NewLine
+      xx = xx & "</tr>" & gb.NewLine
+
+      ''general
+      xx = xx & "<tr align='left'>" & gb.NewLine
+      xx = xx & "<td colspan='2' rowspan='1'>" & "<b>General</b>" & "</span></td>" & gb.NewLine
+      xx = xx & "</tr>" & gb.NewLine
+
+      xx = xx & "<tr>" & gb.NewLine
+      xx = xx & "<td>" & "Planned Date" & "</td>" & gb.NewLine
+      xx = xx & "<td>" & modReportVar.GetDateTimeReport(res["fldnewdate"], gb.GeneralDate) & " : " & res["fldstatus"] & "</td>" & gb.NewLine
+      xx = xx & "</tr>" & gb.NewLine
+
+      xx = xx & "<tr>" & gb.NewLine
+      xx = xx & "<td>" & "Status" & "</td>" & gb.NewLine
+      xx = xx & "<td>" & res["fldreportquali"] & "</td>" & gb.NewLine
+      xx = xx & "</tr>" & gb.NewLine
+
+      xx = xx & "<tr>" & gb.NewLine
+      xx = xx & "<td>" & "Surgery Team" & "</td>" & gb.NewLine
+      xx = xx & "<td>" & GetUserAllUniProcedure(res["fldencounterval"], itemid) & "</td>" & gb.NewLine
+      xx = xx & "</tr>" & gb.NewLine
+
+      xfinal = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditemname as col from tblpatbilling where fldencounterval=&1 and flditemtype=&2 and fldparent=&3", encid, "Procedures", itemid))
+      If xfinal.Count Then
+        xx = xx & "<tr>" & gb.NewLine
+        xx = xx & "<td>" & "Final Procedures" & "</td>" & gb.NewLine
+        xx = xx & "<td>" & modString.GetHTMLListFormat(xfinal) & "</td>" & gb.NewLine
+        xx = xx & "</tr>" & gb.NewLine
+      Endif
+
+      xx = xx & "<tr>" & gb.NewLine
+      xx = xx & "<td>" & "Procedure Note" & "</td>" & gb.NewLine
+      xx = xx & "<td>" & res["flddetail"] & "</td>" & gb.NewLine
+      xx = xx & "</tr>" & gb.NewLine
+
+      ''Pre-operative
+      xx = xx & "<tr align='left'>" & gb.NewLine
+      xx = xx & "<td colspan='2' rowspan='1'>" & "<b>Pre-Operative</b>" & "</span></td>" & gb.NewLine
+      xx = xx & "</tr>" & gb.NewLine
+
+      xx = xx & "<tr>" & gb.NewLine
+      xx = xx & "<td>" & "Indication" & "</td>" & gb.NewLine
+      xx = xx & "<td>" & GetProcedureItemValue(res["fldencounterval"], itemid, "Pre-Operative Indication") & "</td>" & gb.NewLine
+      xx = xx & "</tr>" & gb.NewLine
+
+      xx = xx & "<tr>" & gb.NewLine
+      xx = xx & "<td>" & "Examination" & "</td>" & gb.NewLine
+      xx = xx & "<td>" & UniProcedureExamination(res["fldencounterval"], itemid, "Pre-Operative Exam").Join("<br>") & "</td>" & gb.NewLine
+      xx = xx & "</tr>" & gb.NewLine
+
+      xx = xx & "<tr>" & gb.NewLine
+      xx = xx & "<td>" & "Summary" & "</td>" & gb.NewLine
+      xx = xx & "<td>" & GetUniProcedureDetail(res["fldencounterval"], itemid, "Pre-Operative Note") & "</td>" & gb.NewLine
+      xx = xx & "</tr>" & gb.NewLine
+
+      xx = xx & "<tr>" & gb.NewLine
+      xx = xx & "<td>" & "Consumables" & "</td>" & gb.NewLine
+      xx = xx & "<td>" & UniProcedureMedString(res["fldencounterval"], itemid, "Pre-Operative").Join("<br>") & "</td>" & gb.NewLine
+      xx = xx & "</tr>" & gb.NewLine
+
+      ''Operative
+      xx = xx & "<tr align='left'>" & gb.NewLine
+      xx = xx & "<td colspan='2' rowspan='1'>" & "<b>Operative</b>" & "</span></td>" & gb.NewLine
+      xx = xx & "</tr>" & gb.NewLine
+
+      xx = xx & "<tr>" & gb.NewLine
+      xx = xx & "<td>" & "Indication" & "</td>" & gb.NewLine
+      xx = xx & "<td>" & GetProcedureItemValue(res["fldencounterval"], itemid, "Operative Indication") & "</td>" & gb.NewLine
+      xx = xx & "</tr>" & gb.NewLine
+
+      xx = xx & "<tr>" & gb.NewLine
+      xx = xx & "<td>" & "Parameters" & "</td>" & gb.NewLine
+      xx = xx & "<td>" & UniProcedureExamination(res["fldencounterval"], itemid, "Operative Exam").Join("<br>") & "</td>" & gb.NewLine
+      xx = xx & "</tr>" & gb.NewLine
+
+      xx = xx & "<tr>" & gb.NewLine
+      xx = xx & "<td>" & "Summary" & "</td>" & gb.NewLine
+      xx = xx & "<td>" & GetUniProcedureDetail(res["fldencounterval"], itemid, "Operation Note") & "</td>" & gb.NewLine
+      xx = xx & "</tr>" & gb.NewLine
+
+      xdetail = "Incision : " & GetUniProcedureDetail(res["fldencounterval"], itemid, "Incision")
+      xdetail = xdetail & "<br>" & "Findings : " & GetUniProcedureDetail(res["fldencounterval"], itemid, "Findings")
+      xdetail = xdetail & "<br>" & "Proedures : " & GetUniProcedureDetail(res["fldencounterval"], itemid, "Proedures")
+      xdetail = xdetail & "<br>" & "Closure : " & GetUniProcedureDetail(res["fldencounterval"], itemid, "Closure")
+      xx = xx & "<tr>" & gb.NewLine
+      xx = xx & "<td>" & "Description" & "</td>" & gb.NewLine
+      xx = xx & "<td>" & xdetail & "</td>" & gb.NewLine
+      xx = xx & "</tr>" & gb.NewLine
+
+      xx = xx & "<tr>" & gb.NewLine
+      xx = xx & "<td>" & "Consumables" & "</td>" & gb.NewLine
+      xx = xx & "<td>" & UniProcedureMedString(res["fldencounterval"], itemid, "Operative").Join("<br>") & "</td>" & gb.NewLine
+      xx = xx & "</tr>" & gb.NewLine
+
+      ''Anesthesia
+      xx = xx & "<tr align='left'>" & gb.NewLine
+      xx = xx & "<td colspan='2' rowspan='1'>" & "<b>Anesthesia</b>" & "</span></td>" & gb.NewLine
+      xx = xx & "</tr>" & gb.NewLine
+
+      xx = xx & "<tr>" & gb.NewLine
+      xx = xx & "<td>" & "Technique" & "</td>" & gb.NewLine
+      xx = xx & "<td>" & GetProcedureItemValue(res["fldencounterval"], itemid, "Anaesthesia Technique") & "</td>" & gb.NewLine
+      xx = xx & "</tr>" & gb.NewLine
+
+      xx = xx & "<tr>" & gb.NewLine
+      xx = xx & "<td>" & "Parameters" & "</td>" & gb.NewLine
+      xx = xx & "<td>" & UniProcedureExamination(res["fldencounterval"], itemid, "Anaesthesia").Join("<br>") & "</td>" & gb.NewLine
+      xx = xx & "</tr>" & gb.NewLine
+
+      xx = xx & "<tr>" & gb.NewLine
+      xx = xx & "<td>" & "Summary" & "</td>" & gb.NewLine
+      xx = xx & "<td>" & GetUniProcedureDetail(res["fldencounterval"], itemid, "Anaesthesia Note") & "</td>" & gb.NewLine
+      xx = xx & "</tr>" & gb.NewLine
+
+      xx = xx & "<tr>" & gb.NewLine
+      xx = xx & "<td>" & "Consumables" & "</td>" & gb.NewLine
+      xx = xx & "<td>" & UniProcedureMedString(res["fldencounterval"], itemid, "Anaesthesia").Join("<br>") & "</td>" & gb.NewLine
+      xx = xx & "</tr>" & gb.NewLine
+
+      ''Post-operative
+      xx = xx & "<tr align='left'>" & gb.NewLine
+      xx = xx & "<td colspan='2' rowspan='1'>" & "<b>Post-Operative</b>" & "</span></td>" & gb.NewLine
+      xx = xx & "</tr>" & gb.NewLine
+
+      xx = xx & "<tr>" & gb.NewLine
+      xx = xx & "<td>" & "Indication" & "</td>" & gb.NewLine
+      xx = xx & "<td>" & GetProcedureItemValue(res["fldencounterval"], itemid, "Post-Operative Indication") & "</td>" & gb.NewLine
+      xx = xx & "</tr>" & gb.NewLine
+
+      xx = xx & "<tr>" & gb.NewLine
+      xx = xx & "<td>" & "Examination" & "</td>" & gb.NewLine
+      xx = xx & "<td>" & UniProcedureExamination(res["fldencounterval"], itemid, "Post-Operative Exam").Join("<br>") & "</td>" & gb.NewLine
+      xx = xx & "</tr>" & gb.NewLine
+
+      xx = xx & "<tr>" & gb.NewLine
+      xx = xx & "<td>" & "Summary" & "</td>" & gb.NewLine
+      xx = xx & "<td>" & GetUniProcedureDetail(res["fldencounterval"], itemid, "Post-Operative Note") & "</td>" & gb.NewLine
+      xx = xx & "</tr>" & gb.NewLine
+
+      xx = xx & "<tr>" & gb.NewLine
+      xx = xx & "<td>" & "Consumables" & "</td>" & gb.NewLine
+      xx = xx & "<td>" & UniProcedureMedString(res["fldencounterval"], itemid, "Post-Operative").Join("<br>") & "</td>" & gb.NewLine
+      xx = xx & "</tr>" & gb.NewLine
+
+      xx = xx & "</table>" & gb.NewLine
+      aList.Add(xx)
+    Next
+  Endif
+
+  Return aList
+
+End
+
+''short Detail
+Public Function PatSelectProcedureString(encid As String, strType As String, sCondi As String) As String
+
+  Dim res As Result
+  Dim xx As String
+  Dim xfinal As String[]
+
+  xx = ""
+  res = modDatabase.$myConn.Exec("select fldid,fldencounterval,fldnewdate,flditem,flddetail,fldorduserid,fldstatus from tblpatgeneral where fldencounterval=&1 and fldinput=&2 and fldreportquali=&3", encid, strType, sCondi)
+  If res.Available = True Then
+    For Each res
+      xfinal = New String[]
+      xfinal = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditemname as col from tblpatbilling where fldencounterval=&1 and flditemtype=&2 and fldparent=&3", encid, "Procedures", res["fldid"]))
+
+      If modBasic.$ShowDayMedReport = "User" Then
+        xx = xx & modString.GetHTMLListFormat(xfinal)
+        xx = xx & "SUMMARY : " & "<br>" & res["flddetail"] & "<br>" & "[Team: " & res["fldstatus"] & "]"
+        xx = xx & "</p>"
+      Else If modBasic.$ShowDayMedReport = "Date+User" Then
+        xx = xx & "<p>" & "[" & modReportVar.GetDateTimeReport(res["fldnewdate"], gb.GeneralDate) & "] "
+        xx = xx & modString.GetHTMLListFormat(xfinal)
+        xx = xx & "SUMMARY : " & "<br>" & res["flddetail"] & "<br>" & "[Team: " & res["fldstatus"] & "]"
+        xx = xx & "</p>"
+      Else If modBasic.$ShowDayMedReport = "Date" Then
+        xx = xx & "<p>" & "[" & modReportVar.GetDateTimeReport(res["fldnewdate"], gb.GeneralDate) & "] "
+        xx = xx & modString.GetHTMLListFormat(xfinal)
+        xx = xx & "SUMMARY : " & "<br>" & res["flddetail"]
+        xx = xx & "</p>"
+      Else
+        xx = xx & modString.GetHTMLListFormat(xfinal)
+        xx = xx & "SUMMARY : " & "<br>" & res["flddetail"]
+        xx = xx & "</p>"
+      Endif
+
+    Next
+  Endif
+
+  Return xx
+
+End
+
+'----------- Item value
+Public Function GetProcedureItemValue(encid As String, itemid As Long, sType As String) As String
+
+  Dim res As Result
+  Dim xx As String
+
+  res = modDatabase.$myConn.Exec("select fldreportquali from tblpatsubgeneral where flditemid=&1 and fldchapter=&2 and fldencounterval=&3", itemid, sType, encid)
+  If res.Available Then
+    res.MoveLast
+    If res["fldreportquali"] Then
+      xx = res["fldreportquali"]
+    Else
+      xx = ""
+    Endif
+  Else
+    xx = ""
+  Endif
+  Return xx
+
+End
+
+Public Function GetUniProcedureDetail(encid As String, itemid As Long, sType As String) As String
+
+  Dim res As Result
+  Dim xx As String
+
+  res = modDatabase.$myConn.Exec("select fldreport from tblpatsubgeneral where flditemid=&1 and fldchapter=&2 and fldencounterval=&3", itemid, sType, encid)
+  If res.Available Then
+    res.MoveLast
+    If res["fldreport"] Then
+      xx = res["fldreport"]
+    Else
+      xx = ""
+    Endif
+  Else
+    xx = ""
+  Endif
+  Return xx
+
+End
+
+'--------------- Examination
+Public Function UniProcedureExamination(encid As String, itemid As Long, sType As String) As String[]
+
+  Dim res As Result
+  Dim xx As String[]
+  Dim xType As String
+  Dim xval As String
+
+  res = modDatabase.$syConn.Exec("select fldtime,fldhead,fldrepquali,fldrepquanti,fldoption,flduserid from tblpatientexam where fldencounterval=&1 and fldinput=&2 and fldsave=&3", encid, sType & ":" & CStr(itemid), True)
+  xx = New String[]
+  If res.Available Then
+    For Each res
+      xType = res["fldoption"]
+      If xType = "Clinical Scale" Then
+        If modBasic.$ShowScaleMedFormat = "GroupWise" Then
+          xval = modString.GetJSONToDualHTMLTable(Trim(res["fldrepquali"]))
+        Else
+          xval = CStr(res["fldrepquanti"])
+        Endif
+      Else If xType = "Left and Right" Then
+        xval = modString.GetJSONToDualHTMLTable(Trim(res["fldrepquali"]))
+      Else
+        xval = Trim(res["fldrepquali"])
+      Endif
+      If modBasic.$ShowDayMedReport = "User" Then
+        xx.Add(res["fldhead"] & " : " & xval & gb.NewLine & "[User: " & res["flduserid"] & "]")
+      Else If modBasic.$ShowDayMedReport = "Date+User" Then
+        xx.Add("[ " & modReportVar.GetDateTimeReport(res["fldtime"], gb.GeneralDate) & " ] " & res["fldhead"] & ": " & xval & gb.NewLine & "[User: " & res["flduserid"] & "]")
+      Else If modBasic.$ShowDayMedReport = "Date" Then
+        xx.Add("[ " & modReportVar.GetDateTimeReport(res["fldtime"], gb.GeneralDate) & " ] " & res["fldhead"] & ": " & xval)
+      Else
+        xx.Add(res["fldhead"] & " : " & xval)
+      Endif
+    Next
+  Endif
+  Return xx
+
+End
+
+'---------------- team
+Public Function GetUserAllUniProcedure(encid As String, itemid As Long) As String
+
+  Dim xx As String
+  Dim res As Result
+  Dim xFinal As Variant[]
+  Dim sColl As Collection
+
+  xFinal = New Variant[]
+  res = modDatabase.$myConn.Exec("select fldusertype,fldvalue from tblpatgenshare where fldencounterval=&1 and fldcategory=&2 and flditemid in(select fldgroupid from tblpatgeneral where fldid=&3)", encid, "Procedures", itemid)
+  If res.Available Then
+    For Each res
+      sColl = New Collection
+      sColl.Add(res["fldusertype"], CStr(0))
+      sColl.Add(modGeneral.GetUserFullName(res["fldvalue"]), CStr(1))
+      xFinal.Add(sColl)
+    Next
+    xx = modString.GetRichTableNoHeadFromVariant(2, xFinal)
+  Endif
+
+  Return xx
+
+End
+
+''------- consumables
+Public Function UniProcedureMedString(encid As String, itemid As Long, sType As String) As String[]
+
+  Dim rs As Result
+  Dim xx As String[]
+
+  xx = New String[]
+  rs = modDatabase.$myConn.Exec("select fldroute,flditem,SUM(fldqtydisp-fldqtyret) as qty from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and flddispmode=&3 GROUP BY flditem", encid, True, sType & ":" & CStr(itemid), True)
+  If rs.Available = True Then
+    For Each rs
+      xx.Add(modPharmacy.GetMedFormatForMedReport(rs["flditem"], rs["fldroute"]) & Space(1) & rs["fldroute"] & Space(1) & " [" & rs["qty"] & "]")
+    Next
+  Endif
+
+  Return xx
+
+End

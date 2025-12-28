@@ -45,7 +45,7 @@ Public Sub _new()
   dtlast.Value = Now()
 
   xhospfld = modDataRepo.HospitalField()
-  $SSQLFields = ["fldid", "fldencounterval", "fldencounterval", modDataRepo.SerialField(), "fldencounterval", "fldencounterval", "fldconsulttime", "fldconsultname", "fldoutcome", "fldnotice", "fldid"]
+  $SSQLFields = ["fldid", "fldencounterval", "fldencounterval", modDataRepo.SerialField(), "fldencounterval", "fldencounterval", "fldconsulttime", "fldconsultname", "fldoutcome", "fldnotice", "fldid", "fldpresummary", "fldsummary", "fldflaguser", "fldflagtime"]
   If xhospfld Then
     $SSQLFields.Add(xhospfld)
   Endif
@@ -242,7 +242,9 @@ Private Function GetGridViewValue(Column As Integer, xVariable As Variant) As Va
     xxx = modPatient.GetPatientNoByEnc(xVariable)
   Else If Column = 6 Then
     xxx = modReportVar.GetDateTimeReport(xVariable, gb.GeneralDate)
-  Else If Column = 11 Then
+  Else If Column = 14 Then
+    xxx = modReportVar.GetDateTimeReport(xVariable, gb.GeneralDate)
+  Else If Column = 15 Then
     xxx = modDataRepo.GetHospitalTextLabel(xVariable)
   Else
     xxx = xVariable
@@ -301,6 +303,10 @@ Private Sub FillPatientGrid()
     .Columns[8].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
     .Columns[9].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
     .Columns[10].Hidden = True
+    .Columns[11].Width = CStr(200 * modBasic.$AppWidthRatio) & "px"
+    .Columns[12].Width = CStr(200 * modBasic.$AppWidthRatio) & "px"
+    .Columns[13].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
+    .Columns[14].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
 
     .Columns[1].Text = "EncID"
     .Columns[2].Text = "Name"
@@ -311,6 +317,10 @@ Private Sub FillPatientGrid()
     .Columns[7].Text = "Department"
     .Columns[8].Text = "Outcome"
     .Columns[9].Text = "Comment"
+    .Columns[11].Text = "Request"
+    .Columns[12].Text = "Response"
+    .Columns[13].Text = "Attend"
+    .Columns[14].Text = "DateTime"
 
     If $newColumn.Count Then
       For i = 0 To $newColumn.Count - 1
@@ -329,7 +339,12 @@ Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableDat
   If Column > $SSQLFields.Count - 1 Then
     Data.Html = modString.TextToHTML(GetGridViewValue(Column, $rData[$aMyFields[Column]]))
   Else
-    Data.Text = GetGridViewValue(Column, $rData[$aMyFields[Column]])
+    Select Column
+      Case 11, 12
+        Data.Html = GetGridViewValue(Column, $rData[$aMyFields[Column]])
+      Case Else
+        Data.Text = GetGridViewValue(Column, $rData[$aMyFields[Column]])
+    End Select
   Endif
 
 End

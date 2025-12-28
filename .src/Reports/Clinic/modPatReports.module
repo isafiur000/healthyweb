@@ -983,7 +983,7 @@ Public Function AddMajorProcedures(encid As String, Optional sTitle As String) A
   Else
     stChapter = "Major Procedures"
   Endif
-  stObservation = modPatPatho.PatSelectProcedureString(encid, "Procedures", "Done")
+  stObservation = modPatSurgery.PatSelectProcedureString(encid, "Procedures", "Done")
   asx = AddCustomReport(stChapter, stObservation)
   Return asx
 
@@ -1145,7 +1145,7 @@ Public Function AddMajorProceduresCustom(sReport As String, encid As String, Opt
   Else
     stChapter = "Major Procedures"
   Endif
-  stObservation = modString.GetHTMLListFormat(GetCustomProcedureMajor(encid, sReport))
+  stObservation = modString.GetHTMLListFormat(modPatSurgery.GetCustomProcedureMajor(encid, sReport))
   asx = AddCustomReport(stChapter, stObservation)
   Return asx
 
@@ -1958,7 +1958,7 @@ Public Function GetPatientMonitorReport(encid As String) As String[]
       If res["fldassess"] Then
         aCompo.Add("<u>I/O Assessment:</u> " & modString.TextToHTML(res["fldassess"]))
       Endif
-      aCompo.Add("<u>On Examination:</u>" & "<br>" & modString.GetHTMLListFormat(UniProcedureExamination(encid, res["fldid"], "IP Monitoring")))
+      aCompo.Add("<u>On Examination:</u>" & "<br>" & modString.GetHTMLListFormat(modPatSurgery.UniProcedureExamination(encid, res["fldid"], "IP Monitoring")))
       If res["fldproblem"] Then
         aCompo.Add("<u>Impression:</u> " & modString.TextToHTML(res["fldproblem"]))
       Endif
@@ -2106,44 +2106,6 @@ Public Function GetChartImageRadio(encid As String, test As String) As String
     ' xx = modChart.ClinicalChart(100, encid, pointsArr_x, pointsArr_y, maxval, minval, normval)
   Endif
 
-  Return xx
-
-End
-
-Public Function UniProcedureExamination(encid As String, itemid As Long, sType As String) As String[]
-
-  Dim res As Result
-  Dim xx As String[]
-  Dim xType As String
-  Dim xval As String
-
-  res = modDatabase.$syConn.Exec("select fldtime,fldhead,fldrepquali,fldrepquanti,fldoption,flduserid from tblpatientexam where fldencounterval=&1 and fldinput=&2 and fldsave=&3" & GetLockClinicSQL(), encid, sType & ":" & CStr(itemid), True)
-  xx = New String[]
-  If res.Available Then
-    For Each res
-      xType = res["fldoption"]
-      If xType = "Clinical Scale" Then
-        If modBasic.$ShowScaleMedFormat = "GroupWise" Then
-          xval = modString.GetJSONToDualHTMLTable(Trim(res["fldrepquali"]))
-        Else
-          xval = CStr(res["fldrepquanti"])
-        Endif
-      Else If xType = "Left and Right" Then
-        xval = modString.GetJSONToDualHTMLTable(Trim(res["fldrepquali"]))
-      Else
-        xval = Trim(res["fldrepquali"])
-      Endif
-      If modBasic.$ShowDayMedReport = "User" Then
-        xx.Add(res["fldhead"] & " : " & xval & gb.NewLine & "[User: " & res["flduserid"] & "]")
-      Else If modBasic.$ShowDayMedReport = "Date+User" Then
-        xx.Add("[ " & modReportVar.GetDateTimeReport(res["fldtime"], gb.GeneralDate) & " ] " & res["fldhead"] & ": " & xval & gb.NewLine & "[User: " & res["flduserid"] & "]")
-      Else If modBasic.$ShowDayMedReport = "Date" Then
-        xx.Add("[ " & modReportVar.GetDateTimeReport(res["fldtime"], gb.GeneralDate) & " ] " & res["fldhead"] & ": " & xval)
-      Else
-        xx.Add(res["fldhead"] & " : " & xval)
-      Endif
-    Next
-  Endif
   Return xx
 
 End
@@ -2740,155 +2702,6 @@ Public Function GetSelectFindingReport(encid As String, sType As String) As Stri
   Next
 
   Return xfinal
-
-End
-
-Public Function GetCustomProcedureMajor(encid As String, sReport As String) As String[]
-
-  Dim res As Result
-  Dim aList As String[]
-  Dim xx As String
-
-  aList = New String[]
-  res = modDatabase.$myConn.Exec("select fldid,fldencounterval,fldnewdate,flditem,flddetail,fldreportquali from tblpatgeneral where fldencounterval=&1 and fldinput=&2 and fldreportquali=&3", encid, "Procedures", "Done")
-  If res.Available = True Then
-    For Each res
-
-      xx = "<b>" & res["flditem"] & "</b>" & gb.NewLine
-      xx = xx & modRepoTemplete.HTMLTableSyntax()
-      If modSettings.ShowSettingFromFIle(sReport & "/" & "General:Status") = "Yes" Then
-        xx = xx & "<tr>" & gb.NewLine
-        xx = xx & "<td>" & "Status" & "</td><td>" & modReportVar.GetDateTimeReport(res["fldnewdate"], gb.GeneralDate) & " : " & res["fldreportquali"] & "</td>"
-        xx = xx & "</tr>" & gb.NewLine
-      Endif
-      If modSettings.ShowSettingFromFIle(sReport & "/" & "General:Personnel") = "Yes" Then
-        xx = xx & "<tr>" & gb.NewLine
-        xx = xx & "<td>" & "Personnel" & "</td><td>" & modString.TextToHTML(modPatPatho.GetUserAllUniProcedure(res["fldencounterval"], res["fldid"])) & "</td>"
-        xx = xx & "</tr>" & gb.NewLine
-      Endif
-      If modSettings.ShowSettingFromFIle(sReport & "/" & "General:Summary") = "Yes" Then
-        xx = xx & "<tr>" & gb.NewLine
-        xx = xx & "<td>" & "Summary" & "</td><td>" & res["flddetail"] & "</td>"
-        xx = xx & "</tr>" & gb.NewLine
-      Endif
-      If modSettings.ShowSettingFromFIle(sReport & "/" & "Pre-Operative:Indication") = "Yes" Then
-        xx = xx & "<tr>" & gb.NewLine
-        xx = xx & "<td>" & "Pre-Operative:Indication" & "</td><td>" & modPatPatho.GetProcedureItemValue(res["fldencounterval"], res["fldid"], "Pre-Operative Indication") & "</td>"
-        xx = xx & "</tr>" & gb.NewLine
-      Endif
-      If modSettings.ShowSettingFromFIle(sReport & "/" & "Pre-Operative:Discussion") = "Yes" Then
-        xx = xx & "<tr>" & gb.NewLine
-        xx = xx & "<td>" & "Pre-Operative:Discussion" & "</td><td>" & modPatPatho.GetUniProcedureDetail(res["fldencounterval"], res["fldid"], "Pre-Operative Discussion") & "</td>"
-        xx = xx & "</tr>" & gb.NewLine
-      Endif
-      If modSettings.ShowSettingFromFIle(sReport & "/" & "Pre-Operative:Discussion Panel") = "Yes" Then
-        xx = xx & "<tr>" & gb.NewLine
-        xx = xx & "<td>" & "Pre-Operative:Discussion Panel" & "</td><td>" & modString.GetHTMLListFormat(modPatPatho.GetDiscusPanels(res["fldencounterval"], res["fldid"])) & "</td>"
-        xx = xx & "</tr>" & gb.NewLine
-      Endif
-      If modSettings.ShowSettingFromFIle(sReport & "/" & "Pre-Operative:Examination") = "Yes" Then
-        xx = xx & "<tr>" & gb.NewLine
-        xx = xx & "<td>" & "Pre-Operative:Examination" & "</td><td>" & modString.GetHTMLListFormat(modPatReports.UniProcedureExamination(res["fldencounterval"], res["fldid"], "Pre-Operative Exam")) & "</td>"
-        xx = xx & "</tr>" & gb.NewLine
-      Endif
-      If modSettings.ShowSettingFromFIle(sReport & "/" & "Pre-Operative:Medications") = "Yes" Then
-        xx = xx & "<tr>" & gb.NewLine
-        xx = xx & "<td>" & "Pre-Operative:Medications" & "</td><td>" & modString.GetHTMLListFormat(modPharmacy.UniProcedureMedString(res["fldencounterval"], res["fldid"], "Pre-Operative")) & "</td>"
-        xx = xx & "</tr>" & gb.NewLine
-      Endif
-      If modSettings.ShowSettingFromFIle(sReport & "/" & "Pre-Operative:Note") = "Yes" Then
-        xx = xx & "<tr>" & gb.NewLine
-        xx = xx & "<td>" & "Pre-Operative:Note" & "</td><td>" & modPatPatho.GetUniProcedureDetail(res["fldencounterval"], res["fldid"], "Pre-Operative Note") & "</td>"
-        xx = xx & "</tr>" & gb.NewLine
-      Endif
-      If modSettings.ShowSettingFromFIle(sReport & "/" & "Procedure:Components") = "Yes" Then
-        xx = xx & "<tr>" & gb.NewLine
-        xx = xx & "<td>" & "Procedure:Components" & "</td><td>" & modString.GetHTMLListFormat(modPatPatho.GetComponentProcedure(res["fldencounterval"], res["fldid"])) & "</td>"
-        xx = xx & "</tr>" & gb.NewLine
-      Endif
-      If modSettings.ShowSettingFromFIle(sReport & "/" & "Procedure:Parameters") = "Yes" Then
-        xx = xx & "<tr>" & gb.NewLine
-        xx = xx & "<td>" & "Procedure:Parameters" & "</td><td>" & modString.GetHTMLListFormat(modPatReports.UniProcedureExamination(res["fldencounterval"], res["fldid"], "Operative Exam")) & "</td>"
-        xx = xx & "</tr>" & gb.NewLine
-      Endif
-      If modSettings.ShowSettingFromFIle(sReport & "/" & "Procedure:Medications") = "Yes" Then
-        xx = xx & "<tr>" & gb.NewLine
-        xx = xx & "<td>" & "Procedure:Medications" & "</td><td>" & modString.GetHTMLListFormat(modPharmacy.UniProcedureMedString(res["fldencounterval"], res["fldid"], "Procedure")) & "</td>"
-        xx = xx & "</tr>" & gb.NewLine
-      Endif
-      If modSettings.ShowSettingFromFIle(sReport & "/" & "Procedure:Incision") = "Yes" Then
-        xx = xx & "<tr>" & gb.NewLine
-        xx = xx & "<td>" & "Incision" & "</td><td>" & modPatPatho.GetUniProcedureDetail(res["fldencounterval"], res["fldid"], "Incision") & "</td>"
-        xx = xx & "</tr>" & gb.NewLine
-      Endif
-      If modSettings.ShowSettingFromFIle(sReport & "/" & "Procedure:Findings") = "Yes" Then
-        xx = xx & "<tr>" & gb.NewLine
-        xx = xx & "<td>" & "Findings" & "</td><td>" & modPatPatho.GetUniProcedureDetail(res["fldencounterval"], res["fldid"], "Findings") & "</td>"
-        xx = xx & "</tr>" & gb.NewLine
-      Endif
-      If modSettings.ShowSettingFromFIle(sReport & "/" & "Procedure:Proedures") = "Yes" Then
-        xx = xx & "<tr>" & gb.NewLine
-        xx = xx & "<td>" & "Proedures" & "</td><td>" & modPatPatho.GetUniProcedureDetail(res["fldencounterval"], res["fldid"], "Proedures") & "</td>"
-        xx = xx & "</tr>" & gb.NewLine
-      Endif
-      If modSettings.ShowSettingFromFIle(sReport & "/" & "Procedure:Closure") = "Yes" Then
-        xx = xx & "<tr>" & gb.NewLine
-        xx = xx & "<td>" & "Closure" & "</td><td>" & modPatPatho.GetUniProcedureDetail(res["fldencounterval"], res["fldid"], "Closure") & "</td>"
-        xx = xx & "</tr>" & gb.NewLine
-      Endif
-      If modSettings.ShowSettingFromFIle(sReport & "/" & "Procedure:Note") = "Yes" Then
-        xx = xx & "<tr>" & gb.NewLine
-        xx = xx & "<td>" & "Procedure:Note" & "</td><td>" & modPatPatho.GetUniProcedureDetail(res["fldencounterval"], res["fldid"], "Operation Note") & "</td>"
-        xx = xx & "</tr>" & gb.NewLine
-      Endif
-      If modSettings.ShowSettingFromFIle(sReport & "/" & "Anaesthesia:Technique") = "Yes" Then
-        xx = xx & "<tr>" & gb.NewLine
-        xx = xx & "<td>" & "Anaesthesia:Technique" & "</td><td>" & modPatPatho.GetProcedureItemValue(res["fldencounterval"], res["fldid"], "Anaesthesia Technique") & "</td>"
-        xx = xx & "</tr>" & gb.NewLine
-      Endif
-      If modSettings.ShowSettingFromFIle(sReport & "/" & "Anaesthesia:Parameters") = "Yes" Then
-        xx = xx & "<tr>" & gb.NewLine
-        xx = xx & "<td>" & "Anaesthesia:Parameters" & "</td><td>" & modString.GetHTMLListFormat(modPatReports.UniProcedureExamination(res["fldencounterval"], res["fldid"], "Anaesthesia")) & "</td>"
-        xx = xx & "</tr>" & gb.NewLine
-      Endif
-      If modSettings.ShowSettingFromFIle(sReport & "/" & "Anaesthesia:Medications") = "Yes" Then
-        xx = xx & "<tr>" & gb.NewLine
-        xx = xx & "<td>" & "Anaesthesia:Medications" & "</td><td>" & modString.GetHTMLListFormat(modPharmacy.UniProcedureMedString(res["fldencounterval"], res["fldid"], "Anaesthesia")) & "</td>"
-        xx = xx & "</tr>" & gb.NewLine
-      Endif
-      If modSettings.ShowSettingFromFIle(sReport & "/" & "Anaesthesia:Note") = "Yes" Then
-        xx = xx & "<tr>" & gb.NewLine
-        xx = xx & "<td>" & "Anaesthesia:Note" & "</td><td>" & modPatPatho.GetUniProcedureDetail(res["fldencounterval"], res["fldid"], "Anaesthesia Note") & "</td>"
-        xx = xx & "</tr>" & gb.NewLine
-      Endif
-      If modSettings.ShowSettingFromFIle(sReport & "/" & "Post-Operative:Indication") = "Yes" Then
-        xx = xx & "<tr>" & gb.NewLine
-        xx = xx & "<td>" & "Post-Operative:Indication" & "</td><td>" & modPatPatho.GetProcedureItemValue(res["fldencounterval"], res["fldid"], "Post-Operative Indication") & "</td>"
-        xx = xx & "</tr>" & gb.NewLine
-      Endif
-      If modSettings.ShowSettingFromFIle(sReport & "/" & "Post-Operative:Examination") = "Yes" Then
-        xx = xx & "<tr>" & gb.NewLine
-        xx = xx & "<td>" & "Post-Operative:Examination" & "</td><td>" & modString.GetHTMLListFormat(modPatReports.UniProcedureExamination(res["fldencounterval"], res["fldid"], "Post-Operative Exam")) & "</td>"
-        xx = xx & "</tr>" & gb.NewLine
-      Endif
-      If modSettings.ShowSettingFromFIle(sReport & "/" & "Post-Operative:Medications") = "Yes" Then
-        xx = xx & "<tr>" & gb.NewLine
-        xx = xx & "<td>" & "Post-Operative:Medications" & "</td><td>" & modString.GetHTMLListFormat(modPharmacy.UniProcedureMedString(res["fldencounterval"], res["fldid"], "Post-Operative")) & "</td>"
-        xx = xx & "</tr>" & gb.NewLine
-      Endif
-      If modSettings.ShowSettingFromFIle(sReport & "/" & "Post-Operative:Note") = "Yes" Then
-        xx = xx & "<tr>" & gb.NewLine
-        xx = xx & "<td>" & "Post-Operative:Note" & "</td><td>" & modPatPatho.GetUniProcedureDetail(res["fldencounterval"], res["fldid"], "Post-Operative Note") & "</td>"
-        xx = xx & "</tr>" & gb.NewLine
-      Endif
-      xx = xx & "</table>"
-
-      aList.Add(xx)
-
-    Next
-  Endif
-
-  Return aList
 
 End
 

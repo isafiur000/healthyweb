@@ -16,6 +16,8 @@ Private $aMyFields1 As String[]
 
 Public Sub _new(encid As String, sStatus As String, DiscPackage As String, sClass As String)
 
+  Dim accLst As String[]
+
   $encid = encid
   $status = sStatus
   $DiscPackage = DiscPackage
@@ -27,10 +29,25 @@ Public Sub _new(encid As String, sStatus As String, DiscPackage As String, sClas
     Case Else
       $Dept = "OPD"
   End Select
+  accLst = modBasic.$BillDiscountCash
+  If accLst.Count = 0 Then
+    accLst.Add($DiscPackage)
+  Endif
+  cmbdisctype.List = accLst
+  cmbdisctype.Text = $DiscPackage
   ShowBillingParam($DiscPackage)
   rbroute.Value = True
   rbroute_Click()
   ShowUsedGridViewList()
+
+End
+
+Public Sub cmbdisctype_Click()
+
+  If cmbdisctype.Text Then
+    ShowBillingParam(cmbdisctype.Text)
+    cmbgroup_Select()
+  Endif
 
 End
 
@@ -191,8 +208,10 @@ Public Sub GridView3_Select()
 
   If GridView3.Selection.Count Then
     $rData.MoveTo(GridView3.Selection[0])
-    txtbreakitem.Text = $rData["xitem"]
-    SHowBreakPanel($rData["xitem"])
+    If modBasic.$ClinFractQuantity = "Enable" Then
+      txtbreakitem.Text = $rData["xitem"]
+      SHowBreakPanel($rData["xitem"])
+    Endif
   Endif
 
 End
@@ -301,25 +320,38 @@ Private Sub EntryUseOwndata(sType As String, sItem As String, sQty As Float)
 
   Dim itemmode As String
   Dim CPharmFix As CFixRatePharmacy
+  Dim xgo As Boolean
 
   CPharmFix = New CFixRatePharmacy(sType, sItem, $sBillMode)
   xfixrate = CPharmFix.GetFixRate()
   xfixname = CPharmFix.GetFixItem()
 
-  itemmode = $sBillMode
-  xtax = modNonMedical.ShowTaxValues(sType, sItem)
-  xdisc = modNonMedical.DiscPercentForCategoryValue($encid, $DiscPackage, sType, sItem, itemmode)
-  xroute = modMedicine.GetRouteFromItem(sItem, sType)
-
-  If sType = "Medicines" Then
-    xdose = sQty * modPharmLabel.GetPackVolValue(sItem) * modMedConstant.GetDrugInitialStrength(sItem)
-    If $Dept = "OPD" Then
-      modPharmSub.InsertDosingEntry($encid, $xBillType, $sBillMode, $DiscPackage, $LedgerAC, xroute, sItem, xdose, "stat", 1, sQty, $status, "", "", 0, xtax, xdisc, xfixname, xfixrate, "UseOwn", $Dept, "", False)
+  xgo = False
+  If modBasic.$BillPharmFixedModes.Exist($sBillMode) = True Then
+    If xfixname Then
+      xgo = True
     Else
-      modPharmSub.InsertDosingEntry($encid, $xBillType, $sBillMode, $DiscPackage, $LedgerAC, xroute, sItem, xdose, "SOS", 1, sQty, $status, "", "", 0, xtax, xdisc, xfixname, xfixrate, "UseOwn", $Dept, "", False)
+      xgo = False
     Endif
   Else
-    modPharmSub.InsertNonMedDosingEntry(sType, $encid, $xBillType, $sBillMode, $DiscPackage, $LedgerAC, xroute, sItem, sQty, $status, 0, xtax, xdisc, xfixname, xfixrate, "UseOwn", $Dept, "", False)
+    xgo = True
+  Endif
+  If xgo = True Then
+    itemmode = $sBillMode
+    xtax = modNonMedical.ShowTaxValues(sType, sItem)
+    xdisc = modNonMedical.DiscPercentForCategoryValue($encid, $DiscPackage, sType, sItem, itemmode)
+    xroute = modMedicine.GetRouteFromItem(sItem, sType)
+
+    If sType = "Medicines" Then
+      xdose = sQty * modPharmLabel.GetPackVolValue(sItem) * modMedConstant.GetDrugInitialStrength(sItem)
+      If $Dept = "OPD" Then
+        modPharmSub.InsertDosingEntry($encid, $xBillType, $sBillMode, $DiscPackage, $LedgerAC, xroute, sItem, xdose, "stat", 1, sQty, $status, "", "", 0, xtax, xdisc, xfixname, xfixrate, "UseOwn", $Dept, "", False)
+      Else
+        modPharmSub.InsertDosingEntry($encid, $xBillType, $sBillMode, $DiscPackage, $LedgerAC, xroute, sItem, xdose, "SOS", 1, sQty, $status, "", "", 0, xtax, xdisc, xfixname, xfixrate, "UseOwn", $Dept, "", False)
+      Endif
+    Else
+      modPharmSub.InsertNonMedDosingEntry(sType, $encid, $xBillType, $sBillMode, $DiscPackage, $LedgerAC, xroute, sItem, sQty, $status, 0, xtax, xdisc, xfixname, xfixrate, "UseOwn", $Dept, "", False)
+    Endif
   Endif
 
 End

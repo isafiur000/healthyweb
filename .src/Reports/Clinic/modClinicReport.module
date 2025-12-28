@@ -51,6 +51,7 @@ Public Function GetPatientChiefComplaintsReport(encid As String, sMulti As Boole
   Dim res As Result
   Dim res1 As Result
   Dim xx As String[]
+  Dim yyy As String
   Dim xstr As String
 
   xUnitLst = modMedicine.$SymptomFrequency
@@ -67,6 +68,23 @@ Public Function GetPatientChiefComplaintsReport(encid As String, sMulti As Boole
     Endif
     compLst = modString.GetDistinctStringArray(xCompAll)
     For Each xcomp In compLst
+      ''general complaints
+      res1 = modDatabase.$myConn.Exec("select flddetail,fldreportquali,fldtime,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and flditem=&3 and fldcomp=&4", encid, "History", "General Complaints", xcomp)
+      If res1.Available Then
+        res1.MoveLast
+        yyy = ""
+        If modBasic.$ShowDayMedReport = "User" Then
+          yyy = res1["flddetail"] & gb.NewLine & "[User: " & res1["flduserid"] & "]"
+        Else If modBasic.$ShowDayMedReport = "Date+User" Then
+          yyy = "[ " & modReportVar.GetDateTimeReport(res1["fldtime"], gb.GeneralDate) & " ]" & " : " & res1["flddetail"] & gb.NewLine & "[User: " & res1["flduserid"] & "]"
+        Else If modBasic.$ShowDayMedReport = "Date" Then
+          yyy = "[ " & modReportVar.GetDateTimeReport(res1["fldtime"], gb.GeneralDate) & " ]" & " : " & res1["flddetail"]
+        Else
+          yyy = res1["flddetail"]
+        Endif
+        xx.Add(modString.TextToHTML("General Complaints : " & gb.NewLine & yyy & gb.NewLine))
+      Endif
+
       ''formatted complaints
       res = modDatabase.$syConn.Exec("select fldtime,flditem,fldreportquali,fldreportquanti,flddetail,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and fldsave=&3 and fldcomp=&4", encid, "Presenting Symptoms", True, xcomp)
       If res.Available Then
@@ -115,24 +133,12 @@ Public Function GetPatientChiefComplaintsReport(encid As String, sMulti As Boole
         Next
       Endif
 
-      ''general complaints
-      res1 = modDatabase.$myConn.Exec("select flddetail,fldreportquali,fldtime,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and flditem=&3 and fldcomp=&4", encid, "History", "General Complaints", xcomp)
-      If res1.Available Then
-        res1.MoveLast
-        If modBasic.$ShowDayMedReport = "User" Then
-          xx.Add(res1["flddetail"] & gb.NewLine & "[User: " & res1["flduserid"] & "]")
-        Else If modBasic.$ShowDayMedReport = "Date+User" Then
-          xx.Add("[ " & modReportVar.GetDateTimeReport(res1["fldtime"], gb.GeneralDate) & " ]" & " : " & res1["flddetail"] & gb.NewLine & "[User: " & res1["flduserid"] & "]")
-        Else If modBasic.$ShowDayMedReport = "Date" Then
-          xx.Add("[ " & modReportVar.GetDateTimeReport(res1["fldtime"], gb.GeneralDate) & " ]" & " : " & res1["flddetail"])
-        Else
-          xx.Add(res1["flddetail"])
-        Endif
-      Endif
-
     Next
 
   Else If sMulti = False Then
+    ''general complaints
+    xx.Add(modString.TextToHTML("General Complaints : " & gb.NewLine & modPatReports.GetPatientHistoryReport(encid, "General Complaints") & gb.NewLine))
+    ''presenting symptoms
     res = modDatabase.$syConn.Exec("select fldtime,flditem,fldreportquali,fldreportquanti,flddetail,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and fldsave=&3" & modPatReports.GetLockClinicSQL(), encid, "Presenting Symptoms", True)
     If res.Available Then
       For Each res
@@ -162,7 +168,6 @@ Public Function GetPatientChiefComplaintsReport(encid As String, sMulti As Boole
 
       Next
     Endif
-    xx.Add(modPatReports.GetPatientHistoryReport(encid, "General Complaints"))
 
   Endif
 
@@ -228,10 +233,10 @@ Public Function GetPatientHistoryAllTypes(encid As String) As String[]
   Dim xval As String[]
 
   xval = New String[]
-  compLst = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldcomp) as col from tblexamgeneral where fldencounterval=&1 and fldinput=&2", encid, "History"))
+  compLst = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldcomp) as col from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and flditem<>&3", encid, "History", "General Complaints"))
   For Each xcomp In compLst
     xval.Add("<b>" & xcomp & "</b>")
-    xList = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(flditem) as col from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and fldcomp=&3", encid, "History", xcomp))
+    xList = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(flditem) as col from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and flditem<>&3 and fldcomp=&4", encid, "History", "General Complaints", xcomp))
     If xList And If xList.Count Then
       For Each xtype In xList
         res = modDatabase.$myConn.Exec("select flddetail,fldreportquali,fldtime,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and flditem=&3 and fldcomp=&4 ORDER BY fldtime", encid, "History", xtype, xcomp)
@@ -896,7 +901,9 @@ Public Function GetRecommendedExam(encid As String, sType As String) As String
               aColl = New Collection
               aColl.Add(res1["fldhead"], CStr(0))
               If res1["fldtype"] = "Quantitative" Then
-                aColl.Add(CStr(res1["fldrepquanti"]) & Space(1) & modClinic.GetExamUnit(res1["fldhead"], encid), CStr(1))
+                If res1["fldrepquanti"] Then
+                  aColl.Add(CStr(res1["fldrepquanti"]) & Space(1) & modClinic.GetExamUnit(res1["fldhead"], encid), CStr(1))
+                Endif
               Else
                 xType = res1["fldoption"]
                 If xType = "Clinical Scale" Then
@@ -910,7 +917,9 @@ Public Function GetRecommendedExam(encid As String, sType As String) As String
                 Else
                   xquali = Trim(res1["fldrepquali"])
                 Endif
-                aColl.Add(xquali, CStr(1))
+                If xquali Then
+                  aColl.Add(xquali, CStr(1))
+                Endif
               Endif
 
               If modBasic.$ShowDayMedReport = "User" Then
@@ -929,7 +938,7 @@ Public Function GetRecommendedExam(encid As String, sType As String) As String
         Next
       Endif
 
-      xfull = xfull & "<br>"
+      xfull = xfull & gb.NewLine
     Next
 
   Else

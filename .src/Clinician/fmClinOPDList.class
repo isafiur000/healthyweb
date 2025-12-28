@@ -445,16 +445,32 @@ Private Function ExecuteQuery(xFldList As String[]) As Result
     Endif
 
   Else
-    If modBasic.$FixedDepartment Then
-      sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldstatus=&1 and " & $sTable & "." & "fldconsultname=&2" & xencid & xconsult & xpaid & xcolor & xstate & xforward & $RepoStr & xorder                                            ''
-      res = modDatabase.$myConn.Exec(sql, "Planned", modBasic.$FixedDepartment)
-    Else
-      If cmbdept.Text = "All" Then
-        sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldstatus=&1" & xencid & xconsult & xpaid & xcolor & xstate & xforward & $RepoStr & xorder                                              ''
+    If modBasic.$SQLDateRange = "Disable" Then
+      If modBasic.$FixedDepartment Then
+        sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldstatus=&1 and " & $sTable & "." & "fldconsultname=&2" & xencid & xconsult & xpaid & xcolor & xstate & xforward & $RepoStr & xorder                                            ''
+        res = modDatabase.$myConn.Exec(sql, "Planned", modBasic.$FixedDepartment)
       Else
-        sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldstatus=&1 and " & $sTable & "." & "fldconsultname=&2" & xencid & xconsult & xpaid & xcolor & xstate & xforward & $RepoStr & xorder
+        If cmbdept.Text = "All" Then
+          sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldstatus=&1" & xencid & xconsult & xpaid & xcolor & xstate & xforward & $RepoStr & xorder                                              ''
+        Else
+          sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldstatus=&1 and " & $sTable & "." & "fldconsultname=&2" & xencid & xconsult & xpaid & xcolor & xstate & xforward & $RepoStr & xorder
+        Endif
+        res = modDatabase.$myConn.Exec(sql, "Planned", cmbdept.Text)
       Endif
-      res = modDatabase.$myConn.Exec(sql, "Planned", cmbdept.Text)
+
+    Else
+      If modBasic.$FixedDepartment Then
+        sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & "  where " & $sTable & "." & "fldconsulttime>=&1 and " & $sTable & "." & "fldconsulttime<=&2 and " & $sTable & "." & "fldstatus=&3 and " & $sTable & "." & "fldconsultname=&4" & xencid & xconsult & xpaid & xcolor & xstate & xforward & $RepoStr & xorder                                           ''
+        res = modDatabase.$myConn.Exec(sql, modDate.StartSqlDate(DateAdd(dtsort.Value, gb.Day, 0 - 365)), modDate.EndSqlDate(dtsort.Value), "Planned", modBasic.$FixedDepartment)
+      Else
+        If cmbdept.Text = "All" Then
+          sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldconsulttime>=&1 and " & $sTable & "." & "fldconsulttime<=&2 and " & $sTable & "." & "fldstatus=&3" & xencid & xconsult & xpaid & xcolor & xstate & xforward & $RepoStr & xorder                                             ''
+        Else
+          sql = Subst("select &1 from " & xpreun & "&2", xFldList.Join(","), $sTable) & xunion & " where " & $sTable & "." & "fldconsulttime>=&1 and " & $sTable & "." & "fldconsulttime<=&2 and " & $sTable & "." & "fldstatus=&3 and " & $sTable & "." & "fldconsultname=&4" & xencid & xconsult & xpaid & xcolor & xstate & xforward & $RepoStr & xorder
+        Endif
+        res = modDatabase.$myConn.Exec(sql, modDate.StartSqlDate(DateAdd(dtsort.Value, gb.Day, 0 - 365)), modDate.EndSqlDate(dtsort.Value), "Planned", cmbdept.Text)
+      Endif
+
     Endif
   Endif
   Return res
@@ -980,21 +996,29 @@ End
 Public Sub btnIPform_Click()
 
   Dim hForm As FmPatCliNew
+  Dim hForm1 As FmNursingForm
   Dim xcomm As String
   Dim xval As String
 
   If GridView1.Selection.Count Then
     $rData.MoveTo(GridView1.Selection[0])
-    xcomm = GetConsultPrecomment($rData["fldid"])
-    If xcomm Then
-      xval = MessageHtml("Pre Comment", xcomm, ["Proceed"])
-    Endif
-    Me.Parent.DeleteChildren()
-    modGeneralMain.$FormOpenList.Add(["FmClinOPDList", $sTable])
-    If $sTable = "tblconsult" Then
-      hForm = New FmPatCliNew($rData["fldencounterval"], $rData["fldid"], "Consultation", fmOfficer.Workspace1)
-    Else If $sTable = "tblopvisit" Then
-      hForm = New FmPatCliNew($rData["fldencounterval"], $rData["fldid"], "OP Visit", fmOfficer.Workspace1)
+    If modGeneralMain.$HideFormList.Exist("Clinician Form") = True Then
+      Me.Parent.DeleteChildren()
+      modGeneralMain.$FormOpenList.Add(["FmNursingForm", $sTable])
+      hForm1 = New FmNursingForm($rData["fldencounterval"], fmOfficer.Workspace1)
+    Else
+
+      xcomm = GetConsultPrecomment($rData["fldid"])
+      If xcomm Then
+        xval = MessageHtml("Pre Comment", xcomm, ["Proceed"])
+      Endif
+      Me.Parent.DeleteChildren()
+      modGeneralMain.$FormOpenList.Add(["FmClinOPDList", $sTable])
+      If $sTable = "tblconsult" Then
+        hForm = New FmPatCliNew($rData["fldencounterval"], $rData["fldid"], "Consultation", fmOfficer.Workspace1)
+      Else If $sTable = "tblopvisit" Then
+        hForm = New FmPatCliNew($rData["fldencounterval"], $rData["fldid"], "OP Visit", fmOfficer.Workspace1)
+      Endif
     Endif
   Endif
 
@@ -1602,7 +1626,7 @@ Public Sub mnuessenexam_Click()
 
   If GridView1.Selection.Count Then
     $rData.MoveTo(GridView1.Selection[0])
-    xx = modString.GetListFromCompareVariant(modFixPatho.$ExaminationCompVar, "fldexamid", "fldcategory", "Essential Examinations", True)
+    xx = modString.GetListFromCompareVariant(modTableCache.$ExaminationCompVar, "fldexamid", "fldcategory", "Essential Examinations", True)
     yy = New String[]
     hForm = New FmMultiChart($rData["fldencounterval"], xx, yy, LabUnitForm())
     hForm.ShowModal
@@ -2563,27 +2587,40 @@ End
 
 Public Sub mnuexamform_Click()
 
-  Dim hForm As FmExamReporting
-
-  If GridView1.Selection.Count Then
-    $rData.MoveTo(GridView1.Selection[0])
-    Me.Parent.DeleteChildren()
-    modGeneralMain.$FormOpenList.Add(["FmExamReporting", $sTable])
-    hForm = New FmExamReporting($rData["fldencounterval"], fmOfficer.Workspace1)
-  Endif
+  ' Dim hForm As FmExamReporting
+  ' 
+  ' If GridView1.Selection.Count Then
+  '   $rData.MoveTo(GridView1.Selection[0])
+  '   Me.Parent.DeleteChildren()
+  '   modGeneralMain.$FormOpenList.Add(["FmExamReporting", $sTable])
+  '   hForm = New FmExamReporting($rData["fldencounterval"], fmOfficer.Workspace1)
+  ' Endif
 
 End
 
 Public Sub mnudelivform_Click()
 
-  Dim hForm As FmDeliveryNew
+  ' Dim hForm As FmDeliveryNew
+  ' 
+  ' If GridView1.Selection.Count Then
+  '   $rData.MoveTo(GridView1.Selection[0])
+  '   Me.Parent.DeleteChildren()
+  '   modGeneralMain.$FormOpenList.Add(["FmDeliveryNew", $sTable])
+  '   hForm = New FmDeliveryNew($rData["fldencounterval"], fmOfficer.Workspace1)
+  ' Endif
 
-  If GridView1.Selection.Count Then
-    $rData.MoveTo(GridView1.Selection[0])
-    Me.Parent.DeleteChildren()
-    modGeneralMain.$FormOpenList.Add(["FmDeliveryNew", $sTable])
-    hForm = New FmDeliveryNew($rData["fldencounterval"], fmOfficer.Workspace1)
-  Endif
+End
+
+Public Sub mnunursingform_Click()
+
+  ' Dim hForm As FmNursingForm
+  '
+  ' If GridView1.Selection.Count Then
+  '   $rData.MoveTo(GridView1.Selection[0])
+  '   Me.Parent.DeleteChildren()
+  '   modGeneralMain.$FormOpenList.Add(["FmNursingForm", $sTable])
+  '   hForm = New FmNursingForm($rData["fldencounterval"], fmOfficer.Workspace1)
+  ' Endif
 
 End
 

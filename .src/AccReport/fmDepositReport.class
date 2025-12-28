@@ -120,17 +120,26 @@ Private Function FillInvoiceGrid(xFldList As String[], sCon As Connection) As Re
 
   If cmblocation.Text = "%" Then
     If chkalldate.Value = True Then
-      res = sCon.Exec("select " & xFldList.Join(",") & " from tblencounter where fldadmission like &1 and flddisctype like &2" & $RepoStr, cmbstatus.Text, cmbdisctype.Text)
+      If modBasic.$SQLDateRange = "Disable" Then
+        res = sCon.Exec("select " & xFldList.Join(",") & " from tblencounter where fldadmission like &1 and flddisctype like &2" & $RepoStr, cmbstatus.Text, cmbdisctype.Text)
+      Else
+        res = sCon.Exec("select " & xFldList.Join(",") & " from tblencounter where " & xfld & ">=&1 and " & xfld & "<=&2 and fldadmission like &3 and flddisctype like &4" & $RepoStr, modDate.StartSqlDate(DateAdd(Now(), gb.Day, 0 - 365)), modDate.EndSqlDate(Now()), cmbstatus.Text, cmbdisctype.Text)
+      Endif
     Else
       res = sCon.Exec("select " & xFldList.Join(",") & " from tblencounter where " & xfld & ">=&1 and " & xfld & "<=&2 and fldadmission like &3 and flddisctype like &4" & $RepoStr, modDate.StartSqlDate(dtfir.value), modDate.EndSqlDate(dtlast.value), cmbstatus.Text, cmbdisctype.Text)                                              ''   ''
     Endif
   Else
     If chkalldate.Value = True Then
-      res = sCon.Exec("select " & xFldList.Join(",") & " from tblencounter where fldadmission like &1 and fldcurrlocat in(select fldbed from tbldepartmentbed where flddept like &2) and flddisctype like &3" & $RepoStr, cmbstatus.Text, cmblocation.Text, cmbdisctype.Text)
+      If modBasic.$SQLDateRange = "Disable" Then
+        res = sCon.Exec("select " & xFldList.Join(",") & " from tblencounter where fldadmission like &1 and fldcurrlocat in(select fldbed from tbldepartmentbed where flddept like &2) and flddisctype like &3" & $RepoStr, cmbstatus.Text, cmblocation.Text, cmbdisctype.Text)
+      Else
+        res = sCon.Exec("select " & xFldList.Join(",") & " from tblencounter where " & xfld & ">=&1 and " & xfld & "<=&2 and fldadmission like &3 and fldcurrlocat in(select fldbed from tbldepartmentbed where flddept like &4) and flddisctype like &5" & $RepoStr, modDate.StartSqlDate(DateAdd(Now(), gb.Day, 0 - 365)), modDate.EndSqlDate(Now()), cmbstatus.Text, cmblocation.Text, cmbdisctype.Text)
+      Endif
     Else
       res = sCon.Exec("select " & xFldList.Join(",") & " from tblencounter where " & xfld & ">=&1 and " & xfld & "<=&2 and fldadmission like &3 and fldcurrlocat in(select fldbed from tbldepartmentbed where flddept like &4) and flddisctype like &5" & $RepoStr, modDate.StartSqlDate(dtfir.value), modDate.EndSqlDate(dtlast.value), cmbstatus.Text, cmblocation.Text, cmbdisctype.Text)                                              ''   ''
     Endif
   Endif
+
   Return res
 
 End

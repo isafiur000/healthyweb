@@ -700,65 +700,6 @@ Public Function GetEventDuration(sID As Long) As Float
 End
 
 ''----------------------------------------- PROCEDURE ---------------------------------------------------------
-Public Function PatSelectProcedureString(encid As String, strType As String, sCondi As String) As String
-
-  Dim res As Result
-  Dim xx As String
-
-  xx = ""
-  res = modDatabase.$myConn.Exec("select fldid,fldencounterval,fldnewdate,flditem,flddetail,fldorduserid from tblpatgeneral where fldencounterval=&1 and fldinput=&2 and fldreportquali=&3", encid, strType, sCondi)
-  If res.Available = True Then
-    For Each res
-      If res["flditem"] And If res["flddetail"] Then
-        If modBasic.$ShowDayMedReport = "User" Then
-          xx = xx & "<p>" & "<b>" & res["flditem"] & "<b>"
-          xx = xx & modString.GetHTMLListFormat(modPatPatho.GetComponentProcedure(res["fldencounterval"], res["fldid"]))
-          xx = xx & "SUMMARY : " & "<br>" & res["flddetail"] & "<br>" & "[User: " & res["fldorduserid"] & "]"
-          xx = xx & "</p>"
-        Else If modBasic.$ShowDayMedReport = "Date+User" Then
-          xx = xx & "<p>" & "[" & modReportVar.GetDateTimeReport(res["fldnewdate"], gb.GeneralDate) & "] " & "<b>" & res["flditem"] & "<b>"
-          xx = xx & modString.GetHTMLListFormat(modPatPatho.GetComponentProcedure(res["fldencounterval"], res["fldid"]))
-          xx = xx & "SUMMARY : " & "<br>" & res["flddetail"] & "<br>" & "[User: " & res["fldorduserid"] & "]"
-          xx = xx & "</p>"
-        Else If modBasic.$ShowDayMedReport = "Date" Then
-          xx = xx & "<p>" & "[" & modReportVar.GetDateTimeReport(res["fldnewdate"], gb.GeneralDate) & "] " & "<b>" & res["flditem"] & "<b>"
-          xx = xx & modString.GetHTMLListFormat(modPatPatho.GetComponentProcedure(res["fldencounterval"], res["fldid"]))
-          xx = xx & "SUMMARY : " & "<br>" & res["flddetail"]
-          xx = xx & "</p>"
-        Else
-          xx = xx & "<p>" & "<b>" & res["flditem"] & "<b>"
-          xx = xx & modString.GetHTMLListFormat(modPatPatho.GetComponentProcedure(res["fldencounterval"], res["fldid"]))
-          xx = xx & "SUMMARY : " & "<br>" & res["flddetail"]
-          xx = xx & "</p>"
-        Endif
-      Else If res["flditem"] Then
-        If modBasic.$ShowDayMedReport = "User" Then
-          xx = xx & "<p>" & "<b>" & res["flditem"] & "<b>"
-          xx = xx & modString.GetHTMLListFormat(modPatPatho.GetComponentProcedure(res["fldencounterval"], res["fldid"]))
-          xx = xx & "[User: " & res["fldorduserid"] & "]"
-          xx = xx & "</p>"
-        Else If modBasic.$ShowDayMedReport = "Date+User" Then
-          xx = xx & "<p>" & "[" & modReportVar.GetDateTimeReport(res["fldnewdate"], gb.GeneralDate) & "] " & "<b>" & res["flditem"] & "<b>"
-          xx = xx & modString.GetHTMLListFormat(modPatPatho.GetComponentProcedure(res["fldencounterval"], res["fldid"]))
-          xx = xx & "[User: " & res["fldorduserid"] & "]"
-          xx = xx & "</p>"
-        Else If modBasic.$ShowDayMedReport = "Date" Then
-          xx = xx & "<p>" & "[" & modReportVar.GetDateTimeReport(res["fldnewdate"], gb.GeneralDate) & "] " & "<b>" & res["flditem"] & "<b>"
-          xx = xx & modString.GetHTMLListFormat(modPatPatho.GetComponentProcedure(res["fldencounterval"], res["fldid"]))
-          xx = xx & "</p>"
-        Else
-          xx = xx & "<p>" & "<b>" & res["flditem"] & "<b>"
-          xx = xx & modString.GetHTMLListFormat(modPatPatho.GetComponentProcedure(res["fldencounterval"], res["fldid"]))
-          xx = xx & "</p>"
-        Endif
-      Endif
-    Next
-  Endif
-
-  Return xx
-
-End
-
 Public Function GetComponentProcedure(encid As String, itemid As Long) As String[]
 
   Dim res As Result
@@ -787,69 +728,6 @@ Public Function GetDiscusPanels(encid As String, itemid As Long) As String[]
 
   res = modDatabase.$myConn.Exec("select fldreportquali from tblpatsubgeneral where flditemid=&1 and fldchapter=&2 and fldencounterval=&3", itemid, "Discussion Panel", encid)
   xx = modControlSub.GetDirectFillresult(res)
-
-  Return xx
-
-End
-
-Public Function GetProcedureItemValue(encid As String, itemid As Long, sType As String) As String
-
-  Dim res As Result
-  Dim xx As String
-
-  res = modDatabase.$myConn.Exec("select fldreportquali from tblpatsubgeneral where flditemid=&1 and fldchapter=&2 and fldencounterval=&3", itemid, sType, encid)
-  If res.Available Then
-    res.MoveLast
-    If res["fldreportquali"] Then
-      xx = res["fldreportquali"]
-    Else
-      xx = ""
-    Endif
-  Else
-    xx = ""
-  Endif
-  Return xx
-
-End
-
-Public Function GetUniProcedureDetail(encid As String, itemid As Long, sType As String) As String
-
-  Dim res As Result
-  Dim xx As String
-
-  res = modDatabase.$myConn.Exec("select fldreport from tblpatsubgeneral where flditemid=&1 and fldchapter=&2 and fldencounterval=&3", itemid, sType, encid)
-  If res.Available Then
-    res.MoveLast
-    If res["fldreport"] Then
-      xx = res["fldreport"]
-    Else
-      xx = ""
-    Endif
-  Else
-    xx = ""
-  Endif
-  Return xx
-
-End
-
-Public Function GetUserAllUniProcedure(encid As String, itemid As Long) As String
-
-  Dim xx As String
-  Dim res As Result
-  Dim xFinal As Variant[]
-  Dim sColl As Collection
-
-  xFinal = New Variant[]
-  res = modDatabase.$myConn.Exec("select fldusertype,fldvalue from tblpatgenshare where fldencounterval=&1 and fldcategory=&2 and flditemid in(select fldgroupid from tblpatgeneral where fldid=&3)", encid, "Procedures", itemid)
-  If res.Available Then
-    For Each res
-      sColl = New Collection
-      sColl.Add(res["fldusertype"], CStr(0))
-      sColl.Add(modGeneral.GetUserFullName(res["fldvalue"]), CStr(1))
-      xFinal.Add(sColl)
-    Next
-    xx = modString.GetRichTableNoHeadFromVariant(2, xFinal)
-  Endif
 
   Return xx
 

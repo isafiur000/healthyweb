@@ -322,6 +322,32 @@ Private Function AddExaminationsAll(encid As String, Optional sTitle As String) 
 
 End
 
+Private Function AddStructuredExamAll(encid As String, Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+  Dim xexams As String[]
+
+  Dim stChapter As String
+  Dim stObservation As String
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Structured Finding"
+  Endif
+
+  xexams = New String[]
+  xexams.Add("Physician Examinations" & gb.NewLine & modClinicReport.GetRecommendedExam(encid, "Physician Examinations"))
+  xexams.Add("Departmental" & gb.NewLine & modClinicReport.GetRecommendedExam(encid, "Departmental"))
+  xexams.Add("Diagnostic Examinations" & gb.NewLine & modClinicReport.GetRecommendedExam(encid, "Diagnostic Examinations"))
+
+  stObservation = modString.GetHTMLListFormat(xexams)
+  asx = AddCustomReport(stChapter, stObservation)
+
+  Return asx
+
+End
+
 ''---------------------- Attached: Services ------------------------------
 Private Function AddMajorProcedures(encid As String, Optional sTitle As String) As String[]
 
@@ -335,7 +361,7 @@ Private Function AddMajorProcedures(encid As String, Optional sTitle As String) 
   Else
     stChapter = "Major Procedures"
   Endif
-  stObservation = modPatPatho.PatSelectProcedureString(encid, "Procedures", "Done")
+  stObservation = modPatSurgery.PatSelectProcedureString(encid, "Procedures", "Done")
   asx = AddCustomReport(stChapter, stObservation)
   Return asx
 
@@ -586,6 +612,7 @@ Public Function ShowAllCompleteReport(encid As String, strUnit As String) As Str
 
   $BillingReport.AddSection("Investigations", True)
   $BillingReport.Add(AddExaminationsAll(encid))
+  $BillingReport.Add(AddStructuredExamAll(encid))
   $BillingReport.Add(modPatReports.AddSelectedTest(encid, modLabTest.PaientAllTestNameArray(encid), strUnit))
   $BillingReport.Add(modPatReports.AddSelectedRadio(encid, modRadioTest.PaientAllRadioNameArray(encid)))
 
@@ -678,6 +705,9 @@ Public Function ShowCompleteReport(encid As String, xList As String[], strUnit A
 
   If xList.Exist("Clinical Finding") Then
     $BillingReport.Add(AddExaminationsAll(encid))
+  Endif
+  If xList.Exist("Structured Finding") Then
+    $BillingReport.Add(AddStructuredExamAll(encid))
   Endif
   If xList.Exist("Laboratory Tests") Then
     $BillingReport.Add(modPatReports.AddSelectedTest(encid, modLabTest.PaientAllTestNameArray(encid), strUnit))
@@ -821,6 +851,9 @@ Public Function ShowAllEncounterReport(encounter As String, xList As String[], s
 
       If xitem = "Clinical Finding" Then
         $BillingReport.Add(AddExaminationsAll(encid))
+      Endif
+      If xList.Exist("Structured Finding") Then
+        $BillingReport.Add(AddStructuredExamAll(encid))
       Endif
       If xitem = "Laboratory Tests" Then
         $BillingReport.Add(modPatReports.AddSelectedTest(encid, modLabTest.PaientAllTestNameArray(encid), strUnit))

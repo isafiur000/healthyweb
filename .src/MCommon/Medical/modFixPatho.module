@@ -1,51 +1,8 @@
 ' Gambas module file
 
-Public $SymptomMasterVar As Variant[]
-Public $SymptomCompVar As Variant[]
-Public $ExaminationCompVar As Variant[]
-
 Public $TriageExamCol As String[]
 Public $TriageTestCol As String[]
 Public $TriageSympCol As String[]
-
-Public Sub LoadSymptomsMasterData(sCon As Connection)
-
-  Dim res As Result
-  Dim sColl As Collection
-
-  $SymptomMasterVar = New Variant[]
-  res = sCon.Exec("select fldsymptom,fldcategory,fldcode,fldsymdetail from tblsymptoms")     ''
-  If res.Available Then
-    For Each res
-      sColl = New Collection
-      sColl.Add(res["fldsymptom"], "fldsymptom")
-      sColl.Add(res["fldcategory"], "fldcategory")
-      sColl.Add(res["fldcode"], "fldcode")
-      sColl.Add(res["fldsymdetail"], "fldsymdetail")
-      $SymptomMasterVar.Add(sColl)
-    Next
-  Endif
-
-End
-
-Public Sub LoadSymptomsCompwiseData(sCon As Connection)
-
-  Dim res As Result
-  Dim sColl As Collection
-
-  $SymptomCompVar = New Variant[]
-  res = sCon.Exec("select fldsymptom,fldtype,fldflag from tblcomplaints where fldcomp=&1 or fldcomp=&2", modBasic.$compID, "%")     ''
-  If res.Available Then
-    For Each res
-      sColl = New Collection
-      sColl.Add(res["fldsymptom"], "fldsymptom")
-      sColl.Add(res["fldtype"], "fldtype")
-      sColl.Add(res["fldflag"], "fldflag")
-      $SymptomCompVar.Add(sColl)
-    Next
-  Endif
-
-End
 
 Public Function GetFlaggedSymptomGroup() As String[]
 
@@ -53,7 +10,7 @@ Public Function GetFlaggedSymptomGroup() As String[]
   Dim xList As String[]
 
   xList = New String[]
-  For Each aColl In $SymptomCompVar
+  For Each aColl In modTableCache.$SymptomCompVar
     If aColl["fldflag"] = True Then
       If xList.Exist(aColl["fldtype"] & "|" & aColl["fldsymptom"]) = False Then
         xList.Add(aColl["fldtype"] & "|" & aColl["fldsymptom"])
@@ -65,38 +22,13 @@ Public Function GetFlaggedSymptomGroup() As String[]
 
 End
 
-Public Sub LoadExamsCompwiseData(sCon As Connection)
-
-  Dim res As Result
-  Dim sColl As Collection
-
-  $ExaminationCompVar = New Variant[]
-  res = sCon.Exec("select fldcategory,fldexamid,fldsysconst,fldtype,fldtanswertype,fldoptionlist,fldgroupname,fldexamorder,fldflag from tblcompexam where fldcomp=&1 or fldcomp=&2 ORDER BY fldexamorder", modBasic.$compID, "%")     ''
-  If res.Available Then
-    For Each res
-      sColl = New Collection
-      sColl.Add(res["fldcategory"], "fldcategory")
-      sColl.Add(res["fldexamid"], "fldexamid")
-      sColl.Add(res["fldsysconst"], "fldsysconst")
-      sColl.Add(res["fldtype"], "fldtype")
-      sColl.Add(res["fldtanswertype"], "fldtanswertype")
-      sColl.Add(res["fldoptionlist"], "fldoptionlist")
-      sColl.Add(res["fldgroupname"], "fldgroupname")
-      sColl.Add(res["fldexamorder"], "fldexamorder")
-      sColl.Add(res["fldflag"], "fldflag")
-      $ExaminationCompVar.Add(sColl)
-    Next
-  Endif
-
-End
-
 Public Function GetEssentialExamVar() As Variant[]
 
   Dim sColl As Collection
   Dim aVar As Variant[]
 
   aVar = New Variant[]
-  For Each sColl In modFixPatho.$ExaminationCompVar
+  For Each sColl In modTableCache.$ExaminationCompVar
     If sColl["fldcategory"] = "Essential Examinations" Then
       aVar.Add(sColl)
     Endif

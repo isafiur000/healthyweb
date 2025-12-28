@@ -663,6 +663,7 @@ Private Sub BlankForEntry()
   txtotal.Value = 0
   txtlastsaledate.Text = ""
   txtlastsaledate.Foreground = Color.Default
+  btnaddcomment.Tag = ""
 
 End
 
@@ -4117,6 +4118,7 @@ Public Sub btngroup_Click()
   Dim itemmode As String
   Dim xnarcotic As String[]
   Dim CPharmFix As CFixRatePharmacy
+  Dim xgo As Boolean
 
   sType = $sTatus
   dispmode = "OPD"
@@ -4135,28 +4137,40 @@ Public Sub btngroup_Click()
           xfixrate = CPharmFix.GetFixRate()
           xfixname = CPharmFix.GetFixItem()
 
-          itemmode = cmbmode.Text
-          xtax = modNonMedical.ShowTaxValues(itemtype, res["flditem"])
-          discval = modNonMedical.DiscPercentForCategoryValue(Trim(txtencid.Text), cmbdisctype.Text, itemtype, res["flditem"], itemmode)
-          If res["fldroute"] = "suture" Or If res["fldroute"] = "msurg" Or If res["fldroute"] = "ortho" Then
-            modPharmSub.InsertNonMedDosingEntry("Surgicals", Trim(txtencid.Text), hPatient.GetCashCreditMode(), cmbmode.Text, cmbdisctype.Text, cmbledgerac.Text, res["fldroute"], res["flditem"], res["fldqty"], sType, res["fldstart"], xtax, discval, xfixname, xfixrate, "UseOwn", dispmode, res["fldadvice"], False)
-          Else If res["fldroute"] = "extra" Then
-            modPharmSub.InsertNonMedDosingEntry("Extra Items", Trim(txtencid.Text), hPatient.GetCashCreditMode(), cmbmode.Text, cmbdisctype.Text, cmbledgerac.Text, res["fldroute"], res["flditem"], res["fldqty"], sType, res["fldstart"], xtax, discval, xfixname, xfixrate, "UseOwn", dispmode, res["fldadvice"], False)
-          Else
-            xdose = modMedDosing.GetDoseInMg(res["flddose"], res["flddoseunit"], Trim(txtencid.Text))
-            If modMedConstant.GetNarcoticType(res["flditem"]) = "Yes" Then
-              If Not txpresno Then
-                xnarcotic = DualGridValue(("Select Narcotic Prescriber"), $ClinicianLst, False)
-                If xnarcotic Then
-                  txprescriber = xnarcotic[1]
-                  txpresno = xnarcotic[0]
-                Endif
-              Endif
-              If txprescriber And If txpresno Then
-                modPharmSub.InsertDosingEntry(Trim(txtencid.Text), hPatient.GetCashCreditMode(), cmbmode.Text, cmbdisctype.Text, cmbledgerac.Text, res["fldroute"], res["flditem"], xdose, res["fldfreq"], res["fldday"], res["fldqty"], sType, txprescriber, txpresno, res["fldstart"], xtax, discval, xfixname, xfixrate, "UseOwn", dispmode, res["fldadvice"], False)
-              Endif
+          xgo = False
+          If modBasic.$BillPharmFixedModes.Exist(cmbmode.Text) = True Then
+            If xfixname Then
+              xgo = True
             Else
-              modPharmSub.InsertDosingEntry(Trim(txtencid.Text), hPatient.GetCashCreditMode(), cmbmode.Text, cmbdisctype.Text, cmbledgerac.Text, res["fldroute"], res["flditem"], xdose, res["fldfreq"], res["fldday"], res["fldqty"], sType, "", "", res["fldstart"], xtax, discval, xfixname, xfixrate, "UseOwn", dispmode, res["fldadvice"], False)
+              xgo = False
+            Endif
+          Else
+            xgo = True
+          Endif
+          If xgo = True Then
+            itemmode = cmbmode.Text
+            xtax = modNonMedical.ShowTaxValues(itemtype, res["flditem"])
+            discval = modNonMedical.DiscPercentForCategoryValue(Trim(txtencid.Text), cmbdisctype.Text, itemtype, res["flditem"], itemmode)
+            If res["fldroute"] = "suture" Or If res["fldroute"] = "msurg" Or If res["fldroute"] = "ortho" Then
+              modPharmSub.InsertNonMedDosingEntry("Surgicals", Trim(txtencid.Text), hPatient.GetCashCreditMode(), cmbmode.Text, cmbdisctype.Text, cmbledgerac.Text, res["fldroute"], res["flditem"], res["fldqty"], sType, res["fldstart"], xtax, discval, xfixname, xfixrate, "UseOwn", dispmode, res["fldadvice"], False)
+            Else If res["fldroute"] = "extra" Then
+              modPharmSub.InsertNonMedDosingEntry("Extra Items", Trim(txtencid.Text), hPatient.GetCashCreditMode(), cmbmode.Text, cmbdisctype.Text, cmbledgerac.Text, res["fldroute"], res["flditem"], res["fldqty"], sType, res["fldstart"], xtax, discval, xfixname, xfixrate, "UseOwn", dispmode, res["fldadvice"], False)
+            Else
+              xdose = modMedDosing.GetDoseInMg(res["flddose"], res["flddoseunit"], Trim(txtencid.Text))
+              If modMedConstant.GetNarcoticType(res["flditem"]) = "Yes" Then
+                If Not txpresno Then
+                  xnarcotic = DualGridValue(("Select Narcotic Prescriber"), $ClinicianLst, False)
+                  If xnarcotic Then
+                    txprescriber = xnarcotic[1]
+                    txpresno = xnarcotic[0]
+                  Endif
+                Endif
+                If txprescriber And If txpresno Then
+                  modPharmSub.InsertDosingEntry(Trim(txtencid.Text), hPatient.GetCashCreditMode(), cmbmode.Text, cmbdisctype.Text, cmbledgerac.Text, res["fldroute"], res["flditem"], xdose, res["fldfreq"], res["fldday"], res["fldqty"], sType, txprescriber, txpresno, res["fldstart"], xtax, discval, xfixname, xfixrate, "UseOwn", dispmode, res["fldadvice"], False)
+                Endif
+              Else
+                modPharmSub.InsertDosingEntry(Trim(txtencid.Text), hPatient.GetCashCreditMode(), cmbmode.Text, cmbdisctype.Text, cmbledgerac.Text, res["fldroute"], res["flditem"], xdose, res["fldfreq"], res["fldday"], res["fldqty"], sType, "", "", res["fldstart"], xtax, discval, xfixname, xfixrate, "UseOwn", dispmode, res["fldadvice"], False)
+              Endif
             Endif
           Endif
 
@@ -5109,6 +5123,54 @@ Public Sub btnaddicd_Click()
 
 End
 
+Public Sub btnaddicdold_Click()
+
+  Dim res As Result
+  Dim xxx As String[]
+  Dim sName As String[]
+
+  If btndiuser.Tag Then
+    res = modDatabase.$myConn.Exec("select fldcode,fldcodenew from tblpatfindings where fldencounterval=&1 and (fldtype=&2 or fldtype=&3) and fldsave=&4", $lstEncid, "Provisional Diagnosis", "Final Diagnosis", True)
+    If res.Available Then
+      xxx = New String[]
+      For Each res
+        If res["fldcodenew"] = "Other" Then
+        Else
+          xxx.Add(res["fldcode"] & "|" & res["fldcodenew"])
+        Endif
+      Next
+
+      sName = DualGridValue("Select Past Diagnosis", xxx, True)
+      If sName Then
+        txtsearch.Text = sName[1]
+        txtcode.Text = sName[0]
+        If txtsearch.Text And If txtcode.Text Then
+          If btndiuser.Tag Then
+            modPatientGeneral.AddPatientFindings("Provisional Diagnosis", Trim(txtencid.Text), txtsearch.Text, txtcode.Text, txtcodeold.Text, btndiuser.Tag)
+          Else
+            modPatientGeneral.AddPatientFindings("Provisional Diagnosis", Trim(txtencid.Text), txtsearch.Text, txtcode.Text, txtcodeold.Text)
+          Endif
+          If txtreference.Tag = "Consultation" Or If txtreference.Tag = "Patient Ward" Then
+            GetHImedicineCappingVar()
+          Endif
+          Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+          cmbtype.SetFocus
+        Endif
+      Endif
+
+    Endif
+  Else
+    Message.Warning("No Consultant selected", "OK")
+  Endif
+
+End
+
+Public Sub btnaddcomment_Click()
+
+  btnaddcomment.Tag = InputBox("Add Comment", txtencid.Text, btnaddcomment.Tag)
+
+End
+
 Public Sub txtsearch_Activate()
 
   btnaddicd_Click()
@@ -5357,7 +5419,7 @@ Private Sub AutoClaimIMIS(sPackage As String, TypeList As String[])
           Next
 
           If ySNo.Count Then
-            hForm1 = New CimisAPIClaim($xNHISCode, Trim(txtencid.Text), txtreference.Text, True)
+            hForm1 = New CimisAPIClaim($xNHISCode, Trim(txtencid.Text), txtreference.Text, True, btnaddcomment.Tag)
             hForm1.AddBilling(ySNo)
             xout1 = hForm1.UploadClaim()
             xmsg1 = modClaimAPI.GetClaimOutRecording(ySNo, xout1, "tblpatbilling")
