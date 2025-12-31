@@ -1,0 +1,147 @@
+' Gambas module file
+
+Public Function GetClinicalChartsList(encid As String) As String[]
+
+  Dim sql As String
+  Dim res As Result
+  Dim xgender As String
+  Dim agegroup As String
+  Dim xlist As String[]
+
+  xlist = New String[]
+  xgender = modPatient.GetPatientSex(encid)
+  agegroup = modPatient.GetAgeGroupFIxed(encid, Now())
+  sql = "select fldid,fldtitle from tblclinchart where (fldcomp=&1 or fldcomp=&2) and (fldptsex=&3 or fldptsex=&4) and (fldagegroup=&5 or fldagegroup=&6)"                  ''
+  res = modDatabase.$myConn.Exec(sql, modBasic.$compID, "%", xgender, "Both Sex", agegroup, "All Age")
+  If res.Available Then
+    For Each res
+      xlist.Add(res["fldtitle"] & "|" & CStr(res["fldid"]))
+    Next
+  Endif
+
+  Return xlist
+
+End
+
+Public Sub LoadRuleChart(encid As String, sIndex As Long, sTitle As String)
+
+  Dim res As Result
+  Dim xpatno As String
+  Dim xdata As String
+  Dim xmin As Float
+  Dim xmax As Float
+  Dim xitem As String
+  Dim yitem As String
+
+  Dim rsx As Result
+  Dim rsy As Result
+  Dim xdob As Date
+  Dim xColl As Collection
+  Dim ycoll As Collection
+  Dim xkey As String
+
+  Dim xfinal As Variant[]
+  Dim xval As Float
+  Dim yval As Float
+
+  Dim xtitle As String[]
+  ' Dim hForm As FmClinChartPlot
+
+  xfinal = New Variant[]
+  res = modDatabase.$myConn.Exec("select fldxtype,fldxvalue,fldytype,fldyvalue,fldformula,fldminimum,fldmaximum from tblclinchart where fldid=&1 and fldtitle=&2", sIndex, sTitle)
+  If res.Available Then
+    xdata = res["fldformula"]
+    If xdata Then
+      xpatno = modPatient.GetPatientNoByEnc(encid)
+      xmin = res["fldminimum"]
+      xmax = res["fldmaximum"]
+
+      ''get x-variable
+      If res["fldxtype"] = "Date" Then
+      Else
+        xColl = New Collection
+        Select res["fldxtype"]
+          Case "Exam"
+            xitem = modFixClinic.GetExamIDFromSysConst(res["fldxvalue"])
+            If xitem Then
+              rsx = modDatabase.$myConn.Exec("select tblpatientexam.fldtime as fldtime,tblpatientexam.fldrepquanti as fldrepquanti from tblpatientexam inner join tblencounter on tblpatientexam.fldencounterval=tblencounter.fldencounterval where tblencounter.fldpatientval=&1 and tblpatientexam.fldhead=&2 and tblpatientexam.fldsave=&3", xpatno, xitem, True)
+            Endif
+          Case "Test"
+            xitem = modFixLab.GetLabTestIDFromSysConst(res["fldxvalue"])
+            If xitem Then
+              rsx = modDatabase.$myConn.Exec("select tblpatlabtest.fldtime_sample as fldtime,tblpatlabtest.fldreportquanti as fldrepquanti from tblpatlabtest inner join tblencounter on tblpatlabtest.fldencounterval=tblencounter.fldencounterval where tblencounter.fldpatientval=&1 and fldtestid=&2 and fldsave_report=&3", xpatno, xitem, True)
+            Endif
+        End Select
+
+        If rsx.Available Then
+          For Each rsx
+            xColl.Add(rsx["fldrepquanti"], modReportVar.GetDateTimeReport(rsx["fldtime"], gb.MediumDate))
+          Next
+        Endif
+      Endif
+
+      ''get y-variable
+      If res["fldxtype"] = "Date" Then
+        xdob = modPatient.GetPatientBirthDay(encid)
+        Select res["fldytype"]
+          Case "Exam"
+            yitem = modFixClinic.GetExamIDFromSysConst(res["fldyvalue"])
+            If yitem Then
+              rsy = modDatabase.$myConn.Exec("select tblpatientexam.fldtime as fldtime,tblpatientexam.fldrepquanti as fldrepquanti from tblpatientexam inner join tblencounter on tblpatientexam.fldencounterval=tblencounter.fldencounterval where tblencounter.fldpatientval=&1 and tblpatientexam.fldhead=&2 and tblpatientexam.fldsave=&3", xpatno, yitem, True)                   ''
+            Endif
+          Case "Test"
+            yitem = modFixLab.GetLabTestIDFromSysConst(res["fldyvalue"])
+            If yitem Then
+              rsy = modDatabase.$myConn.Exec("select tblpatlabtest.fldtime_sample as fldtime,tblpatlabtest.fldreportquanti as fldrepquanti from tblpatlabtest inner join tblencounter on tblpatlabtest.fldencounterval=tblencounter.fldencounterval where tblencounter.fldpatientval=&1 and fldtestid=&2 and fldsave_report=&3", xpatno, yitem, True)
+            Endif
+        End Select
+        If rsy.Available Then
+          For Each rsy
+            xval = DateDiff(xdob, rsy["fldtime"], gb.Day)
+            yval = rsy["fldrepquanti"]
+            xfinal.Add([xval, yval])
+          Next
+        Endif
+
+      Else
+        ycoll = New Collection
+        Select res["fldytype"]
+          Case "Exam"
+            yitem = modFixClinic.GetExamIDFromSysConst(res["fldyvalue"])
+            If yitem Then
+              rsy = modDatabase.$myConn.Exec("select tblpatientexam.fldtime as fldtime,tblpatientexam.fldrepquanti as fldrepquanti from tblpatientexam inner join tblencounter on tblpatientexam.fldencounterval=tblencounter.fldencounterval where tblencounter.fldpatientval=&1 and tblpatientexam.fldhead=&2 and tblpatientexam.fldsave=&3", xpatno, yitem, True)                   ''
+            Endif
+          Case "Test"
+            yitem = modFixLab.GetLabTestIDFromSysConst(res["fldyvalue"])
+            If yitem Then
+              rsy = modDatabase.$myConn.Exec("select tblpatlabtest.fldtime_sample as fldtime,tblpatlabtest.fldreportquanti as fldrepquanti from tblpatlabtest inner join tblencounter on tblpatlabtest.fldencounterval=tblencounter.fldencounterval where tblencounter.fldpatientval=&1 and fldtestid=&2 and fldsave_report=&3", xpatno, yitem, True)
+            Endif
+        End Select
+        If rsy.Available Then
+          For Each rsy
+            ycoll.Add(rsy["fldrepquanti"], modReportVar.GetDateTimeReport(rsy["fldtime"], gb.MediumDate))
+          Next
+        Endif
+
+        For Each xkey In xColl.Keys
+          If ycoll[xkey] Then
+            xval = xColl[xkey]
+            yval = ycoll[xkey]
+            xfinal.Add([xval, yval])
+          Endif
+        Next
+      Endif
+
+      ''open form
+      If res["fldxtype"] = "Date" Then
+        xtitle = ["Age", res["fldyvalue"]]
+      Else
+        xtitle = [res["fldxvalue"], res["fldyvalue"]]
+      Endif
+      ' hForm = New FmClinChartPlot(encid, xtitle, xdata, xfinal)
+      ' modAppSupport.FindWorSpace(modHelpVariable.$LogInCategory).Add(hForm)
+
+    Endif
+  Endif
+
+End

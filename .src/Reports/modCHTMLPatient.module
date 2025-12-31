@@ -1461,7 +1461,7 @@ Public Function ShowPatientLaboratoryReport(encid As String, unt As String) As S
 
 End
 
-Public Function ShowPatientLaboratoryImage(fldid As Long, encid As String) As String
+Public Function ShowPatientDiagnosticImage(sType As String, fldid As Long, encid As String) As String
 
   Dim $BillingReport As CReportHTML
   Dim res As Result
@@ -1469,12 +1469,18 @@ Public Function ShowPatientLaboratoryImage(fldid As Long, encid As String) As St
   Dim tempFile As String
   Dim hFile As Blob
   Dim aFile As String
+  Dim Row As Integer
 
-  $BillingReport = New CReportHTML([("Time"), ("Particulars"), ("Description"), ("Image")], "PatientReport", encid)
+  $BillingReport = New CReportHTML([("SNO"), ("Description"), ("Image")], "PatientReport", encid)
   $BillingReport.UserData.Add("REPORT", "Report")
-  $BillingReport.UserData.Add(modLabTest.GetTestnameFromTestID(fldid), "PARAM1")
+  If sType = "Laboratory" Then
+    $BillingReport.UserData.Add(modLabTest.GetTestnameFromTestID(fldid), "PARAM1")
+  Else
+    $BillingReport.UserData.Add("", "PARAM1")
+  Endif
 
-  res = modDatabase.$syConn.Exec("select fldtime,fldpic,fldtitle,flddetail,fldlink from tblpatserialimage where fldtestid=&1 and fldencounterval=&2 and fldcateg=&3 and fldmode=&4", fldid, encid, "IMAGE", "Laboratory")
+  Row = 1
+  res = modDatabase.$syConn.Exec("select fldtime,fldpic,fldtitle,flddetail,fldlink from tblpatserialimage where fldtestid=&1 and fldencounterval=&2 and fldcateg=&3 and fldmode=&4", fldid, encid, "IMAGE", sType)
   If res.Available Then
     For Each res
       tempFile = Temp() & ".jpg"
@@ -1491,9 +1497,8 @@ Public Function ShowPatientLaboratoryImage(fldid As Long, encid As String) As St
       Endif
 
       With asx
-        .Add(modReportVar.GetDateTimeReport(res["fldtime"], gb.GeneralDate))
-        .Add(res["fldtitle"])
-        .Add(res["flddetail"])
+        .Add(CStr(Row))
+        .Add(modString.TextToHTML(res["fldtitle"] & gb.NewLine & res["flddetail"] & "[" & modReportVar.GetDateTimeReport(res["fldtime"], gb.GeneralDate) & "]"))
         .Add(modString.GetImageForHTML(tempFile))
       End With
       $BillingReport.Add(asx)

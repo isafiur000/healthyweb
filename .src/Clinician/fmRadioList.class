@@ -42,10 +42,7 @@ Public Sub _new(encid As String, DiscType As String)
   txtgender.Text = modPatient.GetPatientAgeString($encid, Now()) & "/" & modPatient.GetPatientSex($encid)
   $PatientNum = modPatient.GetPatientNoByEnc($encid)
   $xNHISCode = modPatient.GetPatientExtCOdebyEnc($encid)
-  $BillMode = modNonMedical.GetDiscBindBillMode($sPackage)
-  If Not $BillMode Then
-    $BillMode = modpatient.GetPatBillingMode($encid)
-  Endif
+  SetSchemeParam($sPackage)
 
   $doa = modPatient.GetRecordDate($encid)
   $bedLocation = modPatient.GetPatientLocation($encid)
@@ -107,14 +104,48 @@ End
 Public Sub btnscheme_Click()
 
   If cmbdisctype.Text Then
-    $BillMode = modNonMedical.GetDiscBindBillMode(cmbdisctype.Text)
-    If Not $BillMode Then
-      $BillMode = modpatient.GetPatBillingMode($encid)
-    Endif
+    SetSchemeParam(cmbdisctype.Text)
+
     If $TestList And If $TestList.Count Then
       $TestList.Clear()
     Endif
     TabPanel1.Index = 0
+  Endif
+
+End
+
+Private Sub SetSchemeParam(DiscType As String)
+
+  Dim resx As Result
+  Dim xbilltype As String
+
+  If DiscType Then
+    resx = modDatabase.$myConn.Exec("select fldmode,fldbillingmode,fldacledger,fldbilltype,fldreference,fldlimit,fldlockstate from tbldiscount where fldtype=&1", DiscType)
+    If resx.Available Then
+
+      ''billingmode
+      If resx["fldbillingmode"] Then
+        $BillMode = resx["fldbillingmode"]
+      Endif
+      If Not $BillMode Then
+        $BillMode = modpatient.GetPatBillingMode($encid)
+      Endif
+
+      ''BillType
+      xbilltype = resx["fldbilltype"]
+      If xbilltype
+        If modBasic.$ClinForceRadioTree = "Both" Then
+          btnselect.Enabled = False
+        Else If modBasic.$ClinForceRadioTree = xbilltype Then
+          btnselect.Enabled = False
+        Else If modBasic.$ClinForceRadioTree = "RefOnly" Then
+          If resx["fldreference"] Then
+            btnselect.Enabled = False
+          Endif
+        Endif
+      Endif
+
+    Endif
   Endif
 
 End

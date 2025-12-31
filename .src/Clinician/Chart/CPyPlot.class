@@ -1,0 +1,64 @@
+' Gambas class file
+
+Private $xArr As String[]
+Private $xLabel As String
+Private $yLabel As String
+Private $sTemp As String
+Private $sPath As String
+
+Public Sub _new(xLabel As String, yLabel As String)
+
+  $xLabel = xLabel
+  $yLabel = yLabel
+  $xArr = New String[]
+  $xArr.Add("import matplotlib.pyplot as plt")
+
+  $sTemp = Temp() & ".png"
+  $sPath = Temp() & ".py"
+
+End
+
+Public Sub AddDataSet(xJSON As String)
+
+  Dim xx As String
+
+  xx = "data = " & xJSON
+  $xArr.Add(xx)
+
+  ''Extract x and y values
+  $xArr.Add("x_vals = [pt[\"x\"] for pt in data]")
+  $xArr.Add("y_vals = [pt[\"y\"] for pt in data]")
+
+  ''Create the plot
+  $xArr.Add("plt.figure(figsize=(8, 6))")
+  $xArr.Add("plt.plot(x_vals, y_vals, marker='o', linestyle='-', color='blue', label='Data')")
+  $xArr.Add("plt.grid(True, which='both', linestyle='--', linewidth=0.5)")
+
+End
+
+Public Sub AddDataPoints(x As Float, y As Float)
+
+  $xArr.Add(Subst("plt.scatter(&1, &2, color='red', zorder=5)", x, y))
+
+End
+
+Public Sub CreateChart()
+
+  $xArr.Add(Subst("plt.xlabel('&1')", $xLabel))
+  $xArr.Add(Subst("plt.ylabel('&1')", $yLabel))
+  $xArr.Add(Subst("plt.savefig(&1)", Quote($sTemp)))
+
+  File.Save($sPath, $xArr.Join(gb.NewLine))
+  If System.Exist("python3") Then
+    Exec ["python3", $sPath] Wait
+  Else
+    modApplSub.InstallSelectedApplication(["python3"])
+  Endif
+
+End
+
+Public Function GetChartFile() As String
+
+  Return $sTemp
+
+End

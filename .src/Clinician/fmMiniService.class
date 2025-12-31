@@ -382,13 +382,19 @@ End
 
 Public Sub btnaddone_Click()
 
+  Dim xList As String[]
   Dim Row As Integer
 
   If GridView3.Selection.Count Then
     If modMisc.AllowDiagnoBilling($encid) = True Then
       For Row = 0 To GridView3.Count - 1
         If GridView3.IsSelected(Row) = True Then
-          InsertClinicService($GridVar[Row][CStr(2)], $GridVar[Row][CStr(0)], 1)
+
+          xList = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(flditemname) as col from tblpatbilling where fldencounterval=&1 and flditemname in(select flditemname as col from tblservicecost where flditemtype=&2 and (fldtarget=&3 or fldtarget=&4))", $encid, "Procedures", "Major", "Intermediate"))
+          If modMisc.GetDuplicationAllow(xList, $GridVar[Row][CStr(0)]) = True Then
+            InsertClinicService($GridVar[Row][CStr(2)], $GridVar[Row][CStr(0)], 1)
+          Endif
+
         Endif
       Next
       GridView3.UnselectAll()
