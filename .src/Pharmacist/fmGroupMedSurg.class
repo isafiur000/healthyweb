@@ -39,7 +39,7 @@ Private Sub FillDosingGrid()
 
   Dim sql As String
 
-  sql = "select fldid,fldroute,flditem,flddose,flddoseunit,fldfreq,fldday,fldqty,fldstart,fldadvice from tblproductgroup where fldmedgroup=&1 and fldcomp=&2 ORDER BY fldid DESC"
+  sql = "select fldid,fldroute,flditem,flddose,flddoseunit,fldfreq,fldday,fldqty,fldstart,fldadvice,flddoseday from tblproductgroup where fldmedgroup=&1 and fldcomp=&2 ORDER BY fldid DESC"
   $rData = modDatabase.$myConn.Exec(sql, cmbgroup.Text, cmbtarget.Text)
   $aMyFields = New String[]
   modGridView.ReadSmallData(GridView1, $rData, $aMyFields)
@@ -55,6 +55,7 @@ Private Sub FillDosingGrid()
     .Columns[7].Width = CStr(50 * modBasic.$AppWidthRatio) & "px"
     .Columns[8].Width = CStr(50 * modBasic.$AppWidthRatio) & "px"
     .Columns[9].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+    .Columns[10].Width = CStr(50 * modBasic.$AppWidthRatio) & "px"
 
     .Columns[1].Text = "Route"
     .Columns[2].Text = "Particulars"
@@ -65,6 +66,7 @@ Private Sub FillDosingGrid()
     .Columns[7].Text = "QTY"
     .Columns[8].Text = "Start"
     .Columns[9].Text = "Advice"
+    .Columns[10].Text = "Date"
   End With
 
 End
@@ -90,6 +92,9 @@ Public Sub GridView1_Select()
     txtqty.Value = $rData["fldqty"]
     txtstart.Value = $rData["fldstart"]
     txtadvice.Text = $rData["fldadvice"]
+    If $rData["flddoseday"] Then
+      txtdoseday.Value = $rData["flddoseday"]
+    Endif
   Endif
 
 End
@@ -103,34 +108,6 @@ Public Sub tbtngroup_Click()
   cmbgroup.List = MedGroupList()
 
 End
-
-' ' Public Sub cmbgroup_KeyRelease()
-' '
-' '   modFillContainer.AutoFillComboBox(cmbgroup)
-' '   modFillContainer.RestrictComboToContent(cmbgroup)
-' '
-' ' End
-' '
-' ' Public Sub cmbroute_KeyRelease()
-' '
-' '   modFillContainer.AutoFillComboBox(cmbroute)
-' '   modFillContainer.RestrictComboToContent(cmbroute)
-' '
-' ' End
-' '
-' ' Public Sub cmbdoseunit_KeyRelease()
-' '
-' '   modFillContainer.AutoFillComboBox(cmbdoseunit)
-' '   modFillContainer.RestrictComboToContent(cmbdoseunit)
-' '
-' ' End
-' '
-' ' Public Sub cmbfreq_KeyRelease()
-' '
-' '   modFillContainer.AutoFillComboBox(cmbfreq)
-' '   modFillContainer.RestrictComboToContent(cmbfreq)
-' '
-' ' End
 
 Private Function MedGroupList() As String[]
 
@@ -169,6 +146,7 @@ Public Sub tbtnadd_Click()
       res = modDatabase.$myConn.Create("tblproductgroup")
       res["fldmedgroup"] = cmbgroup.Text
       res["fldcomp"] = cmbtarget.Text
+      res["flddoseday"] = txtdoseday.Value
       res["fldroute"] = cmbroute.Text
       res["flditem"] = cmbmedicine.Text
       res["flddose"] = txtdose.Value
@@ -207,6 +185,7 @@ Private Sub ClearAllContr()
   txtqty.Value = 0
   txtstart.Value = 0
   txtadvice.Text = ""
+  txtdoseday.Value = 0
 
 End
 
@@ -239,6 +218,7 @@ Public Sub btnedit_Click()
   If GridView1.Selection.Count Then
     $rData.MoveTo(GridView1.Selection[0])
     res = modDatabase.$myConn.Edit("tblproductgroup", "fldid=&1", $rData["fldid"])
+    res["flddoseday"] = txtdoseday.Value
     res["fldroute"] = cmbroute.Text
     res["flditem"] = cmbmedicine.Text
     res["flddose"] = txtdose.Value

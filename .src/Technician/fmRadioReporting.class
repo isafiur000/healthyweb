@@ -1500,6 +1500,8 @@ Private Sub FillSamplingEncounters()
   Endif
   If rbpending.Value = True Then
     $rData2 = modDatabase.$myConn.Exec(sql, "Sampled", False, modBasic.$compID, modDate.StartSqlDate(dtsort.value), modDate.EndSqlDate(DateAdd(dtsort.Value, gb.Day, txtrangerepo.Value)), cmbcategory.Text, cmbrepocounter.Text & "%", LCase(Trim(txtsearch.Text)))
+  Else If rbscanned.Value = True Then
+    $rData2 = modDatabase.$myConn.Exec(sql, "Scanned", False, modBasic.$compID, modDate.StartSqlDate(dtsort.value), modDate.EndSqlDate(DateAdd(dtsort.Value, gb.Day, txtrangerepo.Value)), cmbcategory.Text, cmbrepocounter.Text & "%", LCase(Trim(txtsearch.Text)))
   Else If rbreported.Value = True Then
     $rData2 = modDatabase.$myConn.Exec(sql, "Reported", True, modBasic.$compID, modDate.StartSqlDate(dtsort.value), modDate.EndSqlDate(DateAdd(dtsort.Value, gb.Day, txtrangerepo.Value)), cmbcategory.Text, cmbrepocounter.Text & "%", LCase(Trim(txtsearch.Text)))
   Endif
@@ -1610,6 +1612,24 @@ Private Sub ShowGridMain()
 
 End
 
+Public Sub btnscan_Click()
+
+  Dim res As Result
+
+  If GridView2.Selection.Count Then
+    $rData2.MoveTo(GridView2.Selection[0])
+    res = modDatabase.$myConn.Edit("tblpatradiotest", "fldid=&1 and fldsave_report=&2", $rData2["fldid"], False)
+    If res.Available Then
+      res["fldstatus"] = "Scanned"
+      res["flduserid_scan"] = modBasic.$lbluser
+      res["fldtime_scan"] = Now()
+      res.Update
+      FillSamplingEncounters()
+    Endif
+  Endif
+
+End
+
 Public Sub mnucounter_Click()
 
   Dim res As Result
@@ -1705,6 +1725,7 @@ Private Sub BasicInfoPatient()
   If Not $BillMode Then
     $billMode = modPatient.GetPatBillingMode($encid)
   Endif
+  lsticdisease.List = modPathoSub.GetSelectedDiagnosisList("Provisional Diagnosis", $encid)
   modAppSupport.RecordPatientActivity("Patient Data", Me.Name, "EncounterID", $encid)
 
   btnshow.Enabled = False
@@ -1757,10 +1778,10 @@ Private Sub ShowSampled(encid As String)
 
   If chkall.Value = False Then
     sql = "select fldid,fldchk,fldtestid,fldreportquali,flvisible,fldsampletype,fldreportquanti,fldtest_type,fldmethod,fldcondition,fldcomment,fldtime_report,fldencounterval,fldstatus,fldabnormal,fldpacstudy,fldgroupid,fldsampleid,fldreportquali,fldbillno,fldnewdate,fldbcounter from tblpatradiotest where (fldstatus=&1 or fldstatus=&2) and fldencounterval=&3 and fldcomp_report=&4" & xcateg
-    $rData = modDatabase.$myConn.Exec(sql, "Ordered", "Sampled", encid, modBasic.$compID)
+    $rData = modDatabase.$myConn.Exec(sql, "Scanned", "Sampled", encid, modBasic.$compID)
   Else
     sql = "select fldid,fldchk,fldtestid,fldreportquali,flvisible,fldsampletype,fldreportquanti,fldtest_type,fldmethod,fldcondition,fldcomment,fldtime_report,fldencounterval,fldstatus,fldabnormal,fldpacstudy,fldgroupid,fldsampleid,fldreportquali,fldbillno,fldnewdate,fldbcounter from tblpatradiotest where (fldstatus=&1 or fldstatus=&2 or fldstatus=&3) and fldencounterval=&4 and fldcomp_report=&5" & xcateg
-    $rData = modDatabase.$myConn.Exec(sql, "Ordered", "Sampled", "Reported", encid, modBasic.$compID)
+    $rData = modDatabase.$myConn.Exec(sql, "Scanned", "Sampled", "Reported", encid, modBasic.$compID)
   Endif
   FillSamplingGrid()
 
@@ -1785,10 +1806,10 @@ Private Sub ShowSampledBill(encid As String, billno As String)
 
   If chkall.Value = False Then
     sql = "select fldid,fldchk,fldtestid,fldreportquali,flvisible,fldsampletype,fldreportquanti,fldtest_type,fldmethod,fldcondition,fldcomment,fldtime_report,fldencounterval,fldstatus,fldabnormal,fldpacstudy,fldgroupid,fldsampleid,fldreportquali,fldbillno,fldnewdate,fldbcounter from tblpatradiotest where (fldstatus=&1 or fldstatus=&2) and fldencounterval=&3 and fldcomp_report=&4 and fldbillno=&5" & xcateg
-    $rData = modDatabase.$myConn.Exec(sql, "Ordered", "Sampled", encid, modBasic.$compID, billno)
+    $rData = modDatabase.$myConn.Exec(sql, "Scanned", "Sampled", encid, modBasic.$compID, billno)
   Else
     sql = "select fldid,fldchk,fldtestid,fldreportquali,flvisible,fldsampletype,fldreportquanti,fldtest_type,fldmethod,fldcondition,fldcomment,fldtime_report,fldencounterval,fldstatus,fldabnormal,fldpacstudy,fldgroupid,fldsampleid,fldreportquali,fldbillno,fldnewdate,fldbcounter from tblpatradiotest where (fldstatus=&1 or fldstatus=&2 or fldstatus=&3) and fldencounterval=&4 and fldcomp_report=&5 and fldbillno=&6" & xcateg
-    $rData = modDatabase.$myConn.Exec(sql, "Ordered", "Sampled", "Reported", encid, modBasic.$compID, billno)
+    $rData = modDatabase.$myConn.Exec(sql, "Scanned", "Sampled", "Reported", encid, modBasic.$compID, billno)
   Endif
   FillSamplingGrid()
 
@@ -1815,7 +1836,7 @@ Private Sub FillSamplingGrid()
     .Columns[12].Hidden = True
     .Columns[13].Hidden = True
     .Columns[14].Hidden = True
-    .Columns[15].Hidden = True
+    .Columns[15].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
     .Columns[16].Hidden = True
     .Columns[17].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
     .Columns[18].Hidden = True
@@ -1829,6 +1850,7 @@ Private Sub FillSamplingGrid()
     .Columns[5].Text = "Format"      ''3
     .Columns[8].Text = "Method"
     .Columns[11].Text = "ReportDate"
+    .Columns[15].Text = "Series"
     .Columns[17].Text = "Index"
     .Columns[19].Text = "Invoice"
     .Columns[21].Text = "Counter"
@@ -2054,10 +2076,10 @@ End
 
 Public Sub btnpacs_Click()
 
-  Dim hForm As FmPacsFind
+  Dim hForm As FmPacsShow
 
   If txtencid.Text Then
-    hForm = New FmPacsFind($encid, "History")
+    hForm = New FmPacsShow($encid, "History")
     hForm.ShowModal
   Endif
 

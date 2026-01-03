@@ -3,6 +3,7 @@
 Private $encid As String
 Private $sType As String
 Private $xSerial As Long
+Private $sTatus As String
 
 Public Sub _new(sType As String, encid As String, xSerial As Long)
 
@@ -14,6 +15,11 @@ Public Sub _new(sType As String, encid As String, xSerial As Long)
   $xSerial = xSerial
   modGeneralMain.GetOpenModalForm(Me)
 
+  $sTatus = modPatient.CurrentAdmissionStatus($encid)
+  If $sTatus = "Admitted" Then
+    rblama.Visible = False
+    rbdeath.Visible = False
+  Endif
   xList = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select fldlocation from tblreferlist"))
   cmbrefer.List = xList
 
@@ -78,10 +84,8 @@ Public Sub btnsave_Click()
     modPatientGeneral.AddExamGeneralQualiData($encid, "Notes", "Doctor Order", "", txtcomment.Text, False)
   Else If rbfollowup.Value = True Then
     xmode = "Follow Up"
-    modPatientSub.UpdateCurrentStatus($encid, "Follow Up", dtfollowup.Value)
   Else If rbreferred.Value = True Then
     xmode = "Referred"
-    modPatientSub.UpdateCurrentStatus($encid, "Refer(OPD)", cmbrefer.Text)
   Else If rblama.Value = True Then
     xmode = "LAMA"
     modPatientSub.UpdateCurrentStatus($encid, "LAMA(OPD)", "")
@@ -94,9 +98,25 @@ Public Sub btnsave_Click()
 
   If xmode Then
     If $sType = "Consultation" Then
-      modPatientSub.UpdateConsultData($xSerial, $encid, "Done", txtcomment.Text, xmode)                       ''
+      If rbadmission.Value = True Then
+        modPatientSub.UpdateConsultData($xSerial, $encid, "Done", txtcomment.Text, xmode, cmbrefer.Text)
+      Else If rbreferred.Value = True Then
+        modPatientSub.UpdateConsultData($xSerial, $encid, "Done", txtcomment.Text, xmode, cmbrefer.Text)
+      Else If rbfollowup.Value = True Then
+        modPatientSub.UpdateConsultData($xSerial, $encid, "Done", txtcomment.Text, xmode, "", dtfollowup.Value)
+      Else
+        modPatientSub.UpdateConsultData($xSerial, $encid, "Done", txtcomment.Text, xmode)                       ''
+      Endif
     Else If $sType = "OP Visit" Then
-      modPatientSub.UpdateOPVisitData($xSerial, $encid, "Done", txtcomment.Text, xmode)
+      If rbadmission.Value = True Then
+        modPatientSub.UpdateOPVisitData($xSerial, $encid, "Done", txtcomment.Text, xmode, cmbrefer.Text)
+      Else If rbreferred.Value = True Then
+        modPatientSub.UpdateOPVisitData($xSerial, $encid, "Done", txtcomment.Text, xmode, cmbrefer.Text)
+      Else If rbfollowup.Value = True Then
+        modPatientSub.UpdateOPVisitData($xSerial, $encid, "Done", txtcomment.Text, xmode, "", dtfollowup.Value)
+      Else
+        modPatientSub.UpdateOPVisitData($xSerial, $encid, "Done", txtcomment.Text, xmode)
+      Endif
     Endif
   Endif
   modDatabase.$myConn.Commit

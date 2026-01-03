@@ -356,6 +356,7 @@ Private Function BillingHTMLInvoice(BillNo As String, txTitle As String, ShowTax
   Dim txtmode As String
   Dim xcompo As String[]
   Dim xqrpay As String
+  Dim xqramt As Float
   Dim xcsource As String
   Dim xcshcomm As String
   Dim xcshper As Float
@@ -378,9 +379,11 @@ Private Function BillingHTMLInvoice(BillNo As String, txTitle As String, ShowTax
   txtmode = res["fldbilltype"]
   If txtmode = "Cash" Then
     xqrpay = modNonMedical.GetQRSCanPayCode(BillNo)
+    xqramt = modNonMedical.GetQRPaymentAmtBill(BillNo)
     xcsource = modNonMedical.GetCashSource(BillNo).Join(";")
   Else
     xqrpay = ""
+    xqramt = 0
     xcsource = ""
   Endif
   If modBasic.$currency Then
@@ -563,6 +566,7 @@ Private Function BillingHTMLInvoice(BillNo As String, txTitle As String, ShowTax
   $BillingReport.UserData.Add(res["fldbankname"], "LedgerA/C")
   $BillingReport.UserData.Add(res["fldchequeno"], "InvRefNumber")
   $BillingReport.UserData.Add(xqrpay, "QRPayment")
+  $BillingReport.UserData.Add(rsunit & Space(1) & Format(xqramt, gb.Fixed), "QRAmount")
   $BillingReport.UserData.Add(xcsource, "CashSource")
   $BillingReport.UserData.Add(GetInvoicePatStatus(res["fldprevdeposit"]), "InvPatStatus")
   If xcshcomm Then
@@ -2463,7 +2467,7 @@ Public Function GetOutOfHospitalPharmacy(encid As String, sHash As String) As St
   Dim xval As String
   Dim avx As String[]
 
-  $BillingReport = New CReportBILL([("SNO"), ("PARTICULARS"), ("REGIMEN"), ("QTY"), ("DR")], "Report", encid, sHash)
+  $BillingReport = New CReportBILL([("SNO"), ("PARTICULARS"), ("Direction"), ("QTY"), ("DR")], "Report", encid, sHash)
   $BillingReport.UserData.Add("PENDING PHARMACY ORDER", "InvoiceType")
   $BillingReport.UserData.Add(modReportVar.GetDateTimeReport(Now(), gb.GeneralDate), "BillDateTime")
 
@@ -2474,8 +2478,8 @@ Public Function GetOutOfHospitalPharmacy(encid As String, sHash As String) As St
     For Each res
       With asx
         .Add(CStr(res.Index + 1))
-        .Add(modPharmacy.GetMedFormatForMedReport(res["flditem"], res["fldroute"]))
-        .Add(res["fldroute"] & Space(2) & modMedConstant.GetMedicineRegimenInFormat(res["fldroute"], res["flditem"], res["flddose"], res["fldfreq"], res["flddays"]))
+        .Add(modPharmacy.GetMedFormatForMedReport(res["flditem"], res["fldroute"]) & "<br><b>" & res["fldroute"] & Space(2) & modMedConstant.GetMedicineRegimenInFormat(res["fldroute"], res["flditem"], res["flddose"], res["fldfreq"], res["flddays"]) & "</b>")
+        .Add(res["flddirection"])
         .Add(res["fldqtydisp"])
         If res["fldprescriber"] Then
           If xColl.Exist(res["fldprescriber"] & "|" & res["fldregno"]) Then

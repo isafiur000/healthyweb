@@ -3,8 +3,18 @@
 Private $UserRestrict As String[]
 Private asx As String
 
-Public Sub _new()
+Private $sInput As String
 
+Public Sub _new(sInput As String)
+
+  $sInput = sInput
+
+  If $sInput = "Location" Then
+    txtlabel.Text = "BedNo"
+  Else If $sInput = "Encounter" Then
+    txtlabel.Text = "EncID"
+  Endif
+  modBasic.$TabletModeEnable = "Yes"
   $UserRestrict = modBasic.$ClinicDisableCompo
   If modHelpVariable.$LogInCategory = "Clinician" Then
     GetComboItemList()
@@ -28,19 +38,17 @@ End
 
 Public Sub btncopy_Click()
 
-  txtbedno.SetFocus
-  asx = "$_(" & JS(txtbedno.Name & ":entry") & ").value = qrvalue;"
-  asx = asx & " gw.update(" & JS(txtbedno.Name) & ", 'text', qrvalue);"
+  txtvalue.SetFocus
+  asx = "$_(" & JS(txtvalue.Name & ":entry") & ").value = qrvalue;"
+  asx = asx & " gw.update(" & JS(txtvalue.Name) & ", 'text', qrvalue);"
   Me.Exec(asx)
 
 End
 
 Public Sub btnshow_Click()
 
-  If txtbedno.Text Then
-    BasicProfile()
-    btncopy.Enabled = False
-  Endif
+  BasicProfile()
+  btncopy.Enabled = False
 
 End
 
@@ -49,14 +57,21 @@ Public Sub btnclear_Click()
   btncopy.Enabled = True
   txtencid.Text = ""
   txtpatientname.Text = ""
-  txtbedno.Text = ""
+  txtvalue.Text = ""
 
 End
 
 ''---------------------------- Patient ---------------------------------------
 Private Sub BasicProfile()
 
-  txtencid.Text = modGeneral.GetEncounterFromBed(Trim(txtbedno.Text))
+  If txtvalue.Text Then
+    If $sInput = "Location" Then
+      txtencid.Text = modGeneral.GetEncounterFromBed(Trim(txtvalue.Text))
+    Else If $sInput = "Encounter" Then
+      txtencid.Text = Trim(txtvalue.Text)
+    Endif
+  Endif
+
   If txtencid.Text Then
     txtpatientname.Text = modPatient.GetPatientNameByEnc(Trim(txtencid.Text))
   Endif
@@ -78,7 +93,7 @@ Private Sub GetComboItemList()
     btnmobequip.Visible = True
   Endif
   If $UserRestrict.Exist("General Images") = False Then
-    btnmobimage.Visible = True
+    btnmobileimage.Visible = True
   Endif
   If $UserRestrict.Exist("Devices Used") = False Then
     btnmobevent.Visible = True
@@ -97,7 +112,7 @@ Private Sub GetComboItemList()
     btnpharm.Visible = True
   Endif
   If $UserRestrict.Exist("Provisional Diagnosis") = False Then
-    btnmobilediagno.Visible = True
+    btnmobileimage.Visible = True
   Endif
 
 End
@@ -106,7 +121,7 @@ Public Sub btnmobevent_Click()
 
   Dim hForm9 As FmDeviceUse
 
-  If txtencid.Text Then
+  If txtpatientname.Text Then
     hForm9 = New FmDeviceUse(Trim(txtencid.Text), "Devices")
     hForm9.ShowModal
   Endif
@@ -117,7 +132,7 @@ Public Sub btnmobilevital_Click()
 
   Dim hForm As FmVItalMobile
 
-  If txtencid.Text Then
+  If txtpatientname.Text Then
     hForm = New FmVItalMobile(Trim(txtencid.Text))
     hForm.ShowModal
   Endif
@@ -128,29 +143,20 @@ Public Sub btndosing_Click()
 
   Dim hForm4 As FmDoseMobile
 
-  If txtencid.Text Then
+  If txtpatientname.Text Then
     hForm4 = New FmDoseMobile(Trim(txtencid.Text))
     hForm4.ShowModal
   Endif
 
 End
 
-Public Sub btnmobilediagno_Click()
+Public Sub btnmobileimage_Click()
 
-  Dim sName As String[]
+  Dim hForm4 As FmImageLoad
 
-  If txtencid.Text Then
-    If MMain.$Ayurveda = "Yes" Then
-      sName = AyurvedicDiagnosis(modAyurv.$AyurvedicDiagnosis)
-    Else
-      sName = ICDTree(modDatabase.$icdConn, "Disease", modBasic.$ClinDiagnoChapterGrouped, modBasic.$FixDiagnoGroupOPD, modBasic.$FixDiagnoGroupER, modBasic.$ClinDiagnoSelectGrouped, modBasic.$ClinDiagnoSelectERGroup)
-    Endif
-    If sName Then
-      If sName[1] And If sName[0] Then
-        modPatientGeneral.AddPatientFindings("Provisional Diagnosis", Trim(txtencid.Text), sName[0], sName[1], sName[2])
-        Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
-      Endif
-    Endif
+  If txtpatientname.Text Then
+    hForm4 = New FmImageLoad("IMAGE", Trim(txtencid.Text))
+    hForm4.ShowModal
   Endif
 
 End
@@ -159,20 +165,9 @@ Public Sub btnmobnote_Click()
 
   Dim hForm As FmMobileForm
 
-  If txtencid.Text Then
+  If txtpatientname.Text Then
     hForm = New FmMobileForm(Trim(txtencid.Text), "Notes")
     hForm.ShowModal
-  Endif
-
-End
-
-Public Sub btnmobimage_Click()
-
-  Dim hForm8 As FmPatImage
-
-  If txtencid.Text Then
-    hForm8 = New FmPatImage("IMAGE", Trim(txtencid.Text), "")
-    hForm8.ShowModal
   Endif
 
 End
@@ -181,7 +176,7 @@ Public Sub btnlabs_Click()
 
   Dim hForm10 As FmTestList
 
-  If txtencid.Text Then
+  If txtpatientname.Text Then
     If modNonMedical.AllowEntryWithDeposit(Trim(txtencid.Text), "Test") = True Then
       hForm10 = New FmTestList(Trim(txtencid.Text), modNonMedical.GetAutoIPBillingPack("Test", Trim(txtencid.Text)))
       hForm10.ShowModal
@@ -194,7 +189,7 @@ Public Sub btnradio_Click()
 
   Dim hForm11 As FmRadioList
 
-  If txtencid.Text Then
+  If txtpatientname.Text Then
     If modNonMedical.AllowEntryWithDeposit(Trim(txtencid.Text), "Radio") = True Then
       hForm11 = New FmRadioList(Trim(txtencid.Text), modNonMedical.GetAutoIPBillingPack("Radio", Trim(txtencid.Text)))
       hForm11.ShowModal
@@ -207,7 +202,7 @@ Public Sub btnpharm_Click()
 
   Dim hForm As FmMobileForm
 
-  If txtencid.Text Then
+  If txtpatientname.Text Then
     If modNonMedical.AllowEntryWithDeposit(Trim(txtencid.Text), "Pharmacy") = True Then
       hForm = New FmMobileForm(Trim(txtencid.Text), "Ward Stock")
       hForm.ShowModal
@@ -220,7 +215,7 @@ Public Sub btnmobequip_Click()
 
   Dim hForm6 As FmEquipment
 
-  If txtencid.Text Then
+  If txtpatientname.Text Then
     If modNonMedical.AllowEntryWithDeposit(Trim(txtencid.Text), "Equipment") = True Then
       hForm6 = New FmEquipment(Trim(txtencid.Text), modNonMedical.GetAutoIPBillingPack("Equipment", Trim(txtencid.Text)))
       hForm6.ShowModal
@@ -233,7 +228,7 @@ Public Sub btnmobivfl_Click()
 
   Dim hForm18 As FmIVInfusion
 
-  If txtencid.Text Then
+  If txtpatientname.Text Then
     hForm18 = New FmIVInfusion(Trim(txtencid.Text))
     hForm18.ShowModal
   Endif

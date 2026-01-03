@@ -287,6 +287,10 @@ Private Sub GetEncounterValue()
             UpdateTriage()
             $vidRoom = LCase(Trim(txtencid.Text) & Format(Now(), "yymmdd"))
             $VidIndex = modApplication.GetMD5SumString($vidRoom)
+            If $sTatus = "Admitted" Then
+              rblama.Visible = False
+              rbdeath.Visible = False
+            Endif
             Wait
             If modPatientSub.AllowEncIDHistory(Trim(txtencid.Text), modDatabase.$myConn) = True Then
               BlockDCButton()
@@ -3353,8 +3357,6 @@ End
 
 Public Sub mnualgo1_Click()
 
-  Dim xval As Variant
-
   If txtencid.Text Then
     modClinChart.LoadRuleChart(Trim(txtencid.Text), mnualgo1.Tag, mnualgo1.Text)
   Endif
@@ -3362,8 +3364,6 @@ Public Sub mnualgo1_Click()
 End
 
 Public Sub mnualgo2_Click()
-
-  Dim xval As Variant
 
   If txtencid.Text Then
     modClinChart.LoadRuleChart(Trim(txtencid.Text), mnualgo2.Tag, mnualgo2.Text)
@@ -3373,8 +3373,6 @@ End
 
 Public Sub mnualgo3_Click()
 
-  Dim xval As Variant
-
   If txtencid.Text Then
     modClinChart.LoadRuleChart(Trim(txtencid.Text), mnualgo3.Tag, mnualgo3.Text)
   Endif
@@ -3383,8 +3381,6 @@ End
 
 Public Sub mnualgo4_Click()
 
-  Dim xval As Variant
-
   If txtencid.Text Then
     modClinChart.LoadRuleChart(Trim(txtencid.Text), mnualgo4.Tag, mnualgo4.Text)
   Endif
@@ -3392,8 +3388,6 @@ Public Sub mnualgo4_Click()
 End
 
 Public Sub mnualgo5_Click()
-
-  Dim xval As Variant
 
   If txtencid.Text Then
     modClinChart.LoadRuleChart(Trim(txtencid.Text), mnualgo5.Tag, mnualgo5.Text)
@@ -4218,10 +4212,8 @@ Public Sub btnoutcome_Click()
       modPatientGeneral.AddExamGeneralQualiData(Trim(txtencid.Text), "Notes", "Doctor Order", "", txtcomment.RichText, False)
     Else If rbfollowup.Value = True Then
       xmode = "Follow Up"
-      modPatientSub.UpdateCurrentStatus(Trim(txtencid.Text), "Follow Up", dtfollowup.Value)
     Else If rbreferred.Value = True Then
       xmode = "Referred"
-      modPatientSub.UpdateCurrentStatus(Trim(txtencid.Text), "Refer(OPD)", cmbrefer.Text)
     Else If rblama.Value = True Then
       xmode = "LAMA"
       modPatientSub.UpdateCurrentStatus(Trim(txtencid.Text), "LAMA(OPD)", "")
@@ -4234,9 +4226,25 @@ Public Sub btnoutcome_Click()
 
     If xmode Then
       If txtclinmode.Text = "Consultation" Then
-        modPatientSub.UpdateConsultData(txtclinIndex.Value, Trim(txtencid.Text), "Done", txtcomment.RichText, xmode)                       ''
+        If rbadmission.Value = True Then
+          modPatientSub.UpdateConsultData(txtclinIndex.Value, Trim(txtencid.Text), "Done", txtcomment.RichText, xmode, cmbrefer.Text)
+        Else If rbreferred.Value = True Then
+          modPatientSub.UpdateConsultData(txtclinIndex.Value, Trim(txtencid.Text), "Done", txtcomment.RichText, xmode, cmbrefer.Text)
+        Else If rbfollowup.Value = True Then
+          modPatientSub.UpdateConsultData(txtclinIndex.Value, Trim(txtencid.Text), "Done", txtcomment.RichText, xmode, "", dtfollowup.Value)
+        Else
+          modPatientSub.UpdateConsultData(txtclinIndex.Value, Trim(txtencid.Text), "Done", txtcomment.RichText, xmode)                       ''
+        Endif
       Else If txtclinmode.Text = "OP Visit" Then
-        modPatientSub.UpdateOPVisitData(txtclinIndex.Value, Trim(txtencid.Text), "Done", txtcomment.RichText, xmode)
+        If rbadmission.Value = True Then
+          modPatientSub.UpdateOPVisitData(txtclinIndex.Value, Trim(txtencid.Text), "Done", txtcomment.RichText, xmode, cmbrefer.Text)
+        Else If rbreferred.Value = True Then
+          modPatientSub.UpdateOPVisitData(txtclinIndex.Value, Trim(txtencid.Text), "Done", txtcomment.RichText, xmode, cmbrefer.Text)
+        Else If rbfollowup.Value = True Then
+          modPatientSub.UpdateOPVisitData(txtclinIndex.Value, Trim(txtencid.Text), "Done", txtcomment.RichText, xmode, "", dtfollowup.Value)
+        Else
+          modPatientSub.UpdateOPVisitData(txtclinIndex.Value, Trim(txtencid.Text), "Done", txtcomment.RichText, xmode)
+        Endif
       Endif
     Endif
     modDatabase.$myConn.Commit
