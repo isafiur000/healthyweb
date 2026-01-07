@@ -1,0 +1,153 @@
+' Gambas class file
+
+Private $encid As String
+Private $sValue As Long[]
+
+Private $rData1 As Result
+Private $aMyFields1 As String[]
+Private sIndexLst As Long[]
+
+Public Sub Run(encid As String) As Long[]
+
+  $encid = encid
+  $sValue = New Long[]
+
+  sIndexLst = New Long[]
+  rbplan.Value = True
+  rbplan_Click()
+
+  If Me.ShowModal() Then Return $sValue
+
+End
+
+Public Sub rbplan_Click()
+
+  lstcategory.List = modControlSub.GetDirectFillresultNoNull(modDatabase.$myConn.Exec("select fldprotocol from tblpatprotocols where fldencounterval=&1 and fldstatus=&2", $encid, "Active"))
+
+End
+
+Public Sub rbnew_Click()
+
+  lstcategory.List = modMedicine.GetMedicineProcolsList()
+
+End
+
+Public Sub lstcategory_Select()
+
+  Dim xx As String[]
+  Dim xList As String[]
+
+  xList = New String[]
+  xList.Add("All Categories")
+  xx = modControlSub.GetDirectFillresultNoNull(modDatabase.$myConn.Exec("select distinct(fldcategory) as col from tblproductgroup where fldmedgroup=&1 and (fldcomp=&2 or fldcomp=&3)", lstcategory.Text, modBasic.$compID, "%"))
+  If xx Then
+    xList.Insert(xx)
+  Endif
+  cmbdate.List = xList
+  cmbdate.Text = "All Categories"
+  ShowProtocolList()
+
+End
+
+Public Sub btnshow_Click()
+
+  ShowProtocolList()
+
+End
+
+Public Sub ShowProtocolList()
+
+  Dim sql As String
+
+  If cmbdate.Text = "All Categories" Then
+    sql = "select fldid,fldid,flditem,fldstart,CONCAT(fldroute, '|', flditem, '|', flddose, '|',flddoseunit, '|', fldfreq, '|', fldday) as fldregimen,fldroute,fldqty,fldadvice from tblproductgroup where (fldcomp=&1 or fldcomp=&2) and fldmedgroup=&3 ORDER BY fldstart"
+  Else
+    sql = "select fldid,fldid,flditem,fldstart,CONCAT(fldroute, '|', flditem, '|', flddose, '|',flddoseunit, '|', fldfreq, '|', fldday) as fldregimen,fldroute,fldqty,fldadvice from tblproductgroup where (fldcomp=&1 or fldcomp=&2) and fldmedgroup=&3 and fldcategory=&4 ORDER BY fldstart"
+  Endif
+  $rData1 = modDatabase.$myConn.Exec(sql, modBasic.$compID, "%", lstcategory.Text, cmbdate.Text)
+  $aMyFields1 = New String[]
+  modGridView.ReadSmallData(GridView2, $rData1, $aMyFields1)
+
+  With GridView2
+    .Columns[0].Hidden = True
+    .Columns[1].Hidden = True
+    .Columns[2].Hidden = True
+    .Columns[3].Width = CStr(50 * modBasic.$AppWidthRatio) & "px"
+    .Columns[4].Width = CStr(350 * modBasic.$AppWidthRatio) & "px"
+    .Columns[5].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
+    .Columns[6].Width = CStr(50 * modBasic.$AppWidthRatio) & "px"
+    .Columns[7].Width = CStr(200 * modBasic.$AppWidthRatio) & "px"
+
+    .Columns[3].Text = "Start"
+    .Columns[4].Text = "Medicine"
+    .Columns[5].Text = "Route"
+    .Columns[6].Text = "QTY"
+    .Columns[7].Text = "Direction"
+  End With
+
+End
+
+Public Sub GridView2_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  $rData1.MoveTo(Row)
+  modGridView.GridViewDecoration(Data, Row)
+  If Column = 4 Then
+    Data.Html = GetRegimenString($rData1[$aMyFields1[Column]])
+  Else
+    Data.Text = $rData1[$aMyFields1[Column]]
+  Endif
+
+End
+
+Private Function GetRegimenString(sInput As String) As String
+
+  Dim asx As String[]
+  Dim xval As String
+  Dim xregimen As String
+
+  If sInput Then
+    asx = Split(sInput, "|")
+    If asx.Count = 6 Then
+      If CInt(asx[5]) Then
+        xregimen = asx[2] & Space(1) & asx[3] & Space(1) & asx[4] & Space(1) & "X " & asx[5] & " Days"
+      Else
+        xregimen = asx[2] & Space(1) & asx[3] & Space(1) & asx[4] & Space(1) & "X Every Day"
+      Endif
+      xval = asx[1] & "<br><b>" & xregimen & "</b>"
+    Else
+      xval = asx[1]
+    Endif
+  Endif
+
+  Return xval
+
+End
+
+Public Sub btnsave_Click()
+
+  Dim Row As Integer
+
+  If GridView2.Selection.Count Then
+    For Row = 0 To GridView2.Count - 1
+      If GridView2.IsSelected(Row) = True Then
+        $rData1.MoveTo(Row)
+        If sIndexLst.Exist($rData1["fldid"]) = False Then
+          sIndexLst.Add($rData1["fldid"])
+        Endif
+      Endif
+    Next
+    Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+  Endif
+
+End
+
+Public Sub btnclose_Click()
+
+  If sIndexLst.Count Then
+    $sValue = sIndexLst
+    Me.Close(True)
+  Else
+    Me.Close
+  Endif
+
+End

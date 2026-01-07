@@ -311,7 +311,7 @@ Private Sub FillLabtable()
     reprt = "Verified"
   Endif
 
-  xFldList = ["fldid", "fldchk", "fldsave_report", "fldtest_type", "fldtestid", "fldsampletype", "fldtime_report", "fldabnormal", "fldid", "flvisible", "fldstatus", "flduserid_report", "flduserid_verify", "fldsampletype", "fldcondition", "fldtime_report", "fldprint", "fldorder", "fldtestid", "fldcomment", "fldtime_verify", "flduptime_report", "flduptime_verify", "fldbillno", "fldupuser_report", "fldupuser_verify"]
+  xFldList = ["fldid", "fldchk", "fldsave_report", "fldtest_type", "fldtestid", "fldsampletype", "fldtime_report", "fldabnormal", "fldid", "flvisible", "fldstatus", "flduserid_report", "flduserid_verify", "fldsampletype", "fldcondition", "fldtime_report", "fldprint", "fldorder", "fldtestid", "fldcomment", "fldtime_verify", "flduptime_report", "flduptime_verify", "fldbillno", "fldupuser_report", "fldupuser_verify", "fldnewdate", "fldbcounter"]
   If chkdate.Value = True Then
     If chknew.Value And If chkprinted.Value Then
       If cmbcategory.Text = "%" Then
@@ -431,6 +431,8 @@ Private Sub ShowGridmainData()
     .Columns[23].Hidden = True ''invoice
     .Columns[24].Hidden = True  'Updated Reported by
     .Columns[25].Hidden = True  'Updated verified by
+    .Columns[26].Hidden = True  'SampleBookingDate
+    .Columns[27].Hidden = True  'SampleCounter
   End With
 
 End
@@ -1132,6 +1134,8 @@ Private Sub ShowRadioLaboratoryReport(sType As String, sHide As Boolean)
   Dim $VerifyDate As String[]
   Dim $VerifyLastDate As String[]
   Dim $invoiceNo As String[]
+  Dim $planDate As String[]
+  Dim $counter As String[]
 
   xfontbod = modSettings.ShowSettingFromFIle("ReportFormat/ReportBody_ContentFont")
   xfontcol1 = modSettings.ShowSettingFromFIle("ReportFormat/ReportBody_Font_Column1")
@@ -1218,6 +1222,8 @@ Private Sub ShowRadioLaboratoryReport(sType As String, sHide As Boolean)
       $VerifyDate = New String[]
       $VerifyLastDate = New String[]
       $invoiceNo = New String[]
+      $planDate = New String[]
+      $counter = New String[]
 
       dtcont = modSettings.ShowSettingFromFIle("Laboratory/DateContent")
       For i = 0 To GridView1.Count - 1
@@ -1241,6 +1247,7 @@ Private Sub ShowRadioLaboratoryReport(sType As String, sHide As Boolean)
           $specName.Add($rData["fldsampletype"])
           $condiName.Add($rData["fldcondition"])
           $invoiceNo.Add($rData["fldbillno"])
+          $counter.Add($rData["fldbcounter"])
           If dtcont = "DateTime" Then
             $ReportDate.Add(modReportVar.GetDateTimeReport($rData["fldtime_report"], gb.GeneralDate))
             If $rData["flduptime_report"] Then
@@ -1253,6 +1260,9 @@ Private Sub ShowRadioLaboratoryReport(sType As String, sHide As Boolean)
               $VerifyLastDate.Add(modReportVar.GetDateTimeReport($rData["flduptime_verify"], gb.GeneralDate))
             Else
               $VerifyLastDate.Add(modReportVar.GetDateTimeReport($rData["fldtime_verify"], gb.GeneralDate))
+            Endif
+            If $rData["fldnewdate"] Then
+              $planDate.Add(modReportVar.GetDateTimeReport($rData["fldnewdate"], gb.GeneralDate))
             Endif
 
           Else
@@ -1267,6 +1277,9 @@ Private Sub ShowRadioLaboratoryReport(sType As String, sHide As Boolean)
               $VerifyLastDate.Add(modReportVar.GetDateTimeReport($rData["flduptime_verify"], gb.MediumDate))
             Else
               $VerifyLastDate.Add(modReportVar.GetDateTimeReport($rData["fldtime_verify"], gb.MediumDate))
+            Endif
+            If $rData["fldnewdate"] Then
+              $planDate.Add(modReportVar.GetDateTimeReport($rData["fldnewdate"], gb.MediumDate))
             Endif
 
           Endif
@@ -1592,6 +1605,12 @@ Private Sub ShowRadioLaboratoryReport(sType As String, sHide As Boolean)
         If modLabSub.GetLabExtraColumnName("InvoiceNo") Then
           $BillingReport.UserData.Add("Invoice No: " & modString.BinaryDistinctStringArray($invoiceNo).Join(","), modLabSub.GetLabExtraColumnName("InvoiceNo"))
         Endif
+        If modLabSub.GetLabExtraColumnName("SampleBookingDate") Then
+          $BillingReport.UserData.Add("Plan Date: " & modString.BinaryDistinctStringArray($planDate).Join(","), modLabSub.GetLabExtraColumnName("SampleBookingDate"))
+        Endif
+        If modLabSub.GetLabExtraColumnName("SampleCounter") Then
+          $BillingReport.UserData.Add("Location: " & modString.BinaryDistinctStringArray($counter).Join(","), modLabSub.GetLabExtraColumnName("SampleCounter"))
+        Endif
 
       Else
         If modLabSub.GetLabExtraColumnName("ReportDate") Then
@@ -1614,6 +1633,12 @@ Private Sub ShowRadioLaboratoryReport(sType As String, sHide As Boolean)
         Endif
         If modLabSub.GetLabExtraColumnName("InvoiceNo") Then
           $BillingReport.UserData.Add(modString.BinaryDistinctStringArray($invoiceNo).Join(","), modLabSub.GetLabExtraColumnName("InvoiceNo"))
+        Endif
+        If modLabSub.GetLabExtraColumnName("SampleBookingDate") Then
+          $BillingReport.UserData.Add(modString.BinaryDistinctStringArray($planDate).Join(","), modLabSub.GetLabExtraColumnName("SampleBookingDate"))
+        Endif
+        If modLabSub.GetLabExtraColumnName("SampleCounter") Then
+          $BillingReport.UserData.Add(modString.BinaryDistinctStringArray($counter).Join(","), modLabSub.GetLabExtraColumnName("SampleCounter"))
         Endif
 
       Endif
@@ -1661,6 +1686,8 @@ Private Sub ShowRadioLaboratoryReport(sType As String, sHide As Boolean)
     $VerifyDate = New String[]
     $VerifyLastDate = New String[]
     $invoiceNo = New String[]
+    $planDate = New String[]
+    $counter = New String[]
 
     dtcont = modSettings.ShowSettingFromFIle("Laboratory/DateContent")
     For Each xx In newCateg
@@ -1687,6 +1714,7 @@ Private Sub ShowRadioLaboratoryReport(sType As String, sHide As Boolean)
           $specName.Add($rData["fldsampletype"])
           $condiName.Add($rData["fldcondition"])
           $invoiceNo.Add($rData["fldbillno"])
+          $counter.Add($rData["fldbcounter"])
           If dtcont = "DateTime" Then
             $ReportDate.Add(modReportVar.GetDateTimeReport($rData["fldtime_report"], gb.GeneralDate))
             If $rData["flduptime_report"] Then
@@ -1699,6 +1727,9 @@ Private Sub ShowRadioLaboratoryReport(sType As String, sHide As Boolean)
               $VerifyLastDate.Add(modReportVar.GetDateTimeReport($rData["flduptime_verify"], gb.GeneralDate))
             Else
               $VerifyLastDate.Add(modReportVar.GetDateTimeReport($rData["fldtime_verify"], gb.GeneralDate))
+            Endif
+            If $rData["fldnewdate"] Then
+              $planDate.Add(modReportVar.GetDateTimeReport($rData["fldnewdate"], gb.GeneralDate))
             Endif
 
           Else
@@ -1713,6 +1744,9 @@ Private Sub ShowRadioLaboratoryReport(sType As String, sHide As Boolean)
               $VerifyLastDate.Add(modReportVar.GetDateTimeReport($rData["flduptime_verify"], gb.MediumDate))
             Else
               $VerifyLastDate.Add(modReportVar.GetDateTimeReport($rData["fldtime_verify"], gb.MediumDate))
+            Endif
+            If $rData["fldnewdate"] Then
+              $planDate.Add(modReportVar.GetDateTimeReport($rData["fldnewdate"], gb.MediumDate))
             Endif
 
           Endif
@@ -2060,6 +2094,12 @@ Private Sub ShowRadioLaboratoryReport(sType As String, sHide As Boolean)
       If modLabSub.GetLabExtraColumnName("InvoiceNo") Then
         $BillingReport.UserData.Add("Invoice No: " & modString.BinaryDistinctStringArray($invoiceNo).Join(","), modLabSub.GetLabExtraColumnName("InvoiceNo"))
       Endif
+      If modLabSub.GetLabExtraColumnName("SampleBookingDate") Then
+        $BillingReport.UserData.Add("Plan Date: " & modString.BinaryDistinctStringArray($planDate).Join(","), modLabSub.GetLabExtraColumnName("SampleBookingDate"))
+      Endif
+      If modLabSub.GetLabExtraColumnName("SampleCounter") Then
+        $BillingReport.UserData.Add("Location: " & modString.BinaryDistinctStringArray($counter).Join(","), modLabSub.GetLabExtraColumnName("SampleCounter"))
+      Endif
 
     Else
       If modLabSub.GetLabExtraColumnName("ReportDate") Then
@@ -2082,6 +2122,12 @@ Private Sub ShowRadioLaboratoryReport(sType As String, sHide As Boolean)
       Endif
       If modLabSub.GetLabExtraColumnName("InvoiceNo") Then
         $BillingReport.UserData.Add(modString.BinaryDistinctStringArray($invoiceNo).Join(","), modLabSub.GetLabExtraColumnName("InvoiceNo"))
+      Endif
+      If modLabSub.GetLabExtraColumnName("SampleBookingDate") Then
+        $BillingReport.UserData.Add(modString.BinaryDistinctStringArray($planDate).Join(","), modLabSub.GetLabExtraColumnName("SampleBookingDate"))
+      Endif
+      If modLabSub.GetLabExtraColumnName("SampleCounter") Then
+        $BillingReport.UserData.Add(modString.BinaryDistinctStringArray($counter).Join(","), modLabSub.GetLabExtraColumnName("SampleCounter"))
       Endif
 
     Endif

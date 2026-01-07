@@ -4102,8 +4102,8 @@ End
 Public Sub btngroup_Click()
 
   Dim sType As String
-  Dim xList As String[]
-  Dim xgroup As String
+  Dim xList As Long[]
+  Dim xIndex As Long
   Dim txprescriber As String
   Dim txpresno As String
   Dim dispmode As String
@@ -4125,12 +4125,11 @@ Public Sub btngroup_Click()
 
   If AllowLockCheckPunching() = True Then
 
-    xList = modMedicine.GetMedicineProcolsList()
-    xgroup = GridViewNew("select Protocol", xList, False)
-    If xgroup Then
-      res = modDatabase.$myConn.Exec("select fldroute,flditem,flddose,flddoseunit,fldfreq,fldday,fldqty,fldstart,fldadvice from tblproductgroup where fldmedgroup=&1 and (fldcomp=&2 or fldcomp=&3)", xgroup, modBasic.$compID, "%")
-      If res.Available Then
-        For Each res
+    xList = GetSetProtocol(Trim(txtencid.Text))
+    If xList And If xList.Count Then
+      For Each xIndex In xList
+        res = modDatabase.$myConn.Exec("select fldroute,flditem,flddose,flddoseunit,fldfreq,fldday,fldqty,fldstart,fldadvice from tblproductgroup where fldid=&1 and (fldcomp=&2 or fldcomp=&3)", xIndex, modBasic.$compID, "%")
+        If res.Available Then
 
           itemtype = modNonMedical.GetBillItemCategoryFromCombo(res["fldroute"])
           CPharmFix = New CFixRatePharmacy(itemtype, res["flditem"], cmbmode.Text)
@@ -4174,9 +4173,9 @@ Public Sub btngroup_Click()
             Endif
           Endif
 
-        Next
-        FillDosingGrid()
-      Endif
+        Endif
+      Next
+      FillDosingGrid()
     Endif
 
   Else

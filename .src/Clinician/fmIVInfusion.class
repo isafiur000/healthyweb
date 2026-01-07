@@ -24,19 +24,30 @@ Public Sub _new(encid As String)
 
 End
 
+Public Sub chkalldate_Click()
+
+  ShowMedFluids()
+
+End
+
 Private Sub ShowMedFluids()
 
   Dim sql As String
 
-  sql = "select fldid,fldid,flditem,flddose,fldfreq,flddays,fldcurval,fldstarttime,fldstarttime,fldstatus from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldroute=&3 and fldstarttime<=&4 and fldendtime>=&5 ORDER BY fldid DESC"
-  $rFludRes = modDatabase.$myConn.Exec(sql, $encid, True, "fluid", modDate.EndSqlDate(Now()), modDate.StartSqlDate(Now()))
+  If chkalldate.Value = True Then
+    sql = "select fldid,fldid,flditem,flddose,fldfreq,flddays,fldcurval,fldstarttime,fldstarttime,fldstatus from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldroute=&3 and fldcurval=&4 ORDER BY fldstarttime DESC"
+    $rFludRes = modDatabase.$myConn.Exec(sql, $encid, True, "fluid", "Continue")
+  Else
+    sql = "select fldid,fldid,flditem,flddose,fldfreq,flddays,fldcurval,fldstarttime,fldstarttime,fldstatus from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldroute=&3 and fldcurval=&4 and fldstarttime<=&5 and fldendtime>=&6 ORDER BY fldstarttime DESC"
+    $rFludRes = modDatabase.$myConn.Exec(sql, $encid, True, "fluid", "Continue", modDate.EndSqlDate(Now()), modDate.StartSqlDate(Now()))
+  Endif
   $aFludFields = New String[]
   modGridView.ReadSmallData(grdfluid, $rFludRes, $aFludFields)
 
   With grdfluid
     .Columns[0].Hidden = True
     .Columns[1].Width = CStr(25 * modBasic.$AppWidthRatio) & "px"
-    .Columns[2].Width = CStr(225 * modBasic.$AppWidthRatio) & "px"
+    .Columns[2].Width = CStr(350 * modBasic.$AppWidthRatio) & "px"
     .Columns[3].Width = CStr(50 * modBasic.$AppWidthRatio) & "px"
     .Columns[4].Width = CStr(40 * modBasic.$AppWidthRatio) & "px"
     .Columns[5].Hidden = True
@@ -127,8 +138,8 @@ Private Sub FillFluidGridView(dosno As Long)
   modGridView.ReadSmallData(grdfluiddata, $rRateRes, $aRateFields)
 
   With grdfluiddata
-    .Columns[0].Width = CStr(25 * modBasic.$AppWidthRatio) & "px"
-    .Columns[1].Width = CStr(250 * modBasic.$AppWidthRatio) & "px"
+    .Columns[0].Width = CStr(35 * modBasic.$AppWidthRatio) & "px"
+    .Columns[1].Width = CStr(400 * modBasic.$AppWidthRatio) & "px"
     .Columns[2].Width = CStr(50 * modBasic.$AppWidthRatio) & "px"
     .Columns[3].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
     .Columns[4].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
@@ -150,7 +161,7 @@ Public Sub grdfluiddata_Data(Row As Integer, Column As Integer, Data As WebTable
   $rRateRes.MoveTo(Row)
   modGridView.GridViewDecoration(Data, Row)
   If Column = 0 Then
-    Data.Html = modString.GetImageForHTMLGrid(modGeneralMain.GetSystemIcon(GetPictureDosing($rRateRes[$aRateFields[Column]])), "95%", "95%")
+    Data.Html = modString.GetImageForHTMLGrid(modGeneralMain.GetSystemIcon(GetPictureDosing($rRateRes[$aRateFields[Column]])), "20%", "20%")
     Data.Text = ""
   Else If Column = 1 Then
     Data.Text = txtfluidname.Text
@@ -220,7 +231,7 @@ Private Function GetFluidAdminStatusCode(dosno As Long) As String
 
 End
 
-Public Sub btnsubOK2_Click()
+Public Sub btnclose_Click()
 
   Me.Close()
 

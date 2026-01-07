@@ -2,8 +2,10 @@
 
 Private $rData As Result
 Private $aMyFields As String[]
+
 Private $encid As String
 Private $sType As String
+Private $sComp As String
 Private $ExamsVar As Variant[]
 Private $ItemList As String[]
 
@@ -12,32 +14,35 @@ Private $sysConst As String
 Private $dataType As String
 Private $optionList As String[]
 
-Public Sub _new(sType As String, encid As String)
+Public Sub _new(sType As String, encid As String, sComp As String)
 
   $encid = encid
   $sType = sType
+  $sComp = sComp
   modGeneralMain.GetOpenModalForm(Me)
   Me.Title = $sType
 
   modBasic.LoadClinicalChartSetting()
   txtpatientname.Text = modPatient.GetPatientNameByEnc($encid)
   txtcolor.Background = modPatient.GetPatientColorStatic($encid)
-  $ExamsVar = GetSelectExamVariant($sType)
+  $ExamsVar = GetSelectExamVariant($sType, $sComp)
   $ItemList = modString.GetListFromVariant($ExamsVar, "fldexamid", True)
   ListBox1.List = $ItemList
   ShowExamGrid()
 
 End
 
-Private Function GetSelectExamVariant(sCategory As String) As Variant[]
+Private Function GetSelectExamVariant(sCategory As String, sComp As String) As Variant[]
 
   Dim sColl As Collection
   Dim aVar As Variant[]
 
   aVar = New Variant[]
-  For Each sColl In modTableCache.$ExaminationCompVar
+  For Each sColl In modTableCache.$ExamMasterCompVar
     If sColl["fldcategory"] = sCategory Then
-      aVar.Add(sColl)
+      If sColl["fldcomp"] = sComp Or If sColl["fldcomp"] = "%" Then
+        aVar.Add(sColl)
+      Endif
     Endif
   Next
 

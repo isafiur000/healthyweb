@@ -299,13 +299,19 @@ Public Function GetTestConditionList() As String[]
 
 End
 
-Public Function FillClinicalSubClass(sDept As String) As String[]
+Public Function FillClinicalSubClass(sDept As String, Optional sComp As String) As String[]
 
+  Dim xStructFormat As String
   Dim res As Result
   Dim xx As String[]
 
-  If modBasic.$ClinStructuredExamFormat Then
-    res = modDatabase.$medConn.Exec("select distinct(fldsubclass) as col from tblstructexam where fldclass like &1 and fldreferencee=&2", sDept, modBasic.$ClinStructuredExamFormat)
+  If sComp Then
+    xStructFormat = modGlobalSetting.ShowSettingFromDBAny("ClinicForms/StructuredReference", sComp)
+  Else
+    xStructFormat = modGlobalSetting.ShowSettingFromDBAny("ClinicForms/StructuredReference", modBasic.$compID)
+  Endif
+  If xStructFormat Then
+    res = modDatabase.$medConn.Exec("select distinct(fldsubclass) as col from tblstructexam where fldclass like &1 and fldreferencee=&2", sDept, xStructFormat)
   Else
     res = modDatabase.$medConn.Exec("select distinct(fldsubclass) as col from tblstructexam where fldclass like &1", sDept)
   Endif
@@ -901,8 +907,9 @@ Public Function GetDefaultClinHistories() As String[]
 
 End
 
-Public Function GetClinHistoryList(sReference As String, Optional gender As String) As String[]
+Public Function GetClinHistoryList(sReference As String, sComp As String, Optional gender As String) As String[]
 
+  Dim xHistFormat As String
   Dim xnew As String[]
   Dim xfinal As String[]
   Dim xgender As String
@@ -918,15 +925,17 @@ Public Function GetClinHistoryList(sReference As String, Optional gender As Stri
       Case "Claim Code", "Accident SSF", "Medical SSF", "MedExtra SSF", "Critical SSF", "Staff List"
         xnew = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tblhistory where (fldformat=&1 or fldformat=&2) and (fldgender=&3 or fldgender=&4)", "Common", sReference, xgender, "Both Sex"))
       Case Else
-        If modBasic.$ClinIPDHistoryFormat Then
-          xnew = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tblhistory where (fldformat like &1 or fldformat=&2) and (fldgender=&3 or fldgender=&4)", "Common", modBasic.$ClinIPDHistoryFormat, xgender, "Both Sex"))
+        xHistFormat = modGlobalSetting.ShowSettingFromDBAny("ClinicForms/HistoryFormat", sComp)
+        If xHistFormat Then
+          xnew = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tblhistory where (fldformat like &1 or fldformat=&2) and (fldgender=&3 or fldgender=&4)", "Common", xHistFormat, xgender, "Both Sex"))
         Else
           xnew = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tblhistory where fldformat like &1 and (fldgender=&2 or fldgender=&3)", "Common", xgender, "Both Sex"))
         Endif
     End Select
   Else
-    If modBasic.$ClinIPDHistoryFormat Then
-      xnew = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tblhistory where (fldformat like &1 or fldformat=&2) and (fldgender=&3 or fldgender=&4)", "Common", modBasic.$ClinIPDHistoryFormat, xgender, "Both Sex"))
+    xHistFormat = modGlobalSetting.ShowSettingFromDBAny("ClinicForms/HistoryFormat", sComp)
+    If xHistFormat Then
+      xnew = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tblhistory where (fldformat like &1 or fldformat=&2) and (fldgender=&3 or fldgender=&4)", "Common", xHistFormat, xgender, "Both Sex"))
     Else
       xnew = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select flditem as col from tblhistory where fldformat like &1 and (fldgender=&2 or fldgender=&3)", "Common", xgender, "Both Sex"))
     Endif

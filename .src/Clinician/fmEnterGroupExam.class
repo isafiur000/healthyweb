@@ -68,6 +68,7 @@ Private bWebSpace As New Object[50, 50]
 Private $encid As String
 Private $sTable As String
 Private $sType As String
+Private $sComp As String
 Private $idList As String[]
 ''Arrays
 Private $sExamVar As Variant[]
@@ -78,18 +79,23 @@ Private $enableControl As Boolean
 Private $viewSlider As Boolean
 
 ''----------------------------------------- create controls -----------------------------------------
-Public Sub _new(encid As String, sTable As String, sType As String)
+Public Sub _new(encid As String, sTable As String, sType As String, sComp As String)
 
   Dim xoption As String
 
   $encid = encid
   $sTable = sTable
   $sType = sType
+  If sComp Then
+    $sComp = sComp
+  Else
+    $sComp = modBasic.$compID
+  Endif
   modGeneralMain.GetOpenModalForm(Me)
   $idList = New String[]
 
   If $sType = "Group" Then
-    cmbcategory.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldgroupname) as col from tblgroupexam where fldcomp=&1 or fldcomp=&2", modBasic.$compID, "%"))                           ''
+    cmbcategory.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldgroupname) as col from tblgroupexam where fldcomp=&1 or fldcomp=&2", $sComp, "%"))                           ''
   Else If $sType = "Scales" Then
     cmbcategory.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldcategory) as col from tblexam where fldoption=&1", "Clinical Scale"))
   Else If $sType = "All" Then
@@ -126,9 +132,11 @@ Private Function GetPhysicianExamVariant() As Variant[]
   Dim aVar As Variant[]
 
   aVar = New Variant[]
-  For Each sColl In modTableCache.$ExaminationCompVar
-    If sColl["fldcategory"] = "Physician Examinations" Then
-      aVar.Add(sColl)
+  For Each sColl In modTableCache.$ExamMasterCompVar
+    If sColl["fldcomp"] = $sComp Or If sColl["fldcomp"] = "%" Then
+      If sColl["fldcategory"] = "Physician Examinations" Then
+        aVar.Add(sColl)
+      Endif
     Endif
   Next
 

@@ -64,6 +64,7 @@ Private Sub ShowSelectedDosing()
     lblmedicine.Text = $rData1["flditem"]
     txtmedname.Text = modMedConstant.GetDrugFromStockID(lblmedicine.Text)
 
+    btninjection.Tag = $rData1["fldroute"]
     txtinitstren.Value = modMedConstant.GetDrugInitialStrength($rData1["flditem"])
     lblregimen.Text = $rData1["fldroute"] & Space(2) & $rData1["flddose"] & Space(1) & modMedConstant.GetMedicineDoseUnit($rData1["flditem"]) & " X " & $rData1["fldfreq"] & " X " & $rData1["flddays"] & " day(s)"
     lblregimen.Tag = $rData1["fldfreq"]
@@ -225,6 +226,22 @@ Public Sub btndosestop_Click()
       res["xyz"] = False
       res.Update
       FillGridView(txtid.Value)
+    Endif
+  Endif
+
+End
+
+Public Sub btninjection_Click()
+
+  Dim res As Result
+  Dim hForm As FmInjection
+
+  If btninjection.Tag Then
+    res = modDatabase.$medConn.Exec("select fldlabel from tbllabel where flddrug=&1 and fldsubroute=&2", modMedConstant.GetDrugFromStockID(lblmedicine.Text), btninjection.Tag)
+    If res.Available Then
+      res.MoveFirst
+      hForm = New FmInjection(btninjection.Tag, res["fldlabel"])
+      hForm.ShowModal
     Endif
   Endif
 

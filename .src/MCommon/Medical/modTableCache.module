@@ -2,11 +2,81 @@
 
 Public $SymptomMasterVar As Variant[]
 Public $SymptomCompVar As Variant[]
+Public $ExamMasterCompVar As Variant[]
 Public $ExaminationCompVar As Variant[]
 
 Public $MedicineDataVar As Variant[]
 Public $UserProfileVar As Variant[]
 Public $ServiceDataVar As Variant[]
+
+Public $DepartmentVar As Variant[]
+Public $DiscSchemeVar As Variant[]
+
+''------------------- General ---------------------------
+Public Sub LoadDepartmentMasterData(sCon As Connection)
+
+  Dim res As Result
+  Dim sColl As Collection
+
+  $DepartmentVar = New Variant[]
+  res = sCon.Exec("select flddept,fldcateg,flddeptcode,fldactive,fldroom,fldhead,flddisctype,fldcomp,fldinterval,fldstart from tbldepartment")     ''
+  If res.Available Then
+    For Each res
+      sColl = New Collection
+      sColl.Add(res["flddept"], "flddept")
+      sColl.Add(res["fldcateg"], "fldcateg")
+      sColl.Add(res["flddeptcode"], "flddeptcode")
+      sColl.Add(res["fldactive"], "fldactive")
+      sColl.Add(res["fldroom"], "fldroom")
+      sColl.Add(res["fldhead"], "fldhead")
+      sColl.Add(res["flddisctype"], "flddisctype")
+      sColl.Add(res["fldcomp"], "fldcomp")
+      sColl.Add(res["fldinterval"], "fldinterval")
+      sColl.Add(res["fldstart"], "fldstart")
+
+      $DepartmentVar.Add(sColl)
+    Next
+  Endif
+
+End
+
+Public Sub LoadDiscountMasterData(sCon As Connection)
+
+  Dim res As Result
+  Dim sColl As Collection
+
+  $DiscSchemeVar = New Variant[]
+  res = sCon.Exec("select fldtype,fldmode,fldpercent,fldamount,fldcredit,fldlimit,fldbillingmode,fldacledger,fldreference,fldbilltype,fldinvoice,fldreserved,fldcashincredit,fldyear,fldforce,fldqtylimit,fldfixdepart,fldlockstate,fldonline,fldoffspring,fldbankaccount from tbldiscount")     ''
+  If res.Available Then
+    For Each res
+      sColl = New Collection
+      sColl.Add(res["fldtype"], "fldtype")
+      sColl.Add(res["fldmode"], "fldmode")
+      sColl.Add(res["fldpercent"], "fldpercent")
+      sColl.Add(res["fldamount"], "fldamount")
+      sColl.Add(res["fldcredit"], "fldcredit")
+      sColl.Add(res["fldlimit"], "fldlimit")
+      sColl.Add(res["fldbillingmode"], "fldbillingmode")
+      sColl.Add(res["fldacledger"], "fldacledger")
+      sColl.Add(res["fldreference"], "fldreference")
+      sColl.Add(res["fldbilltype"], "fldbilltype")
+      sColl.Add(res["fldinvoice"], "fldinvoice")
+      sColl.Add(res["fldreserved"], "fldreserved")
+      sColl.Add(res["fldcashincredit"], "fldcashincredit")
+      sColl.Add(res["fldyear"], "fldyear")
+      sColl.Add(res["fldforce"], "fldforce")
+      sColl.Add(res["fldqtylimit"], "fldqtylimit")
+      sColl.Add(res["fldfixdepart"], "fldfixdepart")
+      sColl.Add(res["fldlockstate"], "fldlockstate")
+      sColl.Add(res["fldonline"], "fldonline")
+      sColl.Add(res["fldoffspring"], "fldoffspring")
+      sColl.Add(res["fldbankaccount"], "fldbankaccount")
+
+      $DiscSchemeVar.Add(sColl)
+    Next
+  Endif
+
+End
 
 ''----------------- Patho --------------------------------
 Public Sub LoadSymptomsMasterData(sCon As Connection)
@@ -48,13 +118,13 @@ Public Sub LoadSymptomsCompwiseData(sCon As Connection)
 
 End
 
-Public Sub LoadExamsCompwiseData(sCon As Connection)
+Public Sub LoadExamCompMasterData(sCon As Connection)
 
   Dim res As Result
   Dim sColl As Collection
 
-  $ExaminationCompVar = New Variant[]
-  res = sCon.Exec("select fldcategory,fldexamid,fldsysconst,fldtype,fldtanswertype,fldoptionlist,fldgroupname,fldexamorder,fldflag from tblcompexam where fldcomp=&1 or fldcomp=&2 ORDER BY fldexamorder", modBasic.$compID, "%")     ''
+  $ExamMasterCompVar = New Variant[]
+  res = sCon.Exec("select fldcategory,fldexamid,fldsysconst,fldtype,fldtanswertype,fldoptionlist,fldgroupname,fldexamorder,fldflag,fldcomp from tblcompexam ORDER BY fldexamorder")     ''
   If res.Available Then
     For Each res
       sColl = New Collection
@@ -67,11 +137,52 @@ Public Sub LoadExamsCompwiseData(sCon As Connection)
       sColl.Add(res["fldgroupname"], "fldgroupname")
       sColl.Add(res["fldexamorder"], "fldexamorder")
       sColl.Add(res["fldflag"], "fldflag")
-      $ExaminationCompVar.Add(sColl)
+      sColl.Add(res["fldcomp"], "fldcomp")
+      $ExamMasterCompVar.Add(sColl)
     Next
   Endif
 
 End
+
+Public Sub LoadExamsCompwiseData(sCon As Connection)
+
+  Dim sColl As Collection
+
+  LoadExamCompMasterData(sCon)
+
+  $ExaminationCompVar = New Variant[]
+  For Each sColl In $ExamMasterCompVar
+    If sColl["fldcomp"] = modBasic.$compID Or If sColl["fldcomp"] = "%" Then
+      $ExaminationCompVar.Add(sColl)
+    Endif
+  Next
+
+End
+
+' Public Sub LoadExamsCompwiseData(sCon As Connection)
+'
+'   Dim res As Result
+'   Dim sColl As Collection
+'
+'   $ExaminationCompVar = New Variant[]
+'   res = sCon.Exec("select fldcategory,fldexamid,fldsysconst,fldtype,fldtanswertype,fldoptionlist,fldgroupname,fldexamorder,fldflag from tblcompexam where fldcomp=&1 or fldcomp=&2 ORDER BY fldexamorder", modBasic.$compID, "%")     ''
+'   If res.Available Then
+'     For Each res
+'       sColl = New Collection
+'       sColl.Add(res["fldcategory"], "fldcategory")
+'       sColl.Add(res["fldexamid"], "fldexamid")
+'       sColl.Add(res["fldsysconst"], "fldsysconst")
+'       sColl.Add(res["fldtype"], "fldtype")
+'       sColl.Add(res["fldtanswertype"], "fldtanswertype")
+'       sColl.Add(res["fldoptionlist"], "fldoptionlist")
+'       sColl.Add(res["fldgroupname"], "fldgroupname")
+'       sColl.Add(res["fldexamorder"], "fldexamorder")
+'       sColl.Add(res["fldflag"], "fldflag")
+'       $ExaminationCompVar.Add(sColl)
+'     Next
+'   Endif
+'
+' End
 
 ''===================== Medicine ===============================================
 Public Sub LoadMedicineMasterData(sCon As Connection)

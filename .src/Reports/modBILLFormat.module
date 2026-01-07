@@ -355,9 +355,6 @@ Private Function BillingHTMLInvoice(BillNo As String, txTitle As String, ShowTax
   Dim sComp As String
   Dim txtmode As String
   Dim xcompo As String[]
-  Dim xqrpay As String
-  Dim xqramt As Float
-  Dim xcsource As String
   Dim xcshcomm As String
   Dim xcshper As Float
   Dim xcshamt As Float
@@ -377,15 +374,6 @@ Private Function BillingHTMLInvoice(BillNo As String, txTitle As String, ShowTax
   sUser = res["flduserid"]
   sComp = res["fldcomp"]
   txtmode = res["fldbilltype"]
-  If txtmode = "Cash" Then
-    xqrpay = modNonMedical.GetQRSCanPayCode(BillNo)
-    xqramt = modNonMedical.GetQRPaymentAmtBill(BillNo)
-    xcsource = modNonMedical.GetCashSource(BillNo).Join(";")
-  Else
-    xqrpay = ""
-    xqramt = 0
-    xcsource = ""
-  Endif
   If modBasic.$currency Then
     rsunit = modBasic.$currency
   Else
@@ -565,9 +553,15 @@ Private Function BillingHTMLInvoice(BillNo As String, txTitle As String, ShowTax
   'Footer notes
   $BillingReport.UserData.Add(res["fldbankname"], "LedgerA/C")
   $BillingReport.UserData.Add(res["fldchequeno"], "InvRefNumber")
-  $BillingReport.UserData.Add(xqrpay, "QRPayment")
-  $BillingReport.UserData.Add(rsunit & Space(1) & Format(xqramt, gb.Fixed), "QRAmount")
-  $BillingReport.UserData.Add(xcsource, "CashSource")
+  If txtmode = "Cash" Then
+    $BillingReport.UserData.Add(modNonMedical.GetQRSCanPayCode(BillNo), "QRPayment")
+    $BillingReport.UserData.Add(rsunit & Space(1) & Format(modNonMedical.GetQRPaymentAmtBill(BillNo), gb.Fixed), "QRAmount")
+    $BillingReport.UserData.Add(modNonMedical.GetCashSource(BillNo).Join(";"), "CashSource")
+  Else
+    $BillingReport.UserData.Add("", "QRPayment")
+    $BillingReport.UserData.Add(rsunit & Space(1) & Format(0, gb.Fixed), "QRAmount")
+    $BillingReport.UserData.Add("", "CashSource")
+  Endif
   $BillingReport.UserData.Add(GetInvoicePatStatus(res["fldprevdeposit"]), "InvPatStatus")
   If xcshcomm Then
     $BillingReport.UserData.Add(xcshcomm, "InvoiceNote")
@@ -1048,8 +1042,6 @@ Private Function BillingLINEInvoice(BillNo As String, txTitle As String, ShowTax
   Dim sComp As String
   Dim txtmode As String
   Dim xcompo As String[]
-  Dim xqrpay As String
-  Dim xcsource As String
   Dim xcshcomm As String
   Dim xcshper As Float
   Dim xcshamt As Float
@@ -1069,13 +1061,6 @@ Private Function BillingLINEInvoice(BillNo As String, txTitle As String, ShowTax
   sUser = res["flduserid"]
   sComp = res["fldcomp"]
   txtmode = res["fldbilltype"]
-  If txtmode = "Cash" Then
-    xqrpay = modNonMedical.GetQRSCanPayCode(BillNo)
-    xcsource = modNonMedical.GetCashSource(BillNo).Join(";")
-  Else
-    xqrpay = ""
-    xcsource = ""
-  Endif
   If modBasic.$currency Then
     rsunit = modBasic.$currency
   Else
@@ -1246,8 +1231,15 @@ Private Function BillingLINEInvoice(BillNo As String, txTitle As String, ShowTax
   'Footer notes
   $BillingReport.UserData.Add(res["fldbankname"], "LedgerA/C")
   $BillingReport.UserData.Add(res["fldchequeno"], "InvRefNumber")
-  $BillingReport.UserData.Add(xqrpay, "QRPayment")
-  $BillingReport.UserData.Add(xcsource, "CashSource")
+  If txtmode = "Cash" Then
+    $BillingReport.UserData.Add(modNonMedical.GetQRSCanPayCode(BillNo), "QRPayment")
+    $BillingReport.UserData.Add(rsunit & Space(1) & Format(modNonMedical.GetQRPaymentAmtBill(BillNo), gb.Fixed), "QRAmount")
+    $BillingReport.UserData.Add(modNonMedical.GetCashSource(BillNo).Join(";"), "CashSource")
+  Else
+    $BillingReport.UserData.Add("", "QRPayment")
+    $BillingReport.UserData.Add(rsunit & Space(1) & Format(0, gb.Fixed), "QRAmount")
+    $BillingReport.UserData.Add("", "CashSource")
+  Endif
   $BillingReport.UserData.Add(GetInvoicePatStatus(res["fldprevdeposit"]), "InvPatStatus")
   If xcshcomm Then
     $BillingReport.UserData.Add(xcshcomm, "InvoiceNote")
@@ -1870,8 +1862,6 @@ Private Function TempraryBillReport(BillNo As String, txTitle As String) As Stri
   Dim sUser As String
   Dim sComp As String
   Dim txtmode As String
-  Dim xqrpay As String
-  Dim xcsource As String
 
   'Query for header and footer content
   sql = "select fldencounterval,flditemamt,fldtaxamt,flddiscountamt,fldchargedamt as chrgeamt,fldreceivedamt,fldcurdeposit,fldbilltype,fldtaxgroup,flddiscountgroup,flduserid,fldtime,fldcomp,fldchequeno,fldbankname,fldprevdeposit from " & $tbltempbilldetail & " where fldbillno=&1"                                                                    '''
@@ -1885,13 +1875,6 @@ Private Function TempraryBillReport(BillNo As String, txTitle As String) As Stri
   sUser = res["flduserid"]
   sComp = res["fldcomp"]
   txtmode = res["fldbilltype"]
-  If txtmode = "Cash" Then
-    xqrpay = modNonMedical.GetQRSCanPayCode(BillNo)
-    xcsource = modNonMedical.GetCashSource(BillNo).Join(";")
-  Else
-    xqrpay = ""
-    xcsource = ""
-  Endif
   If modBasic.$currency Then
     rsunit = modBasic.$currency
   Else
@@ -1965,8 +1948,15 @@ Private Function TempraryBillReport(BillNo As String, txTitle As String) As Stri
   'Footer notes
   $BillingReport.UserData.Add(res["fldbankname"], "LedgerA/C")
   $BillingReport.UserData.Add(res["fldchequeno"], "InvRefNumber")
-  $BillingReport.UserData.Add(xqrpay, "QRPayment")
-  $BillingReport.UserData.Add(xcsource, "CashSource")
+  If txtmode = "Cash" Then
+    $BillingReport.UserData.Add(modNonMedical.GetQRSCanPayCode(BillNo), "QRPayment")
+    $BillingReport.UserData.Add(rsunit & Space(1) & Format(modNonMedical.GetQRPaymentAmtBill(BillNo), gb.Fixed), "QRAmount")
+    $BillingReport.UserData.Add(modNonMedical.GetCashSource(BillNo).Join(";"), "CashSource")
+  Else
+    $BillingReport.UserData.Add("", "QRPayment")
+    $BillingReport.UserData.Add(rsunit & Space(1) & Format(0, gb.Fixed), "QRAmount")
+    $BillingReport.UserData.Add("", "CashSource")
+  Endif
   $BillingReport.UserData.Add(GetInvoicePatStatus(res["fldprevdeposit"]), "InvPatStatus")
   $BillingReport.UserData.Add(modString.GetFormatTextFontString($Note1_Text, $NoteI_Font), "Note1")
   $BillingReport.UserData.Add(modString.GetFormatTextFontString($Note2_Text, $Note2_Font), "NoteII")

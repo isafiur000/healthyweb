@@ -956,6 +956,20 @@ Public Function AddSelectedTest(encid As String, testList As String[], sUnit As 
 
 End
 
+Public Function AddCompleteTest(encid As String, sUnit As String) As String[]
+
+  Dim asx As New String[0]
+
+  Dim stChapter As String
+  Dim stObservation As String
+
+  stChapter = "Laboratory"
+  stObservation = GetCompleteLabTestByEnc(encid, sUnit)
+  asx = AddCustomReport(stChapter, stObservation)
+  Return asx
+
+End
+
 Public Function AddSelectedRadio(encid As String, examList As String[]) As String[]
 
   Dim asx As New String[0]
@@ -965,6 +979,20 @@ Public Function AddSelectedRadio(encid As String, examList As String[]) As Strin
 
   stChapter = "Radio Diagnostics"
   stObservation = GetRadiologyHTMLProfile(encid, examList)
+  asx = AddCustomReport(stChapter, stObservation)
+  Return asx
+
+End
+
+Public Function AddCompleteRadio(encid As String) As String[]
+
+  Dim asx As New String[0]
+
+  Dim stChapter As String
+  Dim stObservation As String
+
+  stChapter = "Radio Diagnostics"
+  stObservation = GetCompleteRadioTestByEnc(encid)
   asx = AddCustomReport(stChapter, stObservation)
   Return asx
 
@@ -2226,6 +2254,7 @@ Public Function GetLaboratoryHTMLTable(encid As String, testList As String[], sU
   Dim bsx As String[]
 
   xx = modRepoTemplete.HTMLTableSyntax()
+  xx = xx & "<tr>" & gb.NewLine
   If sType = "First-LastVal" Then
     xx = xx & "<td class='reportmid_table_h'>" & "Variable" & "</td>" & gb.NewLine
 
@@ -2349,6 +2378,82 @@ Public Function GetLaboratoryHTMLTable(encid As String, testList As String[], sU
 
     Endif
     xx = xx & "</tr>" & gb.NewLine
+  Next
+  xx = xx & "</table>" & gb.NewLine
+
+  Return xx
+
+End
+
+Private Function GetCompleteLabTestByEnc(encid As String, sUnit As String) As String
+
+  Dim xx As String
+  Dim xval As String
+  Dim res As Result
+  Dim categLst As String[]
+  Dim xcateg As String
+  Dim colCount As Integer
+
+  xx = modRepoTemplete.HTMLTableSyntax()
+  xx = xx & "<tr>" & gb.NewLine
+  xx = xx & "<td class='reportmid_table_h'>" & "Variable" & "</td>" & gb.NewLine
+  xx = xx & "<td class='reportmid_table_h'>" & "Specimen" & "</td>" & gb.NewLine
+  xx = xx & "<td class='reportmid_table_h'>" & "Observation" & "</td>" & gb.NewLine
+  If modBasic.$SHowDayDiagnosticReport = "User" Then
+    xx = xx & "<td class='reportmid_table_h'>" & "User" & "</td>" & gb.NewLine
+  Else If modBasic.$SHowDayDiagnosticReport = "Date+User" Then
+    xx = xx & "<td class='reportmid_table_h'>" & "Date" & "</td>" & gb.NewLine
+    xx = xx & "<td class='reportmid_table_h'>" & "User" & "</td>" & gb.NewLine
+  Else If modBasic.$SHowDayDiagnosticReport = "None" Then
+  Else
+    xx = xx & "<td class='reportmid_table_h'>" & "Date" & "</td>" & gb.NewLine
+  Endif
+  xx = xx & "</tr>" & gb.NewLine
+
+  If modBasic.$SHowDayDiagnosticReport = "Date+User" Then
+    colCount = 5
+  Else If modBasic.$SHowDayDiagnosticReport = "None" Then
+    colCount = 3
+  Else
+    colCount = 4
+  Endif
+
+  categLst = modMedicine.GetPathoCategoryList("Test")
+  categLst.Add("Uncategorised")
+  For Each xcateg In categLst
+    If xcateg = "Uncategorised" Then
+      res = modDatabase.$syConn.Exec("select fldid,fldencounterval,fldtime_sample,fldsampletype,fldtestid,fldreportquali,fldtest_type,fldreportquanti,fldtestunit,fldmethod,flduserid_report from tblpatlabtest where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3) and flvisible=&4 and fldtestid in(select fldtestid from tbltest where fldcategory IS NULL) ORDER BY fldtime_sample", encid, "Reported", "Verified", "Visible")
+    Else
+      res = modDatabase.$syConn.Exec("select fldid,fldencounterval,fldtime_sample,fldsampletype,fldtestid,fldreportquali,fldtest_type,fldreportquanti,fldtestunit,fldmethod,flduserid_report from tblpatlabtest where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3) and flvisible=&4 and fldtestid in(select fldtestid from tbltest where fldcategory=&5) ORDER BY fldtime_sample", encid, "Reported", "Verified", "Visible", xcateg)
+    Endif
+    If res.Available Then
+
+      xx = xx & "<tr align='center'>" & gb.NewLine
+      xx = xx & "<td colspan='" & CStr(colCount) & "' rowspan='1'>" & xcateg & "</span></td>"
+      xx = xx & "</tr>" & gb.NewLine
+
+      For Each res
+        xval = ""
+        xx = xx & "<tr>" & gb.NewLine
+
+        xx = xx & "<td>" & res["fldtestid"] & "</td>" & gb.NewLine
+        xx = xx & "<td>" & res["fldsampletype"] & "</td>" & gb.NewLine
+        xval = modLabTest.GetLabTestValueSubString(res["fldid"], sUnit, True, "tblpatlabtest", "tblpatlabsubtest")
+        xx = xx & "<td>" & modString.TextToHTML(xval) & "</td>" & gb.NewLine
+        If modBasic.$SHowDayDiagnosticReport = "User" Then
+          xx = xx & "<td>" & res["flduserid_report"] & "</td>" & gb.NewLine
+        Else If modBasic.$SHowDayDiagnosticReport = "Date+User" Then
+          xx = xx & "<td>" & modReportVar.GetDateTimeReport(res["fldtime_sample"], gb.GeneralDate) & "</td>" & gb.NewLine
+          xx = xx & "<td>" & res["flduserid_report"] & "</td>" & gb.NewLine
+        Else If modBasic.$SHowDayDiagnosticReport = "None" Then
+        Else
+          xx = xx & "<td>" & modReportVar.GetDateTimeReport(res["fldtime_sample"], gb.GeneralDate) & "</td>" & gb.NewLine
+        Endif
+
+        xx = xx & "</tr>" & gb.NewLine
+      Next
+    Endif
+
   Next
   xx = xx & "</table>" & gb.NewLine
 
@@ -2488,6 +2593,7 @@ Private Function GetRadioDiagnoHTMLTable(encid As String, testList As String[], 
   Dim bsx As String[]
 
   xx = modRepoTemplete.HTMLTableSyntax()
+  xx = xx & "<tr>" & gb.NewLine
   If sType = "First-LastVal" Then
     xx = xx & "<td class='reportmid_table_h'>" & "Variable" & "</td>" & gb.NewLine
 
@@ -2603,6 +2709,78 @@ Private Function GetRadioDiagnoHTMLTable(encid As String, testList As String[], 
 
     Endif
     xx = xx & "</tr>" & gb.NewLine
+  Next
+  xx = xx & "</table>" & gb.NewLine
+
+  Return xx
+
+End
+
+Private Function GetCompleteRadioTestByEnc(encid As String) As String
+
+  Dim xx As String
+  Dim xval As String
+  Dim res As Result
+  Dim categLst As String[]
+  Dim xcateg As String
+  Dim colCount As Integer
+
+  xx = modRepoTemplete.HTMLTableSyntax()
+  xx = xx & "<tr>" & gb.NewLine
+  xx = xx & "<td class='reportmid_table_h'>" & "Variable" & "</td>" & gb.NewLine
+  xx = xx & "<td class='reportmid_table_h'>" & "Observation" & "</td>" & gb.NewLine
+  If modBasic.$SHowDayDiagnosticReport = "User" Then
+    xx = xx & "<td class='reportmid_table_h'>" & "User" & "</td>" & gb.NewLine
+  Else If modBasic.$SHowDayDiagnosticReport = "Date+User" Then
+    xx = xx & "<td class='reportmid_table_h'>" & "Date" & "</td>" & gb.NewLine
+    xx = xx & "<td class='reportmid_table_h'>" & "User" & "</td>" & gb.NewLine
+  Else If modBasic.$SHowDayDiagnosticReport = "None" Then
+  Else
+    xx = xx & "<td class='reportmid_table_h'>" & "Date" & "</td>" & gb.NewLine
+  Endif
+  xx = xx & "</tr>" & gb.NewLine
+
+  If modBasic.$SHowDayDiagnosticReport = "Date+User" Then
+    colCount = 4
+  Else If modBasic.$SHowDayDiagnosticReport = "None" Then
+    colCount = 2
+  Else
+    colCount = 3
+  Endif
+
+  categLst = modMedicine.GetPathoCategoryList("Radio")
+  categLst.Add("Uncategorised")
+  For Each xcateg In categLst
+    If xcateg = "Uncategorised" Then
+      res = modDatabase.$syConn.Exec("select fldid,fldtime_report,fldreportquanti,fldreportquali,fldtest_type,fldtestid,flduserid_report from tblpatradiotest where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3) and flvisible=&4 and fldtestid in(select fldexamid from tblradio where fldcategory IS NULL)", encid, "Reported", "Verified", "Visible")
+    Else
+      res = modDatabase.$syConn.Exec("select fldid,fldtime_report,fldreportquanti,fldreportquali,fldtest_type,fldtestid,flduserid_report from tblpatradiotest where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3) and flvisible=&4 and fldtestid in(select fldexamid from tblradio where fldcategory=&5)", encid, "Reported", "Verified", "Visible", xcateg)
+    Endif
+    If res.Available Then
+      xx = xx & "<tr align='center'>" & gb.NewLine
+      xx = xx & "<td colspan='" & CStr(colCount) & "' rowspan='1'>" & xcateg & "</span></td>"
+      xx = xx & "</tr>" & gb.NewLine
+
+      For Each res
+        xval = ""
+        xx = xx & "<tr>" & gb.NewLine
+
+        xx = xx & "<td>" & res["fldtestid"] & "</td>" & gb.NewLine
+        xval = modRadioTest.GetRadiobTestValueSubString(res["fldid"], True)
+        xx = xx & "<td>" & xval & "</td>" & gb.NewLine
+        If modBasic.$SHowDayDiagnosticReport = "User" Then
+          xx = xx & "<td>" & res["flduserid_report"] & "</td>" & gb.NewLine
+        Else If modBasic.$SHowDayDiagnosticReport = "Date+User" Then
+          xx = xx & "<td>" & modReportVar.GetDateTimeReport(res["fldtime_report"], gb.GeneralDate) & "</td>" & gb.NewLine
+          xx = xx & "<td>" & res["flduserid_report"] & "</td>" & gb.NewLine
+        Else If modBasic.$SHowDayDiagnosticReport = "None" Then
+        Else
+          xx = xx & "<td>" & modReportVar.GetDateTimeReport(res["fldtime_report"], gb.GeneralDate) & "</td>" & gb.NewLine
+        Endif
+
+        xx = xx & "</tr>" & gb.NewLine
+      Next
+    Endif
   Next
   xx = xx & "</table>" & gb.NewLine
 
