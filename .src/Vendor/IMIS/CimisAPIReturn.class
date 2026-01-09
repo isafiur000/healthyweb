@@ -1,0 +1,65 @@
+' Gambas class file
+
+Private $xAuthString As String
+Private $HeadString As String
+
+Private $EncID As String
+Private $ClaimCode As String
+Private $sType As String
+Private $sItemLst As String[]
+
+Private $outPut As String
+
+Private Sub SetAuthentication()
+
+  If modBasic.$IMISQuote = "Yes" Then
+    $xAuthString = "'" & modBasic.$IMISUser & ":" & modBasic.$IMISPass & "'"
+  Else
+    $xAuthString = modBasic.$IMISUser & ":" & modBasic.$IMISPass
+  Endif
+  $HeadString = "remote-user:" & modBasic.$IMISRemoUser
+
+End
+
+Public Sub _new(sEncID As String, sClaimCode As String, sType As String, sItemLst As String[])
+
+  $EncID = sEncID
+  $ClaimCode = sClaimCode
+  $sType = sType
+  $sItemLst = sItemLst
+  UploadReturnClaim()
+
+End
+
+Private Sub UploadReturnClaim()
+
+  Dim acmd As String
+  Dim xurl As String
+  Dim xcont As String
+  Dim sColl As Collection
+
+  sColl = New Collection
+  sColl.Add($ClaimCode, "claim_code")
+  sColl.Add($sType, "type")
+  sColl.Add($sItemLst, "codes")
+
+  SetAuthentication()
+  xurl = modBasic.$IMISReturnURL
+  xcont = "Content-Type: application/json"
+
+  If modBasic.$IMISCACert = "Disable" Then
+    acmd = "curl -k -u " & $xAuthString & " -H " & Quote(xcont) & " -H " & Quote($HeadString) & " -d '" & JSON.Encode(sColl) & "' --location " & xurl
+  Else
+    acmd = "curl -u " & $xAuthString & " -H " & Quote(xcont) & " -H " & Quote($HeadString) & " -d '" & JSON.Encode(sColl) & "' --location " & xurl
+  Endif
+  modBasic.DebugAPIString(Replace("Execute " & acmd, $xAuthString, "****"))
+  Shell acmd To $outPut
+  modBasic.DebugAPIString("Response: " & $outPut)
+
+End
+
+Public Function GetAPIOutput() As String
+
+  Return $outPut
+
+End

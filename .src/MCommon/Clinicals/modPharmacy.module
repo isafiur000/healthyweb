@@ -318,6 +318,50 @@ Public Function GetMedicineFollowPatient(sToDate As Date) As String[]
 
 End
 
+Public Function GetVaccineUsed(encid As String, showAll As Boolean, showBatch As Boolean) As String
+
+  Dim res As Result
+  Dim xFinal As Variant[]
+  Dim xRowVal As Collection
+  Dim i As Integer
+  Dim coLst As String[]
+  Dim yy As String
+
+  If showBatch = True Then
+    coLst = ["", "Date", "Vaccine", "Dose", "Product", "Batch"]
+  Else
+    coLst = ["", "Date", "Vaccine", "Dose"]
+  Endif
+
+  xFinal = New Variant[]
+  If showAll = True Then
+    res = modDatabase.$myConn.Exec("select t1.flditem as flditem,t1.fldtype as fldtype,t1.fldstockno as fldstockno,t1.fldvalue as fldvalue,t1.fldunit as fldunit,t1.flduserid as flduserid,t1.fldtime as fldtime from tblvaccdosing as t1 inner join tblencounter as t2 on t1.fldencounterval=t2.fldencounterval where t2.fldpatientval=&1 and t1.fldsave=&2", modPatient.GetPatientNoByEnc(encid), True)
+  Else
+    res = modDatabase.$myConn.Exec("select flditem,fldtype,fldstockno,fldvalue,fldunit,flduserid,fldtime from tblvaccdosing where fldencounterval=&1 and fldsave=&2", encid, True)
+  Endif
+  If res.Available Then
+    i = 1
+    For Each res
+      xRowVal = New Collection
+      xRowVal.Add(CStr(i), CStr(0))
+      xRowVal.Add(modReportVar.GetDateTimeReport(res["fldtime"], gb.MediumDate), CStr(1))
+      xRowVal.Add(res["flditem"] & Space(1) & res["fldtype"], CStr(2))
+      xRowVal.Add(CStr(res["fldvalue"]) & Space(1) & res["fldunit"], CStr(3))
+      If showBatch = True Then
+        xRowVal.Add(modStock.GetStockNameFromStockno(res["fldstockno"]), CStr(4))
+        xRowVal.Add(modStock.GetBatchFromStockNo(res["fldstockno"]) & " / " & modReportVar.GetDateTimeReport(modStock.GetExpiryFromStockNo(res["fldstockno"]), gb.MediumDate), CStr(5))
+      Endif
+      xFinal.Add(xRowVal)
+      i = i + 1
+    Next
+
+    yy = modString.GetRichTableStringFromVariant(coLst, xFinal)
+  Endif
+
+  Return yy
+
+End
+
 Public Function PatientTakingMed(dtfir As Date, dtlast As Date) As String[]
 
   Dim xx As String[]
