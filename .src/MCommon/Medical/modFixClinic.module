@@ -1,7 +1,5 @@
 ' Gambas module file
 
-Public $ExamMasterData As Collection
-
 Public $ExamIDFromSysConst As Collection
 Public $ExamSysOptionType As Collection
 
@@ -9,33 +7,6 @@ Public $ExamDrugHypo As Collection
 Public $ExamdrugHyper As Collection
 Public $ExamSyndroBrady As Collection
 Public $ExamSyndroTachy As Collection
-
-Public Sub GetExamMasterDataColl(examname As String, sCon As Connection)
-
-  Dim res As Result
-  Dim sColl As Collection
-
-  If $ExamMasterData.Exist(examname) = False Then
-    res = sCon.Exec("SELECT fldcategory,fldsysconst,flddetail,fldtype,fldsensitivity,fldspecificity,fldcomment,fldoption,fldcritical,fldstatus FROM tblexam WHERE fldexamid=&1", examname)     ''
-    If res.Available Then
-      sColl = New Collection
-      sColl.Add(res["fldcategory"], "fldcategory")
-      sColl.Add(res["fldsysconst"], "fldsysconst")
-      sColl.Add(res["flddetail"], "flddetail")
-      sColl.Add(res["fldtype"], "fldtype")
-      sColl.Add(res["fldsensitivity"], "fldsensitivity")
-      sColl.Add(res["fldspecificity"], "fldspecificity")
-      sColl.Add(res["fldcomment"], "fldcomment")
-      sColl.Add(res["fldoption"], "fldoption")
-      sColl.Add(res["fldcritical"], "fldcritical")
-      sColl.Add(res["fldstatus"], "fldstatus")
-
-      ''add to collection
-      $ExamMasterData.Add(sColl, examname)
-    Endif
-  Endif
-
-End
 
 Public Function SysConstFromGetExamID(sExam As String, Optional sCon As Connection) As String
 
@@ -49,9 +20,12 @@ Public Function SysConstFromGetExamID(sExam As String, Optional sCon As Connecti
     $con = modDatabase.$medConn
   Endif
 
-  GetExamMasterDataColl(sExam, $con)
-  If $ExamMasterData.Exist(sExam) Then
-    xx = $ExamMasterData[sExam]["fldsysconst"]
+  If modTableCache.$ExamMasterData.Exist(sExam) Then
+    xx = modTableCache.$ExamMasterData[sExam]["fldsysconst"]
+    If Not xx Then
+      xx = ""
+    Endif
+
   Else
     res = $con.Exec("select fldsysconst from tblexam where fldexamid=&1", sExam)
     If res.Available = True Then
@@ -80,9 +54,12 @@ Public Function GetExamtOptionType(strTest As String, Optional sCon As Connectio
     $con = modDatabase.$medConn
   Endif
 
-  GetExamMasterDataColl(strTest, $con)
-  If $ExamMasterData.Exist(strTest) Then
-    xx = $ExamMasterData[strTest]["fldoption"]
+  If modTableCache.$ExamMasterData.Exist(strTest) Then
+    xx = modTableCache.$ExamMasterData[strTest]["fldoption"]
+    If Not xx Then
+      xx = ""
+    Endif
+
   Else
     res = $con.Exec("select fldoption from tblexam where fldexamid=&1", strTest)
     If res.Available Then
@@ -117,9 +94,12 @@ Public Function GetExaminationCategory(test As String, Optional sCon As Connecti
     $con = modDatabase.$medConn
   Endif
 
-  GetExamMasterDataColl(test, $con)
-  If $ExamMasterData.Exist(test) Then
-    xx = $ExamMasterData[test]["fldcategory"]
+  If modTableCache.$ExamMasterData.Exist(test) Then
+    xx = modTableCache.$ExamMasterData[test]["fldcategory"]
+    If Not xx Then
+      xx = ""
+    Endif
+
   Else
     res = $con.Exec("select fldcategory from tblexam where fldexamid=&1", test)
     If res.Available Then
@@ -148,9 +128,12 @@ Public Function GetExaminationType(strTest As String, Optional sCon As Connectio
     $con = modDatabase.$medConn
   Endif
 
-  GetExamMasterDataColl(strTest, $con)
-  If $ExamMasterData.Exist(strTest) Then
-    xx = $ExamMasterData[strTest]["fldtype"]
+  If modTableCache.$ExamMasterData.Exist(strTest) Then
+    xx = modTableCache.$ExamMasterData[strTest]["fldtype"]
+    If Not xx Then
+      xx = "Qualitative"
+    Endif
+
   Else
     res = $con.Exec("select fldtype from tblexam where fldexamid=&1", strTest)
     If res.Available = True Then
@@ -180,9 +163,12 @@ Public Function GetExamSysName(sExam As String, Optional sCon As Connection) As 
     $con = modDatabase.$medConn
   Endif
 
-  GetExamMasterDataColl(sExam, $con)
-  If $ExamMasterData.Exist(sExam) Then
-    xx = $ExamMasterData[sExam]["fldsysconst"]
+  If modTableCache.$ExamMasterData.Exist(sExam) Then
+    xx = modTableCache.$ExamMasterData[sExam]["fldsysconst"]
+    If Not xx Then
+      xx = ""
+    Endif
+
   Else
     res = $con.Exec("select fldsysconst from tblexam where fldexamid=&1", sExam)
     If res.Available Then
@@ -211,13 +197,12 @@ Public Function GetCritValueExam(strTest As String, Optional sCon As Connection)
     $con = modDatabase.$medConn
   Endif
 
-  GetExamMasterDataColl(strTest, $con)
-  If $ExamMasterData.Exist(strTest) Then
-    If $ExamMasterData[strTest]["fldcritical"] Then
-      xval = $ExamMasterData[strTest]["fldcritical"]
-    Else
+  If modTableCache.$ExamMasterData.Exist(strTest) Then
+    xval = modTableCache.$ExamMasterData[strTest]["fldcritical"]
+    If Not xval Then
       xval = 0
     Endif
+
   Else
     res = $con.Exec("select fldcritical from tblexam where fldexamid=&1", strTest)
     If res.Available Then

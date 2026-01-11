@@ -3,22 +3,9 @@
 Public $InvoiceTableData As Collection
 Public $ReceiptTableData As Collection
 
-Public $CashItemTarget As Collection
-Public $CashItemID As Collection
-Public $CashItemGroup As Collection
 Public $CashAccGroup As Collection
 ' Public $BillInvTypeData As Collection
 ' Public $BillReferenceData As Collection
-
-Public $DiscLaboratory As Float
-Public $DiscRadiology As Float
-Public $DiscProcedure As Float
-Public $DiscEquipment As Float
-Public $DiscServices As Float
-Public $DiscOthers As Float
-Public $DiscMedicine As Float
-Public $DiscSurgical As Float
-Public $DiscExtraItem As Float
 
 Public $tblpatbilling As String
 Public $tblpatbilldetail As String
@@ -618,7 +605,7 @@ Public Function GetCreditAMTFromReceipt(billno As String) As Float
 
 End
 
-'NOTE: ------------------------- List for Billing Particulars----------------------------
+'NOTE: ====================== List for Billing Particulars =========================================
 Public Function GetControlServCombo(txtitem As String) As Boolean
 
   Dim xx As Boolean
@@ -626,38 +613,6 @@ Public Function GetControlServCombo(txtitem As String) As Boolean
 
   res = modDatabase.$myConn.Exec("select flditemname from tblservicecost where flditemname=&1", txtitem)
   xx = res.Available
-  Return xx
-
-End
-
-Public Function NonSTockGroupList() As String[]
-
-  Dim res As Result
-  Dim xx As String[]
-
-  res = modDatabase.$myConn.Exec("select distinct(fldgroup) as col from tblservicegroup")
-  xx = modControlSub.GetDirectFillresult(res)
-  If xx Then
-    xx.Sort()
-  Endif
-  Return xx
-
-End
-
-Public Function NonSTockCostingGroupList(sType As String, Optional sBilMode As String) As String[]
-
-  Dim res As Result
-  Dim xx As String[]
-
-  If sBilMode Then
-    res = modDatabase.$myConn.Exec("select distinct(fldgroup) as col from tblcostgroup where flditemtype=&1 and flditemname in(select flditemname from tblservicecost where fldgroup=&2) and (fldcomp=&3 or fldcomp=&4)", sType, sBilMode, modBasic.$compID, "%")
-  Else
-    res = modDatabase.$myConn.Exec("select distinct(fldgroup) as col from tblcostgroup where flditemtype=&1 and (fldcomp=&2 or fldcomp=&3)", sType, modBasic.$compID, "%")
-  Endif
-  xx = modControlSub.GetDirectFillresult(res)
-  If xx Then
-    xx.Sort()
-  Endif
   Return xx
 
 End
@@ -773,6 +728,289 @@ Public Function GetServiceSectionArray(sType As String, sBillMode As String) As 
   Endif
 
   Return xval
+
+End
+
+''No caching of cost
+Public Function GetCashBillItemCost(txtitem As String, txtype As String) As Float
+
+  Dim sql As String
+  Dim res As Result
+  Dim xx As Float
+
+  sql = "select flditemcost,flditemunit from tblservicecost where flditemname=&1 and flditemtype like &2"
+  res = modDatabase.$myConn.Exec(sql, txtitem, txtype)
+  If res.Available = True Then
+    res.MoveFirst
+    If res["flditemcost"] Then
+      If res["flditemunit"] Then
+        xx = modNonMedical.GetCurrConvertAmount(res["flditemcost"], res["flditemunit"])
+      Else
+        xx = res["flditemcost"]
+      Endif
+    Else
+      xx = 0
+    Endif
+  Else
+    xx = 0
+  Endif
+
+  Return xx
+
+End
+
+''--------------------------- Caching --------------------------
+Public Function GetBillGetComment(strItem As String) As Boolean
+
+  Dim res As Result
+  Dim xx As Boolean
+
+  If modTableCache.$ServiceDataVar.Exist(strItem) Then
+    xx = modTableCache.$ServiceDataVar[strItem]["fldgetcomment"]
+    If Not xx Then
+      xx = False
+    Endif
+
+  Else
+    res = modDatabase.$myConn.Exec("select fldgetcomment from tblservicecost where flditemname=&1", strItem)
+    If res.Available = True Then
+      If res["fldgetcomment"] Then
+        xx = res["fldgetcomment"]
+      Else
+        xx = False
+      Endif
+    Else
+      xx = False
+    Endif
+  Endif
+
+  Return xx
+
+End
+
+Public Function GetBillingCategory(strItem As String) As String
+
+  Dim res As Result
+  Dim xx As String
+
+  If modTableCache.$ServiceDataVar.Exist(strItem) Then
+    xx = modTableCache.$ServiceDataVar[strItem]["flditemtype"]
+    If Not xx Then
+      xx = ""
+    Endif
+
+  Else
+    res = modDatabase.$myConn.Exec("select flditemtype from tblservicecost where flditemname=&1", strItem)
+    If res.Available = True Then
+      If res["flditemtype"] Then
+        xx = res["flditemtype"]
+      Else
+        xx = ""
+      Endif
+    Else
+      xx = ""
+    Endif
+  Endif
+
+  Return xx
+
+End
+
+Public Function GetBillingTargeDept(strItem As String, strType As String) As String
+
+  Dim res As Result
+  Dim xx As String
+
+  If modTableCache.$ServiceDataVar.Exist(strItem) Then
+    xx = modTableCache.$ServiceDataVar[strItem]["fldtarget"]
+    If Not xx Then
+      xx = ""
+    Endif
+
+  Else
+    res = modDatabase.$myConn.Exec("select fldtarget from tblservicecost where flditemname=&1 and flditemtype=&2", strItem, strType)
+    If res.Available = True Then
+      If res["fldtarget"] Then
+        xx = res["fldtarget"]
+      Else
+        xx = ""
+      Endif
+    Else
+      xx = ""
+    Endif
+  Endif
+
+  Return xx
+
+End
+
+Public Function GetBillingModeFromItemName(sItem As String) As String
+
+  Dim res As Result
+  Dim xx As String
+
+  If modTableCache.$ServiceDataVar.Exist(sItem) Then
+    xx = modTableCache.$ServiceDataVar[sItem]["fldgroup"]
+    If Not xx Then
+      xx = ""
+    Endif
+
+  Else
+    res = modDatabase.$myConn.Exec("select fldgroup from tblservicecost where flditemname=&1", sItem)
+    If res.Available = True Then
+      If res["fldgroup"] Then
+        xx = res["fldgroup"]
+      Else
+        xx = ""
+      Endif
+    Else
+      xx = ""
+    Endif
+  Endif
+
+  Return xx
+
+End
+
+Public Function GetCappingDayFromItemName(sItem As String) As Integer
+
+  Dim res As Result
+  Dim xx As Integer
+
+  If modTableCache.$ServiceDataVar.Exist(sItem) Then
+    xx = modTableCache.$ServiceDataVar[sItem]["fldwaitday"]
+    If Not xx Then
+      xx = 0
+    Endif
+
+  Else
+    res = modDatabase.$myConn.Exec("select fldwaitday from tblservicecost where flditemname=&1", sItem)
+    If res.Available = True Then
+      If res["fldwaitday"] Then
+        xx = res["fldwaitday"]
+      Else
+        xx = 0
+      Endif
+    Else
+      xx = 0
+    Endif
+  Endif
+
+  Return xx
+
+End
+
+Public Function GetAllowDiscEdit(strItem As String, strType As String) As Boolean
+
+  Dim res As Result
+  Dim xx As Boolean
+
+  If modTableCache.$ServiceDataVar.Exist(strItem) Then
+    xx = modTableCache.$ServiceDataVar[strItem]["fldeditdisc"]
+    If Not xx Then
+      xx = False
+    Endif
+
+  Else
+    res = modDatabase.$myConn.Exec("select fldeditdisc from tblservicecost where flditemname=&1 and flditemtype=&2", strItem, strType)
+    If res.Available = True Then
+      If res["fldeditdisc"] Then
+        xx = res["fldeditdisc"]
+      Else
+        xx = False
+      Endif
+    Else
+      xx = False
+    Endif
+  Endif
+  Return xx
+
+End
+
+Public Function GetAllowRateEdit(strItem As String, strType As String) As Boolean
+
+  Dim res As Result
+  Dim xx As Boolean
+
+  If modTableCache.$ServiceDataVar.Exist(strItem) Then
+    xx = modTableCache.$ServiceDataVar[strItem]["fldeditrate"]
+    If Not xx Then
+      xx = False
+    Endif
+
+  Else
+    res = modDatabase.$myConn.Exec("select fldeditrate from tblservicecost where flditemname=&1 and flditemtype=&2", strItem, strType)
+    If res.Available = True Then
+      If res["fldeditrate"] Then
+        xx = res["fldeditrate"]
+      Else
+        xx = False
+      Endif
+    Else
+      xx = False
+    Endif
+  Endif
+  Return xx
+
+End
+
+Public Function GetAllowPayableEdit(strItem As String) As Boolean
+
+  Dim res As Result
+  Dim xx As Boolean
+
+  If modTableCache.$ServiceDataVar.Exist(strItem) Then
+    xx = modTableCache.$ServiceDataVar[strItem]["fldpayable"]
+    If Not xx Then
+      xx = False
+    Endif
+
+  Else
+    res = modDatabase.$myConn.Exec("select fldpayable from tblservicecost where flditemname=&1", strItem)
+    If res.Available = True Then
+      If res["fldpayable"] Then
+        xx = res["fldpayable"]
+      Else
+        xx = False
+      Endif
+    Else
+      xx = False
+    Endif
+  Endif
+  Return xx
+
+End
+
+''------------------------ Others ------------------------------
+Public Function NonSTockGroupList() As String[]
+
+  Dim res As Result
+  Dim xx As String[]
+
+  res = modDatabase.$myConn.Exec("select distinct(fldgroup) as col from tblservicegroup")
+  xx = modControlSub.GetDirectFillresult(res)
+  If xx Then
+    xx.Sort()
+  Endif
+  Return xx
+
+End
+
+Public Function NonSTockCostingGroupList(sType As String, Optional sBilMode As String) As String[]
+
+  Dim res As Result
+  Dim xx As String[]
+
+  If sBilMode Then
+    res = modDatabase.$myConn.Exec("select distinct(fldgroup) as col from tblcostgroup where flditemtype=&1 and flditemname in(select flditemname from tblservicecost where fldgroup=&2) and (fldcomp=&3 or fldcomp=&4)", sType, sBilMode, modBasic.$compID, "%")
+  Else
+    res = modDatabase.$myConn.Exec("select distinct(fldgroup) as col from tblcostgroup where flditemtype=&1 and (fldcomp=&2 or fldcomp=&3)", sType, modBasic.$compID, "%")
+  Endif
+  xx = modControlSub.GetDirectFillresult(res)
+  If xx Then
+    xx.Sort()
+  Endif
+  Return xx
 
 End
 
@@ -1307,118 +1545,6 @@ Public Function GetBillItemHIAbbv(strItem As String, sCateg As String) As String
 
 End
 
-Public Function GetBillGetComment(strItem As String) As Boolean
-
-  Dim res As Result
-  Dim xx As Boolean
-
-  res = modDatabase.$myConn.Exec("select fldgetcomment from tblservicecost where flditemname=&1", strItem)
-  If res.Available = True Then
-    If res["fldgetcomment"] Then
-      xx = res["fldgetcomment"]
-    Else
-      xx = False
-    Endif
-  Else
-    xx = False
-  Endif
-
-  Return xx
-
-End
-
-Public Function GetBillingCategory(strItem As String) As String
-
-  Dim res As Result
-  Dim xx As String
-
-  res = modDatabase.$myConn.Exec("select flditemtype from tblservicecost where flditemname=&1", strItem)
-  If res.Available = True Then
-    If res["flditemtype"] Then
-      xx = res["flditemtype"]
-    Else
-      xx = ""
-    Endif
-  Else
-    xx = ""
-  Endif
-
-  Return xx
-
-End
-
-Public Function GetBillingTargeDept(strItem As String, strType As String) As String
-
-  Dim res As Result
-  Dim xx As String
-
-  xx = modHelpVariable.GetCollectionValue($CashItemTarget, strItem, modBasic.$AppCacheBillingConstants)
-  If Not xx Then
-    res = modDatabase.$myConn.Exec("select fldtarget from tblservicecost where flditemname=&1 and flditemtype=&2", strItem, strType)
-    If res.Available = True Then
-      If res["fldtarget"] Then
-        xx = res["fldtarget"]
-        If modBasic.$AppCacheBillingConstants = "Yes" Then
-          $CashItemTarget.Add(xx, strItem)
-        Endif
-      Else
-        xx = ""
-      Endif
-    Else
-      xx = ""
-    Endif
-  Endif
-
-  Return xx
-
-End
-
-Public Function GetBillingModeFromItemName(sItem As String) As String
-
-  Dim res As Result
-  Dim xx As String
-
-  xx = modHelpVariable.GetCollectionValue($CashItemGroup, sItem, modBasic.$AppCacheBillingConstants)
-  If Not xx Then
-    res = modDatabase.$myConn.Exec("select fldgroup from tblservicecost where flditemname=&1", sItem)
-    If res.Available = True Then
-      If res["fldgroup"] Then
-        xx = res["fldgroup"]
-        If modBasic.$AppCacheBillingConstants = "Yes" Then
-          $CashItemGroup.Add(xx, sItem)
-        Endif
-      Else
-        xx = ""
-      Endif
-    Else
-      xx = ""
-    Endif
-  Endif
-
-  Return xx
-
-End
-
-Public Function GetCappingDayFromItemName(sItem As String) As Integer
-
-  Dim res As Result
-  Dim xx As Integer
-
-  res = modDatabase.$myConn.Exec("select fldwaitday from tblservicecost where flditemname=&1", sItem)
-  If res.Available = True Then
-    If res["fldwaitday"] Then
-      xx = res["fldwaitday"]
-    Else
-      xx = 0
-    Endif
-  Else
-    xx = 0
-  Endif
-
-  Return xx
-
-End
-
 ''------------------------------ IRD -------------------------
 Public Function TaxableAmountInvoice(sBillNo As String) As Float
 
@@ -1759,89 +1885,6 @@ End
 
 ''-------------------------------------- bill items id and rate -----------------------------------
 ''get item cost
-Public Function GetCashBillItemCost(txtitem As String, txtype As String) As Float
-
-  Dim sql As String
-  Dim res As Result
-  Dim xx As Float
-
-  sql = "select flditemcost,flditemunit from tblservicecost where flditemname=&1 and flditemtype like &2"
-  res = modDatabase.$myConn.Exec(sql, txtitem, txtype)
-  If res.Available = True Then
-    res.MoveFirst
-    If res["flditemcost"] Then
-      If res["flditemunit"] Then
-        xx = modNonMedical.GetCurrConvertAmount(res["flditemcost"], res["flditemunit"])
-      Else
-        xx = res["flditemcost"]
-      Endif
-    Else
-      xx = 0
-    Endif
-  Else
-    xx = 0
-  Endif
-
-  Return xx
-
-End
-
-Public Function GetAllowDiscEdit(strItem As String, strType As String) As Boolean
-
-  Dim res As Result
-  Dim xx As Boolean
-
-  res = modDatabase.$myConn.Exec("select fldeditdisc from tblservicecost where flditemname=&1 and flditemtype=&2", strItem, strType)
-  If res.Available = True Then
-    If res["fldeditdisc"] Then
-      xx = res["fldeditdisc"]
-    Else
-      xx = False
-    Endif
-  Else
-    xx = False
-  Endif
-  Return xx
-
-End
-
-Public Function GetAllowRateEdit(strItem As String, strType As String) As Boolean
-
-  Dim res As Result
-  Dim xx As Boolean
-
-  res = modDatabase.$myConn.Exec("select fldeditrate from tblservicecost where flditemname=&1 and flditemtype=&2", strItem, strType)
-  If res.Available = True Then
-    If res["fldeditrate"] Then
-      xx = res["fldeditrate"]
-    Else
-      xx = False
-    Endif
-  Else
-    xx = False
-  Endif
-  Return xx
-
-End
-
-Public Function GetAllowPayableEdit(strItem As String) As Boolean
-
-  Dim res As Result
-  Dim xx As Boolean
-
-  res = modDatabase.$myConn.Exec("select fldpayable from tblservicecost where flditemname=&1", strItem)
-  If res.Available = True Then
-    If res["fldpayable"] Then
-      xx = res["fldpayable"]
-    Else
-      xx = False
-    Endif
-  Else
-    xx = False
-  Endif
-  Return xx
-
-End
 
 'NOTE: ------------------------------ Patient Transections -------------------------------
 Public Function AllowEntryWithDeposit(encid As String, sType As String) As Boolean

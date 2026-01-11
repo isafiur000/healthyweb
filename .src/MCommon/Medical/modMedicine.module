@@ -665,7 +665,7 @@ Public Function GetSurgicalCategory(surgid As String) As String
 
 End
 
-Public Function GetRouteFromItem(flditem As String, strType As String) As String
+Public Function GetRouteFromItem(xitem As String, strType As String) As String
 
   Dim sql As String
   Dim res As Result
@@ -673,21 +673,27 @@ Public Function GetRouteFromItem(flditem As String, strType As String) As String
 
   If strType = "Extra Items" Then
     xx = "extra"
+
   Else If strType = "Medicines" Then
-    sql = "select fldroute from tbldrug where flddrug in(select flddrug from tblmedbrand where fldbrandid=&1)"
-    res = modDatabase.$medConn.Exec(sql, flditem)
-    If res.Available Then
-      If res["fldroute"] Then
-        xx = res["fldroute"]
+    If modTableCache.$MedicineDataVar[xitem] Then
+      xx = modTableCache.$MedicineDataVar[xitem]["fldroute"]
+    Else
+      sql = "select fldroute from tbldrug where flddrug in(select flddrug from tblmedbrand where fldbrandid=&1)"
+      res = modDatabase.$medConn.Exec(sql, xitem)
+      If res.Available Then
+        If res["fldroute"] Then
+          xx = res["fldroute"]
+        Else
+          xx = ""
+        Endif
       Else
         xx = ""
       Endif
-    Else
-      xx = ""
     Endif
+
   Else If strType = "Surgicals" Then
     sql = "select fldsurgcateg from tblsurgicals where fldsurgid in(select fldsurgid from tblsurgbrand where fldbrandid=&1)"
-    res = modDatabase.$medConn.Exec(sql, flditem)
+    res = modDatabase.$medConn.Exec(sql, xitem)
     If res.Available Then
       If res["fldsurgcateg"] Then
         xx = res["fldsurgcateg"]

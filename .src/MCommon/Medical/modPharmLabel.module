@@ -1,8 +1,5 @@
 ' Gambas module file
 
-Public $PharmPackVolume As Collection
-Public $PharmPackVolUnit As Collection
-
 ''---------------------------------- General function ------------------------------
 Private Function ConvertHour(sHourLst As Integer[]) As Date[]
 
@@ -229,6 +226,46 @@ Public Function GetMedicineNameOptionType(stockid As String, sType As String) As
 
 End
 
+Public Function GetDrugEnergyContent(txtstockid As String, txtsubroute As String) As Float
+
+  Dim res As Result
+  Dim xx As Float
+
+  res = modDatabase.$medConn.Exec("select fldenergy from tbllabel where fldsubroute=&1 and flddrug in(select flddrug from tblmedbrand where fldbrandid=&2)", txtsubroute, txtstockid)
+  If res.Available = True Then
+    If res["fldenergy"] Then
+      xx = res["fldenergy"]
+    Else
+      xx = 0
+    Endif
+  Else
+    xx = 0
+  Endif
+
+  Return xx
+
+End
+
+Public Function GetDrugFinalStrength(txtstockid As String, txtsubroute As String) As Float
+
+  Dim res As Result
+  Dim xx As Float
+
+  res = modDatabase.$medConn.Exec("select fldfinalstr from tbllabel where fldsubroute=&1 and flddrug in(select flddrug from tblmedbrand where fldbrandid=&2)", txtsubroute, txtstockid)
+  If res.Available = True Then
+    If res["fldfinalstr"] Then
+      xx = res["fldfinalstr"]
+    Else
+      xx = 0
+    Endif
+  Else
+    xx = 0
+  Endif
+
+  Return xx
+
+End
+
 Public Function MedicineLabelType(stockid As String) As String
 
   Dim res As Result
@@ -435,63 +472,6 @@ Public Function GetQuantityLabel(txtdose As Float, txtitem As String, LabelMode 
 
 End
 
-Public Function GetPackVolValue(txtitem As String) As Float
-
-  Dim res As Result
-  Dim xx As Float
-  Dim yy As Variant
-
-  yy = modHelpVariable.GetCollectionValue($PharmPackVolume, txtitem, modBasic.$AppCacheMedicineConstants)
-  If yy Then
-    xx = CFloat(yy)
-  Else
-    xx = 0
-  Endif
-
-  If Not xx Then
-    res = modDatabase.$medConn.Exec("select fldpackvol from tblmedbrand where fldbrandid=&1", txtitem)                                                                 '''
-    If res.Available Then
-      If res["fldpackvol"] Then
-        xx = res["fldpackvol"]
-        If modBasic.$AppCacheMedicineConstants = "Yes" Then
-          $PharmPackVolume.Add(xx, txtitem)
-        Endif
-      Else
-        xx = 0
-      Endif
-    Else
-      xx = 0
-    Endif
-  Endif
-  Return xx
-
-End
-
-Public Function GetPackVolUnit(txtitem As String) As String
-
-  Dim res As Result
-  Dim xx As String
-
-  xx = modHelpVariable.GetCollectionValue($PharmPackVolUnit, txtitem, modBasic.$AppCacheMedicineConstants)
-  If Not xx Then
-    res = modDatabase.$medConn.Exec("select fldvolunit from tblmedbrand where fldbrandid=&1", txtitem)                                                                 '''
-    If res.Available Then
-      If res["fldvolunit"] Then
-        xx = res["fldvolunit"]
-        If modBasic.$AppCacheMedicineConstants = "Yes" Then
-          $PharmPackVolUnit.Add(xx, txtitem)
-        Endif
-      Else
-        xx = ""
-      Endif
-    Else
-      xx = ""
-    Endif
-  Endif
-  Return xx
-
-End
-
 Public Function GetPackVolString(sItem As String) As String
 
   Dim res As Result
@@ -520,7 +500,7 @@ Public Function GetDosageFormForLabel(txtitem As String, LabelMode As String) As
   Dim xx As String
   Dim xval As String
 
-  xval = GetPackVolUnit(txtitem)
+  xval = modMedConstant.GetPackVolUnit(txtitem)
   If xval Then
     xx = GetLabelWordsFromDB(xval, LabelMode)
   Else
@@ -535,7 +515,7 @@ Public Function GetDosageFontForLabel(txtitem As String, LabelMode As String) As
   Dim xx As String
   Dim xval As String
 
-  xval = GetPackVolUnit(txtitem)
+  xval = modMedConstant.GetPackVolUnit(txtitem)
   If xval Then
     xx = GetLabelFontFromDB(xval, LabelMode)
   Else

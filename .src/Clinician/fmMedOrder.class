@@ -663,10 +663,14 @@ Private Sub EnterDosingRecord()
   Dim xnarcotic As String[]
   Dim CPharmFix As CFixRatePharmacy
 
-  If modBasic.$DispRequestStatus = "Reserve" Then
-    xcurVal = "Reserve"
+  If chknextplan.Value = True Then
+    xcurVal = "Planned"
   Else
-    xcurVal = "Continue"
+    If modBasic.$DispRequestStatus = "Reserve" Then
+      xcurVal = "Reserve"
+    Else
+      xcurVal = "Continue"
+    Endif
   Endif
   If cmbroute.Text And If cmbmedicine.Text Then
 
@@ -733,11 +737,16 @@ Public Sub btngroup_Click()
   Dim CPharmFix As CFixRatePharmacy
   Dim xgo As Boolean
 
-  If modBasic.$DispRequestStatus = "Reserve" Then
-    xcurVal = "Reserve"
+  If chknextplan.Value = True Then
+    xcurVal = "Planned"
   Else
-    xcurVal = "Continue"
+    If modBasic.$DispRequestStatus = "Reserve" Then
+      xcurVal = "Reserve"
+    Else
+      xcurVal = "Continue"
+    Endif
   Endif
+
   xList = GetSetProtocol($encid)
   If xList And If xList.Count Then
     For Each xIndex In xList
@@ -807,11 +816,11 @@ Private Sub FillDosingGrid()
   Dim sql As String
 
   If rblabel.Value = True Then
-    sql = "select fldid,fldstarttime,fldroute,flditem,fldid,fldfreq,flddays,fldqtydisp,flduserid_order,fldid,fldid,fldstarttime,fldcurval,flddirection,flddosecount,fldmixing,flddose from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldstatus=&3 and fldorder=&4 and (fldcurval=&5 or fldcurval=&6)"
+    sql = "select fldid,fldstarttime,fldroute,flditem,fldid,fldfreq,flddays,fldqtydisp,flduserid_order,fldid,fldid,fldstarttime,fldcurval,flddirection,flddosecount,fldmixing,flddose from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldstatus=&3 and fldorder=&4 and (fldcurval=&5 or fldcurval=&6 or fldcurval=&7)"
   Else
-    sql = "select fldid,fldstarttime,fldroute,flditem,flddose,fldfreq,flddays,fldqtydisp,flduserid_order,fldid,fldid,fldstarttime,fldcurval,flddirection,flddosecount,fldmixing,flddose from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldstatus=&3 and fldorder=&4 and (fldcurval=&5 or fldcurval=&6)"                                                   ''
+    sql = "select fldid,fldstarttime,fldroute,flditem,flddose,fldfreq,flddays,fldqtydisp,flduserid_order,fldid,fldid,fldstarttime,fldcurval,flddirection,flddosecount,fldmixing,flddose from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldstatus=&3 and fldorder=&4 and (fldcurval=&5 or fldcurval=&6 or fldcurval=&7)"                                                   ''
   Endif
-  $rDataM = modDatabase.$myConn.Exec(sql, $encid, False, $status, "Request", "Continue", "Reserve")
+  $rDataM = modDatabase.$myConn.Exec(sql, $encid, False, $status, "Request", "Continue", "Reserve", "Planned")
   $aMyFieldsM = New String[]
   modGridView.ReadSmallData(GridView1, $rDataM, $aMyFieldsM)
 
@@ -903,10 +912,14 @@ Private Sub AddNewRegimen(itmList As Long[])
   Dim CPharmFix As CFixRatePharmacy
   Dim xgo As Boolean
 
-  If modBasic.$DispRequestStatus = "Reserve" Then
-    xcurVal = "Reserve"
+  If chknextplan.Value = True Then
+    xcurVal = "Planned"
   Else
-    xcurVal = "Continue"
+    If modBasic.$DispRequestStatus = "Reserve" Then
+      xcurVal = "Reserve"
+    Else
+      xcurVal = "Continue"
+    Endif
   Endif
 
   If modMisc.AllowDiagnoBilling($encid) = True Then
@@ -993,10 +1006,14 @@ Private Sub AddPastRegimens(itmList As Long[])
   Dim CPharmFix As CFixRatePharmacy
   Dim xgo As Boolean
 
-  If modBasic.$DispRequestStatus = "Reserve" Then
-    xcurVal = "Reserve"
+  If chknextplan.Value = True Then
+    xcurVal = "Planned"
   Else
-    xcurVal = "Continue"
+    If modBasic.$DispRequestStatus = "Reserve" Then
+      xcurVal = "Reserve"
+    Else
+      xcurVal = "Continue"
+    Endif
   Endif
 
   If modMisc.AllowDiagnoBilling($encid) = True Then
@@ -1682,8 +1699,8 @@ Private Sub SaveOwnDispensing(sID As Long, sStatus As String)
   xpayble = modBillings.GetPayableUserSetting("Pharmacy", $encid)
 
   xerr = ""
-  sql1 = "select fldid,fldtime,fldroute,flditem,flddose,fldfreq,flddays,fldqtydisp,fldlabel,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit from tblpatdosing where fldid=&1"                                                   ''
-  res1 = modDatabase.$myConn.Exec(sql1, sID)
+  sql1 = "select fldid,fldtime,fldroute,flditem,flddose,fldfreq,flddays,fldqtydisp,fldlabel,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit from tblpatdosing where fldid=&1 and fldcurval=&2"                                                   ''
+  res1 = modDatabase.$myConn.Exec(sql1, sID, "Continue")
   If res1.Available = True Then
 
     'get tax and discount percentages

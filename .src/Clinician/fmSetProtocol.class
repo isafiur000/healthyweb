@@ -58,11 +58,13 @@ End
 Public Sub ShowProtocolList()
 
   Dim sql As String
+  Dim xregimen As String
 
+  xregimen = "CONCAT(fldroute, '|', flditem, '|', COALESCE(flddose, ''), '|',COALESCE(flddoseunit, ''), '|', COALESCE(fldfreq, ''), '|', COALESCE(fldday, ''))"
   If cmbdate.Text = "All Categories" Then
-    sql = "select fldid,fldid,flditem,fldstart,CONCAT(fldroute, '|', flditem, '|', flddose, '|',flddoseunit, '|', fldfreq, '|', fldday) as fldregimen,fldroute,fldqty,fldadvice from tblproductgroup where (fldcomp=&1 or fldcomp=&2) and fldmedgroup=&3 ORDER BY fldstart"
+    sql = "select fldid,fldid,flditem,fldstart," & xregimen & " as fldregimen,fldroute,fldqty,fldadvice from tblproductgroup where (fldcomp=&1 or fldcomp=&2) and fldmedgroup=&3 ORDER BY fldstart"
   Else
-    sql = "select fldid,fldid,flditem,fldstart,CONCAT(fldroute, '|', flditem, '|', flddose, '|',flddoseunit, '|', fldfreq, '|', fldday) as fldregimen,fldroute,fldqty,fldadvice from tblproductgroup where (fldcomp=&1 or fldcomp=&2) and fldmedgroup=&3 and fldcategory=&4 ORDER BY fldstart"
+    sql = "select fldid,fldid,flditem,fldstart," & xregimen & " as fldregimen,fldroute,fldqty,fldadvice from tblproductgroup where (fldcomp=&1 or fldcomp=&2) and fldmedgroup=&3 and fldcategory=&4 ORDER BY fldstart"
   Endif
   $rData1 = modDatabase.$myConn.Exec(sql, modBasic.$compID, "%", lstcategory.Text, cmbdate.Text)
   $aMyFields1 = New String[]
@@ -108,12 +110,16 @@ Private Function GetRegimenString(sInput As String) As String
   If sInput Then
     asx = Split(sInput, "|")
     If asx.Count = 6 Then
-      If CInt(asx[5]) Then
-        xregimen = asx[2] & Space(1) & asx[3] & Space(1) & asx[4] & Space(1) & "X " & asx[5] & " Days"
+      If asx[3] Then
+        If CInt(asx[5]) Then
+          xregimen = asx[2] & Space(1) & asx[3] & Space(1) & asx[4] & Space(1) & "X " & asx[5] & " Days"
+        Else
+          xregimen = asx[2] & Space(1) & asx[3] & Space(1) & asx[4] & Space(1) & "X Every Day"
+        Endif
+        xval = asx[1] & "<br><b>" & xregimen & "</b>"
       Else
-        xregimen = asx[2] & Space(1) & asx[3] & Space(1) & asx[4] & Space(1) & "X Every Day"
+        xval = asx[1]
       Endif
-      xval = asx[1] & "<br><b>" & xregimen & "</b>"
     Else
       xval = asx[1]
     Endif

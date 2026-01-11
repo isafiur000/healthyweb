@@ -1,13 +1,5 @@
 ' Gambas module file
 
-Public $CodeReference As Collection
-Public $DrugReference As Collection
-Public $CodeAllowPRN As Collection
-Public $CodeChemiClass As Collection
-Public $DrugAgeContra As Collection
-Public $StockPreservIn As Collection
-Public $StockAllowTabBreak As Collection
-
 Public $CodePregnancyPrec As Collection
 Public $CodeHepaticPrec As Collection
 Public $CodeDrugIntxn As Collection
@@ -460,7 +452,7 @@ Private Sub MedicationReviewSingleDrug(encid As String, stockid As String, codei
 
   'PRN Restriction
   If $PRNRestriction = "Yes" Then
-    If GetAllowPRN(stockid) = "No" Then
+    If modMedConstant.GetAllowPRN(stockid) = "No" Then
       If freq = "PRN" Then
 
         $encnt.Add(encid)
@@ -533,7 +525,7 @@ Private Sub MedicationReviewSingleDrug(encid As String, stockid As String, codei
     'Age Contraindication
     If $AgeContraindication = "Yes" Then
       If dtbir Then
-        ciage = GetContraIndicatedLowerAge(stockid)
+        ciage = modMedConstant.GetContraIndicatedLowerAge(stockid)
         If ciage > 0 Then
           If DateDiff(dtbir, dtdoa, gb.Year) < ciage Then
 
@@ -551,7 +543,7 @@ Private Sub MedicationReviewSingleDrug(encid As String, stockid As String, codei
     'Preservative Precaution
     If $PreservativePrecaution = "Yes" Then
       If dtbir Then
-        presr = GetPreservativeContent(stockid)
+        presr = modMedConstant.GetPreservativeContent(stockid)
         If presr Then
           If DateDiff(dtbir, dtdoa, gb.Month) < 6 Then
 
@@ -570,7 +562,7 @@ Private Sub MedicationReviewSingleDrug(encid As String, stockid As String, codei
 
   'Dose Breaking
   If $DoseBreak = "Yes" Then
-    If GetAllowTabBreak(stockid) = "No" Then
+    If modMedConstant.GetAllowTabBreak(stockid) = "No" Then
       If dose > 0 And If modMedConstant.GetDrugInitialStrength(stockid) > dose And If route = "oral" Then
 
         $encnt.Add(encid)
@@ -601,7 +593,7 @@ Private Sub MedicationReviewDugAllergy(encid As String, stockid As String, codei
     Endif
 
     If res.Available = True Then
-      chmclas = GetChemicalClass(res["fldcode"])
+      chmclas = modMedConstant.GetChemicalClass(res["fldcode"])
       For Each res
         xWarn = GetMedicineReviewWarningMultiple(stockid, "MedicationReview/DrugAllergy", chmclas)
         If xWarn Then
@@ -1036,28 +1028,28 @@ Private Function GetMedicineReviewWarning(stockid As String, strCategory As Stri
   xx = ""
   '---------------------Code -------------------------------
   If strCategory = "MedicationReview/MaxUnitDose" Then ''complete
-    ref = GetInfoReferenceForCode(stockid)
+    ref = modMedConstant.GetInfoReferenceForCode(stockid)
     xx = "MAXIMUM Unit Dose is " & CStr(sValue) & " mg [" & ref & "]"
 
   Else If strCategory = "MedicationReview/MaxDailyDose" Then ''complete
-    ref = GetInfoReferenceForCode(stockid)
+    ref = modMedConstant.GetInfoReferenceForCode(stockid)
     xx = "MAXIMUM Daily Dose is " & CStr(sValue) & " mg [" & ref & "]"
 
   Else If strCategory = "MedicationReview/MinDailyDose" Then ''complete
-    ref = GetInfoReferenceForCode(stockid)
+    ref = modMedConstant.GetInfoReferenceForCode(stockid)
     xx = "MINIMUM Daily Dose is " & CStr(sValue) & " mg [" & ref & "]"
 
   Else If strCategory = "MedicationReview/MaxFrequency" Then ''complete
-    ref = GetInfoReferenceForCode(stockid)
+    ref = modMedConstant.GetInfoReferenceForCode(stockid)
     xx = "MAXIMUM Frequency is " & CStr(sValue) & " times [" & ref & "]"
 
   Else If strCategory = "MedicationReview/PRNRestriction" Then
-    ref = GetInfoReferenceForCode(stockid)
+    ref = modMedConstant.GetInfoReferenceForCode(stockid)
     xx = "Not prescribed on PRN basis [" & ref & "]"
 
     '-------------------------------------Drug --------------------------------------------
   Else If strCategory = "MedicationReview/AgeContraindication" Then
-    refdrug = GetInfoReferenceForDrug(stockid)
+    refdrug = modMedConstant.GetInfoReferenceForDrug(stockid)
     xx = "CONTRAINDICATED below " & CStr(sValue) & " year [" & refdrug & "]"
 
     '------------------------------------ Brand --------------------------------------
@@ -1228,195 +1220,5 @@ Private Function GetMedicineReviewWarningMultiple(stockid As String, strCategory
   Endif
 
   Return xx
-
-End
-
-''----------------------------- Individual precautions -----------------------------------
-Public Function GetContraIndicatedLowerAge(stockid As String) As Float
-
-  Dim sql As String
-  Dim res As Result
-  Dim xx As Float
-  Dim xval As Variant
-
-  xval = modHelpVariable.GetCollectionValue($DrugAgeContra, stockid, modBasic.$AppCacheDrugRelatedProblems)
-  If xval Then
-    xx = CFloat(xval)
-  Else
-    xx = 0
-  Endif
-  If Not xx Then
-    sql = "select fldciyear from tbldrug where flddrug in(select flddrug from tblmedbrand where fldbrandid=&1)"
-    res = modDatabase.$medConn.Exec(sql, stockid)
-    If res.Available Then
-      If res["fldciyear"] Then
-        xx = res["fldciyear"]
-        If modBasic.$AppCacheDrugRelatedProblems = "Yes" Then
-          $DrugAgeContra.Add(xx, stockid)
-        Endif
-      Else
-        xx = 0
-      Endif
-    Else
-      xx = 0
-    Endif
-  Endif
-  Return xx
-
-End
-
-Public Function GetPreservativeContent(stockid As String) As String
-
-  Dim res As Result
-  Dim xx As String
-
-  xx = modHelpVariable.GetCollectionValue($StockPreservIn, stockid, modBasic.$AppCacheDrugRelatedProblems)
-  If Not xx Then
-    res = modDatabase.$medConn.Exec("select fldpreservative from tblmedbrand where fldbrandid=&1", stockid)
-    If res.Available Then
-      If res["fldpreservative"] Then
-        xx = res["fldpreservative"]
-        If modBasic.$AppCacheDrugRelatedProblems = "Yes" Then
-          $StockPreservIn.Add(xx, stockid)
-        Endif
-      Else
-        xx = ""
-      Endif
-    Else
-      xx = ""
-    Endif
-  Endif
-  Return xx
-
-End
-
-Public Function GetInfoReferenceForCode(stockid As String) As String
-
-  Dim sql As String
-  Dim res As Result
-  Dim ref As String
-
-  ref = modHelpVariable.GetCollectionValue($CodeReference, stockid, modBasic.$AppCacheDrugRelatedProblems)
-  If Not ref Then
-    sql = "select fldreference from tblcode where fldcodename in(select fldcodename from tbldrug where flddrug in(select flddrug from tblmedbrand where fldbrandid=&1))"
-    res = modDatabase.$medConn.Exec(sql, stockid)
-    If res.Available Then
-      If res["fldreference"] Then
-        ref = res["fldreference"]
-        If modBasic.$AppCacheDrugRelatedProblems = "Yes" Then
-          $CodeReference.Add(ref, stockid)
-        Endif
-      Else
-        ref = ""
-      Endif
-    Else
-      ref = ""
-    Endif
-  Endif
-  Return ref
-
-End
-
-Public Function GetInfoReferenceForDrug(stockid As String) As String
-
-  Dim sql As String
-  Dim res As Result
-  Dim ref As String
-
-  ref = modHelpVariable.GetCollectionValue($DrugReference, stockid, modBasic.$AppCacheDrugRelatedProblems)
-  If Not ref Then
-    sql = "select fldreference from tbldrug where flddrug in(select flddrug from tblmedbrand where fldbrandid=&1)"
-    res = modDatabase.$medConn.Exec(sql, stockid)
-    If res.Available Then
-      If res["fldreference"] Then
-        ref = res["fldreference"]
-        If modBasic.$AppCacheDrugRelatedProblems = "Yes" Then
-          $DrugReference.Add(ref, stockid)
-        Endif
-      Else
-        ref = ""
-      Endif
-    Else
-      ref = ""
-    Endif
-  Endif
-  Return ref
-
-End
-
-Public Function GetAllowPRN(stockid As String) As String
-
-  Dim sql As String
-  Dim res As Result
-  Dim prn As String
-
-  prn = modHelpVariable.GetCollectionValue($CodeAllowPRN, stockid, modBasic.$AppCacheDrugRelatedProblems)
-  If Not prn Then
-    sql = "select fldprn from tblcode where fldcodename in(select fldcodename from tbldrug where flddrug in(select flddrug from tblmedbrand where fldbrandid=&1))"
-    res = modDatabase.$medConn.Exec(sql, stockid)
-    If res.Available Then
-      If res["fldprn"] Then
-        prn = res["fldprn"]
-        If modBasic.$AppCacheDrugRelatedProblems = "Yes" Then
-          $CodeAllowPRN.Add(prn, stockid)
-        Endif
-      Else
-        prn = "Yes"
-      Endif
-    Else
-      prn = "Yes"
-    Endif
-  Endif
-  Return prn
-
-End
-
-Public Function GetAllowTabBreak(stockid As String) As String
-
-  Dim res As Result
-  Dim xx As String
-
-  xx = modHelpVariable.GetCollectionValue($StockAllowTabBreak, stockid, modBasic.$AppCacheDrugRelatedProblems)
-  If Not xx Then
-    res = modDatabase.$medConn.Exec("select fldtabbreak from tblmedbrand where fldbrandid=&1", stockid)
-    If res.Available Then
-      If res["fldtabbreak"] Then
-        xx = res["fldtabbreak"]
-        If modBasic.$AppCacheDrugRelatedProblems = "Yes" Then
-          $StockAllowTabBreak.Add(xx, stockid)
-        Endif
-      Else
-        xx = "Yes"
-      Endif
-    Else
-      xx = "Yes"
-    Endif
-  Endif
-  Return xx
-
-End
-
-Public Function GetChemicalClass(txtcode As String) As String
-
-  Dim res As Result
-  Dim allergy As String
-
-  allergy = modHelpVariable.GetCollectionValue($CodeChemiClass, txtcode, modBasic.$AppCacheDrugRelatedProblems)
-  If Not allergy Then
-    res = modDatabase.$medConn.Exec("select fldchemclass from tblcode where fldcodename=&1", txtcode)
-    If res.Available Then
-      If res["fldchemclass"] Then
-        allergy = res["fldchemclass"]
-        If modBasic.$AppCacheDrugRelatedProblems = "Yes" Then
-          $CodeChemiClass.Add(allergy, txtcode)
-        Endif
-      Else
-        allergy = ""
-      Endif
-    Else
-      allergy = ""
-    Endif
-  Endif
-  Return allergy
 
 End

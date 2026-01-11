@@ -1,43 +1,81 @@
 ' Gambas module file
 
-Public $MedBrandToGeneric As Collection
-Public $MedCodeFromStock As Collection
-Public $MedDrugFromStock As Collection
-Public $MedBrandFromStock As Collection
-Public $MedCodeFromDrug As Collection
-Public $MedSensiFromStock As Collection
-Public $MedRiskFromStock As Collection
-Public $MedStrengthStock As Collection
-Public $MedStrenUntStock As Collection
-Public $MedDoseUntStock As Collection
-Public $MedNarcoticStock As Collection
-Public $MedCategFromStock As Collection
-
-''--------------------- Drug Specific --------------------------------------------------
-Public Function GetCodeFromStockID(stockid As String) As String
+''--------------------- tblcode --------------------------------------------------
+Public Function GetInfoReferenceForCode(stockid As String) As String
 
   Dim sql As String
   Dim res As Result
-  Dim cod As String
+  Dim ref As String
 
-  cod = modHelpVariable.GetCollectionValue($MedCodeFromStock, stockid, modBasic.$AppCacheMedicineConstants)
-  If Not cod Then
-    sql = "select fldcodename from tbldrug where flddrug in(select flddrug from tblmedbrand where fldbrandid=&1)"
+  If modTableCache.$MedicineDataVar.Exist(stockid) Then
+    ref = modTableCache.$MedicineDataVar[stockid]["fldreference"]
+    If Not ref Then
+      ref = ""
+    Endif
+
+  Else
+    sql = "select fldreference from tblcode where fldcodename in(select fldcodename from tbldrug where flddrug in(select flddrug from tblmedbrand where fldbrandid=&1))"
     res = modDatabase.$medConn.Exec(sql, stockid)
     If res.Available Then
-      If res["fldcodename"] Then
-        cod = res["fldcodename"]
-        If modBasic.$AppCacheMedicineConstants = "Yes" Then
-          $MedCodeFromStock.Add(cod, stockid)
-        Endif
+      If res["fldreference"] Then
+        ref = res["fldreference"]
       Else
-        cod = ""
+        ref = ""
       Endif
     Else
-      cod = ""
+      ref = ""
     Endif
   Endif
-  Return cod
+  Return ref
+
+End
+
+Public Function GetAllowPRN(stockid As String) As String
+
+  Dim sql As String
+  Dim res As Result
+  Dim prn As String
+
+  If modTableCache.$MedicineDataVar.Exist(stockid) Then
+    prn = modTableCache.$MedicineDataVar[stockid]["fldprn"]
+    If Not prn Then
+      prn = "Yes"
+    Endif
+
+  Else
+    sql = "select fldprn from tblcode where fldcodename in(select fldcodename from tbldrug where flddrug in(select flddrug from tblmedbrand where fldbrandid=&1))"
+    res = modDatabase.$medConn.Exec(sql, stockid)
+    If res.Available Then
+      If res["fldprn"] Then
+        prn = res["fldprn"]
+      Else
+        prn = "Yes"
+      Endif
+    Else
+      prn = "Yes"
+    Endif
+  Endif
+  Return prn
+
+End
+
+Public Function GetChemicalClass(txtcode As String) As String
+
+  Dim res As Result
+  Dim allergy As String
+
+  res = modDatabase.$medConn.Exec("select fldchemclass from tblcode where fldcodename=&1", txtcode)
+  If res.Available Then
+    If res["fldchemclass"] Then
+      allergy = res["fldchemclass"]
+    Else
+      allergy = ""
+    Endif
+  Else
+    allergy = ""
+  Endif
+
+  Return allergy
 
 End
 
@@ -47,16 +85,18 @@ Public Function GetCategoryFromStockID(stockid As String) As String
   Dim res As Result
   Dim cod As String
 
-  cod = modHelpVariable.GetCollectionValue($MedCategFromStock, stockid, modBasic.$AppCacheMedicineConstants)
-  If Not cod Then
+  If modTableCache.$MedicineDataVar.Exist(stockid) Then
+    cod = modTableCache.$MedicineDataVar[stockid]["fldcategory"]
+    If Not cod Then
+      cod = ""
+    Endif
+
+  Else
     sql = "select fldcategory from tblcode where fldcodename in(select fldcodename from tbldrug where flddrug in(select flddrug from tblmedbrand where fldbrandid=&1))"
     res = modDatabase.$medConn.Exec(sql, stockid)
     If res.Available Then
       If res["fldcategory"] Then
         cod = res["fldcategory"]
-        If modBasic.$AppCacheMedicineConstants = "Yes" Then
-          $MedCategFromStock.Add(cod, stockid)
-        Endif
       Else
         cod = ""
       Endif
@@ -74,16 +114,18 @@ Public Function GetSensiNameFromStockID(stockid As String) As String
   Dim res As Result
   Dim cod As String
 
-  cod = modHelpVariable.GetCollectionValue($MedSensiFromStock, stockid, modBasic.$AppCacheMedicineConstants)
-  If Not cod Then
+  If modTableCache.$MedicineDataVar.Exist(stockid) Then
+    cod = modTableCache.$MedicineDataVar[stockid]["fldsensname"]
+    If Not cod Then
+      cod = ""
+    Endif
+
+  Else
     sql = "select fldsensname from tblcode where fldcodename in(select fldcodename from tbldrug where flddrug in(select flddrug from tblmedbrand where fldbrandid=&1))"
     res = modDatabase.$medConn.Exec(sql, stockid)
     If res.Available Then
       If res["fldsensname"] Then
         cod = res["fldsensname"]
-        If modBasic.$AppCacheMedicineConstants = "Yes" Then
-          $MedSensiFromStock.Add(cod, stockid)
-        Endif
       Else
         cod = ""
       Endif
@@ -101,16 +143,18 @@ Public Function GetRiskTypeFromSTockID(stockid As String) As String
   Dim res As Result
   Dim cod As String
 
-  cod = modHelpVariable.GetCollectionValue($MedRiskFromStock, stockid, modBasic.$AppCacheMedicineConstants)
-  If Not cod Then
+  If modTableCache.$MedicineDataVar.Exist(stockid) Then
+    cod = modTableCache.$MedicineDataVar[stockid]["fldrisklevel"]
+    If Not cod Then
+      cod = ""
+    Endif
+
+  Else
     sql = "select fldrisklevel from tblcode where fldcodename in(select fldcodename from tbldrug where flddrug in(select flddrug from tblmedbrand where fldbrandid=&1))"
     res = modDatabase.$medConn.Exec(sql, stockid)
     If res.Available Then
       If res["fldrisklevel"] Then
         cod = res["fldrisklevel"]
-        If modBasic.$AppCacheMedicineConstants = "Yes" Then
-          $MedRiskFromStock.Add(cod, stockid)
-        Endif
       Else
         cod = ""
       Endif
@@ -122,57 +166,118 @@ Public Function GetRiskTypeFromSTockID(stockid As String) As String
 
 End
 
-Public Function GetDrugFromStockID(stockid As String) As String
+Public Function GetDrugRenalEliminFraction(stockid As String) As Float
 
   Dim sql As String
   Dim res As Result
-  Dim xx As String
+  Dim elim As String
 
-  xx = modHelpVariable.GetCollectionValue($MedDrugFromStock, stockid, modBasic.$AppCacheMedicineConstants)
-  If Not xx Then
-    sql = "select flddrug from tblmedbrand where fldbrandid=&1"
+  If modTableCache.$MedicineDataVar.Exist(stockid) Then
+    elim = modTableCache.$MedicineDataVar[stockid]["fldeliminrenal"]
+    If elim Then
+      elim = elim / 100
+    Else
+      elim = 0
+    Endif
+
+  Else
+    sql = "select fldeliminrenal from tblcode where fldcodename in(select fldcodename from tbldrug where flddrug in(select flddrug from tblmedbrand where fldbrandid=&1))"
     res = modDatabase.$medConn.Exec(sql, stockid)
     If res.Available Then
-      If res["flddrug"] Then
-        xx = res["flddrug"]
-        If modBasic.$AppCacheMedicineConstants = "Yes" Then
-          $MedDrugFromStock.Add(xx, stockid)
-        Endif
+      If res["fldeliminrenal"] Then
+        elim = res["fldeliminrenal"] / 100
       Else
-        xx = ""
+        elim = 0
       Endif
     Else
-      xx = ""
+      elim = 0
+    Endif
+  Endif
+  Return elim
+
+End
+
+''--------------------- tbldrug --------------------------------------------------
+Public Function GetInfoReferenceForDrug(stockid As String) As String
+
+  Dim sql As String
+  Dim res As Result
+  Dim ref As String
+
+  ' ref = modHelpVariable.GetCollectionValue($DrugReference, stockid, modBasic.$AppCacheDrugRelatedProblems)
+  ' If Not ref Then
+  sql = "select fldreference from tbldrug where flddrug in(select flddrug from tblmedbrand where fldbrandid=&1)"
+  res = modDatabase.$medConn.Exec(sql, stockid)
+  If res.Available Then
+    If res["fldreference"] Then
+      ref = res["fldreference"]
+    Else
+      ref = ""
+    Endif
+  Else
+    ref = ""
+  Endif
+  ' Endif
+  Return ref
+
+End
+
+Public Function GetContraIndicatedLowerAge(stockid As String) As Float
+
+  Dim sql As String
+  Dim res As Result
+  Dim xx As Float
+  Dim xval As Variant
+
+  If modTableCache.$MedicineDataVar.Exist(stockid) Then
+    xx = modTableCache.$MedicineDataVar[stockid]["fldciyear"]
+    If Not xx Then
+      xx = 0
+    Endif
+
+  Else
+    sql = "select fldciyear from tbldrug where flddrug in(select flddrug from tblmedbrand where fldbrandid=&1)"
+    res = modDatabase.$medConn.Exec(sql, stockid)
+    If res.Available Then
+      If res["fldciyear"] Then
+        xx = res["fldciyear"]
+      Else
+        xx = 0
+      Endif
+    Else
+      xx = 0
     Endif
   Endif
   Return xx
 
 End
 
-Public Function GetBrandFromStockID(stockid As String) As String
+Public Function GetCodeFromStockID(stockid As String) As String
 
   Dim sql As String
   Dim res As Result
-  Dim xx As String
+  Dim cod As String
 
-  xx = modHelpVariable.GetCollectionValue($MedBrandFromStock, stockid, modBasic.$AppCacheMedicineConstants)
-  If Not xx Then
-    sql = "select fldbrand from tblmedbrand where fldbrandid=&1"
+  If modTableCache.$MedicineDataVar.Exist(stockid) Then
+    cod = modTableCache.$MedicineDataVar[stockid]["fldcodename"]
+    If Not cod Then
+      cod = ""
+    Endif
+
+  Else
+    sql = "select fldcodename from tbldrug where flddrug in(select flddrug from tblmedbrand where fldbrandid=&1)"
     res = modDatabase.$medConn.Exec(sql, stockid)
     If res.Available Then
-      If res["fldbrand"] Then
-        xx = res["fldbrand"]
-        If modBasic.$AppCacheMedicineConstants = "Yes" Then
-          $MedBrandFromStock.Add(xx, stockid)
-        Endif
+      If res["fldcodename"] Then
+        cod = res["fldcodename"]
       Else
-        xx = ""
+        cod = ""
       Endif
     Else
-      xx = ""
+      cod = ""
     Endif
   Endif
-  Return xx
+  Return cod
 
 End
 
@@ -182,23 +287,18 @@ Public Function GetCodeFromDrugID(drugid As String) As String
   Dim res As Result
   Dim cod As String
 
-  cod = modHelpVariable.GetCollectionValue($MedCodeFromDrug, drugid, modBasic.$AppCacheMedicineConstants)
-  If Not cod Then
-    sql = "select fldcodename from tbldrug where flddrug=&1"
-    res = modDatabase.$medConn.Exec(sql, drugid)
-    If res.Available Then
-      If res["fldcodename"] Then
-        cod = res["fldcodename"]
-        If modBasic.$AppCacheMedicineConstants = "Yes" Then
-          $MedCodeFromDrug.Add(cod, drugid)
-        Endif
-      Else
-        cod = ""
-      Endif
+  sql = "select fldcodename from tbldrug where flddrug=&1"
+  res = modDatabase.$medConn.Exec(sql, drugid)
+  If res.Available Then
+    If res["fldcodename"] Then
+      cod = res["fldcodename"]
     Else
       cod = ""
     Endif
+  Else
+    cod = ""
   Endif
+
   Return cod
 
 End
@@ -209,20 +309,17 @@ Public Function GetDrugInitialStrength(stockid As String) As Float
   Dim inistr As Float
   Dim xval As Variant
 
-  xval = modHelpVariable.GetCollectionValue($MedStrengthStock, stockid, modBasic.$AppCacheMedicineConstants)
-  If xval Then
-    inistr = CFloat(xval)
+  If modTableCache.$MedicineDataVar.Exist(stockid) Then
+    inistr = modTableCache.$MedicineDataVar[stockid]["fldstrength"]
+    If Not inistr Then
+      inistr = 0
+    Endif
+
   Else
-    inistr = 0
-  Endif
-  If Not inistr Then
     res = modDatabase.$medConn.Exec("select fldstrength from tbldrug where flddrug in(select flddrug from tblmedbrand where fldbrandid=&1)", stockid)
     If res.Available Then
       If res["fldstrength"] Then
         inistr = res["fldstrength"]
-        If modBasic.$AppCacheMedicineConstants = "Yes" Then
-          $MedStrengthStock.Add(inistr, stockid)
-        Endif
       Else
         inistr = 0
       Endif
@@ -239,15 +336,17 @@ Public Function GetDrugStrengthUnit(stockid As String) As String
   Dim res As Result
   Dim xunit As String
 
-  xunit = modHelpVariable.GetCollectionValue($MedStrenUntStock, stockid, modBasic.$AppCacheMedicineConstants)
-  If Not xunit Then
+  If modTableCache.$MedicineDataVar.Exist(stockid) Then
+    xunit = modTableCache.$MedicineDataVar[stockid]["fldstrunit"]
+    If Not xunit Then
+      xunit = ""
+    Endif
+
+  Else
     res = modDatabase.$medConn.Exec("select fldstrunit from tbldrug where flddrug in(select flddrug from tblmedbrand where fldbrandid=&1)", stockid)
     If res.Available Then
       If res["fldstrunit"] Then
         xunit = res["fldstrunit"]
-        If modBasic.$AppCacheMedicineConstants = "Yes" Then
-          $MedStrenUntStock.Add(xunit, stockid)
-        Endif
       Else
         xunit = ""
       Endif
@@ -256,6 +355,312 @@ Public Function GetDrugStrengthUnit(stockid As String) As String
     Endif
   Endif
   Return xunit
+
+End
+
+Public Function GetDrugDosingUnit(stockid As String) As String
+
+  Dim res As Result
+  Dim xunit As String
+
+  If modTableCache.$MedicineDataVar.Exist(stockid) Then
+    xunit = modTableCache.$MedicineDataVar[stockid]["flddoseunit"]
+    If Not xunit Then
+      xunit = ""
+    Endif
+
+  Else
+    res = modDatabase.$medConn.Exec("select flddoseunit from tbldrug where flddrug in(select flddrug from tblmedbrand where fldbrandid=&1)", stockid)
+    If res.Available Then
+      If res["flddoseunit"] Then
+        xunit = res["flddoseunit"]
+      Else
+        xunit = ""
+      Endif
+    Else
+      xunit = ""
+    Endif
+  Endif
+  Return xunit
+
+End
+
+''---------------------- tblmedbrand -----------------------------------------------
+Public Function GetPackVolValue(stockid As String) As Float
+
+  Dim res As Result
+  Dim xx As Float
+  Dim yy As Variant
+
+  If modTableCache.$MedicineDataVar.Exist(stockid) Then
+    xx = modTableCache.$MedicineDataVar[stockid]["fldpackvol"]
+    If Not xx Then
+      xx = 0
+    Endif
+
+  Else
+    res = modDatabase.$medConn.Exec("select fldpackvol from tblmedbrand where fldbrandid=&1", stockid)                                                                 '''
+    If res.Available Then
+      If res["fldpackvol"] Then
+        xx = res["fldpackvol"]
+      Else
+        xx = 0
+      Endif
+    Else
+      xx = 0
+    Endif
+  Endif
+  Return xx
+
+End
+
+Public Function GetPackVolUnit(stockid As String) As String
+
+  Dim res As Result
+  Dim xx As String
+
+  If modTableCache.$MedicineDataVar.Exist(stockid) Then
+    xx = modTableCache.$MedicineDataVar[stockid]["fldvolunit"]
+    If Not xx Then
+      xx = ""
+    Endif
+
+  Else
+    res = modDatabase.$medConn.Exec("select fldvolunit from tblmedbrand where fldbrandid=&1", stockid)                                                                 '''
+    If res.Available Then
+      If res["fldvolunit"] Then
+        xx = res["fldvolunit"]
+      Else
+        xx = ""
+      Endif
+    Else
+      xx = ""
+    Endif
+  Endif
+  Return xx
+
+End
+
+Public Function GetAllowTabBreak(stockid As String) As String
+
+  Dim res As Result
+  Dim xx As String
+
+  If modTableCache.$MedicineDataVar.Exist(stockid) Then
+    xx = modTableCache.$MedicineDataVar[stockid]["fldtabbreak"]
+    If Not xx Then
+      xx = "Yes"
+    Endif
+
+  Else
+    res = modDatabase.$medConn.Exec("select fldtabbreak from tblmedbrand where fldbrandid=&1", stockid)
+    If res.Available Then
+      If res["fldtabbreak"] Then
+        xx = res["fldtabbreak"]
+      Else
+        xx = "Yes"
+      Endif
+    Else
+      xx = "Yes"
+    Endif
+  Endif
+  Return xx
+
+End
+
+Public Function GetPreservativeContent(stockid As String) As String
+
+  Dim res As Result
+  Dim xx As String
+
+  If modTableCache.$MedicineDataVar.Exist(stockid) Then
+    xx = modTableCache.$MedicineDataVar[stockid]["fldpreservative"]
+    If Not xx Then
+      xx = ""
+    Endif
+
+  Else
+    res = modDatabase.$medConn.Exec("select fldpreservative from tblmedbrand where fldbrandid=&1", stockid)
+    If res.Available Then
+      If res["fldpreservative"] Then
+        xx = res["fldpreservative"]
+      Else
+        xx = ""
+      Endif
+    Else
+      xx = ""
+    Endif
+  Endif
+  Return xx
+
+End
+
+Public Function GetDrugFromStockID(stockid As String) As String
+
+  Dim res As Result
+  Dim xx As String
+
+  If modTableCache.$MedicineDataVar.Exist(stockid) Then
+    xx = modTableCache.$MedicineDataVar[stockid]["flddrug"]
+    If Not xx Then
+      xx = ""
+    Endif
+
+  Else
+    res = modDatabase.$medConn.Exec("select flddrug from tblmedbrand where fldbrandid=&1", stockid)
+    If res.Available Then
+      If res["flddrug"] Then
+        xx = res["flddrug"]
+      Else
+        xx = ""
+      Endif
+    Else
+      xx = ""
+    Endif
+  Endif
+  Return xx
+
+End
+
+Public Function GetNarcoticType(stockid As String) As String
+
+  Dim sql As String
+  Dim res As Result
+  Dim xx As String
+
+  If modTableCache.$MedicineDataVar.Exist(stockid) Then
+    xx = modTableCache.$MedicineDataVar[stockid]["fldnarcotic"]
+    If Not xx Then
+      xx = "No"
+    Endif
+
+  Else
+    sql = "select fldnarcotic from tblmedbrand where fldbrandid=&1"
+    res = modDatabase.$medConn.Exec(sql, stockid)
+    If res.Available Then
+      If res["fldnarcotic"] Then
+        xx = res["fldnarcotic"]
+      Else
+        xx = "No"
+      Endif
+    Else
+      xx = "No"
+    Endif
+  Endif
+  Return xx
+
+End
+
+Public Function GetPacketSizeMedicine(stockid As String) As Float
+
+  Dim res As Result
+  Dim xx As Float
+
+  If modTableCache.$MedicineDataVar.Exist(stockid) Then
+    xx = modTableCache.$MedicineDataVar[stockid]["fldpacksize"]
+    If Not xx Then
+      xx = 1
+    Endif
+
+  Else
+    res = modDatabase.$medConn.Exec("select fldpacksize from tblmedbrand where fldbrandid=&1", stockid)
+    If res.Available Then
+      If res["fldpacksize"] Then
+        xx = res["fldpacksize"]
+      Else
+        xx = 1
+      Endif
+    Else
+      xx = 1
+    Endif
+  Endif
+
+  Return xx
+
+End
+
+Public Function GetBrandFromStockID(stockid As String) As String
+
+  Dim sql As String
+  Dim res As Result
+  Dim xx As String
+
+  If modTableCache.$MedicineDataVar.Exist(stockid) Then
+    xx = modTableCache.$MedicineDataVar[stockid]["fldbrand"]
+    If Not xx Then
+      xx = ""
+    Endif
+
+  Else
+    sql = "select fldbrand from tblmedbrand where fldbrandid=&1"
+    res = modDatabase.$medConn.Exec(sql, stockid)
+    If res.Available Then
+      If res["fldbrand"] Then
+        xx = res["fldbrand"]
+      Else
+        xx = ""
+      Endif
+    Else
+      xx = ""
+    Endif
+  Endif
+  Return xx
+
+End
+
+''-------------------- miscell -----------------------
+Public Function GetPreAdminTestList(codeid As String) As String[]
+
+  Dim res As Result
+  Dim xx As String[]
+
+  res = modDatabase.$medConn.Exec("select distinct(fldchild) as col from tblmedmonitor where fldparent=&1 and fldtype=&2", codeid, "Pre-Administration")
+  xx = modControlSub.GetDirectFillresult(res)
+  Return xx
+
+End
+
+Public Function GetDietMixNameFromCode(sCode As String) As String
+
+  Dim res As Result
+  Dim xx As String
+
+  res = modDatabase.$medConn.Exec("select fldtitle from tblfoodmix where fldgroup=&1", sCode)
+  If res.Available = True Then
+    If res["fldtitle"] Then
+      xx = res["fldtitle"]
+    Else
+      xx = sCode
+    Endif
+  Else
+    xx = sCode
+  Endif
+
+  Return xx
+
+End
+
+''======================= OTHERS =====================================
+
+Public Function ConvertBrandToGeneric(txtroute As String, txtbrand As String) As String
+
+  Dim res As Result
+  Dim xx As String
+
+  ' xx = modHelpVariable.GetCollectionValue($MedBrandToGeneric, txtbrand & "@" & txtroute, modBasic.$AppCacheMedicineConstants)
+  ' If Not xx Then
+  res = modDatabase.$medConn.Exec("select fldbrandid from tblmedbrand where fldbrand=&1 and fldactive=&2 and flddrug in(select flddrug from tbldrug where fldroute=&3)", txtbrand, "Active", txtroute)
+  If res.Available Then
+    If res["fldbrandid"] Then
+      xx = res["fldbrandid"]
+    Else
+      xx = ""
+    Endif
+  Else
+    xx = ""
+  Endif
+  ' Endif
+  Return xx
 
 End
 
@@ -284,104 +689,6 @@ Public Function GetMedicineDoseUnit(stockid As String) As String
 
 End
 
-Public Function GetDrugDosingUnit(stockid As String) As String
-
-  Dim res As Result
-  Dim xunit As String
-
-  xunit = modHelpVariable.GetCollectionValue($MedDoseUntStock, stockid, modBasic.$AppCacheMedicineConstants)
-  If Not xunit Then
-    res = modDatabase.$medConn.Exec("select flddoseunit from tbldrug where flddrug in(select flddrug from tblmedbrand where fldbrandid=&1)", stockid)
-    If res.Available Then
-      If res["flddoseunit"] Then
-        xunit = res["flddoseunit"]
-        If modBasic.$AppCacheMedicineConstants = "Yes" Then
-          $MedDoseUntStock.Add(xunit, stockid)
-        Endif
-      Else
-        xunit = ""
-      Endif
-    Else
-      xunit = ""
-    Endif
-  Endif
-  Return xunit
-
-End
-
-Public Function GetNarcoticType(stockid As String) As String
-
-  Dim sql As String
-  Dim res As Result
-  Dim xx As String
-
-  xx = modHelpVariable.GetCollectionValue($MedNarcoticStock, stockid, modBasic.$AppCacheMedicineConstants)
-  If Not xx Then
-    sql = "select fldnarcotic from tblmedbrand where fldbrandid=&1"
-    res = modDatabase.$medConn.Exec(sql, stockid)
-    If res.Available Then
-      If res["fldnarcotic"] Then
-        xx = res["fldnarcotic"]
-      Else
-        xx = "No"
-      Endif
-    Else
-      xx = "No"
-    Endif
-    If modBasic.$AppCacheMedicineConstants = "Yes" Then
-      $MedNarcoticStock.Add(xx, stockid)
-    Endif
-  Endif
-  Return xx
-
-End
-
-Public Function GetPacketSizeMedicine(stockid As String) As Float
-
-  Dim res As Result
-  Dim xx As Float
-
-  res = modDatabase.$medConn.Exec("select fldpacksize from tblmedbrand where fldbrandid=&1", stockid)
-  If res.Available Then
-    If res["fldpacksize"] Then
-      xx = res["fldpacksize"]
-    Else
-      xx = 1
-    Endif
-  Else
-    xx = 1
-  Endif
-
-  Return xx
-
-End
-
-'NOTE:---------------------------------- Brand Generic conversion ----------------------------------
-Public Function ConvertBrandToGeneric(txtroute As String, txtbrand As String) As String
-
-  Dim res As Result
-  Dim xx As String
-
-  xx = modHelpVariable.GetCollectionValue($MedBrandToGeneric, txtbrand & "@" & txtroute, modBasic.$AppCacheMedicineConstants)
-  If Not xx Then
-    res = modDatabase.$medConn.Exec("select fldbrandid from tblmedbrand where fldbrand=&1 and fldactive=&2 and flddrug in(select flddrug from tbldrug where fldroute=&3)", txtbrand, "Active", txtroute)
-    If res.Available Then
-      If res["fldbrandid"] Then
-        xx = res["fldbrandid"]
-        If modBasic.$AppCacheMedicineConstants = "Yes" Then
-          $MedBrandToGeneric.Add(xx, txtbrand & "@" & txtroute)
-        Endif
-      Else
-        xx = ""
-      Endif
-    Else
-      xx = ""
-    Endif
-  Endif
-  Return xx
-
-End
-
 Public Function ConvertGenericToBrand(txtstockid As String) As String
 
   Dim xx As String
@@ -402,68 +709,6 @@ Public Function ConvertGenericToDrug(txtstockid As String) As String
   If Not xx Then
     xx = txtstockid
   Endif
-  Return xx
-
-End
-
-'NOTE: ----------------------------------- DRUG PROPERTIES----------------------------------------------
-Public Function GetDrugRenalEliminFraction(stockid As String) As Float
-
-  Dim sql As String
-  Dim res As Result
-  Dim elim As String
-
-  sql = "select fldeliminrenal from tblcode where fldcodename in(select fldcodename from tbldrug where flddrug in(select flddrug from tblmedbrand where fldbrandid=&1))"
-  res = modDatabase.$medConn.Exec(sql, stockid)
-  If res.Available Then
-    If res["fldeliminrenal"] Then
-      elim = res["fldeliminrenal"] / 100
-    Else
-      elim = 0
-    Endif
-  Else
-    elim = 0
-  Endif
-  Return elim
-
-End
-
-Public Function GetDrugEnergyContent(txtstockid As String, txtsubroute As String) As Float
-
-  Dim res As Result
-  Dim xx As Float
-
-  res = modDatabase.$medConn.Exec("select fldenergy from tbllabel where fldsubroute=&1 and flddrug in(select flddrug from tblmedbrand where fldbrandid=&2)", txtsubroute, txtstockid)
-  If res.Available = True Then
-    If res["fldenergy"] Then
-      xx = res["fldenergy"]
-    Else
-      xx = 0
-    Endif
-  Else
-    xx = 0
-  Endif
-
-  Return xx
-
-End
-
-Public Function GetDrugFinalStrength(txtstockid As String, txtsubroute As String) As Float
-
-  Dim res As Result
-  Dim xx As Float
-
-  res = modDatabase.$medConn.Exec("select fldfinalstr from tbllabel where fldsubroute=&1 and flddrug in(select flddrug from tblmedbrand where fldbrandid=&2)", txtsubroute, txtstockid)
-  If res.Available = True Then
-    If res["fldfinalstr"] Then
-      xx = res["fldfinalstr"]
-    Else
-      xx = 0
-    Endif
-  Else
-    xx = 0
-  Endif
-
   Return xx
 
 End
@@ -575,17 +820,6 @@ Public Function GetDrugUseDurationDosing(txtmedicine As String, txtdose As Float
 
 End
 
-Public Function GetPreAdminTestList(codeid As String) As String[]
-
-  Dim res As Result
-  Dim xx As String[]
-
-  res = modDatabase.$medConn.Exec("select distinct(fldchild) as col from tblmedmonitor where fldparent=&1 and fldtype=&2", codeid, "Pre-Administration")
-  xx = modControlSub.GetDirectFillresult(res)
-  Return xx
-
-End
-
 Public Function GetStockIDWithCategory(sMedList As String[]) As String[]
 
   Dim xx As String
@@ -604,26 +838,6 @@ Public Function GetStockIDWithCategory(sMedList As String[]) As String[]
 
 End
 
-Public Function GetDietMixNameFromCode(sCode As String) As String
-
-  Dim res As Result
-  Dim xx As String
-
-  res = modDatabase.$medConn.Exec("select fldtitle from tblfoodmix where fldgroup=&1", sCode)
-  If res.Available = True Then
-    If res["fldtitle"] Then
-      xx = res["fldtitle"]
-    Else
-      xx = sCode
-    Endif
-  Else
-    xx = sCode
-  Endif
-
-  Return xx
-
-End
-
 Public Function GetMedicineDoseFormat(sRoute As String, sMedicine As String, xDose As Float, sFormat As String) As String
 
   Dim xx As String
@@ -637,7 +851,7 @@ Public Function GetMedicineDoseFormat(sRoute As String, sMedicine As String, xDo
         Case Else
           xstr = modMedConstant.GetDrugInitialStrength(sMedicine)
           If xstr Then
-            xx = modPharmLabel.ConvertDoseToPrintNum(xDose / xstr) & Space(1) & modPharmLabel.GetPackVolUnit(sMedicine)
+            xx = modPharmLabel.ConvertDoseToPrintNum(xDose / xstr) & Space(1) & modMedConstant.GetPackVolUnit(sMedicine)
           Endif
       End Select
     Else

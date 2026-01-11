@@ -2571,49 +2571,40 @@ End
 
 Public Sub mnusavediscount_Click()
 
-  Dim hForm As FmDiscLevel
+  Dim xcoll As Collection
 
   If modBasic.$BillFixDiscSaved = "No" Then
-    hForm = New FmDiscLevel(Trim(txtencid.Text))
-    hForm.ShowModal()
-
-    If modNonMedical.$DiscLaboratory Then
-      UpdateSelectedDiscount("Diagnostic Tests", modNonMedical.$DiscLaboratory)
+    xcoll = GetDiscLevel(Trim(txtencid.Text))
+    If xcoll And If xcoll.Count Then
+      If xcoll["Diagnostic Tests"] Then
+        UpdateSelectedDiscount("Diagnostic Tests", xcoll["Diagnostic Tests"])
+      Endif
+      If xcoll["Radio Diagnostics"] Then
+        UpdateSelectedDiscount("Radio Diagnostics", xcoll["Radio Diagnostics"])
+      Endif
+      If xcoll["Procedures"] Then
+        UpdateSelectedDiscount("Procedures", xcoll["Procedures"])
+      Endif
+      If xcoll["Equipment"] Then
+        UpdateSelectedDiscount("Equipment", xcoll["Equipment"])
+      Endif
+      If xcoll["General Services"] Then
+        UpdateSelectedDiscount("General Services", xcoll["General Services"])
+      Endif
+      If xcoll["Other Items"] Then
+        UpdateSelectedDiscount("Other Items", xcoll["Other Items"])
+      Endif
+      If xcoll["Medicines"] Then
+        UpdateSelectedDiscount("Medicines", xcoll["Medicines"])
+      Endif
+      If xcoll["Surgicals"] Then
+        UpdateSelectedDiscount("Surgicals", xcoll["Surgicals"])
+      Endif
+      If xcoll["Extra Items"] Then
+        UpdateSelectedDiscount("Extra Items", xcoll["Extra Items"])
+      Endif
+      ShowOldEntry()
     Endif
-    If modNonMedical.$DiscRadiology Then
-      UpdateSelectedDiscount("Radio Diagnostics", modNonMedical.$DiscRadiology)
-    Endif
-    If modNonMedical.$DiscProcedure Then
-      UpdateSelectedDiscount("Procedures", modNonMedical.$DiscProcedure)
-    Endif
-    If modNonMedical.$DiscEquipment Then
-      UpdateSelectedDiscount("Equipment", modNonMedical.$DiscEquipment)
-    Endif
-    If modNonMedical.$DiscServices Then
-      UpdateSelectedDiscount("General Services", modNonMedical.$DiscServices)
-    Endif
-    If modNonMedical.$DiscOthers Then
-      UpdateSelectedDiscount("Other Items", modNonMedical.$DiscOthers)
-    Endif
-    If modNonMedical.$DiscMedicine Then
-      UpdateSelectedDiscount("Medicines", modNonMedical.$DiscMedicine)
-    Endif
-    If modNonMedical.$DiscSurgical Then
-      UpdateSelectedDiscount("Surgicals", modNonMedical.$DiscSurgical)
-    Endif
-    If modNonMedical.$DiscExtraItem Then
-      UpdateSelectedDiscount("Extra Items", modNonMedical.$DiscExtraItem)
-    Endif
-    ShowOldEntry()
-    modNonMedical.$DiscLaboratory = 0
-    modNonMedical.$DiscRadiology = 0
-    modNonMedical.$DiscProcedure = 0
-    modNonMedical.$DiscEquipment = 0
-    modNonMedical.$DiscServices = 0
-    modNonMedical.$DiscOthers = 0
-    modNonMedical.$DiscMedicine = 0
-    modNonMedical.$DiscSurgical = 0
-    modNonMedical.$DiscExtraItem = 0
   Endif
 
 End
@@ -4265,8 +4256,8 @@ Private Sub ExecutePharmacyQuery()
   Else
     xcomp = modBasic.$compID
   Endif
-  sql = "select fldid,fldtime_order,fldroute,flditem,flddose,fldfreq,flddays,fldqtydisp,fldlabel,flduserid_order,flddiscper,fldtaxper,fldstarttime,fldfixrate,flddirection,flduserid_order,fldcomp_order,flditemtype,flddisctype,fldbilltype,fldbillingmode,fldcashincredit from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldqtydisp>&3 and fldcomp_order like &4 ORDER BY fldid DESC"                                                   ''
-  $rData3 = modDatabase.$myConn.Exec(sql, Trim(txtencid.Text), False, 0, xcomp)
+  sql = "select fldid,fldtime_order,fldroute,flditem,flddose,fldfreq,flddays,fldqtydisp,fldlabel,flduserid_order,flddiscper,fldtaxper,fldstarttime,fldfixrate,flddirection,flduserid_order,fldcomp_order,flditemtype,flddisctype,fldbilltype,fldbillingmode,fldcashincredit from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldcurval=&3 and fldqtydisp>&4 and fldcomp_order like &5 ORDER BY fldid DESC"                                                   ''
+  $rData3 = modDatabase.$myConn.Exec(sql, Trim(txtencid.Text), False, "Continue", 0, xcomp)
   TotalDispensedAmount()
 
 End
@@ -4778,7 +4769,7 @@ Private Sub TransferOutPendingPharmacy()
     xcomp = modBasic.$compID
   Endif
 
-  res = modDatabase.$myConn.Edit("tblpatdosing", "fldencounterval=&1 and fldsave_order=&2 and fldqtydisp>&3 and fldbilltype=&4 and fldacledger=&5 and fldcomp_order like &6", Trim(txtencid.Text), False, 0, hPatient.GetCashCreditMode(), cmbledgerac.Text, xcomp)
+  res = modDatabase.$myConn.Edit("tblpatdosing", "fldencounterval=&1 and fldsave_order=&2 and fldqtydisp>&3 and fldbilltype=&4 and fldacledger=&5 and fldcomp_order like &6 and fldcurval=&7", Trim(txtencid.Text), False, 0, hPatient.GetCashCreditMode(), cmbledgerac.Text, xcomp, "Continue")
   If res.Available = True Then
     If Message.Question("Transfer Out Pharmacy Items not dispensed ?", ("No"), ("Yes")) = 2 Then
 
@@ -5559,5 +5550,42 @@ Private Sub CopyToNewItem(encidLast As String, xItem As String)
 Catch
   modDatabase.$myConn.Rollback
   modHelpVariable.CreateErrorReport()
+
+End
+
+Public Sub mnupastmedicine_Click()
+
+  Dim res As Result
+  Dim xList As String[]
+  Dim finLst As String[]
+  Dim xitem As String
+
+  Dim res1 As Result
+
+  xList = New String[]
+  res = modDatabase.$myConn.Exec("select fldid,flditem,fldcomp_order from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldcurval=&3", $lstEncid, False, "Planned")
+  If res.Available Then
+    For Each res
+      xList.Add(res["flditem"] & "|" & res["fldcomp_order"])
+    Next
+
+    If xList.Count Then
+      finLst = GridDualView("Past Orders for Billing", xList)
+      If finLst And If finLst.Count Then
+
+        For Each xitem In finLst
+          res1 = modDatabase.$myConn.Edit("tblpatdosing", "fldencounterval=&1 and fldsave_order=&2 and fldcurval=&3 and flditem=&4", $lstEncid, False, "Planned", xitem)
+          If res1.Available Then
+            res1["fldencounterval"] = Trim(txtencid.Text)
+            res1["fldcurval"] = "Continue"
+            res1.Update
+          Endif
+        Next
+
+        FillDosingGrid()
+      Endif
+    Endif
+
+  Endif
 
 End

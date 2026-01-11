@@ -1,38 +1,9 @@
 ' Gambas module file
 
-Public $StockCurrData As Collection
-
 Public $SurgiNameFromStock As Collection
 Public $ExtraNameFromStock As Collection
 
 Private $CostCalcLevel As Integer = 10
-
-Public Sub GetCurrStockDataColl(stockno As Long, sCon As Connection)
-
-  Dim res As Result
-  Dim sColl As Collection
-
-  If $StockCurrData.Exist(CStr(stockno)) = False Then
-    res = sCon.Exec("SELECT fldstockid,fldcategory,fldbatch,fldexpiry,fldcost,fldsellpr,fldmrp,fldcomp,fldcode,fldpast FROM tblentry WHERE fldstockno=&1", stockno)     ''
-    If res.Available Then
-      sColl = New Collection
-      sColl.Add(res["fldstockid"], "fldstockid")
-      sColl.Add(res["fldcategory"], "fldcategory")
-      sColl.Add(res["fldbatch"], "fldbatch")
-      sColl.Add(res["fldexpiry"], "fldexpiry")
-      sColl.Add(res["fldcost"], "fldcost")
-      sColl.Add(res["fldsellpr"], "fldsellpr")
-      sColl.Add(res["fldmrp"], "fldmrp")
-      sColl.Add(res["fldcomp"], "fldcomp")
-      sColl.Add(res["fldcode"], "fldcode")
-      sColl.Add(res["fldpast"], "fldpast")
-
-      ''add to collection
-      $StockCurrData.Add(sColl, CStr(stockno))
-    Endif
-  Endif
-
-End
 
 Public Function GetStockNameFromStockno(stockno As Integer, Optional sCon As Connection) As String
 
@@ -47,9 +18,12 @@ Public Function GetStockNameFromStockno(stockno As Integer, Optional sCon As Con
   Endif
 
   If stockno Then
-    GetCurrStockDataColl(stockno, $con)
-    If $StockCurrData.Exist(CStr(stockno)) Then
-      xx = $StockCurrData[CStr(stockno)]["fldstockid"]
+    If modTableCache.$StockDataVar.Exist(CStr(stockno)) Then
+      xx = modTableCache.$StockDataVar[CStr(stockno)]["fldstockid"]
+      If Not xx Then
+        xx = ""
+      Endif
+
     Else
       res = $con.Exec("select fldstockid from tblentry where fldstockno=&1", stockno)
       If res.Available Then
@@ -83,9 +57,12 @@ Public Function GetBatchFromStockNo(txtstockno As Long, Optional sCon As Connect
   Endif
 
   If txtstockno Then
-    GetCurrStockDataColl(txtstockno, $con)
-    If $StockCurrData.Exist(CStr(txtstockno)) Then
-      batch = $StockCurrData[CStr(txtstockno)]["fldbatch"]
+    If modTableCache.$StockDataVar.Exist(CStr(txtstockno)) Then
+      batch = modTableCache.$StockDataVar[CStr(txtstockno)]["fldbatch"]
+      If Not batch Then
+        batch = ""
+      Endif
+
     Else
       res = $con.Exec("select fldbatch from tblentry where fldstockno=&1", txtstockno)
       If res.Available Then
@@ -106,46 +83,6 @@ Public Function GetBatchFromStockNo(txtstockno As Long, Optional sCon As Connect
 
 End
 
-Public Function GetMaxRPFromStockNo(txtstockno As Long, Optional sCon As Connection) As Float
-
-  Dim xmrp As Float
-  Dim res As Result
-  Dim $con As Connection
-
-  If sCon Then
-    $con = sCon
-  Else
-    $con = modDatabase.$myConn
-  Endif
-
-  If txtstockno Then
-    GetCurrStockDataColl(txtstockno, $con)
-    If $StockCurrData.Exist(CStr(txtstockno)) Then
-      If $StockCurrData[CStr(txtstockno)]["fldmrp"] Then
-        xmrp = $StockCurrData[CStr(txtstockno)]["fldmrp"]
-      Else
-        xmrp = 0
-      Endif
-    Else
-      res = $con.Exec("select fldmrp from tblentry where fldstockno=&1", txtstockno)
-      If res.Available Then
-        If res["fldmrp"] Then
-          xmrp = res["fldmrp"]
-        Else
-          xmrp = 0
-        Endif
-      Else
-        xmrp = 0
-      Endif
-    Endif
-
-  Else
-    xmrp = 0
-  Endif
-  Return xmrp
-
-End
-
 Public Function GetExpiryFromStockNo(txtstockno As Long, Optional sCon As Connection) As Date
 
   Dim expiry As Date
@@ -159,9 +96,12 @@ Public Function GetExpiryFromStockNo(txtstockno As Long, Optional sCon As Connec
   Endif
 
   If txtstockno Then
-    GetCurrStockDataColl(txtstockno, $con)
-    If $StockCurrData.Exist(CStr(txtstockno)) Then
-      expiry = $StockCurrData[CStr(txtstockno)]["fldexpiry"]
+    If modTableCache.$StockDataVar.Exist(CStr(txtstockno)) Then
+      expiry = modTableCache.$StockDataVar[CStr(txtstockno)]["fldexpiry"]
+      If Not expiry Then
+        expiry = ""
+      Endif
+
     Else
       res = $con.Exec("select fldexpiry from tblentry where fldstockno=&1", txtstockno)
       If res.Available Then
@@ -182,6 +122,45 @@ Public Function GetExpiryFromStockNo(txtstockno As Long, Optional sCon As Connec
 
 End
 
+Public Function GetMaxRPFromStockNo(txtstockno As Long, Optional sCon As Connection) As Float
+
+  Dim xmrp As Float
+  Dim res As Result
+  Dim $con As Connection
+
+  If sCon Then
+    $con = sCon
+  Else
+    $con = modDatabase.$myConn
+  Endif
+
+  If txtstockno Then
+    If modTableCache.$StockDataVar.Exist(CStr(txtstockno)) Then
+      xmrp = modTableCache.$StockDataVar[CStr(txtstockno)]["fldmrp"]
+      If Not xmrp Then
+        xmrp = 0
+      Endif
+
+    Else
+      res = $con.Exec("select fldmrp from tblentry where fldstockno=&1", txtstockno)
+      If res.Available Then
+        If res["fldmrp"] Then
+          xmrp = res["fldmrp"]
+        Else
+          xmrp = 0
+        Endif
+      Else
+        xmrp = 0
+      Endif
+    Endif
+
+  Else
+    xmrp = 0
+  Endif
+  Return xmrp
+
+End
+
 Public Function GetCurrCostPriceByStockNo(stockno As Long, Optional sCon As Connection) As Float
 
   Dim res As Result
@@ -195,13 +174,12 @@ Public Function GetCurrCostPriceByStockNo(stockno As Long, Optional sCon As Conn
   Endif
 
   If stockno Then
-    GetCurrStockDataColl(stockno, $con)
-    If $StockCurrData.Exist(CStr(stockno)) Then
-      If $StockCurrData[CStr(stockno)]["fldcost"] Then
-        xx = $StockCurrData[CStr(stockno)]["fldcost"]
-      Else
+    If modTableCache.$StockDataVar.Exist(CStr(stockno)) Then
+      xx = modTableCache.$StockDataVar[CStr(stockno)]["fldcost"]
+      If Not xx Then
         xx = 0
       Endif
+
     Else
       res = $con.Exec("select fldcost from tblentry where fldstockno=&1", stockno)
       If res.Available Then
@@ -236,9 +214,12 @@ Public Function GetStorageCodeFromStockNo(stockno As Integer, Optional sCon As C
   Endif
 
   If stockno Then
-    GetCurrStockDataColl(stockno, $con)
-    If $StockCurrData.Exist(CStr(stockno)) Then
-      xx = $StockCurrData[CStr(stockno)]["fldcode"]
+    If modTableCache.$StockDataVar.Exist(CStr(stockno)) Then
+      xx = modTableCache.$StockDataVar[CStr(stockno)]["fldcode"]
+      If Not xx Then
+        xx = ""
+      Endif
+
     Else
       res = $con.Exec("select fldcode from tblentry where fldstockno=&1", stockno)
       If res.Available Then

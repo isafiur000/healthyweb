@@ -1,11 +1,226 @@
 ' Gambas module file
 
-Public $RadioItemCategory As Collection
 Public $RadioIDFromSysConst As Collection
-Public $RadioOptionType As Collection
-Public $RadioCaption As Collection
+
+''=================== Cache =========================================
+Public Function GetRadiotestCaption(strTest As String) As String
+
+  Dim xx As String
+  Dim res As Result
+
+  If modTableCache.$RadioMasterData.Exist(strTest) Then
+    xx = modTableCache.$RadioMasterData[strTest]["fldcaption"]
+    If Not xx Then
+      xx = ""
+    Endif
+
+  Else
+    res = modDatabase.$medConn.Exec("select fldcaption from tblradio where fldexamid=&1", strTest)
+    If res.Available Then
+      If res["fldcaption"] Then
+        xx = res["fldcaption"]
+      Else
+        xx = ""
+      Endif
+    Else
+      xx = ""
+    Endif
+  Endif
+  Return xx
+
+End
+
+Public Function GetRadioTestCategory(strTest As String) As String
+
+  Dim xx As String
+  Dim res As Result
+
+  If modTableCache.$RadioMasterData.Exist(strTest) Then
+    xx = modTableCache.$RadioMasterData[strTest]["fldcategory"]
+    If Not xx Then
+      xx = ""
+    Endif
+
+  Else
+    res = modDatabase.$medConn.Exec("select fldcategory from tblradio where fldexamid=&1", strTest)
+    If res.Available Then
+      If res["fldcategory"] Then
+        xx = res["fldcategory"]
+      Else
+        xx = ""
+      Endif
+    Else
+      xx = ""
+    Endif
+  Endif
+  Return xx
+
+End
+
+Public Function GetRadioTestOption(strTest As String) As String
+
+  Dim xx As String
+  Dim res As Result
+
+  If modTableCache.$RadioMasterData.Exist(strTest) Then
+    xx = modTableCache.$RadioMasterData[strTest]["fldoption"]
+    If Not xx Then
+      xx = ""
+    Endif
+
+  Else
+    res = modDatabase.$medConn.Exec("select fldoption from tblradio where fldexamid=&1", strTest)
+    If res.Available Then
+      If res["fldoption"] Then
+        xx = res["fldoption"]
+      Else
+        xx = ""
+      Endif
+    Else
+      xx = ""
+    Endif
+  Endif
+  Return xx
+
+End
+
+Public Function GetRadioTestType(strTest As String) As String
+
+  Dim res As Result
+  Dim xx As String
+
+  If modTableCache.$RadioMasterData.Exist(strTest) Then
+    xx = modTableCache.$RadioMasterData[strTest]["fldtype"]
+    If Not xx Then
+      xx = ""
+    Endif
+
+  Else
+    res = modDatabase.$medConn.Exec("select fldtype from tblradio where fldexamid=&1", strTest)
+    If res.Available Then
+      If res["fldtype"] Then
+        xx = res["fldtype"]
+      Else
+        xx = ""
+      Endif
+    Else
+      xx = ""
+    Endif
+  Endif
+
+  Return xx
+
+End
+
+Public Function GetCritValueRadio(strTest As String) As Float
+
+  Dim res As Result
+  Dim xval As Float
+
+  If modTableCache.$RadioMasterData.Exist(strTest) Then
+    xval = modTableCache.$RadioMasterData[strTest]["fldcritical"]
+    If Not xval Then
+      xval = 0
+    Endif
+
+  Else
+    res = modDatabase.$medConn.Exec("select fldcritical from tblradio where fldexamid=&1", strTest)
+    If res.Available Then
+      If res["fldcritical"] Then
+        xval = res["fldcritical"]
+      Else
+        xval = 0
+      Endif
+    Else
+      xval = 0
+    Endif
+  Endif
+  Return xval
+
+End
+
+Public Function GetRadioToolTip(strTest As String) As String
+
+  Dim xx As String
+  Dim res As Result
+
+  If modTableCache.$RadioMasterData.Exist(strTest) Then
+    xx = modTableCache.$RadioMasterData[strTest]["fldcomment"]
+    If Not xx Then
+      xx = ""
+    Endif
+
+  Else
+    res = modDatabase.$medConn.Exec("select fldcomment from tblradio where fldexamid=&1", strTest)
+    If res.Available Then
+      If res["fldcomment"] Then
+        xx = res["fldcomment"]
+      Else
+        xx = ""
+      Endif
+    Else
+      xx = ""
+    Endif
+  Endif
+  Return xx
+
+End
+
+Public Function GetRadioSysName(strTest As String) As String
+
+  Dim res As Result
+  Dim xx As String
+
+  If modTableCache.$RadioMasterData.Exist(strTest) Then
+    xx = modTableCache.$RadioMasterData[strTest]["fldsysconst"]
+    If Not xx Then
+      xx = ""
+    Endif
+
+  Else
+    res = modDatabase.$medConn.Exec("select fldsysconst from tblradio where fldexamid=&1", strTest)
+    If res.Available Then
+      If res["fldsysconst"] Then
+        xx = res["fldsysconst"]
+      Else
+        xx = ""
+      Endif
+    Else
+      xx = ""
+    Endif
+  Endif
+
+  Return xx
+
+End
 
 ''------------------------------- general functions --------------------------
+Public Function GetRadioTestIDFromSysConst(sysCons As String) As String
+
+  Dim res As Result
+  Dim xx As String
+
+  xx = modHelpVariable.GetCollectionValue($RadioIDFromSysConst, sysCons, modBasic.$AppCacheRadiologyConstants)
+  If Not xx Then
+    res = modDatabase.$medConn.Exec("select fldexamid from tblradio where fldsysconst=&1", sysCons)
+    If res.Available = True Then
+      res.MoveFirst
+      If res["fldexamid"] Then
+        xx = res["fldexamid"]
+        If modBasic.$AppCacheRadiologyConstants = "Yes" Then
+          $RadioIDFromSysConst.Add(xx, sysCons)
+        Endif
+      Else
+        xx = ""
+      Endif
+    Else
+      xx = ""
+    Endif
+  Endif
+  Return xx
+
+End
+
 Public Function GetSubRadioOption(radioid As String, subradio As String) As String
 
   Dim res As Result
@@ -25,81 +240,6 @@ Public Function GetSubRadioOption(radioid As String, subradio As String) As Stri
 
 End
 
-Public Function GetRadiotestCaption(test As String) As String
-
-  Dim xx As String
-  Dim res As Result
-
-  xx = modHelpVariable.GetCollectionValue($RadioCaption, test, modBasic.$AppCacheRadiologyConstants)
-  If Not xx Then
-    res = modDatabase.$medConn.Exec("select fldcaption from tblradio where fldexamid=&1", test)
-    If res.Available Then
-      If res["fldcaption"] Then
-        xx = res["fldcaption"]
-        If modBasic.$AppCacheRadiologyConstants = "Yes" Then
-          $RadioCaption.Add(xx, test)
-        Endif
-      Else
-        xx = ""
-      Endif
-    Else
-      xx = ""
-    Endif
-  Endif
-  Return xx
-
-End
-
-Public Function GetRadioTestCategory(test As String) As String
-
-  Dim xx As String
-  Dim res As Result
-
-  xx = modHelpVariable.GetCollectionValue($RadioItemCategory, test, modBasic.$AppCacheRadiologyConstants)
-  If Not xx Then
-    res = modDatabase.$medConn.Exec("select fldcategory from tblradio where fldexamid=&1", test)
-    If res.Available Then
-      If res["fldcategory"] Then
-        xx = res["fldcategory"]
-        If modBasic.$AppCacheRadiologyConstants = "Yes" Then
-          $RadioItemCategory.Add(xx, test)
-        Endif
-      Else
-        xx = ""
-      Endif
-    Else
-      xx = ""
-    Endif
-  Endif
-  Return xx
-
-End
-
-Public Function GetRadioTestOption(test As String) As String
-
-  Dim xx As String
-  Dim res As Result
-
-  xx = modHelpVariable.GetCollectionValue($RadioOptionType, test, modBasic.$AppCacheRadiologyConstants)
-  If Not xx Then
-    res = modDatabase.$medConn.Exec("select fldoption from tblradio where fldexamid=&1", test)
-    If res.Available Then
-      If res["fldoption"] Then
-        xx = res["fldoption"]
-        If modBasic.$AppCacheRadiologyConstants = "Yes" Then
-          $RadioOptionType.Add(xx, test)
-        Endif
-      Else
-        xx = ""
-      Endif
-    Else
-      xx = ""
-    Endif
-  Endif
-  Return xx
-
-End
-
 Public Function MethodsForRadioTest(sTestName As String) As String[]
 
   Dim xx As String[]
@@ -108,44 +248,6 @@ Public Function MethodsForRadioTest(sTestName As String) As String[]
   res = modDatabase.$medConn.Exec("select distinct(fldmethod) as col from tblradiolimit where fldexamid=&1", sTestName)
   xx = modControlSub.GetDirectFillresult(res)
   Return xx
-
-End
-
-Public Function GetRadioTestType(strTest As String) As String
-
-  Dim res As Result
-  Dim xx As String
-
-  res = modDatabase.$medConn.Exec("select fldtype from tblradio where fldexamid=&1", strTest)
-  If res.Available Then
-    If res["fldtype"] Then
-      xx = res["fldtype"]
-    Else
-      xx = ""
-    Endif
-  Else
-    xx = ""
-  Endif
-  Return xx
-
-End
-
-Public Function GetCritValueRadio(strTest As String) As Float
-
-  Dim res As Result
-  Dim xval As Float
-
-  res = modDatabase.$medConn.Exec("select fldcritical from tblradio where fldexamid=&1", strTest)
-  If res.Available Then
-    If res["fldcritical"] Then
-      xval = res["fldcritical"]
-    Else
-      xval = 0
-    Endif
-  Else
-    xval = 0
-  Endif
-  Return xval
 
 End
 
@@ -190,70 +292,6 @@ Public Function GetSubRadioTestQualiReference(txttest As String, txtsubtest As S
     xx = ""
   Endif
 
-  Return xx
-
-End
-
-Public Function GetRadioToolTip(txtexam As String) As String
-
-  Dim xx As String
-  Dim res As Result
-
-  res = modDatabase.$medConn.Exec("select fldcomment from tblradio where fldexamid=&1", txtexam)
-  If res.Available Then
-    If res["fldcomment"] Then
-      xx = res["fldcomment"]
-    Else
-      xx = ""
-    Endif
-  Else
-    xx = ""
-  Endif
-  Return xx
-
-End
-
-Public Function GetRadioSysName(sExam As String) As String
-
-  Dim res As Result
-  Dim xx As String
-
-  res = modDatabase.$medConn.Exec("select fldsysconst from tblradio where fldexamid=&1", sExam)
-  If res.Available Then
-    If res["fldsysconst"] Then
-      xx = res["fldsysconst"]
-    Else
-      xx = ""
-    Endif
-  Else
-    xx = ""
-  Endif
-  Return xx
-
-End
-
-Public Function GetRadioTestIDFromSysConst(sysCons As String) As String
-
-  Dim res As Result
-  Dim xx As String
-
-  xx = modHelpVariable.GetCollectionValue($RadioIDFromSysConst, sysCons, modBasic.$AppCacheRadiologyConstants)
-  If Not xx Then
-    res = modDatabase.$medConn.Exec("select fldexamid from tblradio where fldsysconst=&1", sysCons)
-    If res.Available = True Then
-      res.MoveFirst
-      If res["fldexamid"] Then
-        xx = res["fldexamid"]
-        If modBasic.$AppCacheRadiologyConstants = "Yes" Then
-          $RadioIDFromSysConst.Add(xx, sysCons)
-        Endif
-      Else
-        xx = ""
-      Endif
-    Else
-      xx = ""
-    Endif
-  Endif
   Return xx
 
 End
