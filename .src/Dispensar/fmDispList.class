@@ -55,7 +55,7 @@ Public Sub _new(xStatus As String)
   Else If $xStatus = "Dispensed" Then
     mnuremove.Visible = False
   Endif
-  cmbdepart.SetFocus
+  txtsearch.SetFocus
 
 End
 
@@ -83,6 +83,8 @@ Private Sub ShowInputForm()
   xx = modSettings.ShowSettingFromFIle("DispensingList/Department")
   If xx = "InPatient" Then
     rbinpat.Value = True
+  Else If xx = "Discharged" Then
+    rbexited.Value = True
   Else
     rboutpat.Value = True
   Endif
@@ -101,6 +103,8 @@ Private Sub ShowDepartList()
       cmbdepart.List = modGeneral.GetDepartmentsForOPDBoth()
       cmbdepart.Text = ""
     Else If rbinpat.Value = True Then
+      cmbdepart.List = modGeneral.GetDepartmentAllList("Patient Ward")
+    Else If rbexited.Value = True Then
       cmbdepart.List = modGeneral.GetDepartmentAllList("Patient Ward")
     Endif
   Endif
@@ -121,15 +125,10 @@ Public Sub rbinpat_Click()
 
 End
 
-Public Sub form_KeyRelease()
+Public Sub rbexited_Click()
 
-  If Key.Code = Key["R"] And If Key.Control Then
-    btnrefresh_Click()
-  Else If Key.Code = Key.F1 Then
-    btnseartext_Click()
-  Else If Key.Code = Key.F12 Then
-    btnclaerall_Click()
-  Endif
+  modSettings.SaveSettingsToFile("DispensingList/Department", "Discharged")
+  ShowDepartList()
 
 End
 
@@ -152,10 +151,10 @@ Public Sub btnseartext_Click()
 
   txtindex.Text = ""
   If rbencid.Value = True Then
-    If modBasic.$AutoEncPrefix Then
-      enc = InputBox(("Encounter ID of Patient"), ("Search Patient"), modBasic.$EncIdPrefix)
+    If chkpatno.Value = True Then
+      enc = modPatient.GetLastEncoutnerFromPatNo(Trim(txtsearch.Text))
     Else
-      enc = InputBox(("Encounter ID of Patient"), ("Search Patient"), "")
+      enc = Trim(txtsearch.Text)
     Endif
     If enc Then
       FillEncList(Trim(enc))
@@ -165,7 +164,7 @@ Public Sub btnseartext_Click()
       FillDispenstable(txtindex.Text)
     Endif
   Else If rbinvoice.Value = True Then
-    xinv = InputBox(("Provide Invoice Number"), ("Search Patient"), "")
+    xinv = Trim(txtsearch.Text)
     If xinv Then
       FillInvoiceList(Trim(xinv))
       txtindex.Text = Trim(xinv)
@@ -180,35 +179,68 @@ End
 Private Sub FillEncList(xencid As String)
 
   Dim xstate As Boolean
+  Dim xsql As String
+  Dim strItem As String[] = ["Discharged", "LAMA", "Death", "Refer", "Absconder"]
+  Dim i As Integer
+
+  For i = 0 To strItem.Count - 1
+    strItem[i] = "'" & strItem[i] & "'"
+  Next
 
   If $xStatus = "Dispensed" Then
     xstate = True
   Else If $xStatus = "Requested" Then
     xstate = False
   Endif
-  If Not cmbdepart.Text Then
-    cmbdepart.Text = "%"
+  If cmbdepart.Text Then
+    If rboutpat.Value = True Then
+      xsql = db.Subst(" and fldencounterval in(select fldencounterval from tblencounter where fldcurrlocat like &1)", cmbdepart.Text)
+    Else If rbinpat.Value = True Then
+      xsql = db.Subst(" and fldencounterval in(select fldencounterval from tblencounter where fldcurrlocat in(select fldbed from tbldepartmentbed where flddept like &1))", cmbdepart.Text)
+    Else If rbexited.Value = True Then
+      xsql = db.Subst(" and fldencounterval in(select fldencounterval from tblencounter where fldcurrlocat in(select fldbed from tbldepartmentbed where flddept like &1))", cmbdepart.Text)
+    Endif
+  Else
+    xsql = ""
   Endif
 
   If chkdate.Value = True Then
     If Not xencid Then
       If rboutpat.Value = True Then
-        $rData1 = modDatabase.$myConn.Exec("select fldencounterval,fldencounterval,fldencounterval,fldencounterval from tblpatdosing where flditemtype like &1 and fldlevel=&2 and fldcurval=&4 and fldencounterval in(select fldencounterval from tblencounter where fldcurrlocat like &5) and fldqtydisp>&6 and fldtime_order>=&7 and fldtime_order<=&8 and fldsave_order=&9 GROUP BY fldencounterval", "%", "Requested", xencid, "Continue", cmbdepart.Text, 0, modDate.StartSqlDate(dtselected.Value), modDate.EndSqlDate(DateAdd(dtselected.Value, gb.Day, txtdtrange.Value)), xstate)                                          ''
+        $rData1 = modDatabase.$myConn.Exec("select fldencounterval,fldencounterval,fldencounterval,fldencounterval from tblpatdosing where flditemtype like &1 and fldlevel=&2 and fldcurval=&3 and fldstatus=&4 and fldqtydisp>&5 and fldtime_order>=&6 and fldtime_order<=&7 and fldsave_order=&8" & xsql & " GROUP BY fldencounterval", "%", "Requested", "Continue", "Registered", 0, modDate.StartSqlDate(dtselected.Value), modDate.EndSqlDate(DateAdd(dtselected.Value, gb.Day, txtdtrange.Value)), xstate)                                          ''
       Else If rbinpat.Value = True Then
-        $rData1 = modDatabase.$myConn.Exec("select fldencounterval,fldencounterval,fldencounterval,fldencounterval from tblpatdosing where flditemtype like &1 and fldlevel=&2 and fldcurval=&4 and fldencounterval in(select fldencounterval from tblencounter where fldcurrlocat in(select fldbed from tbldepartmentbed where flddept like &5)) and fldqtydisp>&6 and fldtime_order>=&7 and fldtime_order<=&8 and fldsave_order=&9 GROUP BY fldencounterval", "%", "Requested", xencid, "Continue", cmbdepart.Text, 0, modDate.StartSqlDate(dtselected.Value), modDate.EndSqlDate(DateAdd(dtselected.Value, gb.Day, txtdtrange.Value)), xstate)                                          ''
+        $rData1 = modDatabase.$myConn.Exec("select fldencounterval,fldencounterval,fldencounterval,fldencounterval from tblpatdosing where flditemtype like &1 and fldlevel=&2 and fldcurval=&3 and fldstatus=&4 and fldqtydisp>&5 and fldtime_order>=&6 and fldtime_order<=&7 and fldsave_order=&8" & xsql & " GROUP BY fldencounterval", "%", "Requested", "Continue", "Admitted", 0, modDate.StartSqlDate(dtselected.Value), modDate.EndSqlDate(DateAdd(dtselected.Value, gb.Day, txtdtrange.Value)), xstate)                                          ''
+      Else If rbexited.Value = True Then
+        $rData1 = modDatabase.$myConn.Exec("select fldencounterval,fldencounterval,fldencounterval,fldencounterval from tblpatdosing where flditemtype like &1 and fldlevel=&2 and fldcurval=&3 and fldstatus in(" & strItem.Join(",") & ") and fldqtydisp>&5 and fldtime_order>=&6 and fldtime_order<=&7 and fldsave_order=&8" & xsql & " GROUP BY fldencounterval", "%", "Requested", "Continue", "Admitted", 0, modDate.StartSqlDate(dtselected.Value), modDate.EndSqlDate(DateAdd(dtselected.Value, gb.Day, txtdtrange.Value)), xstate)
       Endif
     Else
       $rData1 = modDatabase.$myConn.Exec("select fldencounterval,fldencounterval,fldencounterval,fldencounterval from tblpatdosing where flditemtype like &1 and fldlevel=&2 and fldencounterval like &3 and fldcurval=&4 and fldqtydisp>&5 and fldtime_order>=&6 and fldtime_order<=&7 and fldsave_order=&8 GROUP BY fldencounterval", "%", "Requested", xencid, "Continue", 0, modDate.StartSqlDate(dtselected.Value), modDate.EndSqlDate(DateAdd(dtselected.Value, gb.Day, txtdtrange.Value)), xstate)                                          ''
     Endif
   Else
-    If Not xencid Then
-      If rboutpat.Value = True Then
-        $rData1 = modDatabase.$myConn.Exec("select fldencounterval,fldencounterval,fldencounterval,fldencounterval from tblpatdosing where flditemtype like &1 and fldlevel=&2 and fldcurval=&4 and fldencounterval in(select fldencounterval from tblencounter where fldcurrlocat like &5) and fldqtydisp>&6 and fldsave_order=&7 GROUP BY fldencounterval", "%", "Requested", xencid, "Continue", cmbdepart.Text, 0, xstate)                                          ''
-      Else If rbinpat.Value = True Then
-        $rData1 = modDatabase.$myConn.Exec("select fldencounterval,fldencounterval,fldencounterval,fldencounterval from tblpatdosing where flditemtype like &1 and fldlevel=&2 and fldcurval=&4 and fldencounterval in(select fldencounterval from tblencounter where fldcurrlocat in(select fldbed from tbldepartmentbed where flddept like &5)) and fldqtydisp>&6 and fldsave_order=&7 GROUP BY fldencounterval", "%", "Requested", xencid, "Continue", cmbdepart.Text, 0, xstate)                                          ''
+    If modBasic.$SQLDateRange = "Disable" Then
+      If Not xencid Then
+        If rboutpat.Value = True Then
+          $rData1 = modDatabase.$myConn.Exec("select fldencounterval,fldencounterval,fldencounterval,fldencounterval from tblpatdosing where flditemtype like &1 and fldlevel=&2 and fldcurval=&3 and fldstatus=&4 and fldqtydisp>&5 and fldsave_order=&6" & xsql & " GROUP BY fldencounterval", "%", "Requested", "Continue", "Registered", 0, xstate)                                          ''
+        Else If rbinpat.Value = True Then
+          $rData1 = modDatabase.$myConn.Exec("select fldencounterval,fldencounterval,fldencounterval,fldencounterval from tblpatdosing where flditemtype like &1 and fldlevel=&2 and fldcurval=&3 and fldstatus=&4 and fldqtydisp>&5 and fldsave_order=&6" & xsql & " GROUP BY fldencounterval", "%", "Requested", "Continue", "Admitted", 0, xstate)                                          ''
+        Else If rbexited.Value = True Then
+          $rData1 = modDatabase.$myConn.Exec("select fldencounterval,fldencounterval,fldencounterval,fldencounterval from tblpatdosing where flditemtype like &1 and fldlevel=&2 and fldcurval=&3 and fldstatus in(" & strItem.Join(",") & ") and fldqtydisp>&5 and fldsave_order=&6" & xsql & " GROUP BY fldencounterval", "%", "Requested", "Continue", "Admitted", 0, xstate)
+        Endif
+      Else
+        $rData1 = modDatabase.$myConn.Exec("select fldencounterval,fldencounterval,fldencounterval,fldencounterval from tblpatdosing where flditemtype like &1 and fldlevel=&2 and fldencounterval like &3 and fldcurval=&4 and fldqtydisp>&5 and fldsave_order=&6 GROUP BY fldencounterval", "%", "Requested", xencid, "Continue", 0, xstate)                                          ''
       Endif
     Else
-      $rData1 = modDatabase.$myConn.Exec("select fldencounterval,fldencounterval,fldencounterval,fldencounterval from tblpatdosing where flditemtype like &1 and fldlevel=&2 and fldencounterval like &3 and fldcurval=&4 and fldqtydisp>&5 and fldsave_order=&6 GROUP BY fldencounterval", "%", "Requested", xencid, "Continue", 0, xstate)                                          ''
+      If Not xencid Then
+        If rboutpat.Value = True Then
+          $rData1 = modDatabase.$myConn.Exec("select fldencounterval,fldencounterval,fldencounterval,fldencounterval from tblpatdosing where flditemtype like &1 and fldlevel=&2 and fldcurval=&3 and fldstatus=&4 and fldqtydisp>&5 and fldtime_order>=&6 and fldtime_order<=&7 and fldsave_order=&8" & xsql & " GROUP BY fldencounterval", "%", "Requested", "Continue", "Registered", 0, modDate.StartSqlDate(DateAdd(dtselected.Value, gb.Day, 0 - 365)), modDate.EndSqlDate(dtselected.Value), xstate)                                          ''
+        Else If rbinpat.Value = True Then
+          $rData1 = modDatabase.$myConn.Exec("select fldencounterval,fldencounterval,fldencounterval,fldencounterval from tblpatdosing where flditemtype like &1 and fldlevel=&2 and fldcurval=&3 and fldstatus=&4 and fldqtydisp>&5 and fldtime_order>=&6 and fldtime_order<=&7 and fldsave_order=&8" & xsql & " GROUP BY fldencounterval", "%", "Requested", "Continue", "Admitted", 0, modDate.StartSqlDate(DateAdd(dtselected.Value, gb.Day, 0 - 365)), modDate.EndSqlDate(dtselected.Value), xstate)                                          ''
+        Else If rbexited.Value = True Then
+          $rData1 = modDatabase.$myConn.Exec("select fldencounterval,fldencounterval,fldencounterval,fldencounterval from tblpatdosing where flditemtype like &1 and fldlevel=&2 and fldcurval=&3 and fldstatus in(" & strItem.Join(",") & ") and fldqtydisp>&5 and fldtime_order>=&6 and fldtime_order<=&7 and fldsave_order=&8" & xsql & " GROUP BY fldencounterval", "%", "Requested", "Continue", "Admitted", 0, modDate.StartSqlDate(DateAdd(dtselected.Value, gb.Day, 0 - 365)), modDate.EndSqlDate(dtselected.Value), xstate)
+        Endif
+      Else
+        $rData1 = modDatabase.$myConn.Exec("select fldencounterval,fldencounterval,fldencounterval,fldencounterval from tblpatdosing where flditemtype like &1 and fldlevel=&2 and fldencounterval like &3 and fldcurval=&4 and fldqtydisp>&5 and fldtime_order>=&6 and fldtime_order<=&7 and fldsave_order=&8 GROUP BY fldencounterval", "%", "Requested", xencid, "Continue", 0, modDate.StartSqlDate(DateAdd(dtselected.Value, gb.Day, 0 - 365)), modDate.EndSqlDate(dtselected.Value), xstate)                                          ''
+      Endif
     Endif
   Endif
 
@@ -231,6 +263,13 @@ End
 Private Sub FillInvoiceList(invno As String)
 
   Dim xstate As Boolean
+  Dim xsql As String
+  Dim strItem As String[] = ["Discharged", "LAMA", "Death", "Refer", "Absconder"]
+  Dim i As Integer
+
+  For i = 0 To strItem.Count - 1
+    strItem[i] = "'" & strItem[i] & "'"
+  Next
 
   If $xStatus = "Dispensed" Then
     xstate = True
@@ -238,25 +277,55 @@ Private Sub FillInvoiceList(invno As String)
     xstate = False
   Endif
 
+  If cmbdepart.Text Then
+    If rboutpat.Value = True Then
+      xsql = db.Subst(" and tblpatdosing.fldencounterval in(select fldencounterval from tblencounter where fldcurrlocat like &1)", cmbdepart.Text)
+    Else If rbinpat.Value = True Then
+      xsql = db.Subst(" and tblpatdosing.fldencounterval in(select fldencounterval from tblencounter where fldcurrlocat in(select fldbed from tbldepartmentbed where flddept like &1))", cmbdepart.Text)
+    Else If rbexited.Value = True Then
+      xsql = db.Subst(" and tblpatdosing.fldencounterval in(select fldencounterval from tblencounter where fldcurrlocat in(select fldbed from tbldepartmentbed where flddept like &1))", cmbdepart.Text)
+    Endif
+  Else
+    xsql = ""
+  Endif
+
   If chkdate.Value = True Then
     If Not invno Then
       If rboutpat.Value = True Then
-        $rData1 = modDatabase.$myConn.Exec("select tblpatdosing.fldencounterval,tblpatbilling.fldbillno,tblpatdosing.fldencounterval,tblpatdosing.fldencounterval from tblpatdosing inner join tblpatbilling on tblpatdosing.fldid=tblpatbilling.fldparent where tblpatdosing.flditemtype like &1 and tblpatdosing.fldlevel=&2 and tblpatdosing.fldcurval=&4 and tblpatdosing.fldencounterval in(select fldencounterval from tblencounter where fldcurrlocat like &5) and tblpatdosing.fldqtydisp>&6 and tblpatdosing.fldtime_order>=&7 and tblpatdosing.fldtime_order<=&8 and tblpatdosing.fldsave_order=&9 GROUP BY tblpatbilling.fldbillno", "%", "Requested", invno, "Continue", cmbdepart.Text, 0, modDate.StartSqlDate(dtselected.Value), modDate.EndSqlDate(DateAdd(dtselected.Value, gb.Day, txtdtrange.Value)), xstate)                                          ''
+        $rData1 = modDatabase.$myConn.Exec("select tblpatdosing.fldencounterval,tblpatbilling.fldbillno,tblpatdosing.fldencounterval,tblpatdosing.fldencounterval from tblpatdosing inner join tblpatbilling on tblpatdosing.fldid=tblpatbilling.fldparent where tblpatdosing.flditemtype like &1 and tblpatdosing.fldlevel=&2 and tblpatdosing.fldcurval=&3 and tblpatdosing.fldstatus=&4 and tblpatdosing.fldqtydisp>&5 and tblpatdosing.fldtime_order>=&6 and tblpatdosing.fldtime_order<=&7 and tblpatdosing.fldsave_order=&8" & xsql & " GROUP BY tblpatbilling.fldbillno", "%", "Requested", "Continue", "Registered", 0, modDate.StartSqlDate(dtselected.Value), modDate.EndSqlDate(DateAdd(dtselected.Value, gb.Day, txtdtrange.Value)), xstate)                                          ''
       Else If rbinpat.Value = True Then
-        $rData1 = modDatabase.$myConn.Exec("select tblpatdosing.fldencounterval,tblpatbilling.fldbillno,tblpatdosing.fldencounterval,tblpatdosing.fldencounterval from tblpatdosing inner join tblpatbilling on tblpatdosing.fldid=tblpatbilling.fldparent where tblpatdosing.flditemtype like &1 and tblpatdosing.fldlevel=&2 and tblpatdosing.fldcurval=&4 and tblpatdosing.fldencounterval in(select fldencounterval from tblencounter where fldcurrlocat in(select fldbed from tbldepartmentbed where flddept like &5)) and tblpatdosing.fldqtydisp>&6 and tblpatdosing.fldtime_order>=&7 and tblpatdosing.fldtime_order<=&8 and tblpatdosing.fldsave_order=&9 GROUP BY tblpatbilling.fldbillno", "%", "Requested", invno, "Continue", cmbdepart.Text, 0, modDate.StartSqlDate(dtselected.Value), modDate.EndSqlDate(DateAdd(dtselected.Value, gb.Day, txtdtrange.Value)), xstate)                                          ''
+        $rData1 = modDatabase.$myConn.Exec("select tblpatdosing.fldencounterval,tblpatbilling.fldbillno,tblpatdosing.fldencounterval,tblpatdosing.fldencounterval from tblpatdosing inner join tblpatbilling on tblpatdosing.fldid=tblpatbilling.fldparent where tblpatdosing.flditemtype like &1 and tblpatdosing.fldlevel=&2 and tblpatdosing.fldcurval=&3 and tblpatdosing.fldstatus=&4 and tblpatdosing.fldqtydisp>&5 and tblpatdosing.fldtime_order>=&6 and tblpatdosing.fldtime_order<=&7 and tblpatdosing.fldsave_order=&8" & xsql & " GROUP BY tblpatbilling.fldbillno", "%", "Requested", "Continue", "Admitted", 0, modDate.StartSqlDate(dtselected.Value), modDate.EndSqlDate(DateAdd(dtselected.Value, gb.Day, txtdtrange.Value)), xstate)                                          ''
+      Else If rbexited.Value = True Then
+        $rData1 = modDatabase.$myConn.Exec("select tblpatdosing.fldencounterval,tblpatbilling.fldbillno,tblpatdosing.fldencounterval,tblpatdosing.fldencounterval from tblpatdosing inner join tblpatbilling on tblpatdosing.fldid=tblpatbilling.fldparent where tblpatdosing.flditemtype like &1 and tblpatdosing.fldlevel=&2 and tblpatdosing.fldcurval=&3 and tblpatdosing.fldstatus in(" & strItem.Join(",") & ") and tblpatdosing.fldqtydisp>&5 and tblpatdosing.fldtime_order>=&6 and tblpatdosing.fldtime_order<=&7 and tblpatdosing.fldsave_order=&8" & xsql & " GROUP BY tblpatbilling.fldbillno", "%", "Requested", "Continue", "Admitted", 0, modDate.StartSqlDate(dtselected.Value), modDate.EndSqlDate(DateAdd(dtselected.Value, gb.Day, txtdtrange.Value)), xstate)
       Endif
     Else
       $rData1 = modDatabase.$myConn.Exec("select tblpatdosing.fldencounterval,tblpatbilling.fldbillno,tblpatdosing.fldencounterval,tblpatdosing.fldencounterval from tblpatdosing inner join tblpatbilling on tblpatdosing.fldid=tblpatbilling.fldparent where tblpatdosing.flditemtype like &1 and tblpatdosing.fldlevel=&2 and tblpatbilling.fldbillno like &3 and tblpatdosing.fldcurval=&4 and tblpatdosing.fldqtydisp>&5 and tblpatdosing.fldtime_order>=&6 and tblpatdosing.fldtime_order<=&7 and tblpatdosing.fldsave_order=&8 GROUP BY tblpatbilling.fldbillno", "%", "Requested", invno, "Continue", 0, modDate.StartSqlDate(dtselected.Value), modDate.EndSqlDate(DateAdd(dtselected.Value, gb.Day, txtdtrange.Value)), xstate)                                          ''
     Endif
   Else
-    If Not invno Then
-      If rboutpat.Value = True Then
-        $rData1 = modDatabase.$myConn.Exec("select tblpatdosing.fldencounterval,tblpatbilling.fldbillno,tblpatdosing.fldencounterval,tblpatdosing.fldencounterval from tblpatdosing inner join tblpatbilling on tblpatdosing.fldid=tblpatbilling.fldparent where tblpatdosing.flditemtype like &1 and tblpatdosing.fldlevel=&2 and tblpatdosing.fldcurval=&4 and tblpatdosing.fldencounterval in(select fldencounterval from tblencounter where fldcurrlocat like &5) and tblpatdosing.fldqtydisp>&6 and tblpatdosing.fldsave_order=&7 GROUP BY tblpatbilling.fldbillno", "%", "Requested", invno, "Continue", cmbdepart.Text, 0, xstate)                                          ''
-      Else If rbinpat.Value = True Then
-        $rData1 = modDatabase.$myConn.Exec("select tblpatdosing.fldencounterval,tblpatbilling.fldbillno,tblpatdosing.fldencounterval,tblpatdosing.fldencounterval from tblpatdosing inner join tblpatbilling on tblpatdosing.fldid=tblpatbilling.fldparent where tblpatdosing.flditemtype like &1 and tblpatdosing.fldlevel=&2 and tblpatdosing.fldcurval=&4 and tblpatdosing.fldencounterval in(select fldencounterval from tblencounter where fldcurrlocat in(select fldbed from tbldepartmentbed where flddept like &5)) and tblpatdosing.fldqtydisp>&6 and tblpatdosing.fldsave_order=&7 GROUP BY tblpatbilling.fldbillno", "%", "Requested", invno, "Continue", cmbdepart.Text, 0, xstate)                                          ''
+    If modBasic.$SQLDateRange = "Disable" Then
+      If Not invno Then
+        If rboutpat.Value = True Then
+          $rData1 = modDatabase.$myConn.Exec("select tblpatdosing.fldencounterval,tblpatbilling.fldbillno,tblpatdosing.fldencounterval,tblpatdosing.fldencounterval from tblpatdosing inner join tblpatbilling on tblpatdosing.fldid=tblpatbilling.fldparent where tblpatdosing.flditemtype like &1 and tblpatdosing.fldlevel=&2 and tblpatdosing.fldcurval=&3 and tblpatdosing.fldstatus=&4 and tblpatdosing.fldqtydisp>&5 and tblpatdosing.fldsave_order=&6" & xsql & " GROUP BY tblpatbilling.fldbillno", "%", "Requested", "Continue", "Registered", 0, xstate)                                          ''
+        Else If rbinpat.Value = True Then
+          $rData1 = modDatabase.$myConn.Exec("select tblpatdosing.fldencounterval,tblpatbilling.fldbillno,tblpatdosing.fldencounterval,tblpatdosing.fldencounterval from tblpatdosing inner join tblpatbilling on tblpatdosing.fldid=tblpatbilling.fldparent where tblpatdosing.flditemtype like &1 and tblpatdosing.fldlevel=&2 and tblpatdosing.fldcurval=&3 and tblpatdosing.fldstatus=&4 and tblpatdosing.fldqtydisp>&5 and tblpatdosing.fldsave_order=&6" & xsql & " GROUP BY tblpatbilling.fldbillno", "%", "Requested", "Continue", "Admitted", 0, xstate)                                          ''
+        Else If rbexited.Value = True Then
+          $rData1 = modDatabase.$myConn.Exec("select tblpatdosing.fldencounterval,tblpatbilling.fldbillno,tblpatdosing.fldencounterval,tblpatdosing.fldencounterval from tblpatdosing inner join tblpatbilling on tblpatdosing.fldid=tblpatbilling.fldparent where tblpatdosing.flditemtype like &1 and tblpatdosing.fldlevel=&2 and tblpatdosing.fldcurval=&3 and tblpatdosing.fldstatus in(" & strItem.Join(",") & ") and tblpatdosing.fldqtydisp>&5 and tblpatdosing.fldsave_order=&6" & xsql & " GROUP BY tblpatbilling.fldbillno", "%", "Requested", "Continue", "Admitted", 0, xstate)
+        Endif
+      Else
+        $rData1 = modDatabase.$myConn.Exec("select tblpatdosing.fldencounterval,tblpatbilling.fldbillno,tblpatdosing.fldencounterval,tblpatdosing.fldencounterval from tblpatdosing inner join tblpatbilling on tblpatdosing.fldid=tblpatbilling.fldparent where tblpatdosing.flditemtype like &1 and tblpatdosing.fldlevel=&2 and tblpatbilling.fldbillno like &3 and tblpatdosing.fldcurval=&4 and tblpatdosing.fldqtydisp>&5 and tblpatdosing.fldsave_order=&6 GROUP BY tblpatbilling.fldbillno", "%", "Requested", invno, "Continue", 0, xstate)                                          ''
       Endif
     Else
-      $rData1 = modDatabase.$myConn.Exec("select tblpatdosing.fldencounterval,tblpatbilling.fldbillno,tblpatdosing.fldencounterval,tblpatdosing.fldencounterval from tblpatdosing inner join tblpatbilling on tblpatdosing.fldid=tblpatbilling.fldparent where tblpatdosing.flditemtype like &1 and tblpatdosing.fldlevel=&2 and tblpatbilling.fldbillno like &3 and tblpatdosing.fldcurval=&4 and tblpatdosing.fldqtydisp>&5 and tblpatdosing.fldsave_order=&6 GROUP BY tblpatbilling.fldbillno", "%", "Requested", invno, "Continue", 0, xstate)                                          ''
+      If Not invno Then
+        If rboutpat.Value = True Then
+          $rData1 = modDatabase.$myConn.Exec("select tblpatdosing.fldencounterval,tblpatbilling.fldbillno,tblpatdosing.fldencounterval,tblpatdosing.fldencounterval from tblpatdosing inner join tblpatbilling on tblpatdosing.fldid=tblpatbilling.fldparent where tblpatdosing.flditemtype like &1 and tblpatdosing.fldlevel=&2 and tblpatdosing.fldcurval=&3 and tblpatdosing.fldstatus=&4 and tblpatdosing.fldqtydisp>&5 and tblpatdosing.fldtime_order>=&6 and tblpatdosing.fldtime_order<=&7 and tblpatdosing.fldsave_order=&8" & xsql & " GROUP BY tblpatbilling.fldbillno", "%", "Requested", "Continue", "Registered", 0, modDate.StartSqlDate(DateAdd(dtselected.Value, gb.Day, 0 - 365)), modDate.EndSqlDate(dtselected.Value), xstate)                                          ''
+        Else If rbinpat.Value = True Then
+          $rData1 = modDatabase.$myConn.Exec("select tblpatdosing.fldencounterval,tblpatbilling.fldbillno,tblpatdosing.fldencounterval,tblpatdosing.fldencounterval from tblpatdosing inner join tblpatbilling on tblpatdosing.fldid=tblpatbilling.fldparent where tblpatdosing.flditemtype like &1 and tblpatdosing.fldlevel=&2 and tblpatdosing.fldcurval=&3 and tblpatdosing.fldstatus=&4 and tblpatdosing.fldqtydisp>&5 and tblpatdosing.fldtime_order>=&6 and tblpatdosing.fldtime_order<=&7 and tblpatdosing.fldsave_order=&8" & xsql & " GROUP BY tblpatbilling.fldbillno", "%", "Requested", "Continue", "Admitted", 0, modDate.StartSqlDate(DateAdd(dtselected.Value, gb.Day, 0 - 365)), modDate.EndSqlDate(dtselected.Value), xstate)                                          ''
+        Else If rbexited.Value = True Then
+          $rData1 = modDatabase.$myConn.Exec("select tblpatdosing.fldencounterval,tblpatbilling.fldbillno,tblpatdosing.fldencounterval,tblpatdosing.fldencounterval from tblpatdosing inner join tblpatbilling on tblpatdosing.fldid=tblpatbilling.fldparent where tblpatdosing.flditemtype like &1 and tblpatdosing.fldlevel=&2 and tblpatdosing.fldcurval=&3 and tblpatdosing.fldstatus in(" & strItem.Join(",") & ") and tblpatdosing.fldqtydisp>&5 and tblpatdosing.fldtime_order>=&6 and tblpatdosing.fldtime_order<=&7 and tblpatdosing.fldsave_order=&8" & xsql & " GROUP BY tblpatbilling.fldbillno", "%", "Requested", "Continue", "Admitted", 0, modDate.StartSqlDate(DateAdd(dtselected.Value, gb.Day, 0 - 365)), modDate.EndSqlDate(dtselected.Value), xstate)
+        Endif
+      Else
+        $rData1 = modDatabase.$myConn.Exec("select tblpatdosing.fldencounterval,tblpatbilling.fldbillno,tblpatdosing.fldencounterval,tblpatdosing.fldencounterval from tblpatdosing inner join tblpatbilling on tblpatdosing.fldid=tblpatbilling.fldparent where tblpatdosing.flditemtype like &1 and tblpatdosing.fldlevel=&2 and tblpatbilling.fldbillno like &3 and tblpatdosing.fldcurval=&4 and tblpatdosing.fldqtydisp>&5 and tblpatdosing.fldtime_order>=&6 and tblpatdosing.fldtime_order<=&7 and tblpatdosing.fldsave_order=&8 GROUP BY tblpatbilling.fldbillno", "%", "Requested", invno, "Continue", 0, modDate.StartSqlDate(DateAdd(dtselected.Value, gb.Day, 0 - 365)), modDate.EndSqlDate(dtselected.Value), xstate)                                          ''
+      Endif
     Endif
   Endif
   $aMyFields1 = New String[]
@@ -320,6 +389,14 @@ Private Function ExecuteQuery(encid As String) As Result
   Dim xList As String[]
   Dim i As Integer
 
+  Dim xsql As String
+  Dim strItem As String[] = ["Discharged", "LAMA", "Death", "Refer", "Absconder"]
+  Dim j As Integer
+
+  For j = 0 To strItem.Count - 1
+    strItem[j] = "'" & strItem[j] & "'"
+  Next
+
   If $xStatus = "Dispensed" Then
     xstate = True
   Else If $xStatus = "Requested" Then
@@ -344,57 +421,56 @@ Private Function ExecuteQuery(encid As String) As Result
     xrestr = ""
   Endif
 
-  If rbencid.Value = True Then
-    If cmbdepart.Text Then
-      If chkdate.Value = True Then
-        If Not cmbdepart.Text Then
-          res = modDatabase.$myConn.Exec("select fldid,fldtime_order,fldroute,flditem,fldqtydisp,flddose,fldfreq,flddays,fldlabel,flddirection,fldcomp_order,fldencounterval,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit from tblpatdosing where fldencounterval=&1 and fldlevel=&2 and flditemtype like &3 and fldcurval=&4 and fldqtydisp>&5 and fldtime_order>=&6 and fldtime_order<=&7 and fldsave_order=&8" & xrestr, encid, "Requested", "%", "Continue", 0, modDate.StartSqlDate(dtselected.Value), modDate.EndSqlDate(DateAdd(dtselected.Value, gb.Day, txtdtrange.Value)), xstate)
-        Else
-          If rboutpat.Value = True Then
-            res = modDatabase.$myConn.Exec("select fldid,fldtime_order,fldroute,flditem,fldqtydisp,flddose,fldfreq,flddays,fldlabel,flddirection,fldcomp_order,fldencounterval,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit from tblpatdosing where fldencounterval=&1 and fldlevel=&2 and flditemtype like &3 and fldcurval=&4 and fldqtydisp>&5 and fldtime_order>=&6 and fldtime_order<=&7 and fldencounterval in(select fldencounterval from tblencounter where fldcurrlocat like &8) and fldsave_order=&9" & xrestr, encid, "Requested", "%", "Continue", 0, modDate.StartSqlDate(dtselected.Value), modDate.EndSqlDate(DateAdd(dtselected.Value, gb.Day, txtdtrange.Value)), cmbdepart.Text, xstate)
-          Else If rbinpat.Value = True Then
-            res = modDatabase.$myConn.Exec("select fldid,fldtime_order,fldroute,flditem,fldqtydisp,flddose,fldfreq,flddays,fldlabel,flddirection,fldcomp_order,fldencounterval,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit from tblpatdosing where fldencounterval=&1 and fldlevel=&2 and flditemtype like &3 and fldcurval=&4 and fldqtydisp>&5 and fldtime_order>=&6 and fldtime_order<=&7 and fldencounterval in(select fldencounterval from tblencounter where fldcurrlocat in(select fldbed from tbldepartmentbed where flddept like &8)) and fldsave_order=&9" & xrestr, encid, "Requested", "%", "Continue", 0, modDate.StartSqlDate(dtselected.Value), modDate.EndSqlDate(DateAdd(dtselected.Value, gb.Day, txtdtrange.Value)), cmbdepart.Text, xstate)
-          Endif
-        Endif
-      Else
-        If Not cmbdepart.Text Then
-          res = modDatabase.$myConn.Exec("select fldid,fldtime_order,fldroute,flditem,fldqtydisp,flddose,fldfreq,flddays,fldlabel,flddirection,fldcomp_order,fldencounterval,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit from tblpatdosing where fldencounterval=&1 and fldlevel=&2 and flditemtype like &3 and fldcurval=&4 and fldqtydisp>&5 and fldsave_order=&6" & xrestr, encid, "Requested", "%", "Continue", 0, xstate)                                         ''
-        Else
-          If rboutpat.Value = True Then
-            res = modDatabase.$myConn.Exec("select fldid,fldtime_order,fldroute,flditem,fldqtydisp,flddose,fldfreq,flddays,fldlabel,flddirection,fldcomp_order,fldencounterval,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit from tblpatdosing where fldencounterval=&1 and fldlevel=&2 and flditemtype like &3 and fldcurval=&4 and fldqtydisp>&5 and fldencounterval in(select fldencounterval from tblencounter where fldcurrlocat like &6) and fldsave_order=&7" & xrestr, encid, "Requested", "%", "Continue", 0, cmbdepart.Text, xstate)
-          Else If rbinpat.Value = True Then
-            res = modDatabase.$myConn.Exec("select fldid,fldtime_order,fldroute,flditem,fldqtydisp,flddose,fldfreq,flddays,fldlabel,flddirection,fldcomp_order,fldencounterval,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit from tblpatdosing where fldencounterval=&1 and fldlevel=&2 and flditemtype like &3 and fldcurval=&4 and fldqtydisp>&5 and fldencounterval in(select fldencounterval from tblencounter where fldcurrlocat in(select fldbed from tbldepartmentbed where flddept like &6)) and fldsave_order=&7" & xrestr, encid, "Requested", "%", "Continue", 0, cmbdepart.Text, xstate)
-          Endif
-        Endif
+  If cmbdepart.Text Then
+    If rboutpat.Value = True Then
+      xsql = db.Subst(" and fldencounterval in(select fldencounterval from tblencounter where fldcurrlocat like &1)", cmbdepart.Text)
+    Else If rbinpat.Value = True Then
+      xsql = db.Subst(" and fldencounterval in(select fldencounterval from tblencounter where fldcurrlocat in(select fldbed from tbldepartmentbed where flddept like &1))", cmbdepart.Text)
+    Else If rbexited.Value = True Then
+      xsql = db.Subst(" and fldencounterval in(select fldencounterval from tblencounter where fldcurrlocat in(select fldbed from tbldepartmentbed where flddept like &1))", cmbdepart.Text)
+    Endif
+  Else
+    xsql = ""
+  Endif
 
+  If rbencid.Value = True Then
+    If chkdate.Value = True Then
+      If rboutpat.Value = True Then
+        res = modDatabase.$myConn.Exec("select fldid,fldtime_order,fldroute,flditem,fldqtydisp,flddose,fldfreq,flddays,fldlabel,flddirection,fldcomp_order,fldencounterval,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit from tblpatdosing where fldencounterval=&1 and fldlevel=&2 and flditemtype like &3 and fldcurval=&4 and fldqtydisp>&5 and fldtime_order>=&6 and fldtime_order<=&7 and fldstatus=&8 and fldsave_order=&9" & xrestr & xsql, encid, "Requested", "%", "Continue", 0, modDate.StartSqlDate(dtselected.Value), modDate.EndSqlDate(DateAdd(dtselected.Value, gb.Day, txtdtrange.Value)), "Registered", xstate)
+      Else If rbinpat.Value = True Then
+        res = modDatabase.$myConn.Exec("select fldid,fldtime_order,fldroute,flditem,fldqtydisp,flddose,fldfreq,flddays,fldlabel,flddirection,fldcomp_order,fldencounterval,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit from tblpatdosing where fldencounterval=&1 and fldlevel=&2 and flditemtype like &3 and fldcurval=&4 and fldqtydisp>&5 and fldtime_order>=&6 and fldtime_order<=&7 and fldstatus=&8 and fldsave_order=&9" & xrestr & xsql, encid, "Requested", "%", "Continue", 0, modDate.StartSqlDate(dtselected.Value), modDate.EndSqlDate(DateAdd(dtselected.Value, gb.Day, txtdtrange.Value)), "Admitted", xstate)
+      Else If rbexited.Value = True Then
+        res = modDatabase.$myConn.Exec("select fldid,fldtime_order,fldroute,flditem,fldqtydisp,flddose,fldfreq,flddays,fldlabel,flddirection,fldcomp_order,fldencounterval,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit from tblpatdosing where fldencounterval=&1 and fldlevel=&2 and flditemtype like &3 and fldcurval=&4 and fldqtydisp>&5 and fldtime_order>=&6 and fldtime_order<=&7 and fldstatus in(" & strItem.Join(",") & ") and fldsave_order=&9" & xrestr & xsql, encid, "Requested", "%", "Continue", 0, modDate.StartSqlDate(dtselected.Value), modDate.EndSqlDate(DateAdd(dtselected.Value, gb.Day, txtdtrange.Value)), "Admitted", xstate)
+      Endif
+    Else
+      If rboutpat.Value = True Then
+        res = modDatabase.$myConn.Exec("select fldid,fldtime_order,fldroute,flditem,fldqtydisp,flddose,fldfreq,flddays,fldlabel,flddirection,fldcomp_order,fldencounterval,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit from tblpatdosing where fldencounterval=&1 and fldlevel=&2 and flditemtype like &3 and fldcurval=&4 and fldqtydisp>&5 and fldstatus=&6 and fldsave_order=&7" & xrestr & xsql, encid, "Requested", "%", "Continue", 0, "Registered", xstate)
+      Else If rbinpat.Value = True Then
+        res = modDatabase.$myConn.Exec("select fldid,fldtime_order,fldroute,flditem,fldqtydisp,flddose,fldfreq,flddays,fldlabel,flddirection,fldcomp_order,fldencounterval,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit from tblpatdosing where fldencounterval=&1 and fldlevel=&2 and flditemtype like &3 and fldcurval=&4 and fldqtydisp>&5 and fldstatus=&6 and fldsave_order=&7" & xrestr & xsql, encid, "Requested", "%", "Continue", 0, "Admitted", xstate)
+      Else If rbexited.Value = True Then
+        res = modDatabase.$myConn.Exec("select fldid,fldtime_order,fldroute,flditem,fldqtydisp,flddose,fldfreq,flddays,fldlabel,flddirection,fldcomp_order,fldencounterval,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit from tblpatdosing where fldencounterval=&1 and fldlevel=&2 and flditemtype like &3 and fldcurval=&4 and fldqtydisp>&5 and fldstatus in(" & strItem.Join(",") & ") and fldsave_order=&7" & xrestr & xsql, encid, "Requested", "%", "Continue", 0, "Admitted", xstate)
       Endif
     Endif
 
   Else If rbinvoice.Value = True Then
-    If cmbdepart.Text Then
-      If chkdate.Value = True Then
-        If Not cmbdepart.Text Then
-          res = modDatabase.$myConn.Exec("select fldid,fldtime_order,fldroute,flditem,fldqtydisp,flddose,fldfreq,flddays,fldlabel,flddirection,fldcomp_order,fldencounterval,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit from tblpatdosing where fldid in(select fldparent from tblpatbilling where fldbillno=&1) and fldlevel=&2 and flditemtype like &3 and fldcurval=&4 and fldqtydisp>&5 and fldtime_order>=&6 and fldtime_order<=&7 and fldsave_order=&8" & xrestr, encid, "Requested", "%", "Continue", 0, modDate.StartSqlDate(dtselected.Value), modDate.EndSqlDate(DateAdd(dtselected.Value, gb.Day, txtdtrange.Value)), xstate)
-        Else
-          If rboutpat.Value = True Then
-            res = modDatabase.$myConn.Exec("select fldid,fldtime_order,fldroute,flditem,fldqtydisp,flddose,fldfreq,flddays,fldlabel,flddirection,fldcomp_order,fldencounterval,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit from tblpatdosing where fldid in(select fldparent from tblpatbilling where fldbillno=&1) and fldlevel=&2 and flditemtype like &3 and fldcurval=&4 and fldqtydisp>&5 and fldtime_order>=&6 and fldtime_order<=&7 and fldencounterval in(select fldencounterval from tblencounter where fldcurrlocat like &8) and fldsave_order=&9" & xrestr, encid, "Requested", "%", "Continue", 0, modDate.StartSqlDate(dtselected.Value), modDate.EndSqlDate(DateAdd(dtselected.Value, gb.Day, txtdtrange.Value)), cmbdepart.Text, xstate)
-          Else If rbinpat.Value = True Then
-            res = modDatabase.$myConn.Exec("select fldid,fldtime_order,fldroute,flditem,fldqtydisp,flddose,fldfreq,flddays,fldlabel,flddirection,fldcomp_order,fldencounterval,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit from tblpatdosing where fldid in(select fldparent from tblpatbilling where fldbillno=&1) and fldlevel=&2 and flditemtype like &3 and fldcurval=&4 and fldqtydisp>&5 and fldtime_order>=&6 and fldtime_order<=&7 and fldencounterval in(select fldencounterval from tblencounter where fldcurrlocat in(select fldbed from tbldepartmentbed where flddept like &8)) and fldsave_order=&9" & xrestr, encid, "Requested", "%", "Continue", 0, modDate.StartSqlDate(dtselected.Value), modDate.EndSqlDate(DateAdd(dtselected.Value, gb.Day, txtdtrange.Value)), cmbdepart.Text, xstate)
-          Endif
-        Endif
-      Else
-        If Not cmbdepart.Text Then
-          res = modDatabase.$myConn.Exec("select fldid,fldtime_order,fldroute,flditem,fldqtydisp,flddose,fldfreq,flddays,fldlabel,flddirection,fldcomp_order,fldencounterval,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit from tblpatdosing where fldid in(select fldparent from tblpatbilling where fldbillno=&1) and fldlevel=&2 and flditemtype like &3 and fldcurval=&4 and fldqtydisp>&5 and fldsave_order=&6" & xrestr, encid, "Requested", "%", "Continue", 0, xstate)                                         ''
-        Else
-          If rboutpat.Value = True Then
-            res = modDatabase.$myConn.Exec("select fldid,fldtime_order,fldroute,flditem,fldqtydisp,flddose,fldfreq,flddays,fldlabel,flddirection,fldcomp_order,fldencounterval,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit from tblpatdosing where fldid in(select fldparent from tblpatbilling where fldbillno=&1) and fldlevel=&2 and flditemtype like &3 and fldcurval=&4 and fldqtydisp>&5 and fldencounterval in(select fldencounterval from tblencounter where fldcurrlocat like &6) and fldsave_order=&7" & xrestr, encid, "Requested", "%", "Continue", 0, cmbdepart.Text, xstate)
-          Else If rbinpat.Value = True Then
-            res = modDatabase.$myConn.Exec("select fldid,fldtime_order,fldroute,flditem,fldqtydisp,flddose,fldfreq,flddays,fldlabel,flddirection,fldcomp_order,fldencounterval,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit from tblpatdosing where fldid in(select fldparent from tblpatbilling where fldbillno=&1) and fldlevel=&2 and flditemtype like &3 and fldcurval=&4 and fldqtydisp>&5 and fldencounterval in(select fldencounterval from tblencounter where fldcurrlocat in(select fldbed from tbldepartmentbed where flddept like &6)) and fldsave_order=&7" & xrestr, encid, "Requested", "%", "Continue", 0, cmbdepart.Text, xstate)
-          Endif
-        Endif
-
+    If chkdate.Value = True Then
+      If rboutpat.Value = True Then
+        res = modDatabase.$myConn.Exec("select fldid,fldtime_order,fldroute,flditem,fldqtydisp,flddose,fldfreq,flddays,fldlabel,flddirection,fldcomp_order,fldencounterval,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit from tblpatdosing where fldid in(select fldparent from tblpatbilling where fldbillno=&1) and fldlevel=&2 and flditemtype like &3 and fldcurval=&4 and fldqtydisp>&5 and fldtime_order>=&6 and fldtime_order<=&7 and fldstatus=&8 and fldsave_order=&9" & xrestr & xsql, encid, "Requested", "%", "Continue", 0, modDate.StartSqlDate(dtselected.Value), modDate.EndSqlDate(DateAdd(dtselected.Value, gb.Day, txtdtrange.Value)), "Registered", xstate)
+      Else If rbinpat.Value = True Then
+        res = modDatabase.$myConn.Exec("select fldid,fldtime_order,fldroute,flditem,fldqtydisp,flddose,fldfreq,flddays,fldlabel,flddirection,fldcomp_order,fldencounterval,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit from tblpatdosing where fldid in(select fldparent from tblpatbilling where fldbillno=&1) and fldlevel=&2 and flditemtype like &3 and fldcurval=&4 and fldqtydisp>&5 and fldtime_order>=&6 and fldtime_order<=&7 and fldstatus=&8 and fldsave_order=&9" & xrestr & xsql, encid, "Requested", "%", "Continue", 0, modDate.StartSqlDate(dtselected.Value), modDate.EndSqlDate(DateAdd(dtselected.Value, gb.Day, txtdtrange.Value)), "Admitted", xstate)
+      Else If rbexited.Value = True Then
+        res = modDatabase.$myConn.Exec("select fldid,fldtime_order,fldroute,flditem,fldqtydisp,flddose,fldfreq,flddays,fldlabel,flddirection,fldcomp_order,fldencounterval,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit from tblpatdosing where fldid in(select fldparent from tblpatbilling where fldbillno=&1) and fldlevel=&2 and flditemtype like &3 and fldcurval=&4 and fldqtydisp>&5 and fldtime_order>=&6 and fldtime_order<=&7 and fldstatus in(" & strItem.Join(",") & ") and fldsave_order=&9" & xrestr & xsql, encid, "Requested", "%", "Continue", 0, modDate.StartSqlDate(dtselected.Value), modDate.EndSqlDate(DateAdd(dtselected.Value, gb.Day, txtdtrange.Value)), "Admitted", xstate)
+      Endif
+    Else
+      If rboutpat.Value = True Then
+        res = modDatabase.$myConn.Exec("select fldid,fldtime_order,fldroute,flditem,fldqtydisp,flddose,fldfreq,flddays,fldlabel,flddirection,fldcomp_order,fldencounterval,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit from tblpatdosing where fldid in(select fldparent from tblpatbilling where fldbillno=&1) and fldlevel=&2 and flditemtype like &3 and fldcurval=&4 and fldqtydisp>&5 and fldstatus=&6 and fldsave_order=&7" & xrestr & xsql, encid, "Requested", "%", "Continue", 0, "Registered", xstate)
+      Else If rbinpat.Value = True Then
+        res = modDatabase.$myConn.Exec("select fldid,fldtime_order,fldroute,flditem,fldqtydisp,flddose,fldfreq,flddays,fldlabel,flddirection,fldcomp_order,fldencounterval,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit from tblpatdosing where fldid in(select fldparent from tblpatbilling where fldbillno=&1) and fldlevel=&2 and flditemtype like &3 and fldcurval=&4 and fldqtydisp>&5 and fldstatus=&6 and fldsave_order=&7" & xrestr & xsql, encid, "Requested", "%", "Continue", 0, "Admitted", xstate)
+      Else If rbexited.Value = True Then
+        res = modDatabase.$myConn.Exec("select fldid,fldtime_order,fldroute,flditem,fldqtydisp,flddose,fldfreq,flddays,fldlabel,flddirection,fldcomp_order,fldencounterval,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit from tblpatdosing where fldid in(select fldparent from tblpatbilling where fldbillno=&1) and fldlevel=&2 and flditemtype like &3 and fldcurval=&4 and fldqtydisp>&5 and fldstatus in(" & strItem.Join(",") & ") and fldsave_order=&7" & xrestr & xsql, encid, "Requested", "%", "Continue", 0, "Admitted", xstate)
       Endif
     Endif
+
   Endif
 
   Return res

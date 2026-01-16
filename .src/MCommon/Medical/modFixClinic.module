@@ -1,13 +1,5 @@
 ' Gambas module file
 
-Public $ExamIDFromSysConst As Collection
-Public $ExamSysOptionType As Collection
-
-Public $ExamDrugHypo As Collection
-Public $ExamdrugHyper As Collection
-Public $ExamSyndroBrady As Collection
-Public $ExamSyndroTachy As Collection
-
 Public Function SysConstFromGetExamID(sExam As String, Optional sCon As Connection) As String
 
   Dim res As Result
@@ -226,23 +218,18 @@ Public Function GetExamIDFromSysConst(syscons As String) As String
   Dim res As Result
   Dim xx As String
 
-  xx = modHelpVariable.GetCollectionValue($ExamIDFromSysConst, syscons, modBasic.$AppCacheExaminationConstants)
-  If Not xx Then
-    res = modDatabase.$medConn.Exec("select fldexamid from tblexam where fldsysconst=&1", syscons)
-    If res.Available = True Then
-      res.MoveFirst
-      If res["fldexamid"] Then
-        xx = res["fldexamid"]
-        If modBasic.$AppCacheExaminationConstants = "Yes" Then
-          $ExamIDFromSysConst.Add(xx, syscons)
-        Endif
-      Else
-        xx = ""
-      Endif
+  res = modDatabase.$medConn.Exec("select fldexamid from tblexam where fldsysconst=&1", syscons)
+  If res.Available = True Then
+    res.MoveFirst
+    If res["fldexamid"] Then
+      xx = res["fldexamid"]
     Else
       xx = ""
     Endif
+  Else
+    xx = ""
   Endif
+
   Return xx
 
 End
@@ -252,22 +239,17 @@ Public Function GetExamSysOptionType(strSys As String) As String
   Dim res As Result
   Dim xx As String
 
-  xx = modHelpVariable.GetCollectionValue($ExamSysOptionType, strSys, modBasic.$AppCacheExaminationConstants)
-  If Not xx Then
-    res = modDatabase.$medConn.Exec("select fldoption from tblexam where fldsysconst=&1", strSys)
-    If res.Available Then
-      If res["fldoption"] Then
-        xx = res["fldoption"]
-        If modBasic.$AppCacheExaminationConstants = "Yes" Then
-          $ExamSysOptionType.Add(xx, strSys)
-        Endif
-      Else
-        xx = ""
-      Endif
+  res = modDatabase.$medConn.Exec("select fldoption from tblexam where fldsysconst=&1", strSys)
+  If res.Available Then
+    If res["fldoption"] Then
+      xx = res["fldoption"]
     Else
       xx = ""
     Endif
+  Else
+    xx = ""
   Endif
+
   If Not xx Then
     If modMedicine.GetFixedLRExaminations().Exist(strSys) = True Then
       xx = "Left and Right"

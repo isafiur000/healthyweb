@@ -1571,13 +1571,12 @@ Public Function GenerStatVisitIPReport(conn As Connection, dt1 As Date, dt2 As D
 
 End
 
-Public Function GetIPEventsReport(conn As Connection, dt1 As Date, dt2 As Date, sDeptLst As String[], sLocaType As String, sLocation As String) As String
+Public Function GetIPEventsReport(conn As Connection, dt1 As Date, dt2 As Date, sDept As String, sLocaType As String, sLocation As String) As String
 
   Dim $BillingReport As CReportHTML
   Dim asx As New String[0]
   Dim i As Integer
   Dim RepoStr As String
-  Dim sDept As String
 
   Dim xColl As Collection
   Dim xcount As Integer
@@ -1602,332 +1601,436 @@ Public Function GetIPEventsReport(conn As Connection, dt1 As Date, dt2 As Date, 
 
   RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
   $BillingReport = New CReportHTML([("SNo"), ("EncID"), ("Bed"), ("Name"), ("Age/Sex"), ("Category"), ("Diary")], "", "")
+  $BillingReport.UserData.Add("INDOOR EVENTS SUMMARY : " & sDept, "PARAM1")
+  $BillingReport.UserData.Add(modReportVar.GetDateTimeReport(dt1, gb.MediumDate) & " TO " & modReportVar.GetDateTimeReport(dt2, gb.MediumDate), "PARAM2")
+
+  xcount = 0
+  xColl = New Collection
+  AdmitList = New String[]
+  ExitList = New String[]
+  InWardList = New String[]
+  res1 = conn.Exec("select fldencounterval,fldcurrlocat,fldadmitbed from tblencounter where flddoa>=&1 and flddoa<=&2 and fldadmitward like &3" & RepoStr, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), sDept)
+  If res1.Available Then
+    xcount = res1.Count
+    $BillingReport.AddChapter("ADMISSION")
+    xColl.Add(res1.Count, "Admission")
+
+    i = 1
+    For Each res1
+      AdmitList.Add(res1["fldencounterval"])
+      With asx
+        .Add(CStr(i))
+        .Add(res1["fldencounterval"])
+        .Add(res1["fldadmitbed"])
+        .Add(modPatient.GetPatientNameByEnc(res1["fldencounterval"], conn))
+        .Add(modMedReports.GetPatientPastAgeString("tblencounter", res1["fldencounterval"]) & "/" & Left(modPatient.GetPatientSex(res1["fldencounterval"], conn), 1))
+        .Add(modGeneral.GetWardBedCategory(res1["fldadmitbed"]))
+        .Add(modPatient.GetPatientFileByEnc(res1["fldencounterval"]))
+      End With
+      $BillingReport.Add(asx)
+      asx.Clear()
+      i = i + 1
+    Next
+  Endif
+
+  With asx
+    .Add("")
+    .Add("")
+    .Add("")
+    .Add("TOTAL ADMISSION")
+    .Add(xcount)
+    .Add("")
+    .Add("")
+  End With
+  $BillingReport.Add(asx)
+  asx.Clear()
+  With asx
+    .Add("")
+    .Add("")
+    .Add("")
+    .Add("")
+    .Add("")
+    .Add("")
+    .Add("")
+  End With
+  $BillingReport.Add(asx)
+  asx.Clear()
+
+  xcount = 0
+  For Each xout In xoutLst
+    res2 = conn.Exec("select fldencounterval,fldcurrlocat from tblencounter where flddod>=&1 and flddod<=&2 and fldadmission=&3 and fldcurrlocat in(select fldbed from tbldepartmentbed where flddept like &4)" & RepoStr, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), xout, sDept)
+    If res2.Available Then
+      xcount = xcount + res2.Count
+      $BillingReport.AddChapter(UCase(xout))
+      xColl.Add(res2.Count, xout)
+
+      i = 1
+      For Each res2
+        ExitList.Add(res2["fldencounterval"])
+        With asx
+          .Add(CStr(i))
+          .Add(res2["fldencounterval"])
+          .Add(res2["fldcurrlocat"])
+          .Add(modPatient.GetPatientNameByEnc(res2["fldencounterval"], conn))
+          .Add(modMedReports.GetPatientPastAgeString("tblencounter", res2["fldencounterval"]) & "/" & Left(modPatient.GetPatientSex(res2["fldencounterval"], conn), 1))
+          .Add(modGeneral.GetWardBedCategory(res2["fldcurrlocat"]))
+          .Add(modPatient.GetPatientFileByEnc(res2["fldencounterval"]))
+        End With
+        $BillingReport.Add(asx)
+        asx.Clear()
+        i = i + 1
+      Next
+
+    Endif
+  Next
+
+  xColl.Add(xcount, "Exits")
+  With asx
+    .Add("")
+    .Add("")
+    .Add("")
+    .Add("TOTAL EXITS")
+    .Add(xcount)
+    .Add("")
+    .Add("")
+  End With
+  $BillingReport.Add(asx)
+  asx.Clear()
+  With asx
+    .Add("")
+    .Add("")
+    .Add("")
+    .Add("")
+    .Add("")
+    .Add("")
+    .Add("")
+  End With
+  $BillingReport.Add(asx)
+  asx.Clear()
+
+  rsx1 = conn.Exec("select fldencounterval,fldcomment from tblpattiming where fldtype=&1 and flditem=&2 and fldfirstreport=&3 and fldfirsttime>=&4 and fldfirsttime<=&5 and fldsecondsave=&6 and fldcomment<>&7", "General Services", sDept, "Bed", modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt1), True, "Intra Transfer")
+  If rsx1.Available Then
+    $BillingReport.AddChapter("TRANSFER IN")
+    xColl.Add(rsx1.Count, "Transfer In")
+
+    i = 1
+    For Each rsx1
+      If AdmitList.Exist(rsx1["fldencounterval"]) = False Then
+        With asx
+          .Add(CStr(i))
+          .Add(rsx1["fldencounterval"])
+          .Add(rsx1["fldcomment"])
+          .Add(modPatient.GetPatientNameByEnc(rsx1["fldencounterval"], conn))
+          .Add(modMedReports.GetPatientPastAgeString("tblencounter", rsx1["fldencounterval"]) & "/" & Left(modPatient.GetPatientSex(rsx1["fldencounterval"], conn), 1))
+          .Add(modGeneral.GetWardBedCategory(rsx1["fldcomment"]))
+          .Add(modPatient.GetPatientFileByEnc(rsx1["fldencounterval"]))
+        End With
+        $BillingReport.Add(asx)
+        asx.Clear()
+        i = i + 1
+      Endif
+    Next
+    With asx
+      .Add("")
+      .Add("")
+      .Add("")
+      .Add("")
+      .Add("")
+      .Add("")
+      .Add("")
+    End With
+    $BillingReport.Add(asx)
+    asx.Clear()
+  Endif
+
+  rsx2 = conn.Exec("select fldencounterval,fldsecondreport from tblpattiming where fldtype=&1 and flditem=&2 and fldfirstreport=&3 and fldsecondtime>=&4 and fldsecondtime<=&5 and fldsecondsave=&6 and fldcomment=&7", "General Services", sDept, "Bed", modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt1), True, "Intra Transfer")
+  If rsx2.Available Then
+    $BillingReport.AddChapter("INTRA-WARD TRANSFER")
+    i = 1
+    For Each rsx2
+      InWardList.Add(rsx2["fldencounterval"])
+      With asx
+        .Add(CStr(i))
+        .Add(rsx2["fldencounterval"])
+        .Add(rsx2["fldsecondreport"])
+        .Add(modPatient.GetPatientNameByEnc(rsx2["fldencounterval"], conn))
+        .Add(modMedReports.GetPatientPastAgeString("tblencounter", rsx2["fldencounterval"]) & "/" & Left(modPatient.GetPatientSex(rsx2["fldencounterval"], conn), 1))
+        .Add(modGeneral.GetWardBedCategory(rsx2["fldsecondreport"]))
+        .Add(modPatient.GetPatientFileByEnc(rsx2["fldencounterval"]))
+      End With
+      $BillingReport.Add(asx)
+      asx.Clear()
+      i = i + 1
+    Next
+    With asx
+      .Add("")
+      .Add("")
+      .Add("")
+      .Add("")
+      .Add("")
+      .Add("")
+      .Add("")
+    End With
+    $BillingReport.Add(asx)
+    asx.Clear()
+  Endif
+
+  ''Trans Out
+  rsx3 = conn.Exec("select fldencounterval,fldsecondreport,fldcomment from tblpattiming where fldtype=&1 and flditem=&2 and fldfirstreport=&3 and fldsecondtime>=&4 and fldsecondtime<=&5 and fldsecondsave=&6", "General Services", sDept, "Bed", modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt1), True)
+  If rsx3.Available Then
+    $BillingReport.AddChapter("TRANSFER OUT")
+    xColl.Add(rsx3.Count, "Transfer Out")
+
+    i = 1
+    For Each rsx3
+      If ExitList.Exist(rsx3["fldencounterval"]) = False Then
+        If InWardList.Exist(rsx3["fldencounterval"]) = False Then
+          With asx
+            .Add(CStr(i))
+            .Add(rsx3["fldencounterval"])
+            .Add(rsx3["fldcomment"])
+            .Add(modPatient.GetPatientNameByEnc(rsx3["fldencounterval"], conn))
+            .Add(modMedReports.GetPatientPastAgeString("tblencounter", rsx3["fldencounterval"]) & "/" & Left(modPatient.GetPatientSex(rsx3["fldencounterval"], conn), 1))
+            .Add(modGeneral.GetWardBedCategory(rsx3["fldcomment"]))
+            .Add(modPatient.GetPatientFileByEnc(rsx3["fldencounterval"]))
+          End With
+          $BillingReport.Add(asx)
+          asx.Clear()
+          i = i + 1
+        Endif
+      Endif
+    Next
+    With asx
+      .Add("")
+      .Add("")
+      .Add("")
+      .Add("")
+      .Add("")
+      .Add("")
+      .Add("")
+    End With
+    $BillingReport.Add(asx)
+    asx.Clear()
+  Endif
+
+  ''Summary
+  $BillingReport.AddChapter("SUMMARY")
+  totadm = 0
+  transin = 0
+  totout = 0
+  transout = 0
+  totcurr = 0
+  If xColl["Admission"] Then
+    totadm = xColl["Admission"]
+  Endif
+  If xColl["Transfer In"] Then
+    transin = xColl["Transfer In"]
+  Endif
+  If xColl["Exits"] Then
+    totout = xColl["Exits"]
+  Endif
+  If xColl["Transfer Out"] Then
+    transout = xColl["Transfer Out"]
+  Endif
+  If modDate.StartSqlDate(dt1) = modDate.StartSqlDate(dt2) And If modDate.StartSqlDate(dt1) = modDate.StartSqlDate(Now()) Then
+    rcur = conn.Exec("select count(fldbed) as cntbed from tbldepartmentbed where fldencounterval like &1 and flddept like &2", "%", sDept)
+    If rcur.Available Then
+      totcurr = rcur["cntbed"]
+    Endif
+
+    With asx
+      .Add("")
+      .Add("")
+      .Add("")
+      .Add("Beginning")
+      .Add(totcurr + totout + transout - totadm - transin)
+      .Add("")
+      .Add("")
+    End With
+    $BillingReport.Add(asx)
+    asx.Clear()
+  Endif
+
+  With asx
+    .Add("")
+    .Add("")
+    .Add("")
+    .Add("Admission")
+    .Add(totadm)
+    .Add("")
+    .Add("")
+  End With
+  $BillingReport.Add(asx)
+  asx.Clear()
+
+  With asx
+    .Add("")
+    .Add("")
+    .Add("")
+    .Add("Transfer In")
+    .Add(transin)
+    .Add("")
+    .Add("")
+  End With
+  $BillingReport.Add(asx)
+  asx.Clear()
+
+  With asx
+    .Add("")
+    .Add("")
+    .Add("")
+    .Add("All Exits")
+    .Add(totout)
+    .Add("")
+    .Add("")
+  End With
+  $BillingReport.Add(asx)
+  asx.Clear()
+
+  With asx
+    .Add("")
+    .Add("")
+    .Add("")
+    .Add("Transfer Out")
+    .Add(transout)
+    .Add("")
+    .Add("")
+  End With
+  $BillingReport.Add(asx)
+  asx.Clear()
+
+  If modDate.StartSqlDate(dt1) = modDate.StartSqlDate(dt2) And If modDate.StartSqlDate(dt1) = modDate.StartSqlDate(Now()) Then
+    With asx
+      .Add("")
+      .Add("")
+      .Add("")
+      .Add("Current")
+      .Add(totcurr)
+      .Add("")
+      .Add("")
+    End With
+    $BillingReport.Add(asx)
+    asx.Clear()
+  Endif
+
+  With asx
+    .Add("")
+    .Add("")
+    .Add("")
+    .Add("")
+    .Add("")
+    .Add("")
+    .Add("")
+  End With
+  $BillingReport.Add(asx)
+  asx.Clear()
+
+  Return $BillingReport.NewHTMLPath()
+
+End
+
+Public Function GetIPEventsSummary(conn As Connection, dt1 As Date, dt2 As Date, sDeptLst As String[], sLocaType As String, sLocation As String) As String
+
+  Dim $BillingReport As CReportHTML
+  Dim asx As New String[0]
+  Dim RepoStr As String
+
+  Dim sDept As String
+  Dim xColl As Collection
+  Dim xoutLst As String[] = ["Discharged", "LAMA", "Death", "Refer", "Absconder"]
+  Dim xout As String
+  Dim headLst As String[]
+  Dim xkey As String
+
+  Dim res1 As Result
+  Dim res2 As Result
+  Dim rsx1 As Result
+  Dim rsx2 As Result
+  Dim rsx3 As Result
+  Dim rcur As Result
+
+  If modDate.StartSqlDate(dt1) = modDate.StartSqlDate(dt2) And If modDate.StartSqlDate(dt1) = modDate.StartSqlDate(Now()) Then
+    headLst = ["Department", "Admission", "Discharged", "LAMA", "Death", "Refer", "Absconder", "Transfer In", "Intra-ward Transfer", "Transfer Out", "Current"]
+  Else
+    headLst = ["Department", "Admission", "Discharged", "LAMA", "Death", "Refer", "Absconder", "Transfer In", "Intra-ward Transfer", "Transfer Out"]
+  Endif
+  RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
+  $BillingReport = New CReportHTML(headLst, "", "")
   $BillingReport.UserData.Add("INDOOR EVENTS SUMMARY", "PARAM1")
   $BillingReport.UserData.Add(modReportVar.GetDateTimeReport(dt1, gb.MediumDate) & " TO " & modReportVar.GetDateTimeReport(dt2, gb.MediumDate), "PARAM2")
 
   For Each sDept In sDeptLst
-    $BillingReport.AddSection(UCase(sDept), True)
 
-    xcount = 0
     xColl = New Collection
-    AdmitList = New String[]
-    ExitList = New String[]
-    InWardList = New String[]
-    res1 = conn.Exec("select fldencounterval,fldcurrlocat,fldadmitbed from tblencounter where flddoa>=&1 and flddoa<=&2 and fldadmitward like &3" & RepoStr, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), sDept)
+    xColl.Add(sDept, "Department")
+    res1 = conn.Exec("select count(fldencounterval) as xcnt from tblencounter where flddoa>=&1 and flddoa<=&2 and fldadmitward like &3" & RepoStr, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), sDept)
     If res1.Available Then
-      xcount = res1.Count
-      $BillingReport.AddChapter("ADMISSION")
-      xColl.Add(res1.Count, "Admission")
-
-      i = 1
-      For Each res1
-        AdmitList.Add(res1["fldencounterval"])
-        With asx
-          .Add(CStr(i))
-          .Add(res1["fldencounterval"])
-          .Add(res1["fldadmitbed"])
-          .Add(modPatient.GetPatientNameByEnc(res1["fldencounterval"], conn))
-          .Add(modMedReports.GetPatientPastAgeString("tblencounter", res1["fldencounterval"]) & "/" & Left(modPatient.GetPatientSex(res1["fldencounterval"], conn), 1))
-          .Add(modGeneral.GetWardBedCategory(res1["fldadmitbed"]))
-          .Add(modPatient.GetPatientFileByEnc(res1["fldencounterval"]))
-        End With
-        $BillingReport.Add(asx)
-        asx.Clear()
-        i = i + 1
-      Next
+      If res1["xcnt"] Then
+        xColl.Add(res1["xcnt"], "Admission")
+      Else
+        xColl.Add(0, "Admission")
+      Endif
     Endif
 
-    With asx
-      .Add("")
-      .Add("")
-      .Add("")
-      .Add("TOTAL ADMISSION")
-      .Add(xcount)
-      .Add("")
-      .Add("")
-    End With
-    $BillingReport.Add(asx)
-    asx.Clear()
-    With asx
-      .Add("")
-      .Add("")
-      .Add("")
-      .Add("")
-      .Add("")
-      .Add("")
-      .Add("")
-    End With
-    $BillingReport.Add(asx)
-    asx.Clear()
-
-    xcount = 0
     For Each xout In xoutLst
-      res2 = conn.Exec("select fldencounterval,fldcurrlocat from tblencounter where flddod>=&1 and flddod<=&2 and fldadmission=&3 and fldcurrlocat in(select fldbed from tbldepartmentbed where flddept like &4)" & RepoStr, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), xout, sDept)
+      res2 = conn.Exec("select COUNT(fldencounterval) as xcnt from tblencounter where flddod>=&1 and flddod<=&2 and fldadmission=&3 and fldcurrlocat in(select fldbed from tbldepartmentbed where flddept like &4)" & RepoStr, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), xout, sDept)
       If res2.Available Then
-        xcount = xcount + res2.Count
-        $BillingReport.AddChapter(UCase(xout))
-        xColl.Add(res2.Count, xout)
-
-        i = 1
-        For Each res2
-          ExitList.Add(res2["fldencounterval"])
-          With asx
-            .Add(CStr(i))
-            .Add(res2["fldencounterval"])
-            .Add(res2["fldcurrlocat"])
-            .Add(modPatient.GetPatientNameByEnc(res2["fldencounterval"], conn))
-            .Add(modMedReports.GetPatientPastAgeString("tblencounter", res2["fldencounterval"]) & "/" & Left(modPatient.GetPatientSex(res2["fldencounterval"], conn), 1))
-            .Add(modGeneral.GetWardBedCategory(res2["fldcurrlocat"]))
-            .Add(modPatient.GetPatientFileByEnc(res2["fldencounterval"]))
-          End With
-          $BillingReport.Add(asx)
-          asx.Clear()
-          i = i + 1
-        Next
-
+        If res2["xcnt"] Then
+          xColl.Add(res2["xcnt"], xout)
+        Else
+          xColl.Add(0, xout)
+        Endif
       Endif
     Next
 
-    xColl.Add(xcount, "Exits")
-    With asx
-      .Add("")
-      .Add("")
-      .Add("")
-      .Add("TOTAL EXITS")
-      .Add(xcount)
-      .Add("")
-      .Add("")
-    End With
-    $BillingReport.Add(asx)
-    asx.Clear()
-    With asx
-      .Add("")
-      .Add("")
-      .Add("")
-      .Add("")
-      .Add("")
-      .Add("")
-      .Add("")
-    End With
-    $BillingReport.Add(asx)
-    asx.Clear()
-
-    rsx1 = conn.Exec("select fldencounterval,fldcomment from tblpattiming where fldtype=&1 and flditem=&2 and fldfirstreport=&3 and fldfirsttime>=&4 and fldfirsttime<=&5 and fldsecondsave=&6 and fldcomment<>&7", "General Services", sDept, "Bed", modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt1), True, "Intra Transfer")
+    rsx1 = conn.Exec("select COUNT(fldencounterval) as xcnt from tblpattiming where fldtype=&1 and flditem=&2 and fldfirstreport=&3 and fldfirsttime>=&4 and fldfirsttime<=&5 and fldsecondsave=&6 and fldcomment<>&7", "General Services", sDept, "Bed", modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt1), True, "Intra Transfer")
     If rsx1.Available Then
-      $BillingReport.AddChapter("TRANSFER IN")
-      xColl.Add(rsx1.Count, "Transfer In")
-
-      i = 1
-      For Each rsx1
-        If AdmitList.Exist(rsx1["fldencounterval"]) = False Then
-          With asx
-            .Add(CStr(i))
-            .Add(rsx1["fldencounterval"])
-            .Add(rsx1["fldcomment"])
-            .Add(modPatient.GetPatientNameByEnc(rsx1["fldencounterval"], conn))
-            .Add(modMedReports.GetPatientPastAgeString("tblencounter", rsx1["fldencounterval"]) & "/" & Left(modPatient.GetPatientSex(rsx1["fldencounterval"], conn), 1))
-            .Add(modGeneral.GetWardBedCategory(rsx1["fldcomment"]))
-            .Add(modPatient.GetPatientFileByEnc(rsx1["fldencounterval"]))
-          End With
-          $BillingReport.Add(asx)
-          asx.Clear()
-          i = i + 1
-        Endif
-      Next
-      With asx
-        .Add("")
-        .Add("")
-        .Add("")
-        .Add("")
-        .Add("")
-        .Add("")
-        .Add("")
-      End With
-      $BillingReport.Add(asx)
-      asx.Clear()
+      If rsx1["xcnt"] Then
+        xColl.Add(rsx1["xcnt"], "Transfer In")
+      Else
+        xColl.Add(0, "Transfer In")
+      Endif
     Endif
 
-    rsx2 = conn.Exec("select fldencounterval,fldsecondreport from tblpattiming where fldtype=&1 and flditem=&2 and fldfirstreport=&3 and fldsecondtime>=&4 and fldsecondtime<=&5 and fldsecondsave=&6 and fldcomment=&7", "General Services", sDept, "Bed", modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt1), True, "Intra Transfer")
+    rsx2 = conn.Exec("select COUNT(fldencounterval) as xcnt from tblpattiming where fldtype=&1 and flditem=&2 and fldfirstreport=&3 and fldsecondtime>=&4 and fldsecondtime<=&5 and fldsecondsave=&6 and fldcomment=&7", "General Services", sDept, "Bed", modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt1), True, "Intra Transfer")
     If rsx2.Available Then
-      $BillingReport.AddChapter("INTRA-WARD TRANSFER")
-      i = 1
-      For Each rsx2
-        InWardList.Add(rsx2["fldencounterval"])
-        With asx
-          .Add(CStr(i))
-          .Add(rsx2["fldencounterval"])
-          .Add(rsx2["fldsecondreport"])
-          .Add(modPatient.GetPatientNameByEnc(rsx2["fldencounterval"], conn))
-          .Add(modMedReports.GetPatientPastAgeString("tblencounter", rsx2["fldencounterval"]) & "/" & Left(modPatient.GetPatientSex(rsx2["fldencounterval"], conn), 1))
-          .Add(modGeneral.GetWardBedCategory(rsx2["fldsecondreport"]))
-          .Add(modPatient.GetPatientFileByEnc(rsx2["fldencounterval"]))
-        End With
-        $BillingReport.Add(asx)
-        asx.Clear()
-        i = i + 1
-      Next
-      With asx
-        .Add("")
-        .Add("")
-        .Add("")
-        .Add("")
-        .Add("")
-        .Add("")
-        .Add("")
-      End With
-      $BillingReport.Add(asx)
-      asx.Clear()
+      If rsx2["xcnt"] Then
+        xColl.Add(rsx2["xcnt"], "Intra-ward Transfer")
+      Else
+        xColl.Add(0, "Intra-ward Transfer")
+      Endif
     Endif
 
     ''Trans Out
-    rsx3 = conn.Exec("select fldencounterval,fldsecondreport,fldcomment from tblpattiming where fldtype=&1 and flditem=&2 and fldfirstreport=&3 and fldsecondtime>=&4 and fldsecondtime<=&5 and fldsecondsave=&6", "General Services", sDept, "Bed", modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt1), True)
+    rsx3 = conn.Exec("select COUNT(fldencounterval) as xcnt from tblpattiming where fldtype=&1 and flditem=&2 and fldfirstreport=&3 and fldsecondtime>=&4 and fldsecondtime<=&5 and fldsecondsave=&6", "General Services", sDept, "Bed", modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt1), True)
     If rsx3.Available Then
-      $BillingReport.AddChapter("TRANSFER OUT")
-      xColl.Add(rsx3.Count, "Transfer Out")
-
-      i = 1
-      For Each rsx3
-        If ExitList.Exist(rsx3["fldencounterval"]) = False Then
-          If InWardList.Exist(rsx3["fldencounterval"]) = False Then
-            With asx
-              .Add(CStr(i))
-              .Add(rsx3["fldencounterval"])
-              .Add(rsx3["fldcomment"])
-              .Add(modPatient.GetPatientNameByEnc(rsx3["fldencounterval"], conn))
-              .Add(modMedReports.GetPatientPastAgeString("tblencounter", rsx3["fldencounterval"]) & "/" & Left(modPatient.GetPatientSex(rsx3["fldencounterval"], conn), 1))
-              .Add(modGeneral.GetWardBedCategory(rsx3["fldcomment"]))
-              .Add(modPatient.GetPatientFileByEnc(rsx3["fldencounterval"]))
-            End With
-            $BillingReport.Add(asx)
-            asx.Clear()
-            i = i + 1
-          Endif
-        Endif
-      Next
-      With asx
-        .Add("")
-        .Add("")
-        .Add("")
-        .Add("")
-        .Add("")
-        .Add("")
-        .Add("")
-      End With
-      $BillingReport.Add(asx)
-      asx.Clear()
+      If rsx3["xcnt"] Then
+        xColl.Add(rsx3["xcnt"], "Transfer Out")
+      Else
+        xColl.Add(0, "Transfer Out")
+      Endif
     Endif
 
-    ''Summary
-    $BillingReport.AddChapter("SUMMARY")
-    totadm = 0
-    transin = 0
-    totout = 0
-    transout = 0
-    totcurr = 0
-    If xColl["Admission"] Then
-      totadm = xColl["Admission"]
-    Endif
-    If xColl["Transfer In"] Then
-      transin = xColl["Transfer In"]
-    Endif
-    If xColl["Exits"] Then
-      totout = xColl["Exits"]
-    Endif
-    If xColl["Transfer Out"] Then
-      transout = xColl["Transfer Out"]
-    Endif
+    ''current
     If modDate.StartSqlDate(dt1) = modDate.StartSqlDate(dt2) And If modDate.StartSqlDate(dt1) = modDate.StartSqlDate(Now()) Then
       rcur = conn.Exec("select count(fldbed) as cntbed from tbldepartmentbed where fldencounterval like &1 and flddept like &2", "%", sDept)
       If rcur.Available Then
-        totcurr = rcur["cntbed"]
+        If rcur["cntbed"] Then
+          xColl.Add(rcur["cntbed"], "Current")
+        Else
+          xColl.Add(0, "Current")
+        Endif
       Endif
-
-      With asx
-        .Add("")
-        .Add("")
-        .Add("")
-        .Add("Beginning")
-        .Add(totcurr + totout + transout - totadm - transin)
-        .Add("")
-        .Add("")
-      End With
-      $BillingReport.Add(asx)
-      asx.Clear()
     Endif
 
     With asx
-      .Add("")
-      .Add("")
-      .Add("")
-      .Add("Admission")
-      .Add(totadm)
-      .Add("")
-      .Add("")
+      For Each xkey In headLst
+        .Add(xColl[xkey])
+      Next
     End With
     $BillingReport.Add(asx)
     asx.Clear()
 
-    With asx
-      .Add("")
-      .Add("")
-      .Add("")
-      .Add("Transfer In")
-      .Add(transin)
-      .Add("")
-      .Add("")
-    End With
-    $BillingReport.Add(asx)
-    asx.Clear()
-
-    With asx
-      .Add("")
-      .Add("")
-      .Add("")
-      .Add("All Exits")
-      .Add(totout)
-      .Add("")
-      .Add("")
-    End With
-    $BillingReport.Add(asx)
-    asx.Clear()
-
-    With asx
-      .Add("")
-      .Add("")
-      .Add("")
-      .Add("Transfer Out")
-      .Add(transout)
-      .Add("")
-      .Add("")
-    End With
-    $BillingReport.Add(asx)
-    asx.Clear()
-
-    If modDate.StartSqlDate(dt1) = modDate.StartSqlDate(dt2) And If modDate.StartSqlDate(dt1) = modDate.StartSqlDate(Now()) Then
-      With asx
-        .Add("")
-        .Add("")
-        .Add("")
-        .Add("Current")
-        .Add(totcurr)
-        .Add("")
-        .Add("")
-      End With
-      $BillingReport.Add(asx)
-      asx.Clear()
-    Endif
-
-    With asx
-      .Add("")
-      .Add("")
-      .Add("")
-      .Add("")
-      .Add("")
-      .Add("")
-      .Add("")
-    End With
-    $BillingReport.Add(asx)
-    asx.Clear()
   Next
 
   Return $BillingReport.NewHTMLPath()

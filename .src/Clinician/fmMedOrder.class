@@ -1699,8 +1699,8 @@ Private Sub SaveOwnDispensing(sID As Long, sStatus As String)
   xpayble = modBillings.GetPayableUserSetting("Pharmacy", $encid)
 
   xerr = ""
-  sql1 = "select fldid,fldtime,fldroute,flditem,flddose,fldfreq,flddays,fldqtydisp,fldlabel,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit from tblpatdosing where fldid=&1 and fldcurval=&2"                                                   ''
-  res1 = modDatabase.$myConn.Exec(sql1, sID, "Continue")
+  sql1 = "select fldid,fldtime,fldroute,flditem,flddose,fldfreq,flddays,fldqtydisp,fldlabel,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit from tblpatdosing where fldid=&1 and fldsave_order=&2 and fldcurval=&3"                                                   ''
+  res1 = modDatabase.$myConn.Exec(sql1, sID, False, "Continue")
   If res1.Available = True Then
 
     'get tax and discount percentages
@@ -1961,6 +1961,22 @@ Public Sub btndirection_Click()
     If xx Then
       res = modDatabase.$myConn.Edit("tblpatprotocols", "fldid=&1 and fldencounterval=&2", $rData3["fldid"], $encid)
       res["fldusage"] = xx
+      res.Update
+      ShowPatProtocols()
+    Endif
+  Endif
+
+End
+
+Public Sub btnprotdel_Click()
+
+  Dim res As Result
+
+  If GridView3.Selection.Count Then
+    $rData3.MoveTo(GridView3.Selection[0])
+    If Message.Question("Are you sure ?", ("No"), ("Yes")) = 2 Then
+      res = modDatabase.$myConn.Edit("tblpatprotocols", "fldid=&1 and fldencounterval=&2", $rData3["fldid"], $encid)
+      res["fldstatus"] = "Cancelled"
       res.Update
       ShowPatProtocols()
     Endif

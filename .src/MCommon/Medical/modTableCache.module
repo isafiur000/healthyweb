@@ -6,6 +6,7 @@ Public $ExamMasterCompVar As Variant[]
 Public $ExaminationCompVar As Variant[]
 
 Public $MedicineDataVar As Collection
+Public $SurgicalDataVar As Collection
 Public $ServiceDataVar As Collection
 Public $StockDataVar As Collection
 
@@ -25,6 +26,7 @@ Public Sub InitializeTableCache()
   $ExaminationCompVar = New Variant[]
 
   $MedicineDataVar = New Collection
+  $SurgicalDataVar = New Collection
   $UserProfileVar = New Collection
   $ServiceDataVar = New Collection
   $StockDataVar = New Collection
@@ -35,6 +37,10 @@ Public Sub InitializeTableCache()
   $TestMastereData = New Collection
   $ExamMasterData = New Collection
   $RadioMasterData = New Collection
+
+  modPatient.$PatProfileData = New Collection
+  modNonMedical.$InvoiceTableData = New Collection
+  modNonMedical.$ReceiptTableData = New Collection
 
 End
 
@@ -262,6 +268,39 @@ Public Sub LoadMedicineMasterData(sCon As Connection)
 
 End
 
+Public Sub LoadSurgicalMasterData(sCon As Connection)
+
+  Dim res As Result
+  Dim sColl As Collection
+
+  res = sCon.Exec("select tblsurgbrand.fldbrandid as fldbrandid,tblsurgbrand.fldsurgid as fldsurgid,tblsurgbrand.fldbrand as fldbrand,tblsurgbrand.fldmanufacturer as fldmanufacturer,tblsurgbrand.flddetail as flddetail,tblsurgbrand.fldstandard as fldstandard,tblsurgbrand.flddepart as flddepart,tblsurgbrand.fldmaxqty as fldmaxqty,tblsurgbrand.fldminqty as fldminqty,tblsurgbrand.fldleadtime as fldleadtime,tblsurgbrand.fldtaxcode as fldtaxcode,tblsurgicals.fldsurgname as fldsurgname,tblsurgicals.fldsurgcateg as fldsurgcateg,tblsurgicals.fldsurgsize as fldsurgsize,tblsurgicals.fldsurgtype as fldsurgtype,tblsurgicals.fldsurgcode as fldsurgcode,tblsurgicals.fldsurgdetail as fldsurgdetail from tblsurgbrand inner join tblsurgicals on tblsurgbrand.fldsurgid=tblsurgicals.fldsurgid where tblsurgbrand.fldactive=&1", "Active")
+  If res.Available Then
+    For Each res
+      sColl = New Collection
+      sColl.Add(res["fldsurgid"], "fldsurgid")
+      sColl.Add(res["fldbrand"], "fldbrand")
+      sColl.Add(res["fldmanufacturer"], "fldmanufacturer")
+      sColl.Add(res["flddetail"], "flddetail")
+      sColl.Add(res["fldstandard"], "fldstandard")
+      sColl.Add(res["flddepart"], "flddepart")
+      sColl.Add(res["fldmaxqty"], "fldmaxqty")
+      sColl.Add(res["fldminqty"], "fldminqty")
+      sColl.Add(res["fldleadtime"], "fldleadtime")
+      sColl.Add(res["fldtaxcode"], "fldtaxcode")
+
+      sColl.Add(res["fldsurgname"], "fldsurgname")
+      sColl.Add(res["fldsurgcateg"], "fldsurgcateg")
+      sColl.Add(res["fldsurgsize"], "fldsurgsize")
+      sColl.Add(res["fldsurgtype"], "fldsurgtype")
+      sColl.Add(res["fldsurgcode"], "fldsurgcode")
+      sColl.Add(res["fldsurgdetail"], "fldsurgdetail")
+
+      $SurgicalDataVar.Add(sColl, res["fldbrandid"])
+    Next
+  Endif
+
+End
+
 Public Sub LoadTestMasterData(sCon As Connection)
 
   Dim res As Result
@@ -406,11 +445,11 @@ Public Sub LoadExamCompMasterData(sCon As Connection)
     Next
   Endif
 
-  LoadExamsCompwiseData(sCon)
+  LoadExamsCompwiseData()
 
 End
 
-Public Sub LoadExamsCompwiseData(sCon As Connection)
+Private Sub LoadExamsCompwiseData()
 
   Dim sColl As Collection
 

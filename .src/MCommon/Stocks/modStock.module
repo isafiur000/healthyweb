@@ -1,8 +1,5 @@
 ' Gambas module file
 
-Public $SurgiNameFromStock As Collection
-Public $ExtraNameFromStock As Collection
-
 Private $CostCalcLevel As Integer = 10
 
 Public Function GetStockNameFromStockno(stockno As Integer, Optional sCon As Connection) As String
@@ -1188,15 +1185,17 @@ Public Function GetSurgFromStockID(stockid As String) As String
   Dim res As Result
   Dim cod As String
 
-  cod = modHelpVariable.GetCollectionValue($SurgiNameFromStock, stockid, modBasic.$AppCacheInventoryParameters)
-  If Not cod Then
+  If modTableCache.$SurgicalDataVar.Exist(stockid) Then
+    cod = modTableCache.$SurgicalDataVar[stockid]["fldsurgid"]
+    If Not cod Then
+      cod = ""
+    Endif
+
+  Else
     res = modDatabase.$myConn.Exec("select fldsurgid from tblsurgbrand where fldbrandid=&1", stockid)
     If res.Available Then
       If res["fldsurgid"] Then
         cod = res["fldsurgid"]
-        If modBasic.$AppCacheInventoryParameters = "Yes" Then
-          $SurgiNameFromStock.Add(cod, stockid)
-        Endif
       Else
         cod = ""
       Endif
@@ -1204,6 +1203,7 @@ Public Function GetSurgFromStockID(stockid As String) As String
       cod = ""
     Endif
   Endif
+
   Return cod
 
 End
@@ -1213,22 +1213,17 @@ Public Function GetExtraFromStockID(stockid As String) As String
   Dim res As Result
   Dim cod As String
 
-  cod = modHelpVariable.GetCollectionValue($ExtraNameFromStock, stockid, modBasic.$AppCacheInventoryParameters)
-  If Not cod Then
-    res = modDatabase.$myConn.Exec("select fldextraid from tblextrabrand where fldbrandid=&1", stockid)
-    If res.Available Then
-      If res["fldextraid"] Then
-        cod = res["fldextraid"]
-        If modBasic.$AppCacheInventoryParameters = "Yes" Then
-          $ExtraNameFromStock.Add(cod, stockid)
-        Endif
-      Else
-        cod = ""
-      Endif
+  res = modDatabase.$myConn.Exec("select fldextraid from tblextrabrand where fldbrandid=&1", stockid)
+  If res.Available Then
+    If res["fldextraid"] Then
+      cod = res["fldextraid"]
     Else
       cod = ""
     Endif
+  Else
+    cod = ""
   Endif
+
   Return cod
 
 End

@@ -52,10 +52,6 @@ Public Sub _new()
 
   $BillingOption = modBasic.$BillCashOption
   hPatient = New FmBillingEntry(Panel2)
-  If modBasic.$AppCachePatientDemographics = "Yes" Then
-  Else
-    modGeneralMain.RemovePatientCacheSelected("PatientData")
-  Endif
 
   ''--------------------- Cashier -------------
   cmbtype.List = ["All", "Test", "Service", "Procedure", "Equipment", "Radio", "Others", "Package", "Group"]
@@ -2002,7 +1998,7 @@ Public Sub mnudel_Click()
 
   If GridView1.Selection.Count Then
     $rData.MoveTo(GridView1.Selection[0])
-    modDatabase.$myConn.Delete("tblpatbilling", "fldid=&1 and fldsave=&2 and fldprint=&3 and fldstatus=&4", $rData["fldid"], False, False, "Punched")
+    modDatabase.$myConn.Delete("tblpatbilling", "fldid=&1 and fldsave=&2 and fldprint=&3 and fldstatus=&4 and fldordcomp=&5", $rData["fldid"], False, False, "Punched", modBasic.$compID)
     ShowNewEntry()
   Endif
 
@@ -2011,7 +2007,7 @@ End
 Public Sub mnudelall_Click()
 
   For Each $rData
-    modDatabase.$myConn.Delete("tblpatbilling", "fldid=&1 and fldsave=&2 and fldprint=&3 and fldstatus=&4", $rData["fldid"], False, False, "Punched")
+    modDatabase.$myConn.Delete("tblpatbilling", "fldid=&1 and fldsave=&2 and fldprint=&3 and fldstatus=&4 and fldordcomp=&5", $rData["fldid"], False, False, "Punched", modBasic.$compID)
   Next
   ShowNewEntry()
 
@@ -2913,7 +2909,7 @@ Private Sub GetSSFBookingLock(sInvoice As String)
         If xmsg = "Success" Then
           modBillings.AddInvoiceBooking(sInvoice)
         Else
-          Message.Warning(xmsg, "OK")
+          Message.Warning("<h3>ERROR IN SSF BOOKING</h3>" & xmsg, "OK")
         Endif
       Endif
 
@@ -3035,6 +3031,15 @@ Public Sub mnublnk_Click()
   ' Wait
 
   ' modAppSupport.AddNewFormToWorkspace(fmCashBilling)
+
+End
+
+Public Sub mnureload_Click()
+
+  If txtencid.Text Then
+    modPatient.$PatProfileData.Remove(Trim(txtencid.Text))
+    btnshow_Click()
+  Endif
 
 End
 
@@ -3771,7 +3776,7 @@ Private Function GetLabelCompMed(xStockid As String) As String
 
   xcomp = ""
   If modBasic.$BillTargetGenericLabel Or If modBasic.$BillTargetBrandLabel Then
-    xlabel = modPharmLabel.MedicineLabelType(xStockid)
+    xlabel = modMedConstant.MedicineLabelType(xStockid)
     If xlabel Then
       If xlabel = "Generic" Then
         If modBasic.$BillTargetGenericLabel Then
@@ -4660,7 +4665,7 @@ Public Sub mnudelph_Click()
 
   If GridView3.Selection.Count Then
     $rData3.MoveTo(GridView3.Selection[0])
-    modDatabase.$myConn.Delete("tblpatdosing", "fldid=&1 and fldsave_order=&2", $rData3["fldid"], False)
+    modDatabase.$myConn.Delete("tblpatdosing", "fldid=&1 and fldsave_order=&2 and fldcurval=&3 and fldcomp_order=&4", $rData3["fldid"], False, "Continue", modBasic.$compID)
     FillDosingGrid()
   Endif
 
@@ -4669,7 +4674,7 @@ End
 Public Sub mnudelallph_Click()
 
   For Each $rData3
-    modDatabase.$myConn.Delete("tblpatdosing", "fldid=&1 and fldsave_order=&2", $rData3["fldid"], False)
+    modDatabase.$myConn.Delete("tblpatdosing", "fldid=&1 and fldsave_order=&2 and fldcurval=&3 and fldcomp_order=&4", $rData3["fldid"], False, "Continue", modBasic.$compID)
   Next
   FillDosingGrid()
 

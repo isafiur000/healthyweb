@@ -53,20 +53,12 @@ End
 Public Sub RemovePatientCache(patno As String)
 
   Dim res As Result
-  Dim encid As String
 
-  If modBasic.$AppCachePatientDemographics = "Yes" Then
-    res = modDatabase.$myConn.Exec("select fldencounterval from tblencounter where fldpatientval=&1", patno)
-    If res.Available Then
-      For Each res
-        encid = res["fldencounterval"]
-        modPatient.$PatProfileData.Remove(encid)
-
-        modPatient.$PatDOAData.Remove(encid)
-        modPatient.$PatDODData.Remove(encid)
-        modPatient.$PatDOFollData.Remove(encid)
-      Next
-    Endif
+  res = modDatabase.$myConn.Exec("select fldencounterval from tblencounter where fldpatientval=&1", patno)
+  If res.Available Then
+    For Each res
+      modPatient.$PatProfileData.Remove(res["fldencounterval"])
+    Next
   Endif
 
 End
@@ -638,6 +630,7 @@ Public Function GetPatientAdmission(encid As String) As String
   res["xyz"] = False
   res.Update
   modPatientSub.EnterPatientImpDate(encid, "Admitted", "")
+  modPatient.$PatProfileData.Remove(encid)
 
   Return xval
 
@@ -671,6 +664,7 @@ Public Sub UpdateCurrentStatus(encid As String, status As String, sComment As Va
     End Select
   Endif
   modPatientSub.EnterPatientImpDate(encid, status, sComment)
+  modPatient.$PatProfileData.Remove(encid)
 
 End
 

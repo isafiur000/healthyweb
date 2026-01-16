@@ -87,20 +87,52 @@ Private Sub ShowBillingParam(sDisctype As String)
 
 End
 
+Public Sub RefreshList()
+
+  LoadCategories()
+
+End
+
+Private Sub LoadCategories()
+
+  If rbroute.Value = True Then
+    chkall.Value = False
+    chkall.Enabled = False
+    If chknewall.Value = True Then
+      cmbgroup.List = modMedicine.ComboRoute()
+    Else
+      cmbgroup.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldroute) as col from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldcurval=&3", $encid, False, "Continue"))
+    Endif
+    btnselect.Text = "+1"
+
+  Else If rbcash.Value = True Then
+    chkall.Enabled = True
+    If chknewall.Value = True Then
+      cmbgroup.List = modMedicine.GetMedicineProcolsList()
+    Else
+      cmbgroup.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldprotocol) as col from tblpatprotocols where fldencounterval=&1 and fldstatus=&2", $encid, "Active"))
+    Endif
+    btnselect.Text = ""
+
+  Endif
+
+End
+
 Public Sub rbroute_Click()
 
-  chkall.Value = False
-  chkall.Enabled = False
-  cmbgroup.List = modMedicine.ComboRoute()
-  btnselect.Text = "+1"
+  LoadCategories()
 
 End
 
 Public Sub rbcash_Click()
 
-  chkall.Enabled = True
-  cmbgroup.List = modMedicine.GetMedicineProcolsList()
-  btnselect.Text = ""
+  LoadCategories()
+
+End
+
+Public Sub chknewall_Click()
+
+  LoadCategories()
 
 End
 
@@ -145,17 +177,22 @@ Private Sub ShowCurrStockGrid(sRoute As String, sSearch As String)
   Dim xType As String
   Dim xList As String[]
 
-  xType = modNonMedical.GetBillItemCategoryFromCombo(sRoute)
-  Select xType
-    Case "Medicines"
-      $rData = modDatabase.$syConn.Exec("select t1.fldbrandid,t1.fldbrandid as xitem,t1.fldbrandid,t2.fldroute as extra from tblmedbrand as t1 inner join tbldrug as t2 on t1.flddrug=t2.flddrug where t1.fldbrandid in(select fldstockid from tblentry where fldqty>&1 and fldcomp like &2) and t2.fldroute=&3 and lower(t1.fldbrandid) like &4 ORDER BY t1.fldbrandid ASC", 0, modBasic.$compID, sRoute, sSearch)                                ''
-    Case "Surgicals"
-      $rData = modDatabase.$syConn.Exec("select t1.fldbrandid,t1.fldbrandid as xitem,t1.fldbrandid,t2.fldsurgcateg as extra from tblsurgbrand as t1 inner join tblsurgicals as t2 on t1.fldsurgid=t2.fldsurgid where t1.fldbrandid in(select fldstockid from tblentry where fldqty>&1 and fldcomp like &2) and t2.fldsurgcateg=&3 and lower(t1.fldbrandid) like &4 ORDER BY t1.fldbrandid ASC", 0, modBasic.$compID, sRoute, sSearch)
-    Case "Extra Items"
-      xList = ["fldbrandid", "fldbrandid as xitem", "fldbrandid"]
-      xList.Add(Quote("extra"))
-      $rData = modDatabase.$syConn.Exec("select " & xList.Join(",") & " from tblextrabrand where fldbrandid in(select fldstockid from tblentry where fldqty>&1 and fldcomp like &2) and lower(fldbrandid) like &3 ORDER BY fldbrandid ASC", 0, modBasic.$compID, sSearch)
-  End Select
+  If chknewall.Value = True Then
+    xType = modNonMedical.GetBillItemCategoryFromCombo(sRoute)
+    Select xType
+      Case "Medicines"
+        $rData = modDatabase.$syConn.Exec("select t1.fldbrandid,t1.fldbrandid as xitem,t1.fldbrandid,t2.fldroute as extra from tblmedbrand as t1 inner join tbldrug as t2 on t1.flddrug=t2.flddrug where t1.fldbrandid in(select fldstockid from tblentry where fldqty>&1 and fldcomp like &2) and t2.fldroute=&3 and lower(t1.fldbrandid) like &4 ORDER BY t1.fldbrandid ASC", 0, modBasic.$compID, sRoute, sSearch)                                ''
+      Case "Surgicals"
+        $rData = modDatabase.$syConn.Exec("select t1.fldbrandid,t1.fldbrandid as xitem,t1.fldbrandid,t2.fldsurgcateg as extra from tblsurgbrand as t1 inner join tblsurgicals as t2 on t1.fldsurgid=t2.fldsurgid where t1.fldbrandid in(select fldstockid from tblentry where fldqty>&1 and fldcomp like &2) and t2.fldsurgcateg=&3 and lower(t1.fldbrandid) like &4 ORDER BY t1.fldbrandid ASC", 0, modBasic.$compID, sRoute, sSearch)
+      Case "Extra Items"
+        xList = ["fldbrandid", "fldbrandid as xitem", "fldbrandid"]
+        xList.Add(Quote("extra"))
+        $rData = modDatabase.$syConn.Exec("select " & xList.Join(",") & " from tblextrabrand where fldbrandid in(select fldstockid from tblentry where fldqty>&1 and fldcomp like &2) and lower(fldbrandid) like &3 ORDER BY fldbrandid ASC", 0, modBasic.$compID, sSearch)
+    End Select
+
+  Else
+    $rData = modDatabase.$syConn.Exec("select flditem,flditem,flditem,fldroute from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldcurval=&3 and fldroute=&4 and lower(flditem) like &5 ORDER BY flditem ASC", $encid, False, "Continue", sRoute, sSearch)
+  Endif
   $aMyFields = New String[]
   modGridView.ReadSmallData(GridView3, $rData, $aMyFields)
   ResizeFirstGrid()
