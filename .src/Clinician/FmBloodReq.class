@@ -1,26 +1,32 @@
 ' Gambas class file
 
 Private $encid As String
+Private $sPackage As String
 Private $PatientNum As String
+Private $billMode As String
 
 Private $rData As Result
 Private $aMyFields As String[]
 Private $rData2 As Result
 Private $aMyFields2 As String[]
+Private $rData3 As Result
+Private $aMyFields3 As String[]
 
-Public Sub _new(encid As String)
+Public Sub _new(encid As String, sPackage As String)
 
   Dim xstatus As String
   Dim def As String
   Dim xList As String[]
 
   $encid = encid
+  $sPackage = sPackage
   modGeneralMain.GetOpenModalForm(Me)
 
   txtpatientname.Text = modPatient.GetPatientNameByEnc($encid)
   $PatientNum = modPatient.GetPatientNoByEnc($encid)
   xstatus = modPatient.CurrentAdmissionStatus($encid)
   txtlocation.Text = modPatient.GetLocationSetting($encid, xstatus)
+  $billMode = modNonMedical.GetDiscBindBillMode($sPackage)
 
   cmbitem.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(flditem) as col from tblbloodstore"))
   cmbgroup.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldgroup) as col from tblbloodstore"))
@@ -32,8 +38,6 @@ Public Sub _new(encid As String)
     Endif
   Endif
 
-  rbpresent.Value = True
-  FillRequestGrid()
   CompleteGrid()
 
 End
@@ -41,9 +45,22 @@ End
 Public Sub TabPanel1_Click()
 
   If TabPanel1.Index = 0 Then
-    FillRequestGrid()
-  Else If TabPanel1.Index = 1 Then
     CompleteGrid()
+  Else If TabPanel1.Index = 1 Then
+    PendingRequest()
+  Else If TabPanel1.Index = 2 Then
+    FillRequestGrid()
+  Endif
+
+End
+
+Public Sub btnsetgroup_Click()
+
+  Dim xx As String
+
+  xx = InputBox("Provide Laboratory Codes for Blood Grouping", "")
+  If xx Then
+    modSettings.SaveSettingsToFile("BloodBank/GroupingCode", xx)
   Endif
 
 End
@@ -65,9 +82,10 @@ Public Sub btnshow_Click()
   Dim res As Result
 
   If cmbitem.Text And If cmbgroup.Text Then
-    res = modDatabase.$myConn.Exec("select flditemcode from tblbloodstore where flditem=&1 and fldgroup=&2", cmbitem.Text, cmbgroup.Text)
+    res = modDatabase.$myConn.Exec("select flditemcode,fldcost from tblbloodstore where flditem=&1 and fldgroup=&2", cmbitem.Text, cmbgroup.Text)
     If res.Available Then
       lblcode.Text = res["flditemcode"]
+      lblcost.Text = res["fldcost"]
       txtqty.ReadOnly = False
       btnsubOK.Enabled = True
     Else
@@ -80,12 +98,26 @@ End
 Public Sub btnsubOK_Click()
 
   Dim i As Integer
+  Dim xitem As String
 
   If cmbitem.Text And If cmbgroup.Text And If txtqty.Value Then
     If lblcode.Text Then
+      modDatabase.$myConn.Begin
       For i = 1 To txtqty.Value
         modPatientGeneral.PatMedicalItemRequest("Blood", $encid, lblcode.Text, TextArea1.Text)
       Next
+      If $billMode And If lblcost.Text Then
+        xitem = modNonMedical.GetItemFromGroupName(lblcost.Text, $billMode)
+        If xitem Then
+          If modBasic.$AutoBillService = "Standard" Then
+          Else If modBasic.$AutoBillService = "Full" Then
+            modBillings.GetAutoBillingEntry($encid, $sPackage, "Service", xitem, txtqty.Value, "Done", 0, True, False, "", "")
+          Else If modBasic.$AutoBillService = "Partial" Then
+            modBillings.GetAutoBillingEntry($encid, $sPackage, "Service", xitem, txtqty.Value, "Punched", 0, False, False, "", "")
+          Endif
+        Endif
+      Endif
+      modDatabase.$myConn.Commit
       FillRequestGrid()
       btnsubOK.Enabled = False
       lblcode.Text = ""
@@ -94,6 +126,10 @@ Public Sub btnsubOK_Click()
       txtqty.Value = 0
     Endif
   Endif
+
+Catch
+  modDatabase.$myConn.Rollback
+  modHelpVariable.CreateErrorReport()
 
 End
 
@@ -152,29 +188,12 @@ Public Sub btnclose_Click()
 End
 
 '''===========completed requests =========================
-Public Sub rbready_Click()
-
-  CompleteGrid()
-
-End
-
-Public Sub rbpresent_Click()
-
-  CompleteGrid()
-
-End
-
 Private Sub CompleteGrid()
 
   Dim sql As String
 
-  If rbpresent.Value = True Then
-    sql = "select fldid,fldcode,flditem,fldid,fldfirsttime,fldsecondtime,fldcomment,fldexpiry,fldstatus from tblmedinventory where fldreceiver=&1 and fldcategory=&2 and (fldstatus=&3 or fldstatus=&4)"            '
-    $rData2 = modDatabase.$myConn.Exec(sql, $encid, "Blood", "Transferred", "Administered")
-  Else If rbready.Value = True Then
-    sql = "select fldid,fldcode,flditem,fldid,fldfirsttime,fldsecondtime,fldcomment,fldexpiry,fldstatus from tblmedinventory where fldreceiver=&1 and fldcategory=&2 and (fldstatus=&3 or fldstatus=&4)"            '
-    $rData2 = modDatabase.$myConn.Exec(sql, $encid, "Blood", "Allocated", "Requested")
-  Endif
+  sql = "select fldid,fldcode,flditem,fldid,fldfirsttime,fldsecondtime,fldcomment,fldexpiry,fldstatus,fldcrossmatch from tblmedinventory where fldreceiver=&1 and fldcategory=&2 and (fldstatus=&3 or fldstatus=&4)"            '
+  $rData2 = modDatabase.$myConn.Exec(sql, $encid, "Blood", "Transferred", "Administered")
   $aMyFields2 = New String[]
   modGridView.ReadSmallData(GridView2, $rData2, $aMyFields2)
 
@@ -188,12 +207,14 @@ Private Sub CompleteGrid()
     .Columns[6].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
     .Columns[7].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
     .Columns[8].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
+    .Columns[9].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
 
     .Columns[1].Text = "Bag No"
     .Columns[2].Text = "Particulars"
     .Columns[6].Text = "Comment"
     .Columns[7].Text = "Expiry"
     .Columns[8].Text = "Status"
+    .Columns[9].Text = "Cross-match"
   End With
 
 End
@@ -203,10 +224,7 @@ Public Sub GridView2_Data(Row As Integer, Column As Integer, Data As WebTableDat
   $rData2.MoveTo(Row)
   modGridView.GridViewDecoration(Data, Row)
   If Column = 3 Then
-    If rbpresent.Value = True Then
-      Data.Html = modString.GetImageForHTMLGrid(modGeneralMain.GetSystemIcon(GetStateIcon($rData2[$aMyFields2[Column]])), CStr(20 * modBasic.$AppWidthRatio) & "px", "auto")
-    Endif
-    Data.Text = ""
+    Data.Html = modString.GetImageForHTMLGrid(modGeneralMain.GetSystemIcon(GetStateIcon($rData2[$aMyFields2[Column]])), CStr(20 * modBasic.$AppWidthRatio) & "px", "auto")
   Else If Column = 7 Then
     Data.Text = modReportVar.GetDateTimeReport($rData2[$aMyFields2[Column]], gb.GeneralDate)
   Else
@@ -275,22 +293,6 @@ Public Sub btnplay_Click()
 
 End
 
-Public Sub btnrequest_Click()
-
-  Dim res As Result
-
-  If txtidval.Value Then
-    res = modDatabase.$myConn.Edit("tblmedinventory", "fldid=&1 and fldstatus=&2 and flduserid_start IS NULL", txtidval.Value, "Allocated")
-    If res.Available Then
-      res["fldstatus"] = "Requested"
-      res["xyz"] = False
-      res.Update
-      CompleteGrid()
-    Endif
-  Endif
-
-End
-
 Public Sub btnreturn_Click()
 
   Dim res As Result
@@ -307,13 +309,65 @@ Public Sub btnreturn_Click()
 
 End
 
-Public Sub btnsetgroup_Click()
+Private Sub PendingRequest()
 
-  Dim xx As String
+  Dim sql As String
 
-  xx = InputBox("Provide Laboratory Codes for Blood Grouping", "")
-  If xx Then
-    modSettings.SaveSettingsToFile("BloodBank/GroupingCode", xx)
+  sql = "select fldid,fldcode,flditem,fldid,fldfirsttime,fldsecondtime,fldcomment,fldstatus,fldexpiry,fldcrossmatch from tblmedinventory where fldreceiver=&1 and fldcategory=&2 and (fldstatus=&3 or fldstatus=&4 or fldstatus=&5)"            '
+  $rData3 = modDatabase.$myConn.Exec(sql, $encid, "Blood", "Reserved", "Allocated", "Requested")
+  $aMyFields3 = New String[]
+  modGridView.ReadSmallData(GridView3, $rData3, $aMyFields3)
+
+  With GridView3
+    .Columns[0].Hidden = True
+    .Columns[1].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
+    .Columns[2].Width = CStr(275 * modBasic.$AppWidthRatio) & "px"
+    .Columns[3].Hidden = True
+    .Columns[4].Hidden = True
+    .Columns[5].Hidden = True
+    .Columns[6].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+    .Columns[7].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
+    .Columns[8].Hidden = True
+    .Columns[9].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+
+    .Columns[1].Text = "Bag No"
+    .Columns[2].Text = "Particulars"
+    .Columns[6].Text = "Comment"
+    .Columns[7].Text = "Status"
+    .Columns[9].Text = "Cross-match"
+  End With
+
+End
+
+Public Sub GridView3_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  $rData3.MoveTo(Row)
+  modGridView.GridViewDecoration(Data, Row)
+  Data.Text = $rData3[$aMyFields3[Column]]
+
+End
+
+Public Sub GridView3_Select()
+
+  If GridView3.Selection.Count Then
+    $rData3.MoveTo(GridView3.Selection[0])
+    txtidpend.Value = $rData3["fldid"]
+  Endif
+
+End
+
+Public Sub btnrequest_Click()
+
+  Dim res As Result
+
+  If txtidval.Value Then
+    res = modDatabase.$myConn.Edit("tblmedinventory", "fldid=&1 and fldstatus=&2 and flduserid_start IS NULL", txtidpend.Value, "Allocated")
+    If res.Available Then
+      res["fldstatus"] = "Requested"
+      res["xyz"] = False
+      res.Update
+      PendingRequest()
+    Endif
   Endif
 
 End

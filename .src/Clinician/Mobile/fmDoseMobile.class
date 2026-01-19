@@ -12,11 +12,13 @@ Private aRegmLabel As New Object[50]
 Private aQuantiBox As New Object[50]
 Private aUnitLabel As New Object[50]
 Private aDoseLabel As New Object[50]
+Private aInfoButton As New Object[50]
 Private aCountBox As New Object[50]
 Private aSkipBox As New Object[50]
 Private aBlankFrame As New Object[50]
 
 Private $rData As Result
+Private $sColl As Collection
 ' Private $minTime As Date
 ' Private $maxTime As Date
 
@@ -69,7 +71,7 @@ Private Function GetCurrentTime(sDosId As Long, sFreq As String, sStart As Date)
     res.MoveLast
     xtimeLast = Time(res["fldfromtime"])
     For Each xtime In timeLst
-      If xtime > xtimeLast Then
+      If Hour(xtime) >= Hour(xtimeLast) Then
         finTime = xtime
         Break
       Endif
@@ -79,7 +81,7 @@ Private Function GetCurrentTime(sDosId As Long, sFreq As String, sStart As Date)
     If Date(sStart) = Date(Now()) Then
       xtimeLast = Time(sStart)
       For Each xtime In timeLst
-        If xtime >= xtimeLast Then
+        If Hour(xtime) >= Hour(xtimeLast) Then
           finTime = xtime
           Break
         Endif
@@ -103,7 +105,8 @@ Private Sub LoadControlsWeb()
   Dim xtime As Date
 
   i = 0
-  sql = "select fldid,fldroute,flditem,flddose,fldfreq,flddays,fldstatus,fldstarttime,fldendtime,flddosecount from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldstarttime<=&3 and fldendtime>=&4 and fldroute<>&5 and flditemtype=&6 and fldcurval=&7"
+  $sColl = New Collection
+  sql = "select fldid,fldroute,flditem,flddose,fldfreq,flddays,fldstatus,fldstarttime,fldendtime,flddosecount,flddirection from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldstarttime<=&3 and fldendtime>=&4 and fldroute<>&5 and flditemtype=&6 and fldcurval=&7"
   $rData = modDatabase.$myConn.Exec(sql, Trim(txtencid.Text), True, Now(), DateAdd(Now(), gb.Hour, -3), "fluid", "Medicines", "Continue")
   If $rData.Available Then
     For Each $rData
@@ -114,6 +117,7 @@ Private Sub LoadControlsWeb()
           Case Else
             xtime = GetCurrentTime($rData["fldid"], $rData["fldfreq"], $rData["fldstarttime"])
         End Select
+        $sColl.Add($rData["flddirection"], CStr(i))
         If xtime Then
 
           aWebFrame[i] = New WebContainer(Frame1)
@@ -130,6 +134,7 @@ Private Sub LoadControlsWeb()
           aUnitLabel[i] = New WebLabel(aRightPanel[i])
           aQuantiBox[i] = New WebValueBox(aRightPanel[i]) As "QuantiBox"
           aDoseLabel[i] = New WebLabel(aRightPanel[i])
+          aInfoButton[i] = New WebButton(aRightPanel[i]) As "infoButton"
           aCountBox[i] = New WebValueBox(aRightPanel[i])
           aSkipBox[i] = New WebCheckBox(aRightPanel[i])
           aBlankFrame[i] = New WebSeparator(Frame1)
@@ -205,6 +210,12 @@ Private Sub LoadControlsWeb()
             .Text = xunit
             .Tag = i
           End With
+          With aInfoButton[i]
+            .Width = "2em"
+            .Height = "2em"
+            .Image = "icon:/32/info"
+            .Tag = i
+          End With
           With aCountBox[i]
             .Width = "3em"
             .Height = "2em"
@@ -228,6 +239,15 @@ Private Sub LoadControlsWeb()
       i = i + 1
     Next
   Endif
+
+End
+
+Public Sub infoButton_Click()
+
+  Dim i As Integer
+
+  i = Last.Tag
+  Message.Info($sColl[CStr(i)], "OK")
 
 End
 

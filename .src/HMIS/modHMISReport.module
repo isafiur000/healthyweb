@@ -3142,6 +3142,7 @@ Public Function SubGetTreatmentNCDDetail(sFormat As String, xdtfir As Date, xdtl
   Dim res1 As Result
   Dim res2 As Result
   Dim res3 As Result
+  Dim res4 As Result
 
   Dim xgroup As String
   Dim grpList As String[]
@@ -3202,7 +3203,14 @@ Public Function SubGetTreatmentNCDDetail(sFormat As String, xdtfir As Date, xdtl
         Column = Column + 1
       Next
 
-      xRowVal.Add("", CStr(Column))    ''Refer out
+      ''refered
+      xcnt = 0
+      res4 = modDatabase.$syConn.Exec("select COUNT(fldid) as col from tblpatfindings where fldtime>=&1 and fldtime<=&2 and fldtype=&3 and fldencounterval in(select fldencounterval from tblconsult where fldoutcome=&4) and fldencounterval in(select fldencounterval from tblencounter where flddoa IS NULL and fldfollow=&5) and fldsave=&6" & modDataRepo.GetWhereStringRepo(sLocaType, sLocation), modDate.StartSqlDate(xdtfir), modDate.EndSqlDate(xdtlast), "Provisional Diagnosis", "Referred", xnew, True)
+      If res4["col"] Then
+        xcnt = res4["col"]
+      Endif
+      xRowVal.Add(xcnt, CStr(Column))
+
       xFinal.Add(xRowVal)
 
     Next

@@ -1,0 +1,67 @@
+' Gambas class file
+
+Public Sub _new()
+
+  cmbtarget.List = modBasic.$AllCompList
+
+End
+
+Public Sub cmbtarget_Click()
+
+  lblcomp.Text = modGeneral.GetCompNameFromCompID(cmbtarget.Text)
+
+End
+
+Public Sub btnsend_Click()
+
+  Dim res As Result
+  Dim xblobfile As String
+  Dim xextension As String
+
+  If cmbtarget.Text And If txtsubject.Text Then
+    If btnfile.Text And If Exist(btnfile.Text) Then
+      If modMisc.BlobTarget("OfficeDocs") = "FTP" Then
+        xblobfile = modFTPSub.SendBlobToFTP(btnfile.Text, modBasic.$compID, "OfficeDocs")
+      Else
+        xblobfile = File.Load(btnfile.Text)
+      Endif
+      xextension = File.Ext(btnfile.Text)
+    Endif
+
+    res = modDatabase.$myConn.Create("tblmessage")
+    res["fldtarget"] = cmbtarget.Text
+    res["fldsubject"] = txtsubject.Text
+    res["fldmessage"] = txtcontent.Text
+    If modMisc.BlobTarget("OfficeDocs") = "FTP" Then
+      res["fldblob"] = ""
+      res["fldlink"] = xblobfile
+    Else
+      res["fldblob"] = xblobfile
+      res["fldlink"] = ""
+    Endif
+    res["fldextension"] = xextension
+    res["fldreply"] = rbreply.Value
+    res["fldimportant"] = rbimportant.Value
+
+    res["flduserid"] = modBasic.$lbluser
+    res["fldtime"] = Now()
+    res["fldcomp"] = modBasic.$compID
+    res["fldsave"] = True
+    res["fldhostmac"] = modHelpVariable.$MACAddress
+
+    res["fldresponse"] = ""
+    res["fldupuserid"] = ""
+    res["flduptime"] = ""
+    res["fldupsave"] = False
+
+    res.Update()
+    Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+  Endif
+
+End
+
+Public Sub btnclose_Click()
+
+  Me.Close
+
+End

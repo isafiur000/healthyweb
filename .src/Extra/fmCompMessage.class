@@ -1,0 +1,228 @@
+' Gambas class file
+
+Private $rData As Result
+Private $aMyFields As String[]
+Private $sPath As String
+
+Public Sub _new()
+
+  cmborigin.List = modBasic.$AllCompList
+  cmborigin.Add("All Locations")
+  cmborigin.Text = "All Locations"
+  dtselect.Value = Now()
+  rbnew.Value = True
+
+End
+
+Public Sub WebForm_Open()
+
+  modGeneralMain.RecordFormUse(Me)
+
+End
+
+Public Sub btnnewmsg_Click()
+
+  fmSendMessage.ShowModal
+
+End
+
+Public Sub btnrefresh_Click()
+
+  ShowMessageGrid()
+
+End
+
+Private Sub ShowMessageGrid()
+
+  Dim sql As String
+  Dim xstr As String
+  Dim xorigin As String
+
+  If cmborigin.Text = "All Locations" Then
+    xorigin = "%"
+  Else
+    xorigin = cmborigin.Text
+  Endif
+
+  If rbsent.Value = True Then
+    xstr = db.Subst(" and fldsave=&1", True)
+    If chkdate.Value = True Then
+      sql = "select fldid,fldtime,fldreply,fldimportant,fldsubject,fldid,fldextension,fldmessage,flduserid,fldresponse,fldupuserid,fldreply,fldimportant,fldcomp from tblmessage where fldtarget like &1 and fldcomp=&2 and fldtime>=&3 and fldtime<=&4" & xstr & " ORDER BY fldtime DESC"                      ''
+      $rData = modDatabase.$myConn.Exec(sql, xorigin, modBasic.$compID, modDate.StartSqlDate(dtselect.Value), modDate.EndSqlDate(dtselect.Value))
+    Else
+      If modBasic.$SQLDateRange = "Disable" Then
+        sql = "select fldid,fldtime,fldreply,fldimportant,fldsubject,fldid,fldextension,fldmessage,flduserid,fldresponse,fldupuserid,fldreply,fldimportant,fldcomp from tblmessage where fldtarget like &1 and fldcomp=&2" & xstr & " ORDER BY fldtime DESC"
+        $rData = modDatabase.$myConn.Exec(sql, xorigin, modBasic.$compID, modDate.StartSqlDate(Now()), modDate.EndSqlDate(Now()))
+      Else
+        sql = "select fldid,fldtime,fldreply,fldimportant,fldsubject,fldid,fldextension,fldmessage,flduserid,fldresponse,fldupuserid,fldreply,fldimportant,fldcomp from tblmessage where fldtarget like &1 and fldcomp=&2 and fldtime>=&3 and fldtime<=&4" & xstr & " ORDER BY fldtime DESC"                      ''
+        $rData = modDatabase.$myConn.Exec(sql, xorigin, modBasic.$compID, modDate.StartSqlDate(DateAdd(dtselect.Value, gb.Day, 0 - 365)), modDate.EndSqlDate(dtselect.Value))
+      Endif
+    Endif
+
+  Else
+    If rbnew.Value = True Then
+      xstr = db.Subst(" and fldupsave=&1", False)
+    Else If rbold.Value = True Then
+      xstr = db.Subst(" and fldupsave=&1", True)
+    Endif
+    If chkdate.Value = True Then
+      sql = "select fldid,fldtime,fldreply,fldimportant,fldsubject,fldid,fldextension,fldmessage,flduserid,fldresponse,fldupuserid,fldreply,fldimportant,fldcomp from tblmessage where fldtarget=&1 and fldcomp like &2 and fldtime>=&3 and fldtime<=&4" & xstr & " ORDER BY fldtime DESC"                      ''
+      $rData = modDatabase.$myConn.Exec(sql, modBasic.$compID, xorigin, modDate.StartSqlDate(dtselect.Value), modDate.EndSqlDate(dtselect.Value))
+    Else
+      If modBasic.$SQLDateRange = "Disable" Then
+        sql = "select fldid,fldtime,fldreply,fldimportant,fldsubject,fldid,fldextension,fldmessage,flduserid,fldresponse,fldupuserid,fldreply,fldimportant,fldcomp from tblmessage where fldtarget=&1 and fldcomp like &2" & xstr & " ORDER BY fldtime DESC"
+        $rData = modDatabase.$myConn.Exec(sql, modBasic.$compID, xorigin, modDate.StartSqlDate(Now()), modDate.EndSqlDate(Now()))
+      Else
+        sql = "select fldid,fldtime,fldreply,fldimportant,fldsubject,fldid,fldextension,fldmessage,flduserid,fldresponse,fldupuserid,fldreply,fldimportant,fldcomp from tblmessage where fldtarget=&1 and fldcomp like &2 and fldtime>=&3 and fldtime<=&4" & xstr & " ORDER BY fldtime DESC"                      ''
+        $rData = modDatabase.$myConn.Exec(sql, modBasic.$compID, xorigin, modDate.StartSqlDate(DateAdd(dtselect.Value, gb.Day, 0 - 365)), modDate.EndSqlDate(dtselect.Value))
+      Endif
+    Endif
+
+  Endif
+  $aMyFields = New String[]
+  modGridView.ReadSmallData(GridView1, $rData, $aMyFields)
+  With GridView1
+    .Columns[0].Hidden = True
+    .Columns[1].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+    .Columns[2].Width = CStr(25 * modBasic.$AppWidthRatio) & "px"
+    .Columns[3].Width = CStr(25 * modBasic.$AppWidthRatio) & "px"
+    .Columns[4].Width = CStr(300 * modBasic.$AppWidthRatio) & "px"
+    .Columns[5].Hidden = True
+    .Columns[6].Hidden = True
+    .Columns[7].Hidden = True
+    .Columns[8].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
+    .Columns[9].Hidden = True
+    .Columns[10].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
+    .Columns[11].Hidden = True
+    .Columns[12].Hidden = True
+    .Columns[13].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
+
+    .Columns[1].Text = "DateTime"
+    .Columns[4].Text = "Subject"
+    .Columns[8].Text = "Sender"
+    .Columns[10].Text = "Respondent"
+    .Columns[13].Text = "Origin"
+  End With
+
+End
+
+Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  $rData.MoveTo(Row)
+  modGridView.GridViewDecoration(Data, Row)
+  If Column = 1 Then
+    Data.Text = modReportVar.GetDateTimeReport($rData[$aMyFields[Column]], gb.GeneralDate)
+  Else If Column = 2 Then
+    Data.Html = modString.GetImageForHTMLGrid(GetStatusIcon($rData[$aMyFields[Column]]), "50%", "auto")
+  Else If Column = 3 Then
+    Data.Html = modString.GetImageForHTMLGrid(GetStatusIcon($rData[$aMyFields[Column]]), "50%", "auto")
+  Else
+    Data.Text = $rData[$aMyFields[Column]]
+  Endif
+
+End
+
+Private Function GetStatusIcon(sBool As Boolean) As String
+
+  Dim xpic As String
+
+  If sBool Then
+    xpic = "icons/checked.png"
+  Else
+    xpic = "icons/null.svg"
+  Endif
+  Return xpic
+
+End
+
+Public Sub GridView1_Select()
+
+  If GridView1.Selection.Count Then
+    $rData.MoveTo(GridView1.Selection[0])
+    txtmessid.Value = $rData["fldid"]   ''GridView1[GridView1.Row, 0].Text
+    txtsubject.Text = $rData["fldsubject"]   ''GridView1[GridView1.Row, 4].Text
+    txtmessage.Text = $rData["fldmessage"]   ''GridView1[GridView1.Row, 7].Text
+    If $rData["fldextension"] Then
+      btnattach.Enabled = True
+    Else
+      btnattach.Enabled = False
+    Endif
+    chkreply.Value = CBool($rData["fldreply"])   ''CBool(GridView1[GridView1.Row, 11].Text)
+    chkimportant.Value = CBool($rData["fldimportant"])   ''CBool(GridView1[GridView1.Row, 12].Text)
+    txtresponse.Text = $rData["fldresponse"]   ''GridView1[GridView1.Row, 9].Text
+    lblrespondant.Text = $rData["fldupuserid"]   ''GridView1[GridView1.Row, 10].Text
+    If lblrespondant.Text Then
+      btnsave.Enabled = False
+    Else
+      btnsave.Enabled = True
+    Endif
+  Endif
+
+End
+
+Public Sub btnattach_Click()
+
+  If txtmessid.Value Then
+    $sPath = GetPersonalFile(txtmessid.Value)
+    mnuopen_Click()
+  Endif
+
+End
+
+Public Sub mnuopen_Click()
+
+  If $sPath Then
+    Me.Exec("window.open('" & $sPath & "'); ")
+  Endif
+
+End
+
+Public Sub btnsave_Click()
+
+  Dim res As Result
+
+  If txtmessid.Value Then
+    res = modDatabase.$myConn.Edit("tblmessage", "fldid=&1 and fldupuserid IS NULL", txtmessid.Value)
+    res["fldresponse"] = txtresponse.Text
+    res["fldupuserid"] = modBasic.$lbluser
+    res["flduptime"] = Now()
+    res["fldupsave"] = True
+    res.Update
+    ShowMessageGrid()
+    txtresponse.Text = ""
+    Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+  Endif
+
+End
+
+Private Function GetPersonalFile(serial As Long) As String
+
+  Dim res As Result
+  Dim sql As String
+  Dim tempFile As String
+  Dim hFile As Blob
+  Dim aFile As String
+
+  If modHelpVariable.$ApplKey < 2 Then
+    sql = "select fldblob,fldlink,fldextension from tblmessage where fldid=&1"
+    res = modDatabase.$myConn.Exec(sql, serial)
+    If res.Available Then
+      tempFile = Temp() & "." & res["fldextension"]
+      If res["fldlink"] Then
+        aFile = modFTPSub.GetFileFromLocalFTP(res["fldlink"])
+        If Exist(aFile) Then
+          Copy aFile To tempFile
+        Endif
+      Else
+        hFile = res["fldblob"]
+        If hFile.Length Then
+          File.Save(tempFile, hFile.Data)
+        Endif
+      Endif
+    Endif
+    Return tempFile
+  Else
+    Message.Warning(("File extraction disabled. Please insert validation key"), ("OK"))
+  Endif
+
+End

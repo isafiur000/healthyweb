@@ -1,0 +1,331 @@
+' Gambas class file
+
+Private $encid As String
+Private $dtFluid As Date
+Private $OutFluid As String[]
+
+Private $rInputRes As Result
+Private $aInputFields As String[]
+Private $rOutRes As Result
+Private $aOutFields As String[]
+
+Public Sub _new(encid As String, sClass As String)
+
+  $encid = encid
+  pnlintakeout.Class = sClass
+
+  $dtFluid = Now()
+  $OutFluid = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select fldfluid as col from tblbodyfluid"))
+  rbfood.Value = True
+  ShowIntakeFoodGrid()
+  SHowOutputFluid()
+
+  cmbhepatic.List = ["Impaired", "Normal"]
+  cmbhepatic.Text = modClinic.GetHepaticStatus($encid)
+  PregnancySettings()
+
+End
+
+''========================== INPUT/OUTPUT ===============================
+Public Sub tblfluidcalc_Click()
+
+  txtinfluid.Value = Round(modGridView.SumGridAmountt(grdintake, 5), -3)
+  txtincalori.Value = Round(modGridView.SumGridAmountt(grdintake, 6), -3)
+
+End
+
+Public Sub btnaddinput_Click()
+
+  Dim hForm As FmOralIntake
+
+  If $encid Then
+    hForm = New FmOralIntake($encid)
+    hForm.ShowModal
+    ShowIntakeFoodGrid()
+  Endif
+
+End
+
+Public Sub btaddoutput_Click()
+
+  Dim hForm As FmClinOutValue
+
+  If $encid Then
+    hForm = New FmClinOutValue("Output Fluid", $encid, modBasic.$ClinBodyFluidAll, 0, "mL")
+    hForm.ShowModal
+    SHowOutputFluid()
+  Endif
+
+End
+
+Public Sub btnallinout_Click()
+
+  ShowIntakeFoodGrid()
+  SHowOutputFluid()
+
+End
+
+''------------------------ Intake  -------------------------
+Private Sub ShowIntakeFoodGrid()
+
+  If rbfood.Value = True Then
+    ShowIntakeInFoodGrid()
+  Else If rbmed.Value = True Then
+    ShowIntakeMedGrid()
+  Endif
+
+End
+
+Public Sub rbfood_Click()
+
+  If $encid Then
+    ShowIntakeFoodGrid()
+  Endif
+
+End
+
+Public Sub rbmed_Click()
+
+  If $encid Then
+    ShowIntakeMedGrid()
+  Endif
+
+End
+
+Public Sub ShowIntakeInFoodGrid()
+
+  If btnallinout.Value = False Then
+    $rInputRes = modDatabase.$myConn.Exec("select fldid,fldencounterval,fldtype,flditem,fldreportquanti,fldid,fldid,fldtime from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and fldtime>=&3 and fldtime<=&4 and fldsave=&5", $encid, "Input Food/Fluid", modDate.StartSqlDate($dtFluid), modDate.EndSqlDate($dtFluid), True)
+  Else
+    $rInputRes = modDatabase.$myConn.Exec("select fldid,fldencounterval,fldtype,flditem,fldreportquanti,fldid,fldid,fldtime from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and fldsave=&3", $encid, "Input Food/Fluid", True)
+  Endif
+  $aInputFields = New String[]
+  modGridView.ReadSmallData(grdintake, $rInputRes, $aInputFields)
+  ResizeInputGrid()
+
+End
+
+Public Sub ShowIntakeMedGrid()
+
+  If btnallinout.Value = False Then
+    $rInputRes = modDatabase.$myConn.Exec("select fldid,fldencounterval,flddoseno,flddoseno,fldvalue,fldid,fldid,fldtime from tblnurdosing where fldencounterval=&1 and fldsave=&2 and fldtime>=&3 and fldtime<=&4 and flddoseno in(select fldid from tblpatdosing where fldroute=&5 or fldroute=&6 or fldroute=&7)", $encid, True, modDate.StartSqlDate($dtFluid), modDate.EndSqlDate($dtFluid), "fluid", "IIV", "CIV")                                                     ''
+  Else
+    $rInputRes = modDatabase.$myConn.Exec("select fldid,fldencounterval,flddoseno,flddoseno,fldvalue,fldid,fldid,fldtime from tblnurdosing where fldencounterval=&1 and fldsave=&2 and flddoseno in(select fldid from tblpatdosing where fldroute=&3 or fldroute=&4 or fldroute=&5)", $encid, True, "fluid", "IIV", "CIV")
+  Endif
+  $aInputFields = New String[]
+  modGridView.ReadSmallData(grdintake, $rInputRes, $aInputFields)
+  ResizeInputGrid()
+
+End
+
+Public Sub grdintake_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  $rInputRes.MoveTo(Row)
+  modGridView.GridViewDecoration(Data, Row)
+  If Column = 7 Then
+    Data.Text = modPatient.GetDayTimeFromAdmission($encid, $rInputRes[$aInputFields[Column]])
+  Else If Column = 3 Then
+    If rbfood.Value = True Then
+      Data.Text = $rInputRes[$aInputFields[Column]]
+    Else If rbmed.Value = True Then
+      Data.Text = modPharmacy.GetStockIDFromDosing($rInputRes[$aInputFields[Column]])
+    Endif
+  Else If Column = 5 Then
+    If rbfood.Value = True Then
+      Data.Text = modPatPatho.GetTotalCoponentFood($rInputRes[$aInputFields[Column]], "fldfluid")
+    Else If rbmed.Value = True Then
+      Data.Text = modPharmacy.GetTotalFluidMedicine($rInputRes[$aInputFields[Column]])
+    Endif
+  Else If Column = 6 Then
+    If rbfood.Value = True Then
+      Data.Text = modPatPatho.GetTotalCoponentFood($rInputRes[$aInputFields[Column]], "fldenergy")
+    Else If rbmed.Value = True Then
+      Data.Text = 0
+    Endif
+  Else
+    Data.Text = $rInputRes[$aInputFields[Column]]
+  Endif
+
+End
+
+Private Sub ResizeInputGrid()
+
+  With grdintake
+    .Columns[0].Hidden = True
+    .Columns[1].Hidden = True
+    .Columns[2].Hidden = True
+    .Columns[3].Width = CStr(200 * modBasic.$AppWidthRatio) & "px"
+    .Columns[4].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
+    .Columns[5].Width = CStr(75 * modBasic.$AppWidthRatio) & "px" ''for fluid
+    .Columns[6].Width = CStr(75 * modBasic.$AppWidthRatio) & "px" ''for calorie
+    .Columns[7].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
+
+    .Columns[3].Text = "Intake"
+    .Columns[4].Text = "Dose/Rate"
+    .Columns[5].Text = "Fluid(mL)"
+    .Columns[6].Text = "Energy(kCal)"
+    .Columns[7].Text = "Time"
+  End With
+
+End
+
+Public Sub btneditinput_Click()
+
+  Dim yval As Float
+
+  If grdintake.Selection.Count Then
+    If rbfood.Value = True Then
+      $rInputRes.MoveTo(grdintake.Selection[0])
+
+      yval = InputValue($rInputRes["flditem"], ("Edit Intake Value"), $rInputRes["fldreportquanti"])
+      If yval Then
+        modPatientGeneral.UpdateExamGeneralQuantiData($rInputRes["fldid"], $encid, $rInputRes["flditem"], yval, "")
+        ShowIntakeFoodGrid()
+      Endif
+
+    Endif
+  Endif
+
+End
+
+''-------------------- Output --------------------------------
+Public Sub SHowOutputFluid()
+
+  Dim sql As String
+  Dim xtot As Float
+
+  If btnallinout.Value = False Then
+    sql = "select fldid,fldencounterval,fldtype,flditem,fldreportquanti,fldtime from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and fldtime>=&3 and fldtime<=&4"
+  Else
+    sql = "select fldid,fldencounterval,fldtype,flditem,fldreportquanti,fldtime from tblexamgeneral where fldencounterval=&1 and fldinput=&2"
+  Endif
+  $rOutRes = modDatabase.$myConn.Exec(sql, $encid, "Output Fluid", modDate.StartSqlDate($dtFluid), modDate.EndSqlDate($dtFluid))
+  $aOutFields = New String[]
+  modGridView.ReadSmallData(grdoutput, $rOutRes, $aOutFields)
+
+  With grdoutput
+    .Columns[0].Hidden = True
+    .Columns[1].Hidden = True
+    .Columns[2].Hidden = True
+    .Columns[3].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
+    .Columns[4].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
+    .Columns[5].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
+
+    .Columns[3].Text = "Output"
+    .Columns[4].Text = "Vol(mL)"
+    .Columns[5].Text = "Time"
+  End With
+
+  xtot = 0
+  For Each $rOutRes
+    If $rOutRes["fldreportquanti"] Then
+      xtot = xtot + $rOutRes["fldreportquanti"]
+    Endif
+  Next
+  txtoutfluid.Value = Round(xtot, -3)
+
+End
+
+Public Sub grdoutput_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  $rOutRes.MoveTo(Row)
+  modGridView.GridViewDecoration(Data, Row)
+  If Column = 5 Then
+    Data.Text = modPatient.GetDayTimeFromAdmission($encid, $rOutRes[$aOutFields[Column]])
+  Else
+    Data.Text = $rOutRes[$aOutFields[Column]]
+  Endif
+
+End
+
+Public Sub btneditout_Click()
+
+  Dim yval As Float
+
+  If grdoutput.Selection.Count Then
+    $rOutRes.MoveTo(grdoutput.Selection[0])
+
+    yval = InputValue($rOutRes["flditem"], ("Edit Output Value"), $rOutRes["fldreportquanti"])
+    If yval Then
+      modPatientGeneral.UpdateExamGeneralQuantiData($rOutRes["fldid"], $encid, $rOutRes["flditem"], yval, "")
+      SHowOutputFluid()
+    Endif
+
+  Endif
+
+End
+
+''====================== Calculations ==================
+Private Sub PregnancySettings()
+
+  If modPatient.GetPatientSex($encid) = "Male" Then
+    cmbpregnancy.Text = "Not Applicable"
+    cmbpregnancy.Enabled = False
+    tlbtpregnancy.Enabled = False
+  Else
+    cmbpregnancy.List = ["1st trimester", "2nd trimester", "3rd trimester", "Breast feeding", "Non Pregnant"]
+    cmbpregnancy.Text = modClinic.GetPregnancyStatus($encid)
+    cmbpregnancy.Enabled = True
+  Endif
+
+End
+
+''''hepatic
+Public Sub tlbthepatic_Click()
+
+  If $encid And If cmbhepatic.Text Then
+    modClinSub.AddGeneralParametersQuali($encid, "Hepatic Status", cmbhepatic.Text)
+    Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+  Endif
+
+End
+
+'''pregnancy
+Public Sub tlbtpregnancy_Click()
+
+  If $encid And If cmbpregnancy.Text Then
+    modClinSub.AddGeneralParametersQuali($encid, "Pregnancy Status", cmbpregnancy.Text)
+    Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+  Endif
+
+End
+
+Public Sub tlbibw_Click()
+
+  If $encid Then
+    txtibw.Value = modSysCons.GetCalculationAValue("Ideal_Body_Weight", $encid)
+  Endif
+
+End
+
+Public Sub tlbsa_Click()
+
+  If $encid Then
+    txtbsa.Value = modSysCons.GetCalculationAValue("Body_Surface_Area", $encid)
+  Endif
+
+End
+
+Public Sub tlbtbmi_Click()
+
+  If $encid Then
+    txtbmi.Value = modSysCons.GetCalculationAValue("Body_Mass_Index", $encid)
+  Endif
+
+End
+
+Public Sub tlbcreclr_Click()
+
+  If $encid Then
+    txtcrclr.Value = modSysCons.GetCreatinineClearance($encid)
+  Endif
+
+End
+
+Public Sub tlbtosmol_Click()
+
+  If $encid Then
+    txtserosmol.Value = modSysCons.GetConstantValue("Osmolality_Serum", $encid)
+  Endif
+
+End
