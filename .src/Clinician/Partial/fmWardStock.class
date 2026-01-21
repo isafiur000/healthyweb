@@ -1,6 +1,7 @@
 ' Gambas class file
 
 Private $encid As String
+Private $PatientNum As String
 Private $status As String
 Private $Dept As String
 Public $DiscPackage As String
@@ -29,6 +30,7 @@ Public Sub _new(encid As String, sStatus As String, DiscPackage As String, sClas
     Case Else
       $Dept = "OPD"
   End Select
+  $PatientNum = modPatient.GetPatientNoByEnc($encid)
   accLst = modBasic.$BillDiscountCash
   If accLst.Count = 0 Then
     accLst.Add($DiscPackage)
@@ -93,6 +95,19 @@ Public Sub RefreshList()
 
 End
 
+Private Function GetPlannedProtocols() As String[]
+
+  Dim sql1 As String
+  Dim sql2 As String
+  Dim xList As String[]
+
+  sql1 = "select distinct(fldprotocol) as col from tblpatprotocols where fldencounterval=&1 and fldstatus=&2"
+  sql2 = "select distinct(fldprotocol) as col from tblpatprotocols where fldpatientval=&3 and fldstatus=&2 and fldfuture=&4"
+  xList = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec(sql1 & " UNION " & sql2, $encid, "Active", $PatientNum, True))
+  Return xList
+
+End
+
 Private Sub LoadCategories()
 
   If rbroute.Value = True Then
@@ -110,7 +125,7 @@ Private Sub LoadCategories()
     If chknewall.Value = True Then
       cmbgroup.List = modMedicine.GetMedicineProcolsList()
     Else
-      cmbgroup.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldprotocol) as col from tblpatprotocols where fldencounterval=&1 and fldstatus=&2", $encid, "Active"))
+      cmbgroup.List = GetPlannedProtocols()
     Endif
     btnselect.Text = ""
 

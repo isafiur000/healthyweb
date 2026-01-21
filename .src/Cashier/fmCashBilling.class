@@ -2948,7 +2948,11 @@ Private Sub SaveGridData()
   Dim xcomp As String
   Dim xerr As String
   Dim xallow As Boolean
-  Dim xfixcode As String
+  ' Dim xfixcode As String
+
+  Dim xdate As Date
+  Dim xcapday As Integer
+  Dim xgo As Boolean
 
   If chkall.Value Then
     xcomp = "%"
@@ -2967,11 +2971,24 @@ Private Sub SaveGridData()
     For Each res
       xallow = modNonMedical.AllowProceedBilling(Trim(txtencid.Text), res["flddisctype"], res["flddiscamt"], res["fldditemamt"], res["fldbilltype"], res["fldcashincredit"], res["flditemtype"], res["flditemname"], res["flditemqty"])
       If xallow = True Then
-        xfixcode = modNonMedical.GetBillItemHIAbbv(res["flditemname"], res["flditemtype"])
-        If GetHICapGo(xfixcode, res["flditemname"], res["flditemqty"], res["flddisctype"]) = True Then
-          If xfixcode And If $HiCappingVar.Exist(xfixcode) Then
-            $HiCappingVar[xfixcode] = $HiCappingVar[xfixcode] - res["fldqtydisp"]
+        ' xfixcode = modNonMedical.GetBillItemHIAbbv(res["flditemname"], res["flditemtype"])
+        ' If GetHICapGo(xfixcode, res["flditemname"], res["flditemqty"], res["flddisctype"]) = True Then
+        '   If xfixcode And If $HiCappingVar.Exist(xfixcode) Then
+        '     $HiCappingVar[xfixcode] = $HiCappingVar[xfixcode] - res["fldqtydisp"]
+        '   Endif
+        xgo = True
+        If txtreference.Tag = "Consultation" Or If txtreference.Tag = "Patient Ward" Then
+          xdate = modBillings.CheckLastSalesItemDate(res["flditemname"], $PatientNum, $xNHISCode, res["flddisctype"])
+          If xdate Then
+            xcapday = modNonMedical.GetCappingDayFromItemName(res["flditemname"])
+            If xcapday Then
+              If DateDiff(xdate, Now(), gb.Day) <= xcapday Then
+                xgo = False
+              Endif
+            Endif
           Endif
+        Endif
+        If xgo = True Then
 
           If res["flditemqty"] < 0 Then
             If modBasic.$BillSeparateReturn = "No" Then

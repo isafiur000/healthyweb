@@ -12,6 +12,9 @@ Private $encid As String
 Private $RestrictType As String
 Private $RestrictList As String[]
 
+Private $HiCappingVar As Collection
+Private $HiCapAPIView As Variant[]
+
 Public Sub _new(xStatus As String)
 
   Dim xoption As String
@@ -371,6 +374,7 @@ Public Sub GridView1_Select()
     $encid = $rData1[$aMyFields1[3]]  'GridView1[GridView1.Row, 3].Text
     GetPatientProfile($encid)
     FillDispenstable(txtindex.Text)
+    $HiCappingVar = New Collection
   Endif
 
 End
@@ -381,6 +385,7 @@ Private Sub GetPatientProfile(encid As String)
   txtstatus.Text = modPatient.CurrentAdmissionStatus(encid)
   txtagesex.Text = modPatient.GetPatientAgeString(encid, Now()) & "/" & modPatient.GetPatientAddressByEnc(encid)
   txtpatientcontact.Text = modPatient.GetPatientLocation(encid)
+  txtnhsi.Text = modPatient.GetPatientExtCOdebyEnc(encid)
 
 End
 
@@ -851,6 +856,7 @@ Private Sub PharmacySave()
   Dim xerr As String
   Dim xallow As Boolean
   Dim xCshCrd As Float
+  Dim xfixcode As String
 
   xerr = ""
   If $encid Then
@@ -894,70 +900,82 @@ Private Sub PharmacySave()
           xallow = modNonMedical.AllowPharmProceedPreBill($encid, res1["flddisctype"], res1["fldqtydisp"], xrate, res1["flddiscper"], res1["fldbilltype"], xCshCrd, res1["fldroute"], res1["flditem"])
           If xallow = True Then
 
-            qtynew = res1["fldqtydisp"]
-            modDatabase.$myConn.Begin
-            While qtynew > 0
-              'get stockno, rate and quantity based on expiry check
-              If modBasic.$SkipExpiry = "ExpireOnUse" Then
-                sql2 = "select fldstockno,fldqty from tblentry where fldstockid=&1 and fldcomp=&2 and fldstatus=&3 and fldexpiry>&4 and fldqty>&5"
-                res2 = modDatabase.$myConn.Exec(sql2, res1["flditem"], modBasic.$compID, 1, DateAdd(modDate.StartSqlDate(Now()), gb.Day, CInt(res1["flddays"])), 0)
-              Else If modBasic.$SkipExpiry = "Expired" Then
-                sql2 = "select fldstockno,fldqty from tblentry where fldstockid=&1 and fldcomp=&2 and fldstatus=&3 and fldexpiry>&4 and fldqty>&5"
-                res2 = modDatabase.$myConn.Exec(sql2, res1["flditem"], modBasic.$compID, 1, modDate.StartSqlDate(Now()), 0)
-              Else
-                sql2 = "select fldstockno,fldqty from tblentry where fldstockid=&1 and fldcomp=&2 and fldstatus=&3 and fldqty>&4"
-                res2 = modDatabase.$myConn.Exec(sql2, res1["flditem"], modBasic.$compID, 1, 0)
+            If modNonMedical.GetFixedReferenceScheme(res1["flddisctype"]) = "Claim Code" Then
+              GetHImedicineCappingVar($encid, res1["flddisctype"], txtnhsi.Text)
+            Endif
+            xfixcode = modNonMedical.GetBillItemHIAbbv(res1["fldfixname"], res1["flditemtype"])
+            If GetHICapGo($encid, xfixcode, res1["fldfixname"], res1["fldqtydisp"], res1["flddisctype"]) = True Then
+              If xfixcode And If $HiCappingVar.Exist(xfixcode) Then
+                $HiCappingVar[xfixcode] = $HiCappingVar[xfixcode] - res1["fldqtydisp"]
               Endif
-              If res2.Available Then
-                res2.MoveFirst
 
-                xitem = res1["flditem"]
-                If res1["fldfixname"] Then
-                  xitem = res1["fldfixname"]
-                  If res1["fldfixrate"] Then
-                    xrate = res1["fldfixrate"]
+              qtynew = res1["fldqtydisp"]
+              modDatabase.$myConn.Begin
+              While qtynew > 0
+                'get stockno, rate and quantity based on expiry check
+                If modBasic.$SkipExpiry = "ExpireOnUse" Then
+                  sql2 = "select fldstockno,fldqty from tblentry where fldstockid=&1 and fldcomp=&2 and fldstatus=&3 and fldexpiry>&4 and fldqty>&5"
+                  res2 = modDatabase.$myConn.Exec(sql2, res1["flditem"], modBasic.$compID, 1, DateAdd(modDate.StartSqlDate(Now()), gb.Day, CInt(res1["flddays"])), 0)
+                Else If modBasic.$SkipExpiry = "Expired" Then
+                  sql2 = "select fldstockno,fldqty from tblentry where fldstockid=&1 and fldcomp=&2 and fldstatus=&3 and fldexpiry>&4 and fldqty>&5"
+                  res2 = modDatabase.$myConn.Exec(sql2, res1["flditem"], modBasic.$compID, 1, modDate.StartSqlDate(Now()), 0)
+                Else
+                  sql2 = "select fldstockno,fldqty from tblentry where fldstockid=&1 and fldcomp=&2 and fldstatus=&3 and fldqty>&4"
+                  res2 = modDatabase.$myConn.Exec(sql2, res1["flditem"], modBasic.$compID, 1, 0)
+                Endif
+                If res2.Available Then
+                  res2.MoveFirst
+
+                  xitem = res1["flditem"]
+                  If res1["fldfixname"] Then
+                    xitem = res1["fldfixname"]
+                    If res1["fldfixrate"] Then
+                      xrate = res1["fldfixrate"]
+                    Else
+                      xrate = 0
+                    Endif
                   Else
-                    xrate = 0
+                    xrate = modStock.GetSellingPriceByStockNo(res2["fldstockno"], res1["fldbillingmode"])
+                  Endif
+
+                  If qtynew <= res2["fldqty"] Then
+                    If modBasic.$AutoBillUseOwn = "Disable" Then
+                    Else
+                      modBillings.InsertBlankBillItemNewApp($encid, res1["fldbilltype"], res1["fldbillingmode"], res1["flddisctype"], res1["fldacledger"], res1["flditemtype"], res2["fldstockno"], xitem, xrate, qtynew, tax, disc, xCshCrd, "Done", res1["fldid"], True, False, modBasic.$compID)
+                    Endif
+                    modStockSub.AddToExistEntry(res2["fldstockno"], (0 - qtynew), modBasic.$compID)
+                    qtynew = 0
+                  Else If qtynew > res2["fldqty"] Then
+                    If modBasic.$AutoBillUseOwn = "Disable" Then
+                    Else
+                      modBillings.InsertBlankBillItemNewApp($encid, res1["fldbilltype"], res1["fldbillingmode"], res1["flddisctype"], res1["fldacledger"], res1["flditemtype"], res2["fldstockno"], xitem, xrate, res2["fldqty"], tax, disc, xCshCrd, "Done", res1["fldid"], True, False, modBasic.$compID)
+                    Endif
+                    modStockSub.AddToExistEntry(res2["fldstockno"], (0 - res2["fldqty"]), modBasic.$compID)
+                    qtynew = qtynew - res2["fldqty"]
+                  Endif
+                  Wait
+                  If res1["flddose"] And If res1["fldfreq"] And If res1["flddays"] And If res1["fldqtydisp"] Then
+                    If res1["fldlabel"] = True Then
+                      sList.Add(res1["fldid"])
+                    Endif
                   Endif
                 Else
-                  xrate = modStock.GetSellingPriceByStockNo(res2["fldstockno"], res1["fldbillingmode"])
+                  Break
                 Endif
+                BlinkOnSave(res2["fldstockno"])
+              Wend
+              If res1["fldqtydisp"] > qtynew Then
+                If qtynew > 0 Then
+                  modPharmSub.DuplicateRecordWithQTY(res1["fldid"], qtynew)
+                  modPharmSub.UpdateQTYBefDispensing(res1["fldid"], res1["fldqtydisp"] - qtynew)
+                Endif
+                modPharmSub.UpdateDispensing(res1["fldid"], True)
+              Endif
+              modDatabase.$myConn.Commit
 
-                If qtynew <= res2["fldqty"] Then
-                  If modBasic.$AutoBillUseOwn = "Disable" Then
-                  Else
-                    modBillings.InsertBlankBillItemNewApp($encid, res1["fldbilltype"], res1["fldbillingmode"], res1["flddisctype"], res1["fldacledger"], res1["flditemtype"], res2["fldstockno"], xitem, xrate, qtynew, tax, disc, xCshCrd, "Done", res1["fldid"], True, False, modBasic.$compID)
-                  Endif
-                  modStockSub.AddToExistEntry(res2["fldstockno"], (0 - qtynew), modBasic.$compID)
-                  qtynew = 0
-                Else If qtynew > res2["fldqty"] Then
-                  If modBasic.$AutoBillUseOwn = "Disable" Then
-                  Else
-                    modBillings.InsertBlankBillItemNewApp($encid, res1["fldbilltype"], res1["fldbillingmode"], res1["flddisctype"], res1["fldacledger"], res1["flditemtype"], res2["fldstockno"], xitem, xrate, res2["fldqty"], tax, disc, xCshCrd, "Done", res1["fldid"], True, False, modBasic.$compID)
-                  Endif
-                  modStockSub.AddToExistEntry(res2["fldstockno"], (0 - res2["fldqty"]), modBasic.$compID)
-                  qtynew = qtynew - res2["fldqty"]
-                Endif
-                Wait
-                If res1["flddose"] And If res1["fldfreq"] And If res1["flddays"] And If res1["fldqtydisp"] Then
-                  If res1["fldlabel"] = True Then
-                    sList.Add(res1["fldid"])
-                  Endif
-                Endif
-              Else
-                Break
-              Endif
-              BlinkOnSave(res2["fldstockno"])
-            Wend
-            If res1["fldqtydisp"] > qtynew Then
-              If qtynew > 0 Then
-                modPharmSub.DuplicateRecordWithQTY(res1["fldid"], qtynew)
-                modPharmSub.UpdateQTYBefDispensing(res1["fldid"], res1["fldqtydisp"] - qtynew)
-              Endif
-              modPharmSub.UpdateDispensing(res1["fldid"], True)
+            Else
+              xerr = xerr & "Cap Limit exceeded for " & res1["fldfixname"] & gb.NewLine
             Endif
-            modDatabase.$myConn.Commit
-
           Else
             xerr = xerr & res1["fldfixname"] & gb.NewLine
           Endif
@@ -976,6 +994,55 @@ Private Sub PharmacySave()
 Catch
   modDatabase.$myConn.Rollback
   modHelpVariable.CreateErrorReport()
+
+End
+
+Private Sub GetHImedicineCappingVar(encid As String, sPackage As String, xNHSI As String)
+
+  Dim hForm As CimisAPICap
+
+  If sPackage = modBasic.$HIPackage Or If sPackage = modBasic.$HIPackageER Then
+    If modBasic.$IMISValidateURL Then
+
+      If modClaim.GetChronicClaimStatus(encid) = True Then
+        If $HiCappingVar.Count Then
+          $HiCappingVar.Clear()
+        Endif
+      Else
+        If Not $HiCappingVar.Count Then
+          hForm = New CimisAPICap(xNHSI)
+          $HiCappingVar = hForm.GetMedicineLimits()
+          $HiCapAPIView = hForm.GetCapValidationItems()
+        Endif
+      Endif
+
+    Endif
+  Endif
+
+End
+
+Private Function GetHICapGo(encid As String, sFixCode As String, sFixItem As String, sQty As Float, sDiscType As String) As Boolean
+
+  Dim xgo As Boolean
+  Dim xmax As Float
+
+  xgo = True
+  If sFixCode Then
+    If $HiCappingVar.Exist(sFixCode) Then
+
+      If Not $HiCappingVar[sFixCode] Then
+        xgo = False
+      Else
+        xmax = $HiCappingVar[sFixCode] - modNonMedical.GetPatientItemSavedSalesPackage(encid, sFixItem, sDiscType)
+        If xmax < sQty Then
+          xgo = False
+        Endif
+      Endif
+
+    Endif
+  Endif
+
+  Return xgo
 
 End
 

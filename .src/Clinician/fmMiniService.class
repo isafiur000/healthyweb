@@ -27,39 +27,42 @@ Public Sub _new(encid As String, packService As String, packProced As String, pa
   $billModeProcedure = packProced
   $billModeOthers = packOthers
 
+  txtpatientname.Text = modPatient.GetPatientNameByEnc($encid)
+  $PatientNum = modPatient.GetPatientNoByEnc($encid)
+  $xNHISCode = modPatient.GetPatientExtCOdebyEnc($encid)
+
   cmbdiscservice.List = modBasic.$BillDiscountCash
   If cmbdiscservice.List.Count = 0 Then
     cmbdiscservice.Add($billModeService)
   Endif
   cmbdiscservice.Text = $billModeService
-  $ratePlanService = modNonMedical.GetDiscBindBillMode(cmbdiscservice.Text)
-  If Not $ratePlanService Then
-    $ratePlanService = modpatient.GetPatBillingMode($encid)
-  Endif
+  ShowServiceParam(cmbdiscservice.Text)
+  ' $ratePlanService = modNonMedical.GetDiscBindBillMode(cmbdiscservice.Text)
+  ' If Not $ratePlanService Then
+  '   $ratePlanService = modpatient.GetPatBillingMode($encid)
+  ' Endif
 
   cmbdiscprocedure.List = modBasic.$BillDiscountCash
   If cmbdiscprocedure.List.Count = 0 Then
     cmbdiscprocedure.Add($billModeProcedure)
   Endif
   cmbdiscprocedure.Text = $billModeProcedure
-  $ratePlanProcedure = modNonMedical.GetDiscBindBillMode(cmbdiscprocedure.Text)
-  If Not $ratePlanProcedure Then
-    $ratePlanProcedure = modpatient.GetPatBillingMode($encid)
-  Endif
+  ShowProcedureParam(cmbdiscprocedure.Text)
+  ' $ratePlanProcedure = modNonMedical.GetDiscBindBillMode(cmbdiscprocedure.Text)
+  ' If Not $ratePlanProcedure Then
+  '   $ratePlanProcedure = modpatient.GetPatBillingMode($encid)
+  ' Endif
 
   cmbdiscother.List = modBasic.$BillDiscountCash
   If cmbdiscother.List.Count = 0 Then
     cmbdiscother.Add($billModeOthers)
   Endif
   cmbdiscother.Text = $billModeOthers
-  $ratePlanOthers = modNonMedical.GetDiscBindBillMode(cmbdiscother.Text)
-  If Not $ratePlanOthers Then
-    $ratePlanOthers = modpatient.GetPatBillingMode($encid)
-  Endif
-
-  txtpatientname.Text = modPatient.GetPatientNameByEnc($encid)
-  $PatientNum = modPatient.GetPatientNoByEnc($encid)
-  $xNHISCode = modPatient.GetPatientExtCOdebyEnc($encid)
+  ShowOthersParam(cmbdiscother.Text)
+  ' $ratePlanOthers = modNonMedical.GetDiscBindBillMode(cmbdiscother.Text)
+  ' If Not $ratePlanOthers Then
+  '   $ratePlanOthers = modpatient.GetPatBillingMode($encid)
+  ' Endif
 
   $xFinClear = modNonMedical.GetFinanceClearance($encid)
   btnrefer.Tag = modBillings.GetReferralUserSetting("Service", $encid)
@@ -111,14 +114,71 @@ Public Sub btnsms_Click()
 
 End
 
+''----------------- service -----------
+Private Sub ShowServiceParam(sPack As String)
+
+  Dim resx As Result
+
+  txtrefservice.Text = ""
+  txtrefservice.Tag = ""
+  resx = modDatabase.$myConn.Exec("select fldmode,fldbillingmode,fldacledger,fldbilltype,fldreference,fldlimit,fldlockstate from tbldiscount where fldtype=&1", sPack)
+  If resx.Available Then
+    ''billingmode
+    If resx["fldbillingmode"] Then
+      $ratePlanService = resx["fldbillingmode"]
+    Else
+      $ratePlanService = modpatient.GetPatBillingMode($encid)
+    Endif
+    ''claim code button
+    If resx["fldreference"] Then
+      If resx["fldreference"] = "Claim Code" Then
+        txtrefservice.Text = modClaim.GetClaimCidePatient($encid, modNonMedical.GetLastCLaimType($encid))
+        If txtrefservice.Text Then
+          txtrefservice.Tag = modClaim.GetHIClaimState(txtrefservice.Text)
+        Endif
+      Endif
+    Endif
+  Endif
+
+End
+
 Public Sub btnservice_Click()
 
   If cmbdiscservice.Text Then
-    $ratePlanService = modNonMedical.GetDiscBindBillMode(cmbdiscservice.Text)
-    If Not $ratePlanService Then
-      $ratePlanService = modpatient.GetPatBillingMode($encid)
-    Endif
+    ShowServiceParam(cmbdiscservice.Text)
+    ' $ratePlanService = modNonMedical.GetDiscBindBillMode(cmbdiscservice.Text)
+    ' If Not $ratePlanService Then
+    '   $ratePlanService = modpatient.GetPatBillingMode($encid)
+    ' Endif
     GetFirstList()
+  Endif
+
+End
+
+''-------------------- procedure ---------------------
+Private Sub ShowProcedureParam(sPack As String)
+
+  Dim resx As Result
+
+  txtrefproc.Text = ""
+  txtrefproc.Tag = ""
+  resx = modDatabase.$myConn.Exec("select fldmode,fldbillingmode,fldacledger,fldbilltype,fldreference,fldlimit,fldlockstate from tbldiscount where fldtype=&1", sPack)
+  If resx.Available Then
+    ''billingmode
+    If resx["fldbillingmode"] Then
+      $ratePlanProcedure = resx["fldbillingmode"]
+    Else
+      $ratePlanProcedure = modpatient.GetPatBillingMode($encid)
+    Endif
+    ''claim code button
+    If resx["fldreference"] Then
+      If resx["fldreference"] = "Claim Code" Then
+        txtrefproc.Text = modClaim.GetClaimCidePatient($encid, modNonMedical.GetLastCLaimType($encid))
+        If txtrefproc.Text Then
+          txtrefproc.Tag = modClaim.GetHIClaimState(txtrefproc.Text)
+        Endif
+      Endif
+    Endif
   Endif
 
 End
@@ -126,11 +186,40 @@ End
 Public Sub btnprocedure_Click()
 
   If cmbdiscprocedure.Text Then
-    $ratePlanProcedure = modNonMedical.GetDiscBindBillMode(cmbdiscprocedure.Text)
-    If Not $ratePlanProcedure Then
-      $ratePlanProcedure = modpatient.GetPatBillingMode($encid)
-    Endif
+    ShowProcedureParam(cmbdiscprocedure.Text)
+    ' $ratePlanProcedure = modNonMedical.GetDiscBindBillMode(cmbdiscprocedure.Text)
+    ' If Not $ratePlanProcedure Then
+    '   $ratePlanProcedure = modpatient.GetPatBillingMode($encid)
+    ' Endif
     GetFirstList()
+  Endif
+
+End
+
+''--------------------- Other ---------------------------
+Private Sub ShowOthersParam(sPack As String)
+
+  Dim resx As Result
+
+  txtrefother.Text = ""
+  txtrefother.Tag = ""
+  resx = modDatabase.$myConn.Exec("select fldmode,fldbillingmode,fldacledger,fldbilltype,fldreference,fldlimit,fldlockstate from tbldiscount where fldtype=&1", sPack)
+  If resx.Available Then
+    ''billingmode
+    If resx["fldbillingmode"] Then
+      $ratePlanOthers = resx["fldbillingmode"]
+    Else
+      $ratePlanOthers = modpatient.GetPatBillingMode($encid)
+    Endif
+    ''claim code button
+    If resx["fldreference"] Then
+      If resx["fldreference"] = "Claim Code" Then
+        txtrefother.Text = modClaim.GetClaimCidePatient($encid, modNonMedical.GetLastCLaimType($encid))
+        If txtrefother.Text Then
+          txtrefother.Tag = modClaim.GetHIClaimState(txtrefother.Text)
+        Endif
+      Endif
+    Endif
   Endif
 
 End
@@ -138,10 +227,11 @@ End
 Public Sub btnothers_Click()
 
   If cmbdiscother.Text Then
-    $ratePlanOthers = modNonMedical.GetDiscBindBillMode(cmbdiscother.Text)
-    If Not $ratePlanOthers Then
-      $ratePlanOthers = modpatient.GetPatBillingMode($encid)
-    Endif
+    ShowOthersParam(cmbdiscother.Text)
+    ' $ratePlanOthers = modNonMedical.GetDiscBindBillMode(cmbdiscother.Text)
+    ' If Not $ratePlanOthers Then
+    '   $ratePlanOthers = modpatient.GetPatBillingMode($encid)
+    ' Endif
     GetFirstList()
   Endif
 
@@ -496,6 +586,7 @@ Public Sub btnsave_Click()
   Dim res As Result
   Dim xauto As String
   Dim xadv As String
+  Dim xstate As String
 
   res = modDatabase.$myConn.Edit("tblpatbilling", "fldencounterval=&1 and fldsave=&2 and fldprint=&3 and fldordcomp like &4 and fldstatus=&5 and (flditemtype=&6 or flditemtype=&7 or flditemtype=&8)", $encid, False, False, modBasic.$compID, "Punched", "General Services", "Procedures", "Other Items")                 ''
   If res.Available Then
@@ -509,27 +600,30 @@ Public Sub btnsave_Click()
       xform = modNonMedical.GetServiceKeyFromCategory(res["flditemtype"])
       If xform = "Service" Then
         xauto = modBasic.$AutoBillService
+        xstate = txtrefservice.Tag
       Else If xform = "Procedure" Then
         xauto = modBasic.$AutoBillProcedure
+        xstate = txtrefproc.Tag
       Else If xform = "Others" Then
         xauto = modBasic.$AutoBillOthers
+        xstate = txtrefother.Tag
       Endif
 
       If xauto = "Standard" Then
         If modNonMedical.AllowPreCheckDeposit($encid, res["fldditemamt"], res["fldbilltype"]) = True Then
-          SavePartialEntry(res, xadv)
+          SavePartialEntry(res, xstate, xadv)
         Endif
       Else If xauto = "Full" Then
         If modNonMedical.AllowPreEntryWithDeposit($encid, xform, res["fldditemamt"], res["fldbilltype"]) = True Then
-          SavePartialEntry(res, xadv)
+          SavePartialEntry(res, xstate, xadv)
         Endif
       Else
         If modBasic.$AutoBillSaveZero = "Yes" And If res["flditemrate"] = 0 Then
-          SavePartialEntry(res, xadv)
+          SavePartialEntry(res, xstate, xadv)
         Else If modBasic.$AutoBillSaveZero = "Yes" And If res["flddiscper"] = 100 Then
-          SavePartialEntry(res, xadv)
+          SavePartialEntry(res, xstate, xadv)
         Else If modBasic.$AutoBillSaveFullCredit = "Yes" And If res["fldbilltype"] = "Credit" And If res["fldcashincredit"] = 0 Then
-          SavePartialEntry(res, xadv)
+          SavePartialEntry(res, xstate, xadv)
         Endif
       Endif
 
@@ -541,18 +635,36 @@ Public Sub btnsave_Click()
 
 End
 
-Private Sub SavePartialEntry(res As Result, Optional advReceipt As String)
+Private Sub SavePartialEntry(res As Result, xstate As String, Optional advReceipt As String)
 
-  res["fldstatus"] = "Done"
-  If advReceipt Then
-    res["fldextracol"] = advReceipt
+  Dim xdate As Date
+  Dim xcapday As Integer
+  Dim xgo As Boolean
+
+  xgo = True
+  If xstate = "Consultation" Or If xstate = "Patient Ward" Then
+    xdate = modBillings.CheckLastSalesItemDate(res["flditemname"], $PatientNum, $xNHISCode, res["flddisctype"])
+    If xdate Then
+      xcapday = modNonMedical.GetCappingDayFromItemName(res["flditemname"])
+      If xcapday Then
+        If DateDiff(xdate, Now(), gb.Day) <= xcapday Then
+          xgo = False
+        Endif
+      Endif
+    Endif
   Endif
-  res["fldsave"] = True
-  res["flduserid"] = modBasic.$lbluser
-  res["fldtime"] = Now()
-  res["fldcomp"] = modBasic.$compID
-  res["xyz"] = False
-  res.Update()
+  If xgo = True Then
+    res["fldstatus"] = "Done"
+    If advReceipt Then
+      res["fldextracol"] = advReceipt
+    Endif
+    res["fldsave"] = True
+    res["flduserid"] = modBasic.$lbluser
+    res["fldtime"] = Now()
+    res["fldcomp"] = modBasic.$compID
+    res["xyz"] = False
+    res.Update()
+  Endif
 
 End
 

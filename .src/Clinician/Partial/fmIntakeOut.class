@@ -1,7 +1,6 @@
 ' Gambas class file
 
 Private $encid As String
-Private $dtFluid As Date
 Private $OutFluid As String[]
 
 Private $rInputRes As Result
@@ -14,9 +13,8 @@ Public Sub _new(encid As String, sClass As String)
   $encid = encid
   pnlintakeout.Class = sClass
 
-  $dtFluid = Now()
+  dtfluid.Value = Now()
   $OutFluid = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select fldfluid as col from tblbodyfluid"))
-  rbfood.Value = True
   ShowIntakeFoodGrid()
   SHowOutputFluid()
 
@@ -68,53 +66,41 @@ End
 ''------------------------ Intake  -------------------------
 Private Sub ShowIntakeFoodGrid()
 
-  If rbfood.Value = True Then
-    ShowIntakeInFoodGrid()
-  Else If rbmed.Value = True Then
-    ShowIntakeMedGrid()
-  Endif
+  Dim xList1 As String[]
+  Dim xList2 As String[]
+  Dim sql1 As String
+  Dim sql2 As String
 
-End
-
-Public Sub rbfood_Click()
-
-  If $encid Then
-    ShowIntakeFoodGrid()
-  Endif
-
-End
-
-Public Sub rbmed_Click()
-
-  If $encid Then
-    ShowIntakeMedGrid()
-  Endif
-
-End
-
-Public Sub ShowIntakeInFoodGrid()
-
+  xList1 = ["fldid", "fldencounterval", "fldtype as xid", "CONCAT(flditem, '|tblexamgeneral') as xitem", "fldreportquanti as xvalue", "CONCAT(fldid, '|tblexamgeneral') as xfluid", "CONCAT(fldid, '|tblexamgeneral') as xcalorie", "fldtime"]
+  xList2 = ["fldid", "fldencounterval", "flddoseno as xid", "CONCAT(flddoseno, '|tblnurdosing') as xitem", "fldvalue as xvalue", "CONCAT(fldid, '|tblnurdosing') as xfluid", "CONCAT(fldid, '|tblnurdosing') as xcalorie", "fldtime"]
   If btnallinout.Value = False Then
-    $rInputRes = modDatabase.$myConn.Exec("select fldid,fldencounterval,fldtype,flditem,fldreportquanti,fldid,fldid,fldtime from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and fldtime>=&3 and fldtime<=&4 and fldsave=&5", $encid, "Input Food/Fluid", modDate.StartSqlDate($dtFluid), modDate.EndSqlDate($dtFluid), True)
+    sql1 = "select " & xList1.Join(",") & " from tblexamgeneral where fldencounterval=&1 and fldsave=&2 and fldtime>=&3 and fldtime<=&4 and fldinput=&5"
+    sql2 = "select " & xList2.Join(",") & " from tblnurdosing where fldencounterval=&1 and fldsave=&2 and fldtime>=&3 and fldtime<=&4 and flddoseno in(select fldid from tblpatdosing where fldroute=&6 or fldroute=&7 or fldroute=&8)"
+    $rInputRes = modDatabase.$myConn.Exec(sql1 & " UNION ALL " & sql2, $encid, True, modDate.StartSqlDate(dtfluid.Value), modDate.EndSqlDate(dtfluid.Value), "Input Food/Fluid", "fluid", "IIV", "CIV")
   Else
-    $rInputRes = modDatabase.$myConn.Exec("select fldid,fldencounterval,fldtype,flditem,fldreportquanti,fldid,fldid,fldtime from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and fldsave=&3", $encid, "Input Food/Fluid", True)
+    sql1 = "select " & xList1.Join(",") & " from tblexamgeneral where fldencounterval=&1 and fldsave=&2 and fldinput=&3"
+    sql2 = "select " & xList2.Join(",") & " from tblnurdosing where fldencounterval=&1 and fldsave=&2 and flddoseno in(select fldid from tblpatdosing where fldroute=&4 or fldroute=&5 or fldroute=&6)"
+    $rInputRes = modDatabase.$myConn.Exec(sql1 & " UNION ALL " & sql2, $encid, True, "Input Food/Fluid", "fluid", "IIV", "CIV")
   Endif
   $aInputFields = New String[]
   modGridView.ReadSmallData(grdintake, $rInputRes, $aInputFields)
-  ResizeInputGrid()
 
-End
+  With grdintake
+    .Columns[0].Hidden = True
+    .Columns[1].Hidden = True
+    .Columns[2].Hidden = True
+    .Columns[3].Width = CStr(250 * modBasic.$AppWidthRatio) & "px"
+    .Columns[4].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
+    .Columns[5].Width = CStr(75 * modBasic.$AppWidthRatio) & "px" ''for fluid
+    .Columns[6].Width = CStr(75 * modBasic.$AppWidthRatio) & "px" ''for calorie
+    .Columns[7].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
 
-Public Sub ShowIntakeMedGrid()
-
-  If btnallinout.Value = False Then
-    $rInputRes = modDatabase.$myConn.Exec("select fldid,fldencounterval,flddoseno,flddoseno,fldvalue,fldid,fldid,fldtime from tblnurdosing where fldencounterval=&1 and fldsave=&2 and fldtime>=&3 and fldtime<=&4 and flddoseno in(select fldid from tblpatdosing where fldroute=&5 or fldroute=&6 or fldroute=&7)", $encid, True, modDate.StartSqlDate($dtFluid), modDate.EndSqlDate($dtFluid), "fluid", "IIV", "CIV")                                                     ''
-  Else
-    $rInputRes = modDatabase.$myConn.Exec("select fldid,fldencounterval,flddoseno,flddoseno,fldvalue,fldid,fldid,fldtime from tblnurdosing where fldencounterval=&1 and fldsave=&2 and flddoseno in(select fldid from tblpatdosing where fldroute=&3 or fldroute=&4 or fldroute=&5)", $encid, True, "fluid", "IIV", "CIV")
-  Endif
-  $aInputFields = New String[]
-  modGridView.ReadSmallData(grdintake, $rInputRes, $aInputFields)
-  ResizeInputGrid()
+    .Columns[3].Text = "Intake"
+    .Columns[4].Text = "Dose"
+    .Columns[5].Text = "Fluid(mL)"
+    .Columns[6].Text = "Energy(kCal)"
+    .Columns[7].Text = "Time"
+  End With
 
 End
 
@@ -122,50 +108,65 @@ Public Sub grdintake_Data(Row As Integer, Column As Integer, Data As WebTableDat
 
   $rInputRes.MoveTo(Row)
   modGridView.GridViewDecoration(Data, Row)
-  If Column = 7 Then
-    Data.Text = modPatient.GetDayTimeFromAdmission($encid, $rInputRes[$aInputFields[Column]])
-  Else If Column = 3 Then
-    If rbfood.Value = True Then
-      Data.Text = $rInputRes[$aInputFields[Column]]
-    Else If rbmed.Value = True Then
-      Data.Text = modPharmacy.GetStockIDFromDosing($rInputRes[$aInputFields[Column]])
-    Endif
+  If Column = 3 Then
+    Data.Text = GetIntakeName($rInputRes[$aInputFields[Column]])
   Else If Column = 5 Then
-    If rbfood.Value = True Then
-      Data.Text = modPatPatho.GetTotalCoponentFood($rInputRes[$aInputFields[Column]], "fldfluid")
-    Else If rbmed.Value = True Then
-      Data.Text = modPharmacy.GetTotalFluidMedicine($rInputRes[$aInputFields[Column]])
-    Endif
+    Data.Text = GetIntakeFluid($rInputRes[$aInputFields[Column]])
   Else If Column = 6 Then
-    If rbfood.Value = True Then
-      Data.Text = modPatPatho.GetTotalCoponentFood($rInputRes[$aInputFields[Column]], "fldenergy")
-    Else If rbmed.Value = True Then
-      Data.Text = 0
-    Endif
+    Data.Text = GetIntakeCalorie($rInputRes[$aInputFields[Column]])
+  Else If Column = 7 Then
+    Data.Text = modReportVar.GetDateTimeReport($rInputRes[$aInputFields[Column]], gb.GeneralDate)
   Else
     Data.Text = $rInputRes[$aInputFields[Column]]
   Endif
 
 End
 
-Private Sub ResizeInputGrid()
+Private Function GetIntakeName(sIndex As String) As String
 
-  With grdintake
-    .Columns[0].Hidden = True
-    .Columns[1].Hidden = True
-    .Columns[2].Hidden = True
-    .Columns[3].Width = CStr(200 * modBasic.$AppWidthRatio) & "px"
-    .Columns[4].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
-    .Columns[5].Width = CStr(75 * modBasic.$AppWidthRatio) & "px" ''for fluid
-    .Columns[6].Width = CStr(75 * modBasic.$AppWidthRatio) & "px" ''for calorie
-    .Columns[7].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
+  Dim asx As String[]
+  Dim xval As String
 
-    .Columns[3].Text = "Intake"
-    .Columns[4].Text = "Dose/Rate"
-    .Columns[5].Text = "Fluid(mL)"
-    .Columns[6].Text = "Energy(kCal)"
-    .Columns[7].Text = "Time"
-  End With
+  asx = Split(sIndex, "|")
+  If asx[1] = "tblexamgeneral" Then
+    xval = asx[0]
+  Else If asx[1] = "tblnurdosing" Then
+    xval = modPharmacy.GetStockIDFromDosing(CLong(asx[0]))
+  Endif
+
+  Return xval
+
+End
+
+Private Function GetIntakeFluid(sIndex As String) As Float
+
+  Dim asx As String[]
+  Dim xval As Float
+
+  asx = Split(sIndex, "|")
+  If asx[1] = "tblexamgeneral" Then
+    xval = modPatPatho.GetTotalCoponentFood(CLong(asx[0]), "fldfluid")
+  Else If asx[1] = "tblnurdosing" Then
+    xval = modPharmacy.GetTotalFluidMedicine(CLong(asx[0]))
+  Endif
+
+  Return xval
+
+End
+
+Private Function GetIntakeCalorie(sIndex As String) As Float
+
+  Dim asx As String[]
+  Dim xval As Float
+
+  asx = Split(sIndex, "|")
+  If asx[1] = "tblexamgeneral" Then
+    xval = modPatPatho.GetTotalCoponentFood(CLong(asx[0]), "fldenergy")
+  Else If asx[1] = "tblnurdosing" Then
+    xval = 0
+  Endif
+
+  Return xval
 
 End
 
@@ -174,16 +175,16 @@ Public Sub btneditinput_Click()
   Dim yval As Float
 
   If grdintake.Selection.Count Then
-    If rbfood.Value = True Then
-      $rInputRes.MoveTo(grdintake.Selection[0])
-
-      yval = InputValue($rInputRes["flditem"], ("Edit Intake Value"), $rInputRes["fldreportquanti"])
-      If yval Then
-        modPatientGeneral.UpdateExamGeneralQuantiData($rInputRes["fldid"], $encid, $rInputRes["flditem"], yval, "")
-        ShowIntakeFoodGrid()
-      Endif
-
-    Endif
+    ' If rbfood.Value = True Then
+    '   $rInputRes.MoveTo(grdintake.Selection[0])
+    '
+    '   yval = InputValue($rInputRes["flditem"], ("Edit Intake Value"), $rInputRes["fldreportquanti"])
+    '   If yval Then
+    '     modPatientGeneral.UpdateExamGeneralQuantiData($rInputRes["fldid"], $encid, $rInputRes["flditem"], yval, "")
+    '     ShowIntakeFoodGrid()
+    '   Endif
+    '
+    ' Endif
   Endif
 
 End
@@ -199,7 +200,7 @@ Public Sub SHowOutputFluid()
   Else
     sql = "select fldid,fldencounterval,fldtype,flditem,fldreportquanti,fldtime from tblexamgeneral where fldencounterval=&1 and fldinput=&2"
   Endif
-  $rOutRes = modDatabase.$myConn.Exec(sql, $encid, "Output Fluid", modDate.StartSqlDate($dtFluid), modDate.EndSqlDate($dtFluid))
+  $rOutRes = modDatabase.$myConn.Exec(sql, $encid, "Output Fluid", modDate.StartSqlDate(dtfluid.Value), modDate.EndSqlDate(dtfluid.Value))
   $aOutFields = New String[]
   modGridView.ReadSmallData(grdoutput, $rOutRes, $aOutFields)
 

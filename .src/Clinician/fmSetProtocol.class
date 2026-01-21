@@ -1,6 +1,7 @@
 ' Gambas class file
 
 Private $encid As String
+Private $PatientNum As String
 Private $sValue As Long[]
 
 Private $rData1 As Result
@@ -12,6 +13,7 @@ Public Sub Run(encid As String) As Long[]
   $encid = encid
   $sValue = New Long[]
 
+  $PatientNum = modPatient.GetPatientNoByEnc($encid)
   sIndexLst = New Long[]
   rbplan.Value = True
   rbplan_Click()
@@ -20,9 +22,22 @@ Public Sub Run(encid As String) As Long[]
 
 End
 
+Private Function GetPlannedProtocols() As String[]
+
+  Dim sql1 As String
+  Dim sql2 As String
+  Dim xList As String[]
+
+  sql1 = "select distinct(fldprotocol) as col from tblpatprotocols where fldencounterval=&1 and fldstatus=&2"
+  sql2 = "select distinct(fldprotocol) as col from tblpatprotocols where fldpatientval=&3 and fldstatus=&2 and fldfuture=&4"
+  xList = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec(sql1 & " UNION " & sql2, $encid, "Active", $PatientNum, True))
+  Return xList
+
+End
+
 Public Sub rbplan_Click()
 
-  lstcategory.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldprotocol) as col from tblpatprotocols where fldencounterval=&1 and fldstatus=&2", $encid, "Active"))
+  lstcategory.List = GetPlannedProtocols()
 
 End
 
