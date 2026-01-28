@@ -1,43 +1,99 @@
 ' Gambas class file
 
 Private $encid As String
+Private $DiscPackage As String
 Private $sTatus As String
+
+Private $LedgerAC As String
+Private $xBillType As String
+Private $sBillMode As String
 
 Private $rData1 As Result
 Private $aMyFields1 As String[]
 Private $rData As Result
 Private $aMyFields As String[]
 
-Public Sub _new(encid As String, sClass As String)
+Public Sub _new(encid As String, DiscPackage As String, sClass As String)
+
+  Dim accLst As String[]
 
   $encid = encid
+  $DiscPackage = DiscPackage
 
   WebContainer1.Class = sClass
   $sTatus = modPatient.CurrentAdmissionStatus($encid)
+  accLst = modBasic.$BillDiscountCash
+  If accLst.Count = 0 Then
+    accLst.Add($DiscPackage)
+  Endif
+  cmbdisctype.List = accLst
+  cmbdisctype.Text = $DiscPackage
+  ShowBillingParam($DiscPackage)
   FillMedicineList()
   ' ListBox1.SetFocus
 
 End
 
+Public Sub cmbdisctype_Click()
+
+  If cmbdisctype.Text Then
+    ShowBillingParam(cmbdisctype.Text)
+  Endif
+
+End
+
+Private Sub ShowBillingParam(sDisctype As String)
+
+  Dim resx As Result
+
+  resx = modDatabase.$myConn.Exec("select fldmode,fldbillingmode,fldacledger,fldbilltype,fldreference,fldlimit,fldlockstate from tbldiscount where fldtype=&1", sDisctype)
+  If resx.Available Then
+    ''billingmode
+    If resx["fldbillingmode"] Then
+      $sBillMode = resx["fldbillingmode"]
+    Else
+      $sBillMode = modPatient.GetPatBillingMode($encid)
+    Endif
+    ''ledger A/C
+    $LedgerAC = resx["fldacledger"]
+    ''BillType
+    $xBillType = resx["fldbilltype"]
+    If Not $xBillType Then
+      $xBillType = "Cash"
+    Endif
+  Endif
+
+End
+
+Public Sub RefreshList()
+
+  FillMedicineList()
+
+End
+
 Private Sub FillMedicineList()
 
-  Dim sql As String
+  Dim sql1 As String
+  Dim sql2 As String
 
-  sql = "select fldid,fldroute,flditem,flddose,fldfreq,flddays,fldstatus,flddirection,fldmixing,flddosecount from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldstarttime<=&3 and fldendtime>=&4 and fldroute<>&5 and flditemtype=&6 and fldcurval=&7"                    ''
-  $rData1 = modDatabase.$myConn.Exec(sql, $encid, True, Now(), DateAdd(Now(), gb.Hour, -3), "fluid", "Medicines", "Continue")
+  sql1 = "select fldsave_order,fldid,fldroute,flditem,flddose,fldfreq,flddays,fldstatus,flddirection,fldmixing,flddosecount,fldqtydisp from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldstarttime<=&3 and fldendtime>=&4 and fldroute<>&5 and flditemtype=&6 and fldcurval=&7"                    ''
+  sql2 = "select fldsave_order,fldid,fldroute,flditem,flddose,fldfreq,flddays,fldstatus,flddirection,fldmixing,flddosecount,fldqtydisp from tblpatdosing where fldencounterval=&1 and fldsave_order=&8 and fldstarttime<=&3 and DATE_ADD(fldstarttime, INTERVAL flddays DAY)>=&4 and fldroute<>&5 and flditemtype=&6 and fldcurval=&7"
+  $rData1 = modDatabase.$myConn.Exec(sql1 & " UNION ALL " & sql2, $encid, True, Now(), DateAdd(Now(), gb.Hour, -3), "fluid", "Medicines", "Continue", False)
   $aMyFields1 = New String[]
   modGridView.ReadSmallData(ListBox1, $rData1, $aMyFields1)
   With ListBox1
-    .Columns[0].Hidden = True
+    .Columns[0].Width = CStr(20 * modBasic.$AppWidthRatio) & "px"
     .Columns[1].Hidden = True
-    .Columns[1].Expand = True
-    .Columns[3].Hidden = True
+    .Columns[2].Hidden = True
+    .Columns[3].Expand = True
     .Columns[4].Hidden = True
     .Columns[5].Hidden = True
     .Columns[6].Hidden = True
     .Columns[7].Hidden = True
     .Columns[8].Hidden = True
     .Columns[9].Hidden = True
+    .Columns[10].Hidden = True
+    .Columns[11].Hidden = True
   End With
 
 End
@@ -46,7 +102,26 @@ Public Sub ListBox1_Data(Row As Integer, Column As Integer, Data As WebTableData
 
   $rData1.MoveTo(Row)
   modGridView.GridViewDecoration(Data, Row)
-  Data.Text = $rData1[$aMyFields1[Column]]
+  If Column = 0 Then
+    Data.Html = modString.GetImageForHTMLGrid(GetMedStatus($rData1[$aMyFields1[Column]]), "50%", "auto")
+    Data.Text = ""
+  Else
+    Data.Text = $rData1[$aMyFields1[Column]]
+  Endif
+
+End
+
+Private Function GetMedStatus(sBool As Boolean) As String
+
+  Dim xicon As String
+
+  If sBool = True Then
+    xicon = "/" &/ Application.Root &/ "icons/coll4.png"
+  Else If sBool = False Then
+    xicon = "/" &/ Application.Root &/ "icons/coll5.png"
+  Endif
+
+  Return xicon
 
 End
 
@@ -58,23 +133,47 @@ End
 
 Private Sub ShowSelectedDosing()
 
+  chkuselocal.Value = False
   If ListBox1.Selection.Count Then
     $rData1.MoveTo(ListBox1.Selection[0])
     txtid.Value = $rData1["fldid"]
     lblmedicine.Text = $rData1["flditem"]
     txtmedname.Text = modMedConstant.GetDrugFromStockID(lblmedicine.Text)
+    If $rData1["fldsave_order"] = False Then
+      chkdisp.Value = False
+      pnlocal.Visible = True
+      txttransqty.Value = $rData1["fldqtydisp"]
+    Else
+      chkdisp.Value = True
+      txttransqty.Value = 0
+      pnlocal.Visible = False
+    Endif
 
     btninjection.Tag = $rData1["fldroute"]
     txtinitstren.Value = modMedConstant.GetDrugInitialStrength($rData1["flditem"])
     lblregimen.Text = $rData1["fldroute"] & Space(2) & $rData1["flddose"] & Space(1) & modMedConstant.GetMedicineDoseUnit($rData1["flditem"]) & " X " & $rData1["fldfreq"] & " X " & $rData1["flddays"] & " day(s)"
     lblregimen.Tag = $rData1["fldfreq"]
     lblunit.Text = modPharmLabel.GetDosageFormForLabel($rData1["flditem"], "Inpatient")
-    txtdirection.Html = "<p>" & $rData1["flddirection"] & "</p>"
-    txtmixture.Html = "<p>" & $rData1["fldmixing"] & "</p>"
+    If $rData1["flddirection"] Then
+      pnldirection.Visible = True
+      txtdirection.Html = "<p>" & $rData1["flddirection"] & "</p>"
+    Else
+      pnldirection.Visible = False
+    Endif
+    If $rData1["fldmixing"] Then
+      pnlmixture.Visible = True
+      txtmixture.Html = "<p>" & $rData1["fldmixing"] & "</p>"
+    Else
+      pnlmixture.Visible = False
+    Endif
     txtdose.Value = Round($rData1["flddose"] / txtinitstren.Value, -2)
 
     FillGridView(txtid.Value)
-    btnsave.Enabled = True
+    If chkdisp.Value = True Then
+      btnsave.Enabled = True
+    Else
+      btnsave.Enabled = False
+    Endif
     If modBasic.$TabletModeEnable = "Yes" Then
     Else
       ' txtdose.SetFocus
@@ -93,7 +192,7 @@ Private Sub FillGridView(dosno As Long)
   With GridView1
     .Columns[0].Hidden = True
     .Columns[1].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
-    .Columns[2].Width = CStr(225 * modBasic.$AppWidthRatio) & "px"
+    .Columns[2].Width = CStr(275 * modBasic.$AppWidthRatio) & "px"
     .Columns[3].Width = CStr(50 * modBasic.$AppWidthRatio) & "px"
     .Columns[4].Width = CStr(50 * modBasic.$AppWidthRatio) & "px"
     .Columns[5].Width = CStr(25 * modBasic.$AppWidthRatio) & "px"
@@ -123,7 +222,7 @@ Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableDat
   Else If Column = 2 Then
     Data.Text = txtmedname.Text
   Else If Column = 5 Then
-    Data.Html = modString.GetImageForHTMLGrid(modGeneralMain.GetSystemIcon(GetPictureDosing($rData[$aMyFields[Column]])), CStr(20 * modBasic.$AppWidthRatio) & "px", "auto")
+    Data.Html = modString.GetImageForHTMLGrid(modGeneralMain.GetSystemIcon(GetPictureDosing($rData[$aMyFields[Column]])), "15%", "auto")
     Data.Text = ""
   Else If Column = 6 Then
     Data.Text = $rData[$aMyFields[Column]] * txtinitstren.Value
@@ -144,14 +243,14 @@ Private Function GetPictureDosing(dosid As Long) As String
     xrout = modPharmacy.GetRouteFromDosing(res["flddoseno"])
     If xrout = "injection" Or If xrout = "fluid" Or If xrout = "CIV" Or If xrout = "IIV" Then
       If Not res["fldfromtime"] Then
-        xx = "icon:/small/play"
+        xx = "icon:/32/play"
       Else If res["fldfromtime"] And If Not res["fldtotime"] Then
-        xx = "icon:/small/stop"
+        xx = "icon:/32/stop"
       Else If res["fldfromtime"] And If res["fldtotime"] Then
-        xx = "icon:/small/lock"
+        xx = "icon:/32/lock"
       Endif
     Else
-      xx = "icon:/small/lock"
+      xx = "icon:/32/lock"
     Endif
   Endif
   Return xx
@@ -163,12 +262,17 @@ Public Sub btnsave_Click()
   Dim res As Result
 
   If txtid.Value And If txtdose.Value Then
-    modPharmSub.InsertNurDosing(txtid.Value, $encid, txtdose.Value, lblunit.Text, "")
-    If lblregimen.Tag = "stat" Then
-      res = modDatabase.$myConn.Edit("tblpatdosing", "fldid=&1", txtid.Value)
-      res["fldcurval"] = "Completed"
-      res.Update
+    If chkdisp.Value = True Then
+      modPharmSub.InsertNurDosing(txtid.Value, $encid, txtdose.Value, lblunit.Text, "")
+      If lblregimen.Tag = "stat" Then
+        res = modDatabase.$myConn.Edit("tblpatdosing", "fldid=&1", txtid.Value)
+        res["fldcurval"] = "Completed"
+        res.Update
+      Endif
+    Else
+
     Endif
+
     FillGridView(txtid.Value)
     btnsave.Enabled = False
     txtdose.Value = 0
@@ -216,12 +320,12 @@ Public Sub btndosestop_Click()
   If GridView1.Selection.Count Then
     $rData.MoveTo(GridView1.Selection[0])
     res = modDatabase.$myConn.Edit("tblnurdosing", "fldid=&1", $rData["fldid"])
-    If GetPictureDosing($rData["fldid"]) = "icon:/small/play" Then
+    If GetPictureDosing($rData["fldid"]) = "icon:/32/play" Then
       res["fldfromtime"] = Now()
       res["xyz"] = False
       res.Update
       FillGridView(txtid.Value)
-    Else If GetPictureDosing($rData["fldid"]) = "icon:/small/stop" Then
+    Else If GetPictureDosing($rData["fldid"]) = "icon:/32/stop" Then
       res["fldtotime"] = Now()
       res["xyz"] = False
       res.Update
@@ -243,6 +347,159 @@ Public Sub btninjection_Click()
       hForm = New FmInjection(btninjection.Tag, res["fldlabel"])
       hForm.ShowModal
     Endif
+  Endif
+
+End
+
+''================ Local Transfer ==================
+Private Sub SaveOwnDispensing(sID As Long)
+
+  Dim sql1 As String
+  Dim res1 As Result
+  Dim res2 As Result
+  Dim sql2 As String
+
+  Dim tax As Float
+  Dim disc As Float
+  Dim xrate As Float
+  Dim xtot As Float
+  Dim xitem As String
+
+  Dim qtynew As Float
+  Dim xcateg As String
+  Dim xdose As Float
+  Dim xunit As String
+  Dim xerr As String
+
+  Dim xrefer As String
+  Dim xpayble As String
+  Dim xallow As Boolean
+  Dim xCshCrd As Float
+
+  xrefer = modBillings.GetReferralUserSetting("Pharmacy", $encid)
+  xpayble = modBillings.GetPayableUserSetting("Pharmacy", $encid)
+
+  xerr = ""
+  sql1 = "select fldid,fldtime,fldroute,flditem,flddose,fldfreq,flddays,fldqtydisp,fldlabel,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit from tblpatdosing where fldid=&1 and fldencounterval=&2"                                                   ''
+  res1 = modDatabase.$myConn.Exec(sql1, sID, $encid)
+  If res1.Available = True Then
+
+    'get tax and discount percentages
+    xcateg = res1["flditemtype"]
+    If res1["fldtaxper"] Then
+      tax = res1["fldtaxper"]
+    Else
+      tax = 0
+    Endif
+    If res1["flddiscper"] Then
+      disc = res1["flddiscper"]
+    Else
+      disc = 0
+    Endif
+    If res1["fldcashincredit"] Then
+      xCshCrd = res1["fldcashincredit"]
+    Else
+      xCshCrd = 0
+    Endif
+
+    If res1["fldfixrate"] Then
+      xrate = res1["fldfixrate"]
+    Else
+      xrate = modStock.GetCurrentSellingPrice(res1["flditem"], modBasic.$compID)
+    Endif
+
+    ' xallow = modNonMedical.AllowPharmProceedPreBill($encid, cmbdisctype.Text, res1["fldqtydisp"], xrate, res1["flddiscper"], res1["fldbilltype"], xCshCrd, res1["fldroute"], res1["flditem"])
+    xallow = False
+    If modBasic.$AutoBillPharmacy = "Standard" Then
+      xtot = modNonMedical.GetCashBillAmount(xrate, res1["fldqtydisp"], res1["fldbilltype"], disc, tax, xCshCrd)
+      If modNonMedical.AllowPreCheckDeposit($encid, "Pharmacy", res1["flditem"], xtot, res1["fldbilltype"]) = True Then
+        xallow = True
+      Endif
+    Else If modBasic.$AutoBillPharmacy = "Full" Then
+      xtot = modNonMedical.GetCashBillAmount(xrate, res1["fldqtydisp"], res1["fldbilltype"], disc, tax, xCshCrd)
+      If modNonMedical.AllowPreEntryWithDeposit($encid, "Pharmacy", res1["flditem"], xtot, res1["fldbilltype"]) = True Then
+        xallow = True
+      Endif
+    Else
+      If modBasic.$AutoBillSaveZero = "Yes" And If xrate = 0 Then
+        xallow = True
+      Else If modBasic.$AutoBillSaveZero = "Yes" And If res1["flddiscper"] = 100 Then
+        xallow = True
+      Else If modBasic.$AutoBillSaveFullCredit = "Yes" And If res1["fldbilltype"] = "Credit" And If xCshCrd = 0 Then
+        xallow = True
+      Endif
+    Endif
+    If xallow = True Then
+
+      qtynew = res1["fldqtydisp"]
+      modDatabase.$myConn.Begin
+      While qtynew > 0
+        'get stockno, rate and quantity based on expiry check
+        sql2 = "select fldstockno,fldqty from tblentry where fldstockid=&1 and fldcomp=&2 and fldstatus=&3 and fldqty>&4"
+        res2 = modDatabase.$myConn.Exec(sql2, res1["flditem"], modBasic.$compID, 1, 0)
+        If res2.Available Then
+          res2.MoveFirst
+
+          xitem = res1["flditem"]
+          If res1["fldfixname"] Then
+            xitem = res1["fldfixname"]
+            If res1["fldfixrate"] Then
+              xrate = res1["fldfixrate"]
+            Else
+              xrate = 0
+            Endif
+          Else
+            xrate = modStock.GetSellingPriceByStockNo(res2["fldstockno"], $sBillMode)
+          Endif
+
+          If qtynew <= res2["fldqty"] Then
+            If modBasic.$AutoBillUseOwn = "Enable" Then
+              modBillings.InsertBlankBillItemNewApp($encid, res1["fldbilltype"], res1["fldbillingmode"], res1["flddisctype"], res1["fldacledger"], res1["flditemtype"], res2["fldstockno"], xitem, xrate, qtynew, tax, disc, xCshCrd, "Done", res1["fldid"], True, False, "", xpayble, xrefer)
+            Endif
+            modStockSub.AddToExistEntry(res2["fldstockno"], (0 - qtynew), modBasic.$compID)
+            qtynew = 0
+          Else If qtynew > res2["fldqty"] Then
+            If modBasic.$AutoBillUseOwn = "Enable" Then
+              modBillings.InsertBlankBillItemNewApp($encid, res1["fldbilltype"], res1["fldbillingmode"], res1["flddisctype"], res1["fldacledger"], res1["flditemtype"], res2["fldstockno"], xitem, xrate, res2["fldqty"], tax, disc, xCshCrd, "Done", res1["fldid"], True, False, "", xpayble, xrefer)
+            Endif
+            modStockSub.AddToExistEntry(res2["fldstockno"], (0 - res2["fldqty"]), modBasic.$compID)
+            qtynew = qtynew - res2["fldqty"]
+          Endif
+          Wait
+        Else
+          Break
+        Endif
+      Wend
+
+      If res1["fldqtydisp"] > qtynew Then
+        If qtynew > 0 Then
+          modPharmSub.DuplicateRecordWithQTY(res1["fldid"], qtynew)
+          modPharmSub.UpdateQTYBefDispensing(res1["fldid"], res1["fldqtydisp"] - qtynew)
+        Endif
+
+        modPharmSub.UpdateDispensing(res1["fldid"], True, False)
+      Endif
+      modDatabase.$myConn.Commit
+
+    Else
+      xerr = xerr & res1["fldfixname"] & gb.NewLine
+    Endif
+  Endif
+  If xerr Then
+    Message.Warning("<b>Over Set Discount/Credit Limit:</b>" & gb.NewLine & xerr, "OK")
+  Endif
+
+Catch
+  modDatabase.$myConn.Rollback
+  modHelpVariable.CreateErrorReport()
+
+End
+
+Public Sub btnreceive_Click()
+
+  If chkuselocal.Value = True Then
+    SaveOwnDispensing(txtid.Value)
+    FillMedicineList()
   Endif
 
 End

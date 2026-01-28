@@ -586,6 +586,8 @@ End
 Public Function ShowPatientNoteReport(encid As String, sFormat As String) As String
 
   Dim $BillingReport As CReportHTML
+  Dim sql1 As String
+  Dim sql2 As String
   Dim res As Result
   Dim asx As New String[0]
 
@@ -598,11 +600,17 @@ Public Function ShowPatientNoteReport(encid As String, sFormat As String) As Str
   $BillingReport.UserData.Add(sFormat, "PARAM1")
 
   If sFormat = "Inpatient Notes" Then
-    red1 = modDatabase.$syConn.Exec("select DISTINCT DATE(fldtime) as fldtime from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and (flditem=&3 or flditem=&4 or flditem=&5 or flditem=&6 or flditem=&7) ORDER BY fldtime", encid, "Notes", "Progress Note", "Doctor Order", "Clinicians Note", "Nurses Note", "Transfer Note")
+    sql1 = "select DISTINCT DATE(fldtime) as fldtime from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and (flditem=&3 or flditem=&4 or flditem=&5 or flditem=&6 or flditem=&7)"
+    sql2 = "select DISTINCT DATE(fldtime) as fldtime from tblpatientnotes where fldencounterval=&1 and fldinput=&2 and (flditem=&3 or flditem=&4 or flditem=&5 or flditem=&6 or flditem=&7)"
+    red1 = modDatabase.$syConn.Exec(sql1 & " UNION " & sql2 & " ORDER BY fldtime", encid, "Notes", "Progress Note", "Doctor Order", "Clinicians Note", "Nurses Note", "Transfer Note")
   Else If sFormat = "Outpatient Notes" Then
-    red1 = modDatabase.$syConn.Exec("select DISTINCT DATE(fldtime) as fldtime from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and (flditem=&3 or flditem=&4) ORDER BY fldtime", encid, "Notes", "Initial Planning", "Expert Planning")
+    sql1 = "select DISTINCT DATE(fldtime) as fldtime from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and (flditem=&3 or flditem=&4)"
+    sql2 = "select DISTINCT DATE(fldtime) as fldtime from tblpatientnotes where fldencounterval=&1 and fldinput=&2 and (flditem=&3 or flditem=&4)"
+    red1 = modDatabase.$syConn.Exec(sql1 & " UNION " & sql2 & " ORDER BY fldtime", encid, "Notes", "Initial Planning", "Expert Planning")
   Else If sFormat = "Discharge Notes" Then
-    red1 = modDatabase.$syConn.Exec("select DISTINCT DATE(fldtime) as fldtime from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and flditem in(select flditem from tbldischarge) ORDER BY fldtime", encid, "Notes")
+    sql1 = "select DISTINCT DATE(fldtime) as fldtime from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and flditem in(select flditem from tbldischarge)"
+    sql2 = "select DISTINCT DATE(fldtime) as fldtime from tblpatientnotes where fldencounterval=&1 and fldinput=&2 and flditem in(select flditem from tbldischarge)"
+    red1 = modDatabase.$syConn.Exec(sql1 & " UNION " & sql2 & " ORDER BY fldtime", encid, "Notes")
   Endif
   If red1.Available Then
     For Each red1
@@ -610,11 +618,17 @@ Public Function ShowPatientNoteReport(encid As String, sFormat As String) As Str
       $BillingReport.AddSection(modReportVar.GetDateTimeReport(xdt, gb.MediumDate), True)
 
       If sFormat = "Inpatient Notes" Then
-        res = modDatabase.$syConn.Exec("select fldtime,flditem,fldreportquali,flddetail,fldcomp,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and fldtime>=&3 and fldtime<=&4 and (flditem=&5 or flditem=&6 or flditem=&7 or flditem=&8 or flditem=&9)", encid, "Notes", modDate.StartSqlDate(xdt), modDate.EndSqlDate(xdt), "Progress Note", "Doctor Order", "Clinicians Note", "Nurses Note", "Transfer Note")
+        sql1 = "select fldtime,flditem,fldreportquali,flddetail,fldcomp,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and fldtime>=&3 and fldtime<=&4 and (flditem=&5 or flditem=&6 or flditem=&7 or flditem=&8 or flditem=&9)"
+        sql2 = "select fldtime,flditem,fldreportquali,flddetail,fldcomp,flduserid from tblpatientnotes where fldencounterval=&1 and fldinput=&2 and fldtime>=&3 and fldtime<=&4 and (flditem=&5 or flditem=&6 or flditem=&7 or flditem=&8 or flditem=&9)"
+        res = modDatabase.$syConn.Exec(sql1 & " UNION ALL " & sql2 & " ORDER BY fldtime", encid, "Notes", modDate.StartSqlDate(xdt), modDate.EndSqlDate(xdt), "Progress Note", "Doctor Order", "Clinicians Note", "Nurses Note", "Transfer Note")
       Else If sFormat = "Outpatient Notes" Then
-        res = modDatabase.$syConn.Exec("select fldtime,flditem,fldreportquali,flddetail,fldcomp,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and fldtime>=&3 and fldtime<=&4 and (flditem=&5 or flditem=&6)", encid, "Notes", modDate.StartSqlDate(xdt), modDate.EndSqlDate(xdt), "Initial Planning", "Expert Planning")
+        sql1 = "select fldtime,flditem,fldreportquali,flddetail,fldcomp,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and fldtime>=&3 and fldtime<=&4 and (flditem=&5 or flditem=&6)"
+        sql2 = "select fldtime,flditem,fldreportquali,flddetail,fldcomp,flduserid from tblpatientnotes where fldencounterval=&1 and fldinput=&2 and fldtime>=&3 and fldtime<=&4 and (flditem=&5 or flditem=&6)"
+        res = modDatabase.$syConn.Exec(sql1 & " UNION ALL " & sql2 & " ORDER BY fldtime", encid, "Notes", modDate.StartSqlDate(xdt), modDate.EndSqlDate(xdt), "Initial Planning", "Expert Planning")
       Else If sFormat = "Discharge Notes" Then
-        res = modDatabase.$syConn.Exec("select fldtime,flditem,fldreportquali,flddetail,fldcomp,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and fldtime>=&3 and fldtime<=&4 and flditem in(select flditem as col from tbldischarge)", encid, "Notes", modDate.StartSqlDate(xdt), modDate.EndSqlDate(xdt))
+        sql1 = "select fldtime,flditem,fldreportquali,flddetail,fldcomp,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and fldtime>=&3 and fldtime<=&4 and flditem in(select flditem as col from tbldischarge)"
+        sql2 = "select fldtime,flditem,fldreportquali,flddetail,fldcomp,flduserid from tblpatientnotes where fldencounterval=&1 and fldinput=&2 and fldtime>=&3 and fldtime<=&4 and flditem in(select flditem as col from tbldischarge)"
+        res = modDatabase.$syConn.Exec(sql1 & " UNION ALL " & sql2 & " ORDER BY fldtime", encid, "Notes", modDate.StartSqlDate(xdt), modDate.EndSqlDate(xdt))
       Endif
       For Each res
         xnote = ""
@@ -642,6 +656,8 @@ End
 Public Function ShowPatientHistoryReport(encid As String) As String
 
   Dim $BillingReport As CReportHTML
+  Dim sql1 As String
+  Dim sql2 As String
   Dim res As Result
   Dim asx As New String[0]
 
@@ -652,13 +668,17 @@ Public Function ShowPatientHistoryReport(encid As String) As String
   $BillingReport.UserData.Add("REPORT", "Report")
   $BillingReport.UserData.Add("PATIENT HISTORY", "PARAM1")
 
-  red1 = modDatabase.$syConn.Exec("select DISTINCT DATE(fldtime) as fldtime from tblexamgeneral where fldencounterval=&1 and fldinput=&2 ORDER BY fldtime", encid, "History")
+  sql1 = "select DISTINCT DATE(fldtime) as fldtime from tblexamgeneral where fldencounterval=&1 and fldinput=&2"
+  sql2 = "select DISTINCT DATE(fldtime) as fldtime from tblpatientnotes where fldencounterval=&1 and fldinput=&2"
+  red1 = modDatabase.$syConn.Exec(sql1 & " UNION " & sql2 & " ORDER BY fldtime", encid, "History")
   If red1.Available Then
     For Each red1
       xdt = red1["fldtime"]
       $BillingReport.AddSection(modReportVar.GetDateTimeReport(xdt, gb.MediumDate), True)
 
-      res = modDatabase.$syConn.Exec("select fldtime,flditem,fldreportquali,flddetail,fldcomp,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and fldtime>=&3 and fldtime<=&4", encid, "History", modDate.StartSqlDate(xdt), modDate.EndSqlDate(xdt))
+      sql1 = "select fldtime,flditem,fldreportquali,flddetail,fldcomp,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and fldtime>=&3 and fldtime<=&4"
+      sql2 = "select fldtime,flditem,fldreportquali,flddetail,fldcomp,flduserid from tblpatientnotes where fldencounterval=&1 and fldinput=&2 and fldtime>=&3 and fldtime<=&4"
+      res = modDatabase.$syConn.Exec(sql1 & " UNION ALL " & sql2 & " ORDER BY fldtime", encid, "History", modDate.StartSqlDate(xdt), modDate.EndSqlDate(xdt))
       For Each res
         With asx
           .Add("<b>" & res["flditem"] & "</b><br>" & modReportVar.GetDateTimeReport(res["fldtime"], gb.MediumTime) & "<br>" & res["flduserid"] & "@" & res["fldcomp"])

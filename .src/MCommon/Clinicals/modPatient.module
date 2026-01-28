@@ -12,7 +12,7 @@ Public Sub GetPatientDataColl(encid As String, sCon As Connection)
   Dim xaddr As String[]
 
   If $PatProfileData.Exist(encid) = False Then
-    res = sCon.Exec("SELECT tblpatientinfo.fldpatientval as fldpatientval,tblpatientinfo.fldptnamefir as fldptnamefir,tblpatientinfo.fldptnamelast as fldptnamelast,tblpatientinfo.fldethniccode as fldethniccode,tblpatientinfo.fldptsex as fldptsex,tblpatientinfo.fldptaddvill as fldptaddvill,tblpatientinfo.fldptaddward as fldptaddward,tblpatientinfo.fldptadddist as fldptadddist,tblpatientinfo.fldptcontact as fldptcontact,tblpatientinfo.fldemail as fldemail,tblpatientinfo.fldptbirday as fldptbirday,tblpatientinfo.fldptguardian as fldptguardian,tblpatientinfo.fldrelation as fldrelation,tblpatientinfo.fldptcode as fldptcode,tblpatientinfo.fldencrypt as fldencrypt,tblpatientinfo.fldadmitfile as fldadmitfile,tblpatientinfo.fldcomment as fldcomment,tblencounter.fldadmitlocat as fldadmitlocat,tblencounter.fldregdate as fldregdate,tblencounter.fldvisit as fldvisit,tblencounter.fldfollow as fldfollow,tblencounter.flddisctype as flddisctype,tblencounter.fldbillingmode as fldbillingmode,tblencounter.fldvalidity as fldvalidity,tblencounter.fldadmitward as fldadmitward,tblencounter.fldadmitbed as fldadmitbed,tblencounter.flddoa as flddoa,tblencounter.flddod as flddod,tblencounter.fldfollowdate as fldfollowdate,tblencounter.fldreferto as fldreferto FROM tblpatientinfo INNER JOIN tblencounter ON tblpatientinfo.fldpatientval=tblencounter.fldpatientval WHERE tblencounter.fldencounterval=&1", encid)     ''
+    res = sCon.Exec("SELECT tblpatientinfo.fldpatientval as fldpatientval,tblpatientinfo.fldptnamefir as fldptnamefir,tblpatientinfo.fldptnamelast as fldptnamelast,tblpatientinfo.fldethniccode as fldethniccode,tblpatientinfo.fldptsex as fldptsex,tblpatientinfo.fldptaddvill as fldptaddvill,tblpatientinfo.fldptaddward as fldptaddward,tblpatientinfo.fldptadddist as fldptadddist,tblpatientinfo.fldptcontact as fldptcontact,tblpatientinfo.fldemail as fldemail,tblpatientinfo.fldptbirday as fldptbirday,tblpatientinfo.fldptguardian as fldptguardian,tblpatientinfo.fldrelation as fldrelation,tblpatientinfo.fldptcode as fldptcode,tblpatientinfo.fldencrypt as fldencrypt,tblpatientinfo.fldadmitfile as fldadmitfile,tblpatientinfo.fldcomment as fldcomment,tblencounter.fldadmitlocat as fldadmitlocat,tblencounter.fldregdate as fldregdate,tblencounter.fldvisit as fldvisit,tblencounter.fldfollow as fldfollow,tblencounter.flddisctype as flddisctype,tblencounter.fldbillingmode as fldbillingmode,tblencounter.fldvalidity as fldvalidity,tblencounter.fldadmitward as fldadmitward,tblencounter.fldadmitbed as fldadmitbed,tblencounter.flddoa as flddoa,tblencounter.flddod as flddod,tblencounter.fldfollowdate as fldfollowdate,tblencounter.fldreferto as fldreferto,tblencounter.fldmarker as fldmarker,tblencounter.fldregistid as fldregistid,tblencounter.fldadmitid as fldadmitid FROM tblpatientinfo INNER JOIN tblencounter ON tblpatientinfo.fldpatientval=tblencounter.fldpatientval WHERE tblencounter.fldencounterval=&1", encid)     ''
     If res.Available Then
       sColl = New Collection
       sColl.Add(res["fldpatientval"], "fldpatientval")
@@ -66,6 +66,9 @@ Public Sub GetPatientDataColl(encid As String, sCon As Connection)
       sColl.Add(res["flddod"], "flddod")
       sColl.Add(res["fldfollowdate"], "fldfollowdate")
       sColl.Add(res["fldreferto"], "fldreferto")
+      sColl.Add(res["fldmarker"], "fldmarker")
+      sColl.Add(res["fldregistid"], "fldregistid")
+      sColl.Add(res["fldadmitid"], "fldadmitid")
 
       ''add to collection
       $PatProfileData.Add(sColl, encid)
@@ -2345,6 +2348,34 @@ Public Function GetFirstWardTransfer(encid As String) As String
 
 End
 
+Public Sub GetPregnancyStatus(encid As String) As String
+
+  Dim xx As String
+  Dim res1 As Result
+
+  GetPatientDataColl(encid, modDatabase.$myConn)
+  If $PatProfileData.Exist(encid) Then
+    xx = $PatProfileData[encid]["fldmarker"]
+    If Not xx Then
+      xx = ""
+    Endif
+
+  Else
+    res1 = modDatabase.$myConn.Exec("select fldmarker from tblencounter where fldencounterval=&1", encid)
+    If res1.Available Then
+      If res1["fldmarker"] Then
+        xx = res1["fldmarker"]
+      Else
+        xx = ""
+      Endif
+    Else
+      xx = ""
+    Endif
+  Endif
+  Return xx
+
+End
+
 ''------------------------------ Admission status
 Public Function CurrentAdmissionStatus(encid As String) As String
 
@@ -2847,12 +2878,12 @@ Public Function GetPatientCOnsultList(encid As String) As String[]
     If res.Available Then
       For Each res
         xval = "<p>"
-        xval = xval & "<b>" & res["fldconsultname"] & "</b> (" & res["fldstatus"] & ")" & "<br>"
+        xval = xval & "<b>" & res["fldconsultname"] & "</b> (" & res["fldstatus"] & ")"
         If res["fldpresummary"] Then
-          xval = xval & "REQUESTED FOR<br>" & res["fldpresummary"] & "<br>"
+          xval = xval & "<br>" & "REQUESTED FOR<br>" & res["fldpresummary"]
         Endif
         If res["fldoutcome"] Then
-          xval = xval & "OUTCOME: " & res["fldoutcome"] & "<br>" & res["fldsummary"] & "<br>"
+          xval = xval & "<br>" & "OUTCOME: " & res["fldoutcome"] & "<br>" & res["fldsummary"]
         Endif
         If modBasic.$ShowDayMedReport = "User" Then
           xxx.Add(xval & "[User: " & res["flduserid"] & "]</p>")

@@ -8,6 +8,7 @@ Private $sTatus As String
 Private $PopDiagno As Boolean
 Private $UserRestrict As String[]
 Private $PatientNum As String
+Private hOwnStockForm As FmWardStock
 
 Private $billModeTest As String
 Private $billModeRadio As String
@@ -215,6 +216,9 @@ Private Sub GetEncounterValue()
             UpdateTriage()
             Wait
             If modPatientSub.AllowEncIDHistory(Trim(txtencid.Text), modDatabase.$myConn) = True Then
+              GetDefaultBillingmodes()
+              hOwnStockForm = New FmWardStock(Trim(txtencid.Text), $sTatus, $billModePharmacy, "", pnlwardstock)
+              hOwnStockForm.SetOwnDepartment($DELExams)
               BlockDCButton()
               modImage.ShowPhotoSplash("Patient", modPatient.GetPatientNoByEnc(Trim(txtencid.Text)))
               ''MAIN FORM
@@ -413,7 +417,6 @@ End
 Private Sub BasicInfoPatient()
 
   If txtencid.Text Then
-    GetDefaultBillingmodes()
     ButtonControl()
     If txtgender.Text = "Female" Then
       TabPanel1.Enabled = True
@@ -509,11 +512,9 @@ Private Sub ButtonControl()
   lstbabyexam.Enabled = xx
   grdbabyexam.Enabled = xx
   ''item used
-  btnaddmed.Enabled = xx
-  btndoserecord.Enabled = xx
-  btnmedstatus.Enabled = xx
-  btnivinfusion.Enabled = xx
-  GridView5.Enabled = xx
+  mnupharmrequest.Enabled = xx
+  mnumeddosing.Enabled = xx
+  mnuivinfusion.Enabled = xx
   ''lab req
   mnulabrequest.Enabled = xx
   ''radio req
@@ -571,7 +572,7 @@ Private Sub UserAccessRestrict()
   Endif
 
   If $UserRestrict.Exist("Pharmacy Request") Then
-    btnaddmed.Visible = False
+    mnupharmrequest.Visible = False
   Endif
   If $UserRestrict.Exist("Laboratory Request") Then
     mnulabrequest.Visible = False
@@ -603,11 +604,10 @@ Private Sub UserAccessRestrict()
   Endif
 
   If $UserRestrict.Exist("Medicine Dosing") Then
-    btndoserecord.Visible = False
-    btnmedstatus.Visible = False
+    mnumeddosing.Visible = False
   Endif
   If $UserRestrict.Exist("IV Infusion") Then
-    btnivinfusion.Visible = False
+    mnuivinfusion.Visible = False
   Endif
 
 End
@@ -1239,10 +1239,10 @@ Public Sub TabPanel1_Click()
       BabyExaminationTree()
       cmbbabyencid.List = GetEncListConfinement(Trim(txtencid.Text))
     Else If TabPanel1.Index = 5 Then
-      FillDosingGrid("Current")
-    Else If TabPanel1.Index = 6 Then
       LoadTreeData3()
       ShowClinicTable3()
+    Else If TabPanel1.Index = 6 Then
+      hOwnStockForm.RearrangeGrid()
     Endif
   Endif
 
@@ -1457,9 +1457,10 @@ Public Sub btnaddbaby_Click()
               res2["fldgestation"] = DateDiff(res2["fldlast"], dtdelivery.Value, gb.Day)
               res2.Update
             Endif
-            modClinSub.AddGeneralParametersQuali(Trim(txtencid.Text), "Pregnancy Status", "Breast feeding")
+            modPatientSub.UpdatePregnancyStatus(Trim(txtencid.Text), "Breast feeding")
             modDatabase.$myConn.Commit
             NewDeliveryGrid()
+            modPatient.$PatProfileData.Remove(Trim(txtencid.Text))
             Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
 
           Else
@@ -1822,6 +1823,8 @@ Private Function AddBabyDetail(sex As String, dob As Date) As String
 
           res1["fldregistid"] = modPatient.GetPatientHMISRegVal($patNo)
           res1["fldadmitid"] = ""
+          res1["fldmarker"] = ""
+          res1["fldpassword"] = ""
           res1["xyz"] = False
           If MMain.$WebEntry = True Then
             res1["fldrepodate"] = Now()
@@ -2883,69 +2886,7 @@ Public Sub btnrepobaby_Click()
 End
 
 ''============================= PHARMACY ======================
-Public Sub btnshowallmed_Click()
-
-  If txtencid.Text Then
-    If btnshowallmed.Value = True Then
-      FillDosingGrid("All")
-    Else If btnshowallmed.Value = False Then
-      FillDosingGrid("Current")
-    Endif
-  Endif
-
-End
-
-Private Sub FillDosingGrid(strType As String)
-
-  Dim sql As String
-
-  If strType = "Current" Then
-    sql = "select fldid,fldstarttime,fldroute,flditem,flddose,fldfreq,flddays,(fldqtydisp-fldqtyret) as qty,fldlabel,fldcurval from tblpatdosing where fldencounterval=&1 and fldcomp_order=&2 and fldsave_order=&3 and flditemtype=&4"                                                   ''
-    $rData5 = modDatabase.$myConn.Exec(sql, Trim(txtencid.Text), modBasic.$compID, True, "Medicines")
-  Else If strType = "All" Then
-    sql = "select fldid,fldstarttime,fldroute,flditem,flddose,fldfreq,flddays,(fldqtydisp-fldqtyret) as qty,fldlabel,fldcurval from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and flditemtype=&3"                                                   ''
-    $rData5 = modDatabase.$myConn.Exec(sql, Trim(txtencid.Text), True, "Medicines")
-  Endif
-  $aMyFields5 = New String[]
-  modGridView.ReadSmallData(GridView5, $rData5, $aMyFields5)
-
-  With GridView5
-    .Columns[0].Hidden = True
-    .Columns[1].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
-    .Columns[2].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
-    .Columns[3].Width = CStr(300 * modBasic.$AppWidthRatio) & "px"
-    .Columns[4].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
-    .Columns[5].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
-    .Columns[6].Width = CStr(40 * modBasic.$AppWidthRatio) & "px"
-    .Columns[7].Width = CStr(40 * modBasic.$AppWidthRatio) & "px"
-    .Columns[8].Hidden = True
-    .Columns[9].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
-
-    .Columns[1].Text = "StartDate"
-    .Columns[2].Text = "Route"
-    .Columns[3].Text = "Particulars"
-    .Columns[4].Text = "Dose"
-    .Columns[5].Text = "Freq"
-    .Columns[6].Text = "Days"
-    .Columns[7].Text = "QTY"
-    .Columns[9].Text = "Status"
-  End With
-
-End
-
-Public Sub GridView5_Data(Row As Integer, Column As Integer, Data As WebTableData)
-
-  $rData5.MoveTo(Row)
-  modGridView.GridViewDecoration(Data, Row)
-  If Column = 1 Then
-    Data.Text = modReportVar.GetDateTimeReport($rData5[$aMyFields5[Column]], gb.GeneralDate)
-  Else
-    Data.Text = $rData5[$aMyFields5[Column]]
-  Endif
-
-End
-
-Public Sub btnaddmed_Click()
+Public Sub mnupharmrequest_Click()
 
   Dim hForm As FmMedOrder
 
@@ -2956,58 +2897,29 @@ Public Sub btnaddmed_Click()
         hForm = New FmMedOrder(Trim(txtencid.Text), txtnow.Text, $billModePharmacy)
         hForm.ShowModal
       Endif
-      FillDosingGrid("Current")
     Endif
   Endif
 
 End
 
-Public Sub btndoserecord_Click()
+Public Sub mnumeddosing_Click()
 
   Dim hForm As FmDoseMobile
 
   If txtencid.Text Then
     hForm = New FmDoseMobile(Trim(txtencid.Text))
     hForm.ShowModal
-    FillDosingGrid("Current")
   Endif
 
 End
 
-Public Sub btnivinfusion_Click()
+Public Sub mnuivinfusion_Click()
 
   Dim hForm As FmIVInfusion
 
   If txtencid.Text Then
     hForm = New FmIVInfusion(Trim(txtencid.Text))
     hForm.ShowModal
-    FillDosingGrid("Current")
-  Endif
-
-End
-
-Public Sub btnmedexpo_Click()
-
-  modCHTMLReport.ExportGridToHTML(GridView5, "ITEMS USED: " & "Delivery", modReportVar.GetDateTimeReport(Now(), gb.GeneralDate))
-
-End
-
-Public Sub btnmedstatus_Click()
-
-  Dim xx As String[] = ["Continue", "Completed", "Discontinue", "On Hold", "Change", "ReWrite", "Cancelled", "Wasted"]
-  Dim res As Result
-  Dim xval As String
-
-  If GridView5.Selection.Count Then
-    $rData5.MoveTo(GridView5.Selection[0])
-    xval = InputCombo($rData5["flditem"], ("Select Current Status"), xx, $rData5["fldcurval"], True)
-    If xval Then
-      res = modDatabase.$myConn.Edit("tblpatdosing", "fldid=&1", $rData5["fldid"])
-      res["fldcurval"] = xval
-      res["xyz"] = False
-      res.Update()
-      FillDosingGrid("Current")
-    Endif
   Endif
 
 End

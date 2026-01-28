@@ -599,7 +599,7 @@ Private Sub BasicInfoPatient()
     SHowDiagnosis()
     modPatientSub.PopUpPatientForm(Trim(txtencid.Text), Me.Tag)
     If modPharmacy.DisableEncounterForReview(Trim(txtencid.Text)) = True Then
-      $ShowReview = "No"
+      $ShowReview = "None"
     Endif
     ShowOldEntry
     FillDosingGrid()
@@ -1620,6 +1620,7 @@ Public Sub txtday_Activate()
   Dim opt As String[]
   Dim aval As String
   Dim xcount As Integer
+  Dim cForm As CMedError
 
   If Not txtday.Value Then
     If rbasep.Value = True Then
@@ -1632,30 +1633,33 @@ Public Sub txtday_Activate()
       xcount = 0
       If $HideErr = False Then
         If txtdose.Value And If cmbfreq.Text Then
-          If $ShowReview = "Yes" Then
-            opt = New String[]
-            For Each $rData
-              Select $rData["fldroute"]
-                Case "suture", "msurg", "ortho", "extra", "topical"
-                Case Else
-                  aval = modMedConstant.GetDrugFromStockID($rData["flditem"])
-                  If opt.Count = 0 Then
-                    opt.Add(aval)
-                  Else
-                    If opt.Exist(aval) = False Then
-                      opt.Add(aval)
-                    Endif
-                  Endif
-              End Select
-            Next
 
-            Select cmbroute.Text
-              Case "suture", "msurg", "ortho", "extra", "topical"
-              Case Else
+          Select cmbroute.Text
+            Case "suture", "msurg", "ortho", "extra", "topical"
+              ''do nothing
+            Case Else
+              If $ShowReview And If $ShowReview <> "None" Then
+                opt = New String[]
+                For Each $rData
+                  Select $rData["fldroute"]
+                    Case "suture", "msurg", "ortho", "extra", "topical"
+                    Case Else
+                      aval = modMedConstant.GetDrugFromStockID($rData["flditem"])
+                      If opt.Count = 0 Then
+                        opt.Add(aval)
+                      Else
+                        If opt.Exist(aval) = False Then
+                          opt.Add(aval)
+                        Endif
+                      Endif
+                  End Select
+                Next
                 $HideErr = True
-                xcount = modMedError.ShowMedicationReviewPunching(Trim(txtencid.Text), cmbroute.Text, cmbmedicine.Text, txtdose.Value, cmbfreq.Text, opt, "Message Box")
-            End Select
-          Endif
+                cForm = New CMedError
+                xcount = cForm.ShowMedicationReviewPunching(Trim(txtencid.Text), cmbroute.Text, cmbmedicine.Text, txtdose.Value, cmbfreq.Text, opt, $ShowReview)
+              Endif
+          End Select
+
         Endif
       Endif
 
@@ -1743,7 +1747,7 @@ Public Sub chksave_Click()
 
 End
 
-Private Sub AllowLockCheckPunching() As Boolean
+Private Function AllowLockCheckPunching() As Boolean
 
   Dim xallow As Boolean
   Dim dtlast As Date
@@ -3030,6 +3034,7 @@ Public Sub mnureview_Click()
 
   Dim opt As String[]
   Dim xval As String
+  Dim cForm As CMedError
 
   opt = New String[]
   For Each $rData
@@ -3049,7 +3054,8 @@ Public Sub mnureview_Click()
 
   If GridView1.Selection.Count Then
     $rData.MoveTo(GridView1.Selection[0])
-    modMedError.ShowMedicationReviewSingleDosID($rData["fldid"], opt, "Report")
+    cForm = New CMedError
+    cForm.ShowMedicationReviewSingleDosID($rData["fldid"], opt, "Report")
   Endif
 
 End
@@ -3057,6 +3063,7 @@ End
 Public Sub mnureviewall_Click()
 
   Dim opt As Long[]
+  Dim cForm As CMedError
 
   If GridView1.Count Then
     opt = New Long[]
@@ -3067,7 +3074,8 @@ Public Sub mnureviewall_Click()
           opt.Add($rData["fldid"])
       End Select
     Next
-    modMedError.ShowMedicationReviewMultipleDosID(Trim(txtencid.Text), opt, "Report")
+    cForm = New CMedError
+    cForm.ShowMedicationReviewMultipleDosID(Trim(txtencid.Text), opt, "Report")
   Endif
 
 End

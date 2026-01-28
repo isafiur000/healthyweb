@@ -193,6 +193,106 @@ Public Sub UpdatePatientTableEndTime(encid As String, txtcateg As String, txtite
 
 End
 
+''------------------------ tblpatientnotes ------------------------------
+Public Sub AddPatientParagraph(encid As String, strInput As String, strItem As String, strReport As String, strDetail As String, Optional sUnique As Boolean)
+
+  Dim res As Result
+  Dim rsx As Result
+  Dim suniq As Boolean
+  Dim xIntVal As String
+
+  If sUnique Then
+    If sUnique = True Then
+      If MMain.$WebEntry = True Then
+        rsx = modDatabase.$myConn.Exec("select fldid from tblpatientnotes where fldencounterval=&1 and fldinput=&2 and flditem=&3", encid, strInput, strItem)
+      Else
+        rsx = modDatabase.$myConn.Exec("select fldid from tblpatientnotes where fldencounterval=&1 and fldinput=&2 and flditem=&3", encid, strInput, strItem)
+      Endif
+      If rsx.Available Then
+        suniq = True
+      Else
+        suniq = False
+      Endif
+    Else
+      suniq = False
+    Endif
+  Else
+    suniq = False
+  Endif
+
+  If suniq = True Then
+    res = modDatabase.$myConn.Edit("tblpatientnotes", "fldencounterval=&1 and fldinput=&2 and flditem=&3", encid, strInput, strItem)
+    If modGeneral.AllowClinicalEdit(res["flduserid"]) = True Then
+      res["fldreportquali"] = strReport
+      If modBasic.$ConvertToASCII = "Enable" Then
+        res["flddetail"] = modDevAll.ConvertStringToASCII(strDetail)
+      Else
+        res["flddetail"] = strDetail
+      Endif
+      res["flduserid"] = modBasic.$lbluser
+      res["fldcomp"] = modBasic.$compID
+      res["fldsave"] = True
+      res["xyz"] = False
+      res.Update()
+    Else
+      Message.Warning("Authorization with " & res["flduserid"], ("OK"))
+    Endif
+  Else If suniq = False Then
+    res = modDatabase.$myConn.Create("tblpatientnotes")
+    res["fldencounterval"] = encid
+    res["fldinput"] = strInput
+    res["flditem"] = strItem
+    res["fldreportquali"] = strReport
+    If modBasic.$ConvertToASCII = "Enable" Then
+      res["flddetail"] = modDevAll.ConvertStringToASCII(strDetail)
+    Else
+      res["flddetail"] = strDetail
+    Endif
+    res["flduserid"] = modBasic.$lbluser
+    res["fldtime"] = Now()
+    res["fldoriguserid"] = modBasic.$lbluser
+    res["fldorigtime"] = Now()
+    res["fldcomp"] = modBasic.$compID
+    res["fldsave"] = True
+    res["xyz"] = False
+
+    If MMain.$WebEntry = True Then
+      xIntVal = modString.GetDateString(Now())
+      res["fldid"] = CLong(xIntVal)
+      res["fldrepoid"] = modMisc.GetWebIndexStr(xIntVal)
+      res["fldrepodate"] = Now()
+      res["fldrepomac"] = modHelpVariable.$MACAddress
+      res["fldhospcode"] = modBasic.$HospCode
+    Endif
+
+    res.Update()
+    'don't catch error
+  Endif
+
+End
+
+Public Sub UpdatePatNoteQualiData(id As Long, encid As String, strItem As String, strReport As String, strDetail As String)
+
+  Dim res As Result
+
+  res = modDatabase.$myConn.Edit("tblpatientnotes", "fldid=&1 and fldencounterval=&2", id, encid)
+  If res.Available Then
+    If modGeneral.AllowClinicalEdit(res["flduserid"]) = True Then
+      res["flditem"] = strItem
+      res["fldreportquali"] = strReport
+      res["flddetail"] = strDetail
+      res["flduserid"] = modBasic.$lbluser
+      res["fldcomp"] = modBasic.$compID
+      res["xyz"] = False
+      res.Update()
+    Else
+      Message.Warning("Authorization with " & res["flduserid"], ("OK"))
+    Endif
+  Endif
+  'don't catch error
+
+End
+
 ''----------------------------- for exam general ----------------------------------------
 Public Sub AddExamGeneralQuantiData(encid As String, strInput As String, strItem As String, strReport As Float, strDetail As String, Optional sUnique As Boolean)
 
@@ -297,11 +397,7 @@ Public Sub AddExamGeneralQualiData(encid As String, strInput As String, strItem 
     If modGeneral.AllowClinicalEdit(res["flduserid"]) = True Then
       res["fldreportquali"] = strReport
       res["fldreportquanti"] = 0
-      If modBasic.$ConvertToASCII = "Enable" Then
-        res["flddetail"] = modDevAll.ConvertStringToASCII(strDetail)
-      Else
-        res["flddetail"] = strDetail
-      Endif
+      res["flddetail"] = strDetail
       res["flduserid"] = modBasic.$lbluser
       res["fldcomp"] = modBasic.$compID
       res["fldsave"] = True
@@ -319,11 +415,7 @@ Public Sub AddExamGeneralQualiData(encid As String, strInput As String, strItem 
     res["flditem"] = strItem
     res["fldreportquali"] = strReport
     res["fldreportquanti"] = 0
-    If modBasic.$ConvertToASCII = "Enable" Then
-      res["flddetail"] = modDevAll.ConvertStringToASCII(strDetail)
-    Else
-      res["flddetail"] = strDetail
-    Endif
+    res["flddetail"] = strDetail
     res["flduserid"] = modBasic.$lbluser
     res["fldtime"] = Now()
     res["fldcomp"] = modBasic.$compID

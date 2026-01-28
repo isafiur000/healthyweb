@@ -1200,6 +1200,7 @@ Public Sub btncompList_Click()
     Select cmbtype.Text
       Case "Group", "Package"
         If xdata Then
+          xdata.Sort()
           cmbitem.Text = GridViewNew("Select Cashier Pack", xdata, False)
         Endif
         txtdisc.SetFocus
@@ -1311,17 +1312,19 @@ Public Sub chksave_Click()
         txtotal.Value = Round(txtrate.Value * txtqty.Value * (1 - txtdisc.Value / 100) * (1 + txtax.Value / 100), -2)
       Endif
 
-      If AllowLockCheckPunching() = True Then
-        If CheckDepositBilling(txtotal.Value + txttotnew.Value + txttotsaved.Value) = True Then
-          AddEntryToBill()
-          BlankForEntry()
-          cmbtype.SetFocus
+      If AllowServiceInput() = True Then
+        If AllowLockCheckPunching() = True Then
+          If CheckDepositBilling(txtotal.Value + txttotnew.Value + txttotsaved.Value) = True Then
+            AddEntryToBill()
+            BlankForEntry()
+            cmbtype.SetFocus
+          Else
+            cmbtype.SetFocus
+          Endif
         Else
-          cmbtype.SetFocus
+          msg = "Not Allowed. Reason may be: 1) Diagnosis requirement, or, 2) Credit Lock Rule"
+          Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", msg, modBasic.$BalloonDelay))
         Endif
-      Else
-        msg = "Not Allowed. Reason may be: 1) Diagnosis requirement, or, 2) Credit Lock Rule"
-        Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", msg, modBasic.$BalloonDelay))
       Endif
 
     Endif
@@ -1329,7 +1332,53 @@ Public Sub chksave_Click()
 
 End
 
-Private Sub AllowLockCheckPunching() As Boolean
+Private Function AllowServiceInput() As Boolean
+
+  Dim xallow As Boolean
+
+  xallow = True
+  If hPatient.GetCashCreditMode() = "Cash" Then
+    Select modBasic.$BillServiceNoEntry
+      Case "Cash", "Both"
+        xallow = False
+    End Select
+
+  Else
+    Select modBasic.$BillServiceNoEntry
+      Case "Credit", "Both"
+        xallow = False
+    End Select
+
+  Endif
+
+  Return xallow
+
+End
+
+Private Function AllowPharmInput() As Boolean
+
+  Dim xallow As Boolean
+
+  xallow = True
+  If hPatient.GetCashCreditMode() = "Cash" Then
+    Select modBasic.$BillPharmNoEntry
+      Case "Cash", "Both"
+        xallow = False
+    End Select
+
+  Else
+    Select modBasic.$BillPharmNoEntry
+      Case "Credit", "Both"
+        xallow = False
+    End Select
+
+  Endif
+
+  Return xallow
+
+End
+
+Private Function AllowLockCheckPunching() As Boolean
 
   Dim xallow As Boolean
   Dim dtlast As Date
@@ -4088,20 +4137,22 @@ Public Sub chksavenew_Click()
       Else
         If txtencid.Text And If cmbroute.Text And If cmbmedicine.Text And If txtqtymed.Value Then
 
-          If AllowLockCheckPunching() = True Then
-            EnterDosingRecord()
-            If $DefaultPharmType Then
-              If $DefaultPharmType = "No Change" Then
+          If AllowPharmInput() = True Then
+            If AllowLockCheckPunching() = True Then
+              EnterDosingRecord()
+              If $DefaultPharmType Then
+                If $DefaultPharmType = "No Change" Then
+                Else
+                  cmbroute.Text = $DefaultPharmType
+                Endif
               Else
-                cmbroute.Text = $DefaultPharmType
+                cmbroute.Text = ""
               Endif
-            Else
-              cmbroute.Text = ""
-            Endif
 
-            cmbroute.SetFocus
-          Else
-            Me.Exec("Toastify({text: 'Encounter Locked', duration: 3000}).showToast()")
+              cmbroute.SetFocus
+            Else
+              Me.Exec("Toastify({text: 'Encounter Locked', duration: 3000}).showToast()")
+            Endif
           Endif
 
         Endif
@@ -5139,40 +5190,37 @@ Public Sub btnaddicdold_Click()
 
   Dim res As Result
   Dim xxx As String[]
-  Dim sName As String[]
+  Dim xuser As String
 
-  If btndiuser.Tag Then
-    res = modDatabase.$myConn.Exec("select fldcode,fldcodenew from tblpatfindings where fldencounterval=&1 and (fldtype=&2 or fldtype=&3) and fldsave=&4", $lstEncid, "Provisional Diagnosis", "Final Diagnosis", True)
-    If res.Available Then
-      xxx = New String[]
+  res = modDatabase.$myConn.Exec("select fldcode,fldcodenew,flduserid from tblpatfindings where fldencounterval=&1 and (fldtype=&2 or fldtype=&3) and fldsave=&4", $lstEncid, "Provisional Diagnosis", "Final Diagnosis", True)
+  If res.Available Then
+    xxx = New String[]
+    For Each res
+      If res["fldcodenew"] = "Other" Then
+      Else
+        xxx.Add("[" & res["fldcodenew"] & "] " & res["fldcode"])
+      Endif
+      xuser = res["flduserid"]
+    Next
+    btndiuser.Tag = xuser
+    btndiuser.Text = modGeneral.GetUserFullName(xuser)
+
+    If Message.Question("<b>Add following diagnosis from past visit ?</b><br>" & xxx.Join("<br>"), ("No"), ("Yes")) = 2 Then
       For Each res
-        If res["fldcodenew"] = "Other" Then
+        If xuser Then
+          modPatientGeneral.AddPatientFindings("Provisional Diagnosis", Trim(txtencid.Text), res["fldcode"], res["fldcodenew"], "", xuser)
         Else
-          xxx.Add(res["fldcode"] & "|" & res["fldcodenew"])
+          modPatientGeneral.AddPatientFindings("Provisional Diagnosis", Trim(txtencid.Text), res["fldcode"], res["fldcodenew"], "")
         Endif
       Next
-
-      sName = DualGridValue("Select Past Diagnosis", xxx, True)
-      If sName Then
-        txtsearch.Text = sName[1]
-        txtcode.Text = sName[0]
-        If txtsearch.Text And If txtcode.Text Then
-          If btndiuser.Tag Then
-            modPatientGeneral.AddPatientFindings("Provisional Diagnosis", Trim(txtencid.Text), txtsearch.Text, txtcode.Text, txtcodeold.Text, btndiuser.Tag)
-          Else
-            modPatientGeneral.AddPatientFindings("Provisional Diagnosis", Trim(txtencid.Text), txtsearch.Text, txtcode.Text, txtcodeold.Text)
-          Endif
-          If txtreference.Tag = "Consultation" Or If txtreference.Tag = "Patient Ward" Then
-            GetHImedicineCappingVar()
-          Endif
-          Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
-          cmbtype.SetFocus
-        Endif
+      SHowDiagnosis()
+      If txtreference.Tag = "Consultation" Or If txtreference.Tag = "Patient Ward" Then
+        GetHImedicineCappingVar()
       Endif
-
+      Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+      cmbtype.SetFocus
     Endif
-  Else
-    Message.Warning("No Consultant selected", "OK")
+
   Endif
 
 End
@@ -5512,6 +5560,37 @@ Public Sub mnuoutpharmacy_Click()
 
 End
 
+Private Sub AllowDiagnosisCheckPunching() As Boolean
+
+  Dim xallow As Boolean
+
+  xallow = True
+  If hPatient.GetCashCreditMode() = "Cash" Then
+    If modBasic.$BillAddDiagnosis = "ForceAll" Then
+      If txtsearch.Text And If txtcode.Text Then
+      Else
+        xallow = False
+      Endif
+    Endif
+
+  Else
+    If modBasic.$BillAddDiagnosis = "Force" And If txtreference.Text Then
+      If txtsearch.Text And If txtcode.Text Then
+      Else
+        xallow = False
+      Endif
+    Else If modBasic.$BillAddDiagnosis = "ForceAll" Then
+      If txtsearch.Text And If txtcode.Text Then
+      Else
+        xallow = False
+      Endif
+    Endif
+
+  Endif
+  Return xallow
+
+End
+
 Public Sub mnupastorder_Click()
 
   Dim res As Result
@@ -5519,20 +5598,22 @@ Public Sub mnupastorder_Click()
   Dim finLst As String[]
   Dim xitem As String
 
-  xList = New String[]
-  res = modDatabase.$myConn.Exec("select fldid,flditemname,fldordcomp from tblpatbilling where fldencounterval=&1 and fldsave=&2 and fldstatus=&3 and fldbillno IS NULL", $lstEncid, False, "Planned")
-  If res.Available Then
-    For Each res
-      xList.Add(res["flditemname"] & "|" & res["fldordcomp"])
-    Next
+  If AllowDiagnosisCheckPunching() = True Then
+    xList = New String[]
+    res = modDatabase.$myConn.Exec("select fldid,flditemname,fldordcomp from tblpatbilling where fldencounterval=&1 and fldsave=&2 and fldstatus=&3 and fldbillno IS NULL", $lstEncid, False, "Planned")
+    If res.Available Then
+      For Each res
+        xList.Add(res["flditemname"] & "|" & res["fldordcomp"])
+      Next
 
-    If xList.Count Then
-      finLst = GridDualView("Past Orders for Billing", xList)
-      If finLst And If finLst.Count Then
-        For Each xitem In finLst
-          CopyToNewItem($lstEncid, xitem)
-        Next
-        ShowNewEntry()
+      If xList.Count Then
+        finLst = GridDualView("Past Orders for Billing", xList)
+        If finLst And If finLst.Count Then
+          For Each xitem In finLst
+            CopyToNewItem($lstEncid, xitem)
+          Next
+          ShowNewEntry()
+        Endif
       Endif
     Endif
   Endif
@@ -5581,33 +5662,34 @@ Public Sub mnupastmedicine_Click()
   Dim xList As String[]
   Dim finLst As String[]
   Dim xitem As String
-
   Dim res1 As Result
 
-  xList = New String[]
-  res = modDatabase.$myConn.Exec("select fldid,flditem,fldcomp_order from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldcurval=&3", $lstEncid, False, "Planned")
-  If res.Available Then
-    For Each res
-      xList.Add(res["flditem"] & "|" & res["fldcomp_order"])
-    Next
+  If AllowDiagnosisCheckPunching() = True Then
+    xList = New String[]
+    res = modDatabase.$myConn.Exec("select fldid,flditem,fldcomp_order from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldcurval=&3", $lstEncid, False, "Planned")
+    If res.Available Then
+      For Each res
+        xList.Add(res["flditem"] & "|" & res["fldcomp_order"])
+      Next
 
-    If xList.Count Then
-      finLst = GridDualView("Past Orders for Billing", xList)
-      If finLst And If finLst.Count Then
+      If xList.Count Then
+        finLst = GridDualView("Past Orders for Billing", xList)
+        If finLst And If finLst.Count Then
 
-        For Each xitem In finLst
-          res1 = modDatabase.$myConn.Edit("tblpatdosing", "fldencounterval=&1 and fldsave_order=&2 and fldcurval=&3 and flditem=&4", $lstEncid, False, "Planned", xitem)
-          If res1.Available Then
-            res1["fldencounterval"] = Trim(txtencid.Text)
-            res1["fldcurval"] = "Continue"
-            res1.Update
-          Endif
-        Next
+          For Each xitem In finLst
+            res1 = modDatabase.$myConn.Edit("tblpatdosing", "fldencounterval=&1 and fldsave_order=&2 and fldcurval=&3 and flditem=&4", $lstEncid, False, "Planned", xitem)
+            If res1.Available Then
+              res1["fldencounterval"] = Trim(txtencid.Text)
+              res1["fldcurval"] = "Continue"
+              res1.Update
+            Endif
+          Next
 
-        FillDosingGrid()
+          FillDosingGrid()
+        Endif
       Endif
-    Endif
 
+    Endif
   Endif
 
 End

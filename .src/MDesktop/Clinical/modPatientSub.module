@@ -1,5 +1,6 @@
 ' Gambas module file
 
+''--------------------- tblpatientinfo ------------------------
 Public Function GetPatPassCheck(sCon As Connection, patno As String) As Boolean
 
   Dim res As Result
@@ -28,6 +29,235 @@ Public Function GetPatPassCheck(sCon As Connection, patno As String) As Boolean
     xx = False
   Endif
   Return xx
+
+End
+
+Public Sub UpdatePatFile(patno As String, txtFile As String)
+
+  Dim res As Result
+
+  res = modDatabase.$myConn.Edit("tblpatientinfo", "fldpatientval=&1", patno)
+  res["fldadmitfile"] = txtFile
+  ' res["fldupuser"] = modBasic.$lbluser
+  ' res["flduptime"] = Now()
+  res["xyz"] = False
+  res.Update
+
+End
+
+Public Sub UpdatePatComment(encid As String, sComm As String)
+
+  Dim res As Result
+
+  res = modDatabase.$myConn.Edit("tblpatientinfo", "fldpatientval=&1", modPatient.GetPatientNoByEnc(encid))
+  res["fldcomment"] = sComm
+  res["fldupuser"] = modBasic.$lbluser
+  res["flduptime"] = Now()
+  res["xyz"] = False
+  res.Update
+
+End
+
+''update age in tblpatientinfo
+Public Sub UpdatePatDOB(encid As String, dob As Date)
+
+  Dim res As Result
+
+  res = modDatabase.$myConn.Edit("tblpatientinfo", "fldpatientval=&1", modPatient.GetPatientNoByEnc(encid))
+  res["fldptbirday"] = dob
+  res["xyz"] = False
+  res.Update()
+
+End
+
+' Public Sub UpdateDateOfBirth(encid As String, age As Float, unit As String)
+'
+'   Dim xsec As Integer
+'   Dim dt As Date
+'
+'   If unit = "Hours" Then
+'     xsec = age * 60
+'   Else If unit = "Days" Then
+'     xsec = age * 60 * 24
+'   Else If unit = "Months" Then
+'     xsec = age * 60 * 24 * 30
+'   Else If unit = "Years" Then
+'     xsec = age * 60 * 24 * 365
+'   Endif
+'   xsec = 0 - xsec
+'   dt = DateAdd(Now(), gb.Minute, CInt(xsec))
+'   modPatientSub.UpdatePatDOB(encid, dt)
+'
+' End
+
+''------------------ tblencounter --------------------------------
+Public Sub AddEncounterSpecData(encid As String, consultname As String)
+
+  Dim rs As Result
+
+  rs = modDatabase.$myConn.Edit("tblencounter", "fldencounterval=&1", encid)
+  If Not rs["fldcurrlocat"] Then
+    rs["fldcurrlocat"] = consultname
+  Endif
+  If rs["fldadmission"] <> "Admitted" Then
+    rs["fldadmission"] = "Registered"
+  Endif
+  rs["xyz"] = False
+  rs.Update
+  'don't catch error
+
+End
+
+Public Sub UpdateAdmissionWard(encid As String, sWard As String, Optional sBedNo As String)
+
+  Dim res As Result
+
+  If sWard Then
+    res = modDatabase.$myConn.Edit("tblencounter", "fldencounterval=&1 and fldadmitward IS NULL", encid)
+    If res.Available Then
+      res["fldadmitward"] = sWard
+      If sBedNo Then
+        res["fldadmitbed"] = sBedNo
+      Endif
+      res["xyz"] = False
+      res.Update()
+    Endif
+  Endif
+
+End
+
+Public Sub UpdatePatLocation(encid As String, bedno As String, Optional sDate As Date)
+
+  Dim res As Result
+  Dim res1 As Result
+  Dim res2 As Result
+
+  res = modDatabase.$myConn.Edit("tblencounter", "fldencounterval=&1", encid)
+  res["fldcurrlocat"] = bedno
+  res["xyz"] = False
+  res.Update()
+
+  res2 = modDatabase.$myConn.Edit("tbldepartmentbed", "fldencounterval=&1", encid)
+  If res2.Available Then
+    res2["fldencounterval"] = ""
+    res2["fldaddservice"] = ""
+    res2["fldflag"] = False
+    res2.Update
+  Endif
+
+  res1 = modDatabase.$myConn.Edit("tbldepartmentbed", "fldbed=&1", bedno)
+  If res1.Available Then
+    res1["fldencounterval"] = encid
+    res1["fldfreedate"] = ""
+    res1.Update
+  Endif
+
+  If bedno Then
+    If sDate Then
+      modPatientSub.EnterPatientImpDate(encid, "Location Update", bedno, sDate)
+    Else
+      modPatientSub.EnterPatientImpDate(encid, "Location Update", bedno)
+    Endif
+  Endif
+
+End
+
+Public Function GetPatientAdmission(encid As String) As String
+
+  Dim res As Result
+  Dim xval As String
+
+  res = modDatabase.$myConn.Edit("tblencounter", "fldencounterval=&1", encid)
+  res["fldadmission"] = "Admitted"
+  If Not res["flddoa"] Then
+    res["flddoa"] = Now()
+  Endif
+  res["flddod"] = ""
+  If Not res["fldadmitid"] Then
+    xval = modPatient.GetPatientHMISAdmission(res["fldpatientval"])
+    res["fldadmitid"] = xval
+  Endif
+  res["xyz"] = False
+  res.Update
+  modPatientSub.EnterPatientImpDate(encid, "Admitted", "")
+  modPatient.$PatProfileData.Remove(encid)
+
+  Return xval
+
+End
+
+Public Sub UpdateCurrentStatus(encid As String, status As String, sComment As Variant)
+
+  Dim res As Result
+
+  res = modDatabase.$myConn.Edit("tblencounter", "fldencounterval=&1", encid)
+  res["fldadmission"] = status
+  Select status
+    Case "Discharged", "LAMA", "Death", "Absconder"
+      res["flddod"] = Now()
+    Case "Refer"
+      res["flddod"] = Now()
+      res["fldreferto"] = sComment
+    Case "Refer(OPD)"
+      res["fldreferto"] = sComment
+    Case "Follow Up", "Death(OPD)"
+      res["fldfollowdate"] = sComment
+  End Select
+  res["xyz"] = False
+  res.Update
+
+  If modBasic.$ClinBedReleaseEvent = "Clearance" Then
+  Else
+    Select status
+      Case "Discharged", "LAMA", "Death", "Refer", "Absconder"
+        GetPatBedRelease(encid)
+    End Select
+  Endif
+  modPatientSub.EnterPatientImpDate(encid, status, sComment)
+  modPatient.$PatProfileData.Remove(encid)
+
+End
+
+Public Sub RollbackDischarge(encid As String)
+
+  Dim res As Result
+
+  modDatabase.$myConn.Begin
+  res = modDatabase.$myConn.Edit("tblencounter", "fldencounterval=&1", encid)
+  res["fldadmission"] = "Admitted"
+  res["flddod"] = ""
+  res["fldreferto"] = ""
+  res["xyz"] = False
+  res.Update
+
+  modPatientSub.EnterPatientImpDate(encid, "Admitted", "Discharge Rollback")
+  modDatabase.$myConn.Commit
+
+Catch
+  modDatabase.$myConn.Rollback
+  modHelpVariable.CreateErrorReport()
+
+End
+
+Public Sub UpdateAttendingConsultant(encid As String, sUserID As String)
+
+  Dim res As Result
+
+  res = modDatabase.$myConn.Edit("tblencounter", "fldencounterval=&1", encid)
+  res["flduserid"] = sUserID
+  res["xyz"] = False
+  res.Update
+  modPatientSub.EnterPatientImpDate(encid, "Consultant", modGeneral.GetUserFullName(sUserID))
+
+End
+
+Public Sub UpdatePregnancyStatus(encid As String, xStatus As String)
+
+  Dim res As Result
+
+  res = modDatabase.$myConn.Edit("tblencounter", "fldencounterval=&1", encid)
+  res["fldmarker"] = xStatus
+  res.Update
 
 End
 
@@ -149,6 +379,8 @@ Public Sub RegistBlankEncounter()
 
     res["fldregistid"] = ""
     res["fldadmitid"] = ""
+    res["fldmarker"] = ""
+    res["fldpassword"] = ""
     res["xyz"] = True
     res.Update()
   Else
@@ -223,23 +455,6 @@ Public Sub EnterPatientImpDate(encid As String, sType As String, sComment As Str
   Endif
 
   res.Update
-  'don't catch error
-
-End
-
-Public Sub AddEncounterSpecData(encid As String, consultname As String)
-
-  Dim rs As Result
-
-  rs = modDatabase.$myConn.Edit("tblencounter", "fldencounterval=&1", encid)
-  If Not rs["fldcurrlocat"] Then
-    rs["fldcurrlocat"] = consultname
-  Endif
-  If rs["fldadmission"] <> "Admitted" Then
-    rs["fldadmission"] = "Registered"
-  Endif
-  rs["xyz"] = False
-  rs.Update
   'don't catch error
 
 End
@@ -436,82 +651,15 @@ Public Sub UpdateOPVisitNotice(id As Long, xNotice As String)
 
 End
 
-Public Sub UpdatePatFile(patno As String, txtFile As String)
+Public Sub EmergencyAdmission(encid As String)
 
   Dim res As Result
 
-  res = modDatabase.$myConn.Edit("tblpatientinfo", "fldpatientval=&1", patno)
-  res["fldadmitfile"] = txtFile
-  ' res["fldupuser"] = modBasic.$lbluser
-  ' res["flduptime"] = Now()
-  res["xyz"] = False
-  res.Update
-
-End
-
-Public Sub UpdatePatComment(encid As String, sComm As String)
-
-  Dim res As Result
-
-  res = modDatabase.$myConn.Edit("tblpatientinfo", "fldpatientval=&1", modPatient.GetPatientNoByEnc(encid))
-  res["fldcomment"] = sComm
-  res["fldupuser"] = modBasic.$lbluser
-  res["flduptime"] = Now()
-  res["xyz"] = False
-  res.Update
-
-End
-
-Public Sub UpdateAdmissionWard(encid As String, sWard As String, Optional sBedNo As String)
-
-  Dim res As Result
-
-  If sWard Then
-    res = modDatabase.$myConn.Edit("tblencounter", "fldencounterval=&1 and fldadmitward IS NULL", encid)
-    If res.Available Then
-      res["fldadmitward"] = sWard
-      If sBedNo Then
-        res["fldadmitbed"] = sBedNo
-      Endif
-      res["xyz"] = False
-      res.Update()
-    Endif
-  Endif
-
-End
-
-Public Sub UpdatePatLocation(encid As String, bedno As String, Optional sDate As Date)
-
-  Dim res As Result
-  Dim res1 As Result
-  Dim res2 As Result
-
-  res = modDatabase.$myConn.Edit("tblencounter", "fldencounterval=&1", encid)
-  res["fldcurrlocat"] = bedno
-  res["xyz"] = False
-  res.Update()
-
-  res2 = modDatabase.$myConn.Edit("tbldepartmentbed", "fldencounterval=&1", encid)
-  If res2.Available Then
-    res2["fldencounterval"] = ""
-    res2["fldaddservice"] = ""
-    res2["fldflag"] = False
-    res2.Update
-  Endif
-
-  res1 = modDatabase.$myConn.Edit("tbldepartmentbed", "fldbed=&1", bedno)
-  If res1.Available Then
-    res1["fldencounterval"] = encid
-    res1["fldfreedate"] = ""
-    res1.Update
-  Endif
-
-  If bedno Then
-    If sDate Then
-      modPatientSub.EnterPatientImpDate(encid, "Location Update", bedno, sDate)
-    Else
-      modPatientSub.EnterPatientImpDate(encid, "Location Update", bedno)
-    Endif
+  res = modDatabase.$myConn.Exec("select fldid from tblopvisit where fldencounterval=&1 and fldconsultname in(select flddept from tbldepartment where fldactive=&2)", encid, "Emergency")
+  If res.Available Then
+    For Each res
+      modPatientSub.UpdateOPVisitData(res["fldid"], encid, "Done", "", "Admission", "")
+    Next
   Endif
 
 End
@@ -580,94 +728,6 @@ Public Sub UnMarkConsultVisitFlag(sIndex As Long, sTable As String)
 
 End
 
-''update age in tblpatientinfo
-Public Sub UpdatePatDOB(encid As String, dob As Date)
-
-  Dim res As Result
-
-  res = modDatabase.$myConn.Edit("tblpatientinfo", "fldpatientval=&1", modPatient.GetPatientNoByEnc(encid))
-  res["fldptbirday"] = dob
-  res["xyz"] = False
-  res.Update()
-
-End
-
-' Public Sub UpdateDateOfBirth(encid As String, age As Float, unit As String)
-'
-'   Dim xsec As Integer
-'   Dim dt As Date
-'
-'   If unit = "Hours" Then
-'     xsec = age * 60
-'   Else If unit = "Days" Then
-'     xsec = age * 60 * 24
-'   Else If unit = "Months" Then
-'     xsec = age * 60 * 24 * 30
-'   Else If unit = "Years" Then
-'     xsec = age * 60 * 24 * 365
-'   Endif
-'   xsec = 0 - xsec
-'   dt = DateAdd(Now(), gb.Minute, CInt(xsec))
-'   modPatientSub.UpdatePatDOB(encid, dt)
-'
-' End
-
-Public Function GetPatientAdmission(encid As String) As String
-
-  Dim res As Result
-  Dim xval As String
-
-  res = modDatabase.$myConn.Edit("tblencounter", "fldencounterval=&1", encid)
-  res["fldadmission"] = "Admitted"
-  If Not res["flddoa"] Then
-    res["flddoa"] = Now()
-  Endif
-  res["flddod"] = ""
-  If Not res["fldadmitid"] Then
-    xval = modPatient.GetPatientHMISAdmission(res["fldpatientval"])
-    res["fldadmitid"] = xval
-  Endif
-  res["xyz"] = False
-  res.Update
-  modPatientSub.EnterPatientImpDate(encid, "Admitted", "")
-  modPatient.$PatProfileData.Remove(encid)
-
-  Return xval
-
-End
-
-Public Sub UpdateCurrentStatus(encid As String, status As String, sComment As Variant)
-
-  Dim res As Result
-
-  res = modDatabase.$myConn.Edit("tblencounter", "fldencounterval=&1", encid)
-  res["fldadmission"] = status
-  Select status
-    Case "Discharged", "LAMA", "Death", "Absconder"
-      res["flddod"] = Now()
-    Case "Refer"
-      res["flddod"] = Now()
-      res["fldreferto"] = sComment
-    Case "Refer(OPD)"
-      res["fldreferto"] = sComment
-    Case "Follow Up", "Death(OPD)"
-      res["fldfollowdate"] = sComment
-  End Select
-  res["xyz"] = False
-  res.Update
-
-  If modBasic.$ClinBedReleaseEvent = "Clearance" Then
-  Else
-    Select status
-      Case "Discharged", "LAMA", "Death", "Refer", "Absconder"
-        GetPatBedRelease(encid)
-    End Select
-  Endif
-  modPatientSub.EnterPatientImpDate(encid, status, sComment)
-  modPatient.$PatProfileData.Remove(encid)
-
-End
-
 Public Sub GetPatBedRelease(encid As String)
 
   Dim res1 As Result
@@ -682,39 +742,6 @@ Public Sub GetPatBedRelease(encid As String)
       res1.Update
     Next
   Endif
-
-End
-
-Public Sub RollbackDischarge(encid As String)
-
-  Dim res As Result
-
-  modDatabase.$myConn.Begin
-  res = modDatabase.$myConn.Edit("tblencounter", "fldencounterval=&1", encid)
-  res["fldadmission"] = "Admitted"
-  res["flddod"] = ""
-  res["fldreferto"] = ""
-  res["xyz"] = False
-  res.Update
-
-  modPatientSub.EnterPatientImpDate(encid, "Admitted", "Discharge Rollback")
-  modDatabase.$myConn.Commit
-
-Catch
-  modDatabase.$myConn.Rollback
-  modHelpVariable.CreateErrorReport()
-
-End
-
-Public Sub UpdateAttendingConsultant(encid As String, sUserID As String)
-
-  Dim res As Result
-
-  res = modDatabase.$myConn.Edit("tblencounter", "fldencounterval=&1", encid)
-  res["flduserid"] = sUserID
-  res["xyz"] = False
-  res.Update
-  modPatientSub.EnterPatientImpDate(encid, "Consultant", modGeneral.GetUserFullName(sUserID))
 
 End
 

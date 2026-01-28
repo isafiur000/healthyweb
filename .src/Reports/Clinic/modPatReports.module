@@ -1682,10 +1682,14 @@ End
 ''-------------History/Notes -----------------------------
 Public Function GetPatientHistoryReport(encid As String, sType As String) As String
 
+  Dim sql1 As String
+  Dim sql2 As String
   Dim res As Result
   Dim xx As String
 
-  res = modDatabase.$myConn.Exec("select flddetail,fldreportquali,fldtime,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and flditem=&3" & GetLockClinicSQL(), encid, "History", sType)
+  sql1 = "select flddetail,fldreportquali,fldtime,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and flditem=&3" & GetLockClinicSQL()
+  sql2 = "select flddetail,fldreportquali,fldtime,flduserid from tblpatientnotes where fldencounterval=&1 and fldinput=&2 and flditem=&3" & GetLockClinicSQL()
+  res = modDatabase.$myConn.Exec(sql1 & " UNION ALL " & sql2 & " ORDER BY fldtime", encid, "History", sType)
   If res.Available = True Then
     res.MoveLast
     If modBasic.$ShowDayMedReport = "User" Then
@@ -1743,12 +1747,14 @@ End
 
 Public Function GetPatientNoteReport(encid As String, sType As String) As String
 
-  Dim sql As String
+  Dim sql1 As String
+  Dim sql2 As String
   Dim res As Result
   Dim xx As String
 
-  sql = "select flddetail,fldtime,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and flditem=&3" & GetLockClinicSQL()
-  res = modDatabase.$syConn.Exec(sql, encid, "Notes", sType)
+  sql1 = "select flddetail,fldtime,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and flditem=&3" & GetLockClinicSQL()
+  sql2 = "select flddetail,fldtime,flduserid from tblpatientnotes where fldencounterval=&1 and fldinput=&2 and flditem=&3" & GetLockClinicSQL()
+  res = modDatabase.$syConn.Exec(sql1 & " UNION ALL " & sql2 & " ORDER BY fldtime", encid, "Notes", sType)
   If res.Available = True Then
     res.MoveLast
     If modBasic.$ShowDayMedReport = "User" Then
@@ -1770,10 +1776,14 @@ End
 
 Public Function GetClinNotesReport(encid As String) As String[]
 
+  Dim sql1 As String
+  Dim sql2 As String
   Dim res As Result
   Dim xx As String[]
 
-  res = modDatabase.$syConn.Exec("select fldtime,flditem,fldreportquali,flddetail,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and (flditem=&3 or flditem=&4 or flditem=&5 or flditem=&6)" & GetLockClinicSQL(), encid, "Notes", "Progress Note", "Clinicians Note", "Nurses Note", "Transfer Note")
+  sql1 = "select fldtime,flditem,fldreportquali,flddetail,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and (flditem=&3 or flditem=&4 or flditem=&5 or flditem=&6)" & GetLockClinicSQL()
+  sql2 = "select fldtime,flditem,fldreportquali,flddetail,flduserid from tblpatientnotes where fldencounterval=&1 and fldinput=&2 and (flditem=&3 or flditem=&4 or flditem=&5 or flditem=&6)" & GetLockClinicSQL()
+  res = modDatabase.$syConn.Exec(sql1 & " UNION ALL " & sql2 & " ORDER BY fldtime", encid, "Notes", "Progress Note", "Clinicians Note", "Nurses Note", "Transfer Note")
   xx = New String[]
   If res.Available = True Then
     For Each res
@@ -1794,10 +1804,14 @@ End
 
 Public Function GetClinNoteSpecificReport(encid As String, sType As String) As String[]
 
+  Dim sql1 As String
+  Dim sql2 As String
   Dim res As Result
   Dim xx As String[]
 
-  res = modDatabase.$syConn.Exec("select fldtime,flditem,fldreportquali,flddetail,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and flditem=&3" & GetLockClinicSQL(), encid, "Notes", sType)
+  sql1 = "select fldtime,flditem,fldreportquali,flddetail,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and flditem=&3" & GetLockClinicSQL()
+  sql2 = "select fldtime,flditem,fldreportquali,flddetail,flduserid from tblpatientnotes where fldencounterval=&1 and fldinput=&2 and flditem=&3" & GetLockClinicSQL()
+  res = modDatabase.$syConn.Exec(sql1 & " UNION ALL " & sql2 & " ORDER BY fldtime", encid, "Notes", sType)
   xx = New String[]
   If res.Available = True Then
     For Each res
@@ -1817,7 +1831,6 @@ Public Function GetClinNoteSpecificReport(encid As String, sType As String) As S
 End
 
 ''-------------------------- Medicines ----------------------------------------------------
-
 Public Function GetPastBillingOrders(encid As String) As String
 
   Dim res As Result

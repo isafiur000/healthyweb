@@ -223,6 +223,10 @@ End
 
 Public Function GetPatientHistoryAllTypes(encid As String) As String[]
 
+  Dim sql1 As String
+  Dim sql2 As String
+  Dim rsx As Result
+  Dim rsy As Result
   Dim compLst As String[]
   Dim xcomp As String
 
@@ -233,13 +237,23 @@ Public Function GetPatientHistoryAllTypes(encid As String) As String[]
   Dim xval As String[]
 
   xval = New String[]
-  compLst = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldcomp) as col from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and flditem<>&3", encid, "History", "General Complaints"))
+  sql1 = "select distinct(fldcomp) as col from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and flditem<>&3"
+  sql2 = "select distinct(fldcomp) as col from tblpatientnotes where fldencounterval=&1 and fldinput=&2 and flditem<>&3"
+  rsx = modDatabase.$myConn.Exec(sql1 & " UNION " & sql2, encid, "History", "General Complaints")
+  compLst = modControlSub.GetDirectFillresult(rsx)
+
   For Each xcomp In compLst
     xval.Add("<b>" & xcomp & "</b>")
-    xList = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(flditem) as col from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and flditem<>&3 and fldcomp=&4", encid, "History", "General Complaints", xcomp))
+    sql1 = "select distinct(flditem) as col from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and flditem<>&3 and fldcomp=&4"
+    sql2 = "select distinct(flditem) as col from tblpatientnotes where fldencounterval=&1 and fldinput=&2 and flditem<>&3 and fldcomp=&4"
+    rsy = modDatabase.$myConn.Exec(sql1 & " UNION " & sql2, encid, "History", "General Complaints", xcomp)
+    xList = modControlSub.GetDirectFillresult(rsy)
     If xList And If xList.Count Then
+
       For Each xtype In xList
-        res = modDatabase.$myConn.Exec("select flddetail,fldreportquali,fldtime,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and flditem=&3 and fldcomp=&4 ORDER BY fldtime", encid, "History", xtype, xcomp)
+        sql1 = "select flddetail,fldreportquali,fldtime,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and flditem=&3 and fldcomp=&4"
+        sql2 = "select flddetail,fldreportquali,fldtime,flduserid from tblpatientnotes where fldencounterval=&1 and fldinput=&2 and flditem=&3 and fldcomp=&4"
+        res = modDatabase.$myConn.Exec(sql1 & " UNION ALL " & sql2 & " ORDER BY fldtime", encid, "History", xtype, xcomp)
         If res.Available = True Then
           res.MoveLast
 
@@ -257,6 +271,7 @@ Public Function GetPatientHistoryAllTypes(encid As String) As String[]
 
         Endif
       Next
+
     Endif
   Next
 

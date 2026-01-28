@@ -18,6 +18,17 @@ Public $TestMastereData As Collection
 Public $ExamMasterData As Collection
 Public $RadioMasterData As Collection
 
+Public $CodeDrugIntxnData As Collection
+Public $DrugInjecIncompatData As Collection
+Public $DrugFluidIncompatData As Collection
+Public $CodePregnancyData As Collection
+' Public $CodePregnancyPrec As Collection
+
+Public $CodeHepaticPrec As Collection
+Public $CodeDiseaseContra As Collection
+Public $CodeAdverseRxn As Collection
+Public $CodeDrugAllergy As Collection
+
 Public Sub InitializeTableCache()
 
   $SymptomMasterVar = New Variant[]
@@ -41,6 +52,16 @@ Public Sub InitializeTableCache()
   modPatient.$PatProfileData = New Collection
   modNonMedical.$InvoiceTableData = New Collection
   modNonMedical.$ReceiptTableData = New Collection
+
+  $CodeDrugIntxnData = New Collection
+  $DrugInjecIncompatData = New Collection
+  $DrugFluidIncompatData = New Collection
+  $CodePregnancyData = New Collection
+
+  $CodeHepaticPrec = New Collection
+  $CodeDiseaseContra = New Collection
+  $CodeAdverseRxn = New Collection
+  $CodeDrugAllergy = New Collection
 
 End
 
@@ -459,5 +480,60 @@ Private Sub LoadExamsCompwiseData()
       $ExaminationCompVar.Add(sColl)
     Endif
   Next
+
+End
+
+''============== Med Error ====================
+''-------------- Drug problem: compare other drugs ------------
+Public Sub LoadDrugDrugInteractions(sCon As Connection)
+
+  Dim res As Result
+
+  res = sCon.Exec("select fldcodename,fldcondition,fldoutput,fldreference from tblmedinteraction")
+  If res.Available Then
+    For Each res
+      $CodeDrugIntxnData.Add(res["fldoutput"] & " [" & res["fldreference"] & "]", res["fldcodename"] & "|" & res["fldcondition"])
+    Next
+  Endif
+
+End
+
+Public Sub LoadDrugInjectionIncompatibility(sCon As Connection)
+
+  Dim res As Result
+
+  res = sCon.Exec("select fldparent,fldchild,fldreference from tblincompatdrug")
+  If res.Available Then
+    For Each res
+      $DrugInjecIncompatData.Add("INCOMPATIBLE to " & res["fldparent"] & " [" & res["fldreference"] & "]", res["fldparent"] & "|" & res["fldchild"])
+    Next
+  Endif
+
+End
+
+Public Sub LoadDrugFluidIncompatibility(sCon As Connection)
+
+  Dim res As Result
+
+  res = sCon.Exec("select fldparent,fldchild,fldreference from tblincompatfluid")
+  If res.Available Then
+    For Each res
+      $DrugFluidIncompatData.Add("INCOMPATIBLE to " & res["fldchild"] & " [" & res["fldreference"] & "]", res["fldparent"] & "|" & res["fldchild"])
+    Next
+  Endif
+
+End
+
+''-------------- Drug problem: compare tblencounter ------------
+Public Sub LoadPregnancyPrecaution(sCon As Connection)
+
+  Dim res As Result
+
+  res = sCon.Exec("select fldcodename,fldcondition,fldoutput,fldreference from tblmedpregnancy")
+  If res.Available Then
+    For Each res
+      $CodePregnancyData.Add(res["fldoutput"] & " [" & res["fldreference"] & "]", res["fldcodename"] & "|" & res["fldcondition"])
+    Next
+  Endif
 
 End
