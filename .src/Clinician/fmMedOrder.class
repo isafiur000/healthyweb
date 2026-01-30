@@ -1497,36 +1497,25 @@ Private Sub ShowAllMedicines()
 
   Dim sql1 As String
   Dim sql2 As String
+  Dim xFields As String[]
 
   If rblabel.Value = True Then
-    sql1 = "select fldstarttime,fldroute,flditem,fldid,fldfreq,flddays,fldcurval from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and flditemtype=&3 and flddays>&4"
-    sql2 = "select fldstarttime,fldroute,flditem,fldid,fldfreq,COUNT(fldid),fldcurval from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and flditemtype=&3 and flddays=&4 GROUP BY flditem,flddose,fldfreq"
+    xFields = ["fldid", "fldsave_order", "fldstarttime", "fldroute", "flditem", "fldid", "fldfreq", "flddays", "fldcurval", "fldid", "fldstarttime", "fldstatus", "flduserid_order"]
   Else
-    sql1 = "select fldstarttime,fldroute,flditem,fldid,fldfreq,flddays,fldcurval from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and flditemtype=&3 and flddays>&4"                    ''
-    sql2 = "select fldstarttime,fldroute,flditem,flddose,fldfreq,COUNT(fldid),fldcurval from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and flditemtype=&3 and flddays=&4 GROUP BY flditem,flddose,fldfreq"
+    xFields = ["fldid", "fldsave_order", "fldstarttime", "fldroute", "flditem", "fldid", "fldfreq", "COUNT(fldid)", "fldcurval", "fldid", "fldstarttime", "fldstatus", "flduserid_order"]
+  Endif
+  If rblabel.Value = True Then
+    sql1 = "select " & xFields.Join(",") & " from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and flditemtype=&3 and flddays>&4"
+    sql2 = "select " & xFields.Join(",") & " from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and flditemtype=&3 and flddays=&4 GROUP BY flditem,flddose,fldfreq"
+  Else
+    sql1 = "select " & xFields.Join(",") & " from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and flditemtype=&3 and flddays>&4"                    ''
+    sql2 = "select " & xFields.Join(",") & " from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and flditemtype=&3 and flddays=&4 GROUP BY flditem,flddose,fldfreq"
   Endif
   $rData2 = modDatabase.$myConn.Exec(sql1 & " UNION ALL " & sql2, $encid, True, "Medicines", 0)
 
   $aMyFields2 = New String[]
   modGridView.ReadSmallData(grdmedicine, $rData2, $aMyFields2)
-
-  With grdmedicine
-    .Columns[0].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
-    .Columns[1].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
-    .Columns[2].Width = CStr(275 * modBasic.$AppWidthRatio) & "px"
-    .Columns[3].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
-    .Columns[4].Width = CStr(50 * modBasic.$AppWidthRatio) & "px"
-    .Columns[5].Width = CStr(50 * modBasic.$AppWidthRatio) & "px"
-    .Columns[6].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
-
-    .Columns[0].Text = "StartDate"
-    .Columns[1].Text = "Route"
-    .Columns[2].Text = "Medicine"
-    .Columns[3].Text = "Dose"
-    .Columns[4].Text = "Freq"
-    .Columns[5].Text = "Days"
-    .Columns[6].Text = "Status"
-  End With
+  ResizeGrid()
 
 End
 
@@ -1535,35 +1524,37 @@ Private Sub ShowRunningMedicine(xCurrent As String)
   Dim sql As String
   Dim asx As String[] = ["Completed", "Discontinue", "Change", "ReWrite", "Cancelled", "Wasted"]
   Dim i As Integer
+  Dim xFields As String[]
 
   For i = 0 To asx.Count - 1
     asx[i] = "'" & asx[i] & "'"
   Next
 
+  xFields = ["fldid", "fldsave_order", "fldstarttime", "fldroute", "flditem", "fldid", "fldfreq", "flddays", "fldcurval", "fldid", "fldstarttime", "fldstatus", "flduserid_order"]
   Select xCurrent
     Case "Continue", "On Hold"
       If rblabel.Value = True Then
-        sql = "select fldid,fldstarttime,fldroute,flditem,fldid,fldfreq,flddays,fldcurval,fldid,fldstarttime,fldstatus,flduserid from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldstarttime<=&3 and fldendtime>=&4 and flditemtype=&5 and fldcurval=&6 ORDER BY fldid DESC"
+        sql = "select " & xFields.Join(",") & " from tblpatdosing where fldencounterval=&1 and fldstarttime<=&2 and DATE_ADD(fldstarttime, INTERVAL flddays DAY)>=&3 and flditemtype=&4 and fldcurval=&5 ORDER BY fldid DESC"
       Else
-        sql = "select fldid,fldstarttime,fldroute,flditem,flddose,fldfreq,flddays,fldcurval,fldid,fldstarttime,fldstatus,flduserid from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldstarttime<=&3 and fldendtime>=&4 and flditemtype=&5 and fldcurval=&6 ORDER BY fldid DESC"                    ''
+        sql = "select " & xFields.Join(",") & " from tblpatdosing where fldencounterval=&1 and fldstarttime<=&2 and DATE_ADD(fldstarttime, INTERVAL flddays DAY)>=&3 and flditemtype=&4 and fldcurval=&5 ORDER BY fldid DESC"                    ''
       Endif
-      $rData2 = modDatabase.$myConn.Exec(sql, $encid, True, Now(), DateAdd(Now(), gb.Hour, -3), "Medicines", xCurrent)
+      $rData2 = modDatabase.$myConn.Exec(sql, $encid, Now(), DateAdd(Now(), gb.Hour, -3), "Medicines", xCurrent)
 
     Case "Removed"
       If rblabel.Value = True Then
-        sql = "select fldid,fldstarttime,fldroute,flditem,fldid,fldfreq,flddays,fldcurval,fldid,fldstarttime,fldstatus,flduserid from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldstarttime<=&3 and fldendtime>=&4 and flditemtype=&5 and fldcurval in(" & asx.Join(",") & ") ORDER BY fldid DESC"
+        sql = "select " & xFields.Join(",") & " from tblpatdosing where fldencounterval=&1 and fldstarttime<=&2 and DATE_ADD(fldstarttime, INTERVAL flddays DAY)>=&3 and flditemtype=&4 and fldcurval in(" & asx.Join(",") & ") ORDER BY fldid DESC"
       Else
-        sql = "select fldid,fldstarttime,fldroute,flditem,flddose,fldfreq,flddays,fldcurval,fldid,fldstarttime,fldstatus,flduserid from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldstarttime<=&3 and fldendtime>=&4 and flditemtype=&5 and fldcurval in(" & asx.Join(",") & ") ORDER BY fldid DESC"                    ''
+        sql = "select " & xFields.Join(",") & " from tblpatdosing where fldencounterval=&1 and fldstarttime<=&2 and DATE_ADD(fldstarttime, INTERVAL flddays DAY)>=&3 and flditemtype=&4 and fldcurval in(" & asx.Join(",") & ") ORDER BY fldid DESC"                    ''
       Endif
-      $rData2 = modDatabase.$myConn.Exec(sql, $encid, True, Now(), DateAdd(Now(), gb.Hour, -3), "Medicines", xCurrent)
+      $rData2 = modDatabase.$myConn.Exec(sql, $encid, Now(), DateAdd(Now(), gb.Hour, -3), "Medicines")
 
     Case "All Types"
       If rblabel.Value = True Then
-        sql = "select fldid,fldstarttime,fldroute,flditem,fldid,fldfreq,flddays,fldcurval,fldid,fldstarttime,fldstatus,flduserid from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldstarttime<=&3 and fldendtime>=&4 and flditemtype=&5 ORDER BY fldid DESC"
+        sql = "select " & xFields.Join(",") & " from tblpatdosing where fldencounterval=&1 and fldstarttime<=&2 and DATE_ADD(fldstarttime, INTERVAL flddays DAY)>=&3 and flditemtype=&4 ORDER BY fldid DESC"
       Else
-        sql = "select fldid,fldstarttime,fldroute,flditem,flddose,fldfreq,flddays,fldcurval,fldid,fldstarttime,fldstatus,flduserid from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldstarttime<=&3 and fldendtime>=&4 and flditemtype=&5 ORDER BY fldid DESC"                    ''
+        sql = "select " & xFields.Join(",") & " from tblpatdosing where fldencounterval=&1 and fldstarttime<=&2 and DATE_ADD(fldstarttime, INTERVAL flddays DAY)>=&3 and flditemtype=&4 ORDER BY fldid DESC"                    ''
       Endif
-      $rData2 = modDatabase.$myConn.Exec(sql, $encid, True, Now(), DateAdd(Now(), gb.Hour, -3), "Medicines")
+      $rData2 = modDatabase.$myConn.Exec(sql, $encid, Now(), DateAdd(Now(), gb.Hour, -3), "Medicines")
 
   End Select
   $aMyFields2 = New String[]
@@ -1576,27 +1567,38 @@ Private Sub ResizeGrid()
 
   With grdmedicine
     .Columns[0].Hidden = True
-    .Columns[1].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
-    .Columns[2].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
-    .Columns[3].Width = CStr(250 * modBasic.$AppWidthRatio) & "px"
-    .Columns[4].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
+    .Columns[1].Width = CStr(25 * modBasic.$AppWidthRatio) & "px"
+    .Columns[2].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+    .Columns[3].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
+    .Columns[4].Width = CStr(275 * modBasic.$AppWidthRatio) & "px"
     .Columns[5].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
     .Columns[6].Width = CStr(50 * modBasic.$AppWidthRatio) & "px"
-    .Columns[7].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
-    .Columns[8].Width = CStr(50 * modBasic.$AppWidthRatio) & "px"
-    .Columns[9].Hidden = True
-    .Columns[10].Hidden = True
-    .Columns[11].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
+    .Columns[7].Width = CStr(50 * modBasic.$AppWidthRatio) & "px"
+    .Columns[8].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
+    If rballdates.Value = True Then
+      .Columns[9].Hidden = True
+      .Columns[10].Hidden = True
+      .Columns[11].Hidden = True
+      .Columns[12].Hidden = True
+    Else
+      .Columns[9].Width = CStr(50 * modBasic.$AppWidthRatio) & "px"
+      .Columns[10].Hidden = True
+      .Columns[11].Hidden = True
+      .Columns[12].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
+    Endif
 
-    .Columns[1].Text = "Start"
-    .Columns[2].Text = "Route"
-    .Columns[3].Text = "Medicine"
-    .Columns[4].Text = "Dose"
-    .Columns[5].Text = "Freq"
-    .Columns[6].Text = "Days"
-    .Columns[7].Text = "Status"
-    .Columns[8].Text = "N"
-    .Columns[11].Text = "Disp By"
+    .Columns[2].Text = "StartDate"
+    .Columns[3].Text = "Route"
+    .Columns[4].Text = "Medicine"
+    .Columns[5].Text = "Dose"
+    .Columns[6].Text = "Freq"
+    .Columns[7].Text = "Days"
+    .Columns[8].Text = "Status"
+    If rballdates.Value = True Then
+    Else
+      .Columns[9].Text = "N"
+      .Columns[12].Text = "Order"
+    Endif
   End With
 
 End
@@ -1605,37 +1607,42 @@ Public Sub grdmedicine_Data(Row As Integer, Column As Integer, Data As WebTableD
 
   $rData2.MoveTo(Row)
   modGridView.GridViewDecoration(Data, Row)
-  If rballdates.Value = True Then
-    If Column = 0 Then
-      Data.Text = modReportVar.GetDateTimeReport($rData2["fldstarttime"], gb.GeneralDate)
-    Else If Column = 3 Then
-      If rblabel.Value = True Then
-        Data.Text = modPharmacy.GetMedicineDoseInFormat($rData2["fldid"], "Label")
-      Else
-        Data.Text = $rData2[$aMyFields2[Column]]
-      Endif
+  If Column = 1 Then
+    If rballdates.Value = True Then
+      Data.Text = ""
+    Else
+      Data.Html = modString.GetImageForHTMLGrid(GetMedStatus($rData2[$aMyFields2[Column]]), "auto", "auto")
+      Data.Text = ""
+    Endif
+  Else If Column = 2 Then
+    Data.Text = modReportVar.GetDateTimeReport($rData2[$aMyFields2[Column]], gb.GeneralDate)
+  Else If Column = 4 Then
+    If rblabel.Value = True Then
+      Data.Text = modPharmacy.GetMedicineDoseInFormat($rData2[$aMyFields2[Column]], "Label")
     Else
       Data.Text = $rData2[$aMyFields2[Column]]
     Endif
-
-  Else If rbcurrent.Value = True Then
-    If Column = 1 Then
-      Data.Text = modReportVar.GetDateTimeReport($rData2[$aMyFields2[Column]], gb.GeneralDate)
-    Else If Column = 4 Then
-      If rblabel.Value = True Then
-        Data.Text = modPharmacy.GetMedicineDoseInFormat($rData2[$aMyFields2[Column]], "Label")
-      Else
-        Data.Text = $rData2[$aMyFields2[Column]]
-      Endif
-    Else If Column = 8 Then
-      Data.Text = modPharmacy.TotalDoseCount($rData2[$aMyFields2[Column]])
-    Else If Column = 11 Then
-      Data.Text = modGeneral.GetUserFullName($rData2[$aMyFields2[Column]])
-    Else
-      Data.Text = $rData2[$aMyFields2[Column]]
-    Endif
-
+  Else If Column = 9 Then
+    Data.Text = modPharmacy.TotalDoseCount($rData2[$aMyFields2[Column]])
+  Else If Column = 12 Then
+    Data.Text = modGeneral.GetUserFullName($rData2[$aMyFields2[Column]])
+  Else
+    Data.Text = $rData2[$aMyFields2[Column]]
   Endif
+
+End
+
+Private Function GetMedStatus(sBool As Boolean) As String
+
+  Dim xicon As String
+
+  If sBool = True Then
+    xicon = ""
+  Else If sBool = False Then
+    xicon = "/" &/ Application.Root &/ "icons/coll5.png"
+  Endif
+
+  Return xicon
 
 End
 

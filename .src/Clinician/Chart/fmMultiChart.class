@@ -151,23 +151,25 @@ End
 Private Sub LoadTablesExam()
 
   Dim j As Integer
+  Dim xdiff As Integer
 
+  xdiff = 0 - spncolumn.Value
   GridView2.Clear()
   GridView2.Count = $xParamVar.Count
   If rboneday.Value = True Then
-    $xfir = modDate.StartSqlTenMinute(DateAdd(Now(), gb.Minute, -240))
+    $xfir = modDate.StartSqlTenMinute(DateAdd(Now(), gb.Minute, xdiff * 10))
     $xlast = modDate.StartSqlTenMinute(DateAdd(Now(), gb.Minute, 10))
     GridView2.Columns.Count = (DateDiff($xfir, $xlast, gb.Minute) / 10) + 1
   Else If rbtwoday.Value = True Then
-    $xfir = modDate.StartSqlHour(DateAdd(Now(), gb.Hour, -24))
+    $xfir = modDate.StartSqlHour(DateAdd(Now(), gb.Hour, xdiff))
     $xlast = modDate.StartSqlHour(DateAdd(Now(), gb.Hour, 1))
     GridView2.Columns.Count = DateDiff($xfir, $xlast, gb.Hour) + 1
   Else If rbthreeday.Value = True Then
-    $xfir = modDate.StartSqlDate(DateAdd(Now(), gb.Day, -24))
+    $xfir = modDate.StartSqlDate(DateAdd(Now(), gb.Day, xdiff))
     $xlast = modDate.StartSqlDate(DateAdd(Now(), gb.Day, 1))
     GridView2.Columns.Count = DateDiff($xfir, $xlast, gb.Day) + 1
   Else If rbweek.Value = True Then
-    $xfir = modDate.StartSqlMonth(DateAdd(Now(), gb.Month, -24))
+    $xfir = modDate.StartSqlMonth(DateAdd(Now(), gb.Month, xdiff))
     $xlast = modDate.StartSqlMonth(DateAdd(Now(), gb.Month, 1))
     GridView2.Columns.Count = DateDiff($xfir, $xlast, gb.Month) + 1
   Endif
@@ -177,6 +179,13 @@ Private Sub LoadTablesExam()
       If j = 0 Then
         .Columns[j].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
         .Columns[j].Text = "Examination"
+      Else If j = 1 Then
+        If chkcomment.Value = True Then
+          .Columns[j].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
+          .Columns[j].Text = "Comment"
+        Else
+          .Columns[j].Hidden = True
+        Endif
       Else
         .Columns[j].Width = CStr(64 * modBasic.$AppWidthRatio) & "px"
         If rboneday.Value = True Then
@@ -203,6 +212,8 @@ Public Sub GridView2_Data(Row As Integer, Column As Integer, Data As WebTableDat
     Else
       Data.Text = $xParamVar[Row]["Examination"]
     Endif
+  Else If Column = 1 Then
+    Data.Text = $xParamVar[Row]["Comment"]
   Else
 
     If $xParamVar[Row]["Category"] = "Examination" Then

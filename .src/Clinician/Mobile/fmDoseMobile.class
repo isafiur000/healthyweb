@@ -100,14 +100,16 @@ End
 Private Sub LoadControlsWeb()
 
   Dim i As Integer
-  Dim sql As String
+  Dim sql1 As String
+  Dim sql2 As String
   Dim xunit As String
   Dim xtime As Date
 
   i = 0
   $sColl = New Collection
-  sql = "select fldid,fldroute,flditem,flddose,fldfreq,flddays,fldstatus,fldstarttime,fldendtime,flddosecount,flddirection from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldstarttime<=&3 and fldendtime>=&4 and fldroute<>&5 and flditemtype=&6 and fldcurval=&7"
-  $rData = modDatabase.$myConn.Exec(sql, Trim(txtencid.Text), True, Now(), DateAdd(Now(), gb.Hour, -3), "fluid", "Medicines", "Continue")
+  sql1 = "select fldid,fldroute,flditem,flddose,fldfreq,flddays,fldstatus,fldstarttime,fldendtime,flddosecount,flddirection,fldsave_order from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldstarttime<=&3 and fldendtime>=&4 and fldroute<>&5 and flditemtype=&6 and fldcurval=&7"
+  sql2 = "select fldid,fldroute,flditem,flddose,fldfreq,flddays,fldstatus,fldstarttime,fldendtime,flddosecount,flddirection,fldsave_order from tblpatdosing where fldencounterval=&1 and fldsave_order=&8 and fldstarttime<=&3 and DATE_ADD(fldstarttime, INTERVAL flddays DAY)>=&4 and fldroute<>&5 and flditemtype=&6 and fldcurval=&7"
+  $rData = modDatabase.$myConn.Exec(sql1 & " UNION " & sql2, Trim(txtencid.Text), True, Now(), DateAdd(Now(), gb.Hour, -3), "fluid", "Medicines", "Continue", False)
   If $rData.Available Then
     For Each $rData
       If i < 49 Then
@@ -144,7 +146,11 @@ Private Sub LoadControlsWeb()
           End With
 
           With aNameLabel[i]
-            .Font = "bold"
+            If $rData["fldsave_order"] = False Then
+              .Foreground = Color.Red
+            Else
+              .Font = "bold"
+            Endif
             .Text = "<p>" & $rData["flditem"] & "</p>"
             .Tag = i
           End With
@@ -197,14 +203,15 @@ Private Sub LoadControlsWeb()
             .Tag = i
           End With
           With aQuantiBox[i]
-            .Width = "4em"
+            .Width = "3em"
             .Height = "2em"
+            .Enabled = $rData["fldsave_order"]
             .Tag = i
           End With
 
           xunit = modPharmLabel.GetDosageFormForLabel($rData["flditem"], "Inpatient")
           With aDoseLabel[i]
-            .Width = "5em"
+            .Width = "4em"
             .Height = "2em"
             .Border = True
             .Text = xunit
@@ -224,7 +231,7 @@ Private Sub LoadControlsWeb()
             .Tag = i
           End With
           With aSkipBox[i]
-            .Width = "5em"
+            .Width = "4em"
             .Height = "2em"
             .Text = "Skip"
             .Tag = i
