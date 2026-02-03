@@ -3964,7 +3964,6 @@ End
 
 Private Sub SHowInventoryStatus()
 
-  ' Dim xvarfix As Variant[]
   Dim xcateg As String
   Dim CPharmFix As CFixRatePharmacy
 
@@ -3976,13 +3975,10 @@ Private Sub SHowInventoryStatus()
       xcateg = modNonMedical.GetBillItemCategoryFromCombo(cmbroute.Text)
     Endif
 
-    CPharmFix = New CFixRatePharmacy(xcateg, cmbmedicine.Text, cmbmode.Text)
-    txtitemrate.Value = CPharmFix.GetFixRate()
-    txtitemrate.Tag = CPharmFix.GetFixItem()
-    If Not txtitemrate.Tag Then
-      txtqtymed.Tag = ""
-      txtitemrate.Value = modStock.GetCurrentSellingPrice(cmbmedicine.Text, GetPharmTarget(cmbroute.Text))
-    Else
+    If modBasic.$BillPharmFixedModes.Exist(cmbmode.Text) = True Then
+      CPharmFix = New CFixRatePharmacy(xcateg, cmbmedicine.Text, cmbmode.Text)
+      txtitemrate.Value = CPharmFix.GetFixRate()
+      txtitemrate.Tag = CPharmFix.GetFixItem()
       If txtreference.Tag = "Consultation" Or If txtreference.Tag = "Patient Ward" Then
         If $HiCappingVar.Exist(CPharmFix.GetFixCode()) Then
           txtqtymed.Tag = CStr($HiCappingVar[CPharmFix.GetFixCode()] - modNonMedical.GetPatientItemSavedSalesPackage(Trim(txtencid.Text), txtitemrate.Tag, cmbdisctype.Text))
@@ -3997,15 +3993,11 @@ Private Sub SHowInventoryStatus()
         txtqtymed.Tag = ""
       Endif
       txtitemrate.Background = Color.Yellow
+
+    Else
+      txtqtymed.Tag = ""
+      txtitemrate.Value = modStock.GetCurrentSellingPrice(cmbmedicine.Text, GetPharmTarget(cmbroute.Text))
     Endif
-    ' xvarfix = modStock.GetSellingPriceFixByStockID(xcateg, cmbmedicine.Text, cmbmode.Text)
-    ' If Not xvarfix Then
-    '   txtitemrate.Value = modStock.GetCurrentSellingPrice(cmbmedicine.Text, GetPharmTarget(cmbroute.Text))
-    ' Else
-    '   txtitemrate.Value = xvarfix[1]
-    '   txtitemrate.Tag = xvarfix[0]
-    '   txtitemrate.Background = Color.Yellow
-    ' Endif
 
     If modStock.GetCurrentExpiredStockOneComp(cmbmedicine.Text, GetPharmTarget(cmbroute.Text)) = True Then
       txtinventory.Background = Color.Orange
@@ -4194,14 +4186,13 @@ Public Sub btngroup_Click()
       For Each xIndex In xList
         res = modDatabase.$myConn.Exec("select fldroute,flditem,flddose,flddoseunit,fldfreq,fldday,fldqty,fldstart,fldadvice from tblproductgroup where fldid=&1 and (fldcomp=&2 or fldcomp=&3)", xIndex, modBasic.$compID, "%")
         If res.Available Then
-
           itemtype = modNonMedical.GetBillItemCategoryFromCombo(res["fldroute"])
-          CPharmFix = New CFixRatePharmacy(itemtype, res["flditem"], cmbmode.Text)
-          xfixrate = CPharmFix.GetFixRate()
-          xfixname = CPharmFix.GetFixItem()
 
           xgo = False
           If modBasic.$BillPharmFixedModes.Exist(cmbmode.Text) = True Then
+            CPharmFix = New CFixRatePharmacy(itemtype, res["flditem"], cmbmode.Text)
+            xfixrate = CPharmFix.GetFixRate()
+            xfixname = CPharmFix.GetFixItem()
             If xfixname Then
               xgo = True
             Else
@@ -4280,22 +4271,16 @@ Private Sub EnterDosingRecord()
         itemtype = modNonMedical.GetBillItemCategoryFromCombo(cmbroute.Text)
       Endif
 
+      CPharmFix = New CFixRatePharmacy(itemtype, cmbmedicine.Text, cmbmode.Text)
+      xfixrate = CPharmFix.GetFixRate()
+      xfixname = CPharmFix.GetFixItem()
+      itemmode = cmbmode.Text
+      xtax = modNonMedical.ShowTaxValues(itemtype, cmbmedicine.Text)
+      discval = modNonMedical.DiscPercentForCategoryValue(Trim(txtencid.Text), cmbdisctype.Text, itemtype, cmbmedicine.Text, itemmode)
       If itemtype = "Surgicals" Or If itemtype = "Extra Items" Then
-        CPharmFix = New CFixRatePharmacy(itemtype, cmbmedicine.Text, cmbmode.Text)
-        xfixrate = CPharmFix.GetFixRate()
-        xfixname = CPharmFix.GetFixItem()
-        itemmode = cmbmode.Text
-        xtax = modNonMedical.ShowTaxValues(itemtype, cmbmedicine.Text)
-        discval = modNonMedical.DiscPercentForCategoryValue(Trim(txtencid.Text), cmbdisctype.Text, itemtype, cmbmedicine.Text, itemmode)
         modPharmSub.InsertNonMedDosingEntry(itemtype, Trim(txtencid.Text), hPatient.GetCashCreditMode(), cmbmode.Text, cmbdisctype.Text, cmbledgerac.Text, cmbroute.Text, cmbmedicine.Text, txtqtymed.Value, sType, 0, xtax, discval, xfixname, xfixrate, "UseOwn", dispmode, "", False)
 
       Else
-        CPharmFix = New CFixRatePharmacy(itemtype, cmbmedicine.Text, cmbmode.Text)
-        xfixrate = CPharmFix.GetFixRate()
-        xfixname = CPharmFix.GetFixItem()
-        itemmode = cmbmode.Text
-        xtax = modNonMedical.ShowTaxValues(itemtype, cmbmedicine.Text)
-        discval = modNonMedical.DiscPercentForCategoryValue(Trim(txtencid.Text), cmbdisctype.Text, itemtype, cmbmedicine.Text, itemmode)
         If modMedConstant.GetNarcoticType(cmbmedicine.Text) = "Yes" Then
           xnarcotic = DualGridValue(("Select Narcotic Prescriber"), $ClinicianLst, False)
           If xnarcotic Then
@@ -4935,53 +4920,53 @@ Private Sub PharmacySave()
         If GetPharmTarget(res1["fldroute"]) Then
 
           For Each res1
-            'get tax and discount percentages
-            If res1["fldtaxper"] Then
-              tax = res1["fldtaxper"]
+            'get stockno, rate and quantity based on expiry check
+            If modBasic.$SkipExpiry = "ExpireOnUse" Then
+              sql2 = "select fldstockno,fldqty from tblentry where fldstockid=&1 and fldcomp=&2 and fldstatus=&3 and fldexpiry>&4 and fldqty>&5"
+              res2 = modDatabase.$myConn.Exec(sql2, res1["flditem"], GetPharmTarget(res1["fldroute"]), 1, DateAdd(modDate.StartSqlDate(Now()), gb.Day, CInt(res1["flddays"])), 0)
+            Else If modBasic.$SkipExpiry = "Expired" Then
+              sql2 = "select fldstockno,fldqty from tblentry where fldstockid=&1 and fldcomp=&2 and fldstatus=&3 and fldexpiry>&4 and fldqty>&5"
+              res2 = modDatabase.$myConn.Exec(sql2, res1["flditem"], GetPharmTarget(res1["fldroute"]), 1, modDate.StartSqlDate(Now()), 0)
             Else
-              tax = 0
+              sql2 = "select fldstockno,fldqty from tblentry where fldstockid=&1 and fldcomp=&2 and fldstatus=&3 and fldqty>&4"
+              res2 = modDatabase.$myConn.Exec(sql2, res1["flditem"], GetPharmTarget(res1["fldroute"]), 1, 0)
             Endif
-            If res1["flddiscper"] Then
-              disc = res1["flddiscper"]
-            Else
-              disc = 0
-            Endif
-            If res1["fldcashincredit"] Then
-              xCshCrd = res1["fldcashincredit"]
-            Else
-              xCshCrd = 0
-            Endif
+            If res2.Available Then
+              res2.MoveFirst
 
-            If res1["fldfixrate"] Then
-              xrate = res1["fldfixrate"]
-            Else
-              xrate = modStock.GetCurrentSellingPrice(res1["flditem"], GetPharmTarget(res1["fldroute"]))
-            Endif
-            xallow = modNonMedical.AllowPharmProceedPreBill(Trim(txtencid.Text), res1["flddisctype"], res1["fldqtydisp"], xrate, res1["flddiscper"], res1["fldbilltype"], xCshCrd, res1["fldroute"], res1["flditem"])
-            If xallow = True Then
-              xfixcode = modNonMedical.GetBillItemHIAbbv(res1["fldfixname"], res1["flditemtype"])
-              If GetHICapGo(xfixcode, res1["fldfixname"], res1["fldqtydisp"], res1["flddisctype"]) = True Then
-                If xfixcode And If $HiCappingVar.Exist(xfixcode) Then
-                  $HiCappingVar[xfixcode] = $HiCappingVar[xfixcode] - res1["fldqtydisp"]
-                Endif
+              'get tax and discount percentages
+              If res1["fldtaxper"] Then
+                tax = res1["fldtaxper"]
+              Else
+                tax = 0
+              Endif
+              If res1["flddiscper"] Then
+                disc = res1["flddiscper"]
+              Else
+                disc = 0
+              Endif
+              If res1["fldcashincredit"] Then
+                xCshCrd = res1["fldcashincredit"]
+              Else
+                xCshCrd = 0
+              Endif
 
-                qtynew = res1["fldqtydisp"]
-                modDatabase.$myConn.Begin
-                While qtynew > 0
-                  'get stockno, rate and quantity based on expiry check
-                  If modBasic.$SkipExpiry = "ExpireOnUse" Then
-                    sql2 = "select fldstockno,fldqty from tblentry where fldstockid=&1 and fldcomp=&2 and fldstatus=&3 and fldexpiry>&4 and fldqty>&5"
-                    res2 = modDatabase.$myConn.Exec(sql2, res1["flditem"], GetPharmTarget(res1["fldroute"]), 1, DateAdd(modDate.StartSqlDate(Now()), gb.Day, CInt(res1["flddays"])), 0)
-                  Else If modBasic.$SkipExpiry = "Expired" Then
-                    sql2 = "select fldstockno,fldqty from tblentry where fldstockid=&1 and fldcomp=&2 and fldstatus=&3 and fldexpiry>&4 and fldqty>&5"
-                    res2 = modDatabase.$myConn.Exec(sql2, res1["flditem"], GetPharmTarget(res1["fldroute"]), 1, modDate.StartSqlDate(Now()), 0)
-                  Else
-                    sql2 = "select fldstockno,fldqty from tblentry where fldstockid=&1 and fldcomp=&2 and fldstatus=&3 and fldqty>&4"
-                    res2 = modDatabase.$myConn.Exec(sql2, res1["flditem"], GetPharmTarget(res1["fldroute"]), 1, 0)
+              If res1["fldfixrate"] Then
+                xrate = res1["fldfixrate"]
+              Else
+                xrate = modStock.GetCurrentSellingPrice(res1["flditem"], GetPharmTarget(res1["fldroute"]))
+              Endif
+              xallow = modNonMedical.AllowPharmProceedPreBill(Trim(txtencid.Text), res1["flddisctype"], res1["fldqtydisp"], xrate, res1["flddiscper"], res1["fldbilltype"], xCshCrd, res1["fldroute"], res1["flditem"])
+              If xallow = True Then
+                xfixcode = modNonMedical.GetBillItemHIAbbv(res1["fldfixname"], res1["flditemtype"])
+                If GetHICapGo(xfixcode, res1["fldfixname"], res1["fldqtydisp"], res1["flddisctype"]) = True Then
+                  If xfixcode And If $HiCappingVar.Exist(xfixcode) Then
+                    $HiCappingVar[xfixcode] = $HiCappingVar[xfixcode] - res1["fldqtydisp"]
                   Endif
-                  If res2.Available Then
-                    res2.MoveFirst
 
+                  qtynew = res1["fldqtydisp"]
+                  modDatabase.$myConn.Begin
+                  While qtynew > 0
                     xitem = res1["flditem"]
                     If res1["fldfixname"] Then
                       xitem = res1["fldfixname"]
@@ -5004,23 +4989,22 @@ Private Sub PharmacySave()
                       qtynew = qtynew - res2["fldqty"]
                     Endif
                     Wait
-                  Else
-                    Break
+                  Wend
+
+                  If qtynew > 0 Then
+                    modPharmSub.DuplicateRecordWithQTY(res1["fldid"], qtynew)
+                    modPharmSub.UpdateQTYBefDispensing(res1["fldid"], res1["fldqtydisp"] - qtynew)
                   Endif
-                Wend
+                  modPharmSub.UpdateDispensing(res1["fldid"], False)
+                  modDatabase.$myConn.Commit
 
-                If qtynew > 0 Then
-                  modPharmSub.DuplicateRecordWithQTY(res1["fldid"], qtynew)
-                  modPharmSub.UpdateQTYBefDispensing(res1["fldid"], res1["fldqtydisp"] - qtynew)
+                Else
+                  xerr = xerr & "Cap Limit exceeded for " & res1["fldfixname"] & gb.NewLine
                 Endif
-                modPharmSub.UpdateDispensing(res1["fldid"], False)
-                modDatabase.$myConn.Commit
-
               Else
-                xerr = xerr & "Cap Limit exceeded for " & res1["fldfixname"] & gb.NewLine
+                xerr = xerr & res1["fldfixname"] & gb.NewLine
               Endif
-            Else
-              xerr = xerr & res1["fldfixname"] & gb.NewLine
+
             Endif
           Next
 

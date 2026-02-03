@@ -3,6 +3,7 @@
 Private $encid As String
 Private $BillMode As String
 Private $sPackage As String
+Private $sClaimState As String
 Private $bedLocation As String
 Private $xFinClear As Boolean
 Private $PatientNum As String
@@ -161,34 +162,11 @@ End
 
 Private Sub ShowBillingParam(sPack As String)
 
-  Dim resx As Result
+  Dim hForm As CPackageParams
 
-  txtreference.Text = ""
-  txtreference.Tag = ""
-  resx = modDatabase.$myConn.Exec("select fldmode,fldbillingmode,fldacledger,fldbilltype,fldreference,fldlimit,fldlockstate from tbldiscount where fldtype=&1", sPack)
-  If resx.Available Then
-    ''billingmode
-    If resx["fldbillingmode"] Then
-      $BillMode = resx["fldbillingmode"]
-    Else
-      $BillMode = modpatient.GetPatBillingMode($encid)
-    Endif
-    ''claim code button
-    If resx["fldreference"] Then
-      If resx["fldreference"] = "Claim Code" Then
-        txtreference.Text = modClaim.GetClaimCidePatient($encid, modNonMedical.GetLastCLaimType($encid))
-        If txtreference.Text Then
-          txtreference.Tag = modClaim.GetHIClaimState(txtreference.Text)
-        Endif
-      Endif
-    Endif
-    ' ''limit
-    ' If resx["fldlimit"] = "PatientCreditAMT" Then
-    '   txtcreditlimit.Value = modNonMedical.ShowCreditLimitEnc(Trim(txtencid.Text))
-    ' Else If resx["fldlimit"] = "PatientDiscount" Then
-    '   txtcreditlimit.Value = modNonMedical.GetPatCharityLimit(Trim(txtencid.Text))
-    ' Endif
-  Endif
+  hForm = New CPackageParams($encid, sPack)
+  $BillMode = hForm.GetBillingMode()
+  $sClaimState = hForm.GetClaimState()
 
 End
 
@@ -758,7 +736,7 @@ Private Sub SavePartialEntry(res As Result, Optional advReceipt As String)
   Dim xgo As Boolean
 
   xgo = True
-  If txtreference.Tag = "Consultation" Or If txtreference.Tag = "Patient Ward" Then
+  If $sClaimState = "Consultation" Or If $sClaimState = "Patient Ward" Then
     xdate = modBillings.CheckLastSalesItemDate(res["flditemname"], $PatientNum, $xNHISCode, res["flddisctype"])
     If xdate Then
       xcapday = modNonMedical.GetCappingDayFromItemName(res["flditemname"])

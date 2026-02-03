@@ -4,6 +4,7 @@ Private $xFinClear As Boolean
 Private $PatientNum As String
 Private $xNHISCode As String
 Private $sTatus As String
+Private $Dept As String
 
 Private $rData As Result
 Private $aMyFields As String[]
@@ -11,6 +12,8 @@ Private $rData2 As Result
 Private $aMyFields2 As String[]
 Private $rData4 As Result
 Private $aMyFields4 As String[]
+Private $rDataM As Result
+Private $aMyFieldsM As String[]
 Private $allVar As Variant[]
 Private $GridVar As Variant[]
 Private $cashPack As String[]
@@ -23,6 +26,10 @@ Private $discModeOthers As String
 Private $ratePlanService As String
 Private $ratePlanProcedure As String
 Private $ratePlanOthers As String
+
+Private $ClaimStateService As String
+Private $ClaimStateProcedure As String
+Private $ClaimStateOthers As String
 
 ''------- group
 Private $billReference As String
@@ -47,6 +54,13 @@ Public Sub _new(encid As String, packService As String, packProced As String, pa
   $xNHISCode = modPatient.GetPatientExtCOdebyEnc($encid)
   $xFinClear = modNonMedical.GetFinanceClearance($encid)
   GetDefaultBillingmodes()
+
+  Select $sTatus
+    Case "Admitted", "Discharged", "LAMA", "Death", "Refer", "Absconder"
+      $Dept = "IPD"
+    Case Else
+      $Dept = "OPD"
+  End Select
 
   cmbdiscservice.List = modBasic.$BillDiscountCash
   If cmbdiscservice.List.Count = 0 Then
@@ -86,8 +100,10 @@ Public Sub _new(encid As String, packService As String, packProced As String, pa
   FillLabtable()
   CompleteGrid()
   ShowGroupGrid()
+  FillDosingGrid()
   If $xFinClear = True Then
     btnaddone.Enabled = False
+    btnaddgrp.Enabled = False
   Endif
 
 End
@@ -100,6 +116,7 @@ Public Sub TabPanel1_Click()
     CompleteGrid()
   Else If TabPanel1.Index = 2 Then
     ShowGroupGrid()
+    FillDosingGrid()
   Endif
 
 End
@@ -138,28 +155,11 @@ End
 ''----------------- service -----------
 Private Sub ShowServiceParam(sPack As String)
 
-  Dim resx As Result
+  Dim hForm As CPackageParams
 
-  txtrefservice.Text = ""
-  txtrefservice.Tag = ""
-  resx = modDatabase.$myConn.Exec("select fldmode,fldbillingmode,fldacledger,fldbilltype,fldreference,fldlimit,fldlockstate from tbldiscount where fldtype=&1", sPack)
-  If resx.Available Then
-    ''billingmode
-    If resx["fldbillingmode"] Then
-      $ratePlanService = resx["fldbillingmode"]
-    Else
-      $ratePlanService = modpatient.GetPatBillingMode($encid)
-    Endif
-    ''claim code button
-    If resx["fldreference"] Then
-      If resx["fldreference"] = "Claim Code" Then
-        txtrefservice.Text = modClaim.GetClaimCidePatient($encid, modNonMedical.GetLastCLaimType($encid))
-        If txtrefservice.Text Then
-          txtrefservice.Tag = modClaim.GetHIClaimState(txtrefservice.Text)
-        Endif
-      Endif
-    Endif
-  Endif
+  hForm = New CPackageParams($encid, sPack)
+  $ratePlanService = hForm.GetBillingMode()
+  $ClaimStateService = hForm.GetClaimState()
 
 End
 
@@ -175,28 +175,11 @@ End
 ''-------------------- procedure ---------------------
 Private Sub ShowProcedureParam(sPack As String)
 
-  Dim resx As Result
+  Dim hForm As CPackageParams
 
-  txtrefproc.Text = ""
-  txtrefproc.Tag = ""
-  resx = modDatabase.$myConn.Exec("select fldmode,fldbillingmode,fldacledger,fldbilltype,fldreference,fldlimit,fldlockstate from tbldiscount where fldtype=&1", sPack)
-  If resx.Available Then
-    ''billingmode
-    If resx["fldbillingmode"] Then
-      $ratePlanProcedure = resx["fldbillingmode"]
-    Else
-      $ratePlanProcedure = modpatient.GetPatBillingMode($encid)
-    Endif
-    ''claim code button
-    If resx["fldreference"] Then
-      If resx["fldreference"] = "Claim Code" Then
-        txtrefproc.Text = modClaim.GetClaimCidePatient($encid, modNonMedical.GetLastCLaimType($encid))
-        If txtrefproc.Text Then
-          txtrefproc.Tag = modClaim.GetHIClaimState(txtrefproc.Text)
-        Endif
-      Endif
-    Endif
-  Endif
+  hForm = New CPackageParams($encid, sPack)
+  $ratePlanProcedure = hForm.GetBillingMode()
+  $ClaimStateProcedure = hForm.GetClaimState()
 
 End
 
@@ -212,28 +195,11 @@ End
 ''--------------------- Other ---------------------------
 Private Sub ShowOthersParam(sPack As String)
 
-  Dim resx As Result
+  Dim hForm As CPackageParams
 
-  txtrefother.Text = ""
-  txtrefother.Tag = ""
-  resx = modDatabase.$myConn.Exec("select fldmode,fldbillingmode,fldacledger,fldbilltype,fldreference,fldlimit,fldlockstate from tbldiscount where fldtype=&1", sPack)
-  If resx.Available Then
-    ''billingmode
-    If resx["fldbillingmode"] Then
-      $ratePlanOthers = resx["fldbillingmode"]
-    Else
-      $ratePlanOthers = modpatient.GetPatBillingMode($encid)
-    Endif
-    ''claim code button
-    If resx["fldreference"] Then
-      If resx["fldreference"] = "Claim Code" Then
-        txtrefother.Text = modClaim.GetClaimCidePatient($encid, modNonMedical.GetLastCLaimType($encid))
-        If txtrefother.Text Then
-          txtrefother.Tag = modClaim.GetHIClaimState(txtrefother.Text)
-        Endif
-      Endif
-    Endif
-  Endif
+  hForm = New CPackageParams($encid, sPack)
+  $ratePlanOthers = hForm.GetBillingMode()
+  $ClaimStateOthers = hForm.GetClaimState()
 
 End
 
@@ -643,13 +609,13 @@ Public Sub btnsave_Click()
       xform = modNonMedical.GetServiceKeyFromCategory(res["flditemtype"])
       If xform = "Service" Then
         xauto = modBasic.$AutoBillService
-        xstate = txtrefservice.Tag
+        xstate = $ClaimStateService
       Else If xform = "Procedure" Then
         xauto = modBasic.$AutoBillProcedure
-        xstate = txtrefproc.Tag
+        xstate = $ClaimStateProcedure
       Else If xform = "Others" Then
         xauto = modBasic.$AutoBillOthers
-        xstate = txtrefother.Tag
+        xstate = $ClaimStateOthers
       Endif
 
       If xauto = "Standard" Then
@@ -770,6 +736,7 @@ Public Sub btnaddgrp_Click()
 
   If lstgroup.Text Then
     AddPackageItems(lstgroup.Text)
+    AddMedProtocols(lstgroup.Text)
   Endif
 
 End
@@ -836,6 +803,80 @@ Private Function GetReference(xform As String) As String
 
 End
 
+Private Sub AddMedProtocols(sProtocol As String)
+
+  Dim xtypLst As String[] = ["suture", "msurg", "ortho", "extra"]
+  Dim xbilMode As String
+  Dim xLedger As String
+  Dim xBillType As String
+
+  Dim res As Result
+  Dim xtax As Float
+  Dim xdisc As Float
+  Dim itemtype As String
+  Dim xfixrate As Float
+  Dim xfixname As String
+  ' Dim xvarfix As Variant[]
+  Dim itemmode As String
+  Dim xcurVal As String
+  Dim CPharmFix As CFixRatePharmacy
+  Dim xgo As Boolean
+  Dim i As Integer
+
+  For i = 0 To xtypLst.Count - 1
+    xtypLst[i] = "'" & xtypLst[i] & "'"
+  Next
+
+  If chknextvisit.Value = True Then
+    xcurVal = "Planned"
+  Else
+    If modBasic.$DispRequestStatus = "Reserve" Then
+      xcurVal = "Reserve"
+    Else
+      xcurVal = "Continue"
+    Endif
+  Endif
+
+  xbilMode = modNonMedical.GetDiscBindBillMode($billModePharmacy)
+  xLedger = modNonMedical.GetLedgerFromDiscount($billModePharmacy)
+  xBillType = modNonMedical.GetFixedInvType($billModePharmacy)
+
+  res = modDatabase.$myConn.Exec("select flditemname,flditemtype,fldqty from tblcostgroup where fldgroup=&1 and flditemtype in(" & xtypLst.Join(",") & ")", sProtocol)
+  If res.Available Then
+    For Each res
+      itemtype = modNonMedical.GetBillItemCategoryFromCombo(res["flditemtype"])
+
+      xgo = False
+      If modBasic.$BillPharmFixedModes.Exist(xbilMode) = True Then
+        CPharmFix = New CFixRatePharmacy(itemtype, res["flditemname"], xbilMode)
+        xfixrate = CPharmFix.GetFixRate()
+        xfixname = CPharmFix.GetFixItem()
+        If xfixname Then
+          xgo = True
+        Else
+          xgo = False
+        Endif
+      Else
+        xgo = True
+      Endif
+      If xgo = True Then
+        itemmode = xbilMode
+        xtax = modNonMedical.ShowTaxValues(itemtype, res["flditemname"])
+        xdisc = modNonMedical.DiscPercentForCategoryValue($encid, $billModePharmacy, itemtype, res["flditemname"], itemmode)
+        Select res["flditemtype"]
+          Case "suture", "msurg", "ortho"
+            modPharmSub.InsertNonMedDosingEntry("Surgicals", $encid, xBillType, xbilMode, $billModePharmacy, xBillType, res["flditemtype"], res["flditemname"], res["fldqty"], $status, Now(), xtax, xdisc, xfixname, xfixrate, "Request", $Dept, "", False, xcurVal)
+          Case "extra"
+            modPharmSub.InsertNonMedDosingEntry("Extra Items", $encid, xBillType, xbilMode, $billModePharmacy, xBillType, res["flditemtype"], res["flditemname"], res["fldqty"], $status, Now(), xtax, xdisc, xfixname, xfixrate, "Request", $Dept, "", False, xcurVal)
+        End Select
+      Endif
+
+    Next
+    FillDosingGrid()
+  Endif
+
+End
+
 Private Sub AddPackageItems(sGroup As String)
 
   Dim xList As String[]
@@ -864,7 +905,7 @@ Private Sub AddPackageItems(sGroup As String)
     xpayble = modBillings.GetPayableUserSetting(xform, $encid)
     If xpackg And If xauto Then
       xbilMode = modNonMedical.GetDiscBindBillMode(xpackg)
-      res = modDatabase.$myConn.Exec("select flditemname,flditemtype from tblcostgroup where fldgroup=&1 and flditemname in(select flditemname from tblservicecost where fldgroup=&2 or fldgroup=&3)", sGroup, xbilMode, "%")
+      res = modDatabase.$myConn.Exec("select flditemname,flditemtype from tblcostgroup where fldgroup=&1 and flditemtype=&2 and flditemname in(select flditemname from tblservicecost where fldgroup=&2 or fldgroup=&3)", sGroup, xform, xbilMode, "%")
       If res.Available Then
 
         For Each res
@@ -925,6 +966,44 @@ Public Sub GridView4_Data(Row As Integer, Column As Integer, Data As WebTableDat
     Data.Text = modReportVar.GetDateTimeReport($rData4[$aMyFields4[Column]], gb.GeneralDate)
   Else
     Data.Text = $rData4[$aMyFields4[Column]]
+  Endif
+
+End
+
+Private Sub FillDosingGrid()
+
+  Dim sql As String
+
+  sql = "select fldid,fldroute,flditem,fldqtydisp,fldstarttime,fldid,fldcurval from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldstatus=&3 and fldorder=&4 and (fldcurval=&5 or fldcurval=&6 or fldcurval=&7)"                                                   ''
+  $rDataM = modDatabase.$myConn.Exec(sql, $encid, False, $sTatus, "Request", "Continue", "Reserve", "Planned")
+  $aMyFieldsM = New String[]
+  modGridView.ReadSmallData(GridView5, $rDataM, $aMyFieldsM)
+
+  With GridView5
+    .Columns[0].Hidden = True
+    .Columns[1].Hidden = True
+    .Columns[2].Width = CStr(350 * modBasic.$AppWidthRatio) & "px"
+    .Columns[3].Width = CStr(50 * modBasic.$AppWidthRatio) & "px"
+    .Columns[4].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+    .Columns[5].Hidden = True
+    .Columns[6].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
+
+    .Columns[2].Text = "Particulars"
+    .Columns[3].Text = "QTY"
+    .Columns[4].Text = "Date"
+    .Columns[6].Text = "Status"
+  End With
+
+End
+
+Public Sub GridView5_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  $rDataM.MoveTo(Row)
+  modGridView.GridViewDecoration(Data, Row)
+  If Column = 4 Then
+    Data.Text = modReportVar.GetDateTimeReport($rDataM[$aMyFieldsM[Column]], gb.GeneralDate)
+  Else
+    Data.Text = $rDataM[$aMyFieldsM[Column]]
   Endif
 
 End

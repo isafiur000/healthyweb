@@ -509,6 +509,32 @@ Public Sub DuplicateRecordWithQTY(did As Long, qty As Float)
 
 End
 
+Public Sub GetSplitRecordWithQTY(xIndex As Long, newqty As Float)
+
+  Dim rs As Result
+  Dim hField As ResultField
+  Dim res As Result
+
+  rs = modDatabase.$myConn.Edit("tblpatdosing", "fldid=&1 and fldqtyret=&2", xIndex, 0)
+  If rs.Available Then
+    If newqty < rs["fldqtydisp"] Then
+      res = modDatabase.$myConn.Create("tblpatdosing")
+      For Each hField In rs.Fields
+        If hField.Name = "fldqtydisp" Then
+          res[hField.Name] = newqty
+        Else
+          res[hField.Name] = rs[hField.Name]
+        Endif
+      Next
+      res.Update
+
+      rs["fldqtydisp"] = rs["fldqtydisp"] - newqty
+      rs.Update
+    Endif
+  Endif
+
+End
+
 Public Sub InsertNurDosing(dosid As Long, encid As String, Value As Float, sUnit As String, sStart As Date)
 
   Dim res As Result

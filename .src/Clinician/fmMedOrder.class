@@ -34,11 +34,13 @@ Private $AlphaList As String[]
 Private $LedgerAC As String
 Private $xBillType As String
 Private $sBillMode As String
+Private $sClaimState As String
 Private $LabelType As String
 Private xYear As Integer
 
 Private $ClinicianLst As String[]
 Private hOwnStockForm As FmWardStock
+Private $HiCappingVar As Collection
 
 Public Sub _new(encid As String, sStatus As String, DiscPackage As String)
 
@@ -57,6 +59,7 @@ Public Sub _new(encid As String, sStatus As String, DiscPackage As String)
     Case Else
       $Dept = "OPD"
   End Select
+
   hOwnStockForm = New FmWardStock($encid, $status, $DiscPackage, "height-tablet-medium-less", pnlwardstock)
   hOwnStockForm.SetOwnDepartment($Dept)
 
@@ -268,22 +271,35 @@ End
 
 Private Sub ShowBillingParam(sDisctype As String)
 
-  Dim resx As Result
+  Dim hForm As CPackageParams
 
-  resx = modDatabase.$myConn.Exec("select fldmode,fldbillingmode,fldacledger,fldbilltype,fldreference,fldlimit,fldlockstate from tbldiscount where fldtype=&1", sDisctype)
-  If resx.Available Then
-    ''billingmode
-    If resx["fldbillingmode"] Then
-      $sBillMode = resx["fldbillingmode"]
-    Else
-      $sBillMode = modPatient.GetPatBillingMode($encid)
-    Endif
-    ''ledger A/C
-    $LedgerAC = resx["fldacledger"]
-    ''BillType
-    $xBillType = resx["fldbilltype"]
-    If Not $xBillType Then
-      $xBillType = "Cash"
+  $HiCappingVar = New Collection
+  hForm = New CPackageParams($encid, sDisctype)
+  $sBillMode = hForm.GetBillingMode()
+  $LedgerAC = hForm.GetLedgerAC()
+  $xBillType = hForm.GetBillType()
+  $sClaimState = hForm.GetClaimState()
+
+End
+
+Private Sub GetHImedicineCappingVar()
+
+  Dim hForm As CimisAPICap
+
+  If cmbdisctype.Text = modBasic.$HIPackage Or If cmbdisctype.Text = modBasic.$HIPackageER Then
+    If modBasic.$IMISValidateURL Then
+
+      If modClaim.GetChronicClaimStatus($encid) = True Then
+        If $HiCappingVar.Count Then
+          $HiCappingVar.Clear()
+        Endif
+      Else
+        If Not $HiCappingVar.Count Then
+          hForm = New CimisAPICap($xNHISCode)
+          $HiCappingVar = hForm.GetMedicineLimits()
+        Endif
+      Endif
+
     Endif
   Endif
 
@@ -681,24 +697,17 @@ Private Sub EnterDosingRecord()
   Endif
   If cmbroute.Text And If cmbmedicine.Text Then
 
+    itemtype = modNonMedical.GetBillItemCategoryFromCombo(cmbroute.Text)
+    CPharmFix = New CFixRatePharmacy(itemtype, cmbmedicine.Text, $sBillMode)
+    xfixrate = CPharmFix.GetFixRate()
+    xfixname = CPharmFix.GetFixItem()
+    itemmode = $sBillMode
+    xtax = modNonMedical.ShowTaxValues(itemtype, cmbmedicine.Text)
+    xdisc = modNonMedical.DiscPercentForCategoryValue($encid, cmbdisctype.Text, itemtype, cmbmedicine.Text, itemmode)
     If cmbroute.Text = "suture" Or If cmbroute.Text = "msurg" Or If cmbroute.Text = "ortho" Or If cmbroute.Text = "extra" Then
-      itemtype = modNonMedical.GetBillItemCategoryFromCombo(cmbroute.Text)
-      CPharmFix = New CFixRatePharmacy(itemtype, cmbmedicine.Text, $sBillMode)
-      xfixrate = CPharmFix.GetFixRate()
-      xfixname = CPharmFix.GetFixItem()
-      itemmode = $sBillMode
-      xtax = modNonMedical.ShowTaxValues(itemtype, cmbmedicine.Text)
-      xdisc = modNonMedical.DiscPercentForCategoryValue($encid, cmbdisctype.Text, itemtype, cmbmedicine.Text, itemmode)
       modPharmSub.InsertNonMedDosingEntry(itemtype, $encid, $xBillType, $sBillMode, cmbdisctype.Text, $LedgerAC, cmbroute.Text, cmbmedicine.Text, txtqty.Value, $status, txtstart.Value, xtax, xdisc, xfixname, xfixrate, "Request", $Dept, Trim(txtdirection.Text), False, xcurVal)
 
     Else
-      itemtype = modNonMedical.GetBillItemCategoryFromCombo(cmbroute.Text)
-      CPharmFix = New CFixRatePharmacy(itemtype, cmbmedicine.Text, $sBillMode)
-      xfixrate = CPharmFix.GetFixRate()
-      xfixname = CPharmFix.GetFixItem()
-      itemmode = $sBillMode
-      xtax = modNonMedical.ShowTaxValues(itemtype, cmbmedicine.Text)
-      xdisc = modNonMedical.DiscPercentForCategoryValue($encid, cmbdisctype.Text, itemtype, cmbmedicine.Text, itemmode)
       If modMedConstant.GetNarcoticType(cmbmedicine.Text) = "Yes" Then
         txprescriber = $NarcoDoctor
         txpresno = $NarcoRegd
@@ -759,19 +768,13 @@ Public Sub btngroup_Click()
     For Each xIndex In xList
       res = modDatabase.$myConn.Exec("select fldroute,flditem,flddose,flddoseunit,fldfreq,fldday,fldqty,fldstart,fldadvice from tblproductgroup where fldid=&1 and (fldcomp=&2 or fldcomp=&3)", xIndex, modBasic.$compID, "%")
       If res.Available Then
-
         itemtype = modNonMedical.GetBillItemCategoryFromCombo(res["fldroute"])
-        CPharmFix = New CFixRatePharmacy(itemtype, res["flditem"], $sBillMode)
-        xfixrate = CPharmFix.GetFixRate()
-        xfixname = CPharmFix.GetFixItem()
-        If xfixname Then
-          itemmode = $sBillMode
-        Else
-          itemmode = "%"
-        Endif
 
         xgo = False
         If modBasic.$BillPharmFixedModes.Exist($sBillMode) = True Then
+          CPharmFix = New CFixRatePharmacy(itemtype, res["flditem"], $sBillMode)
+          xfixrate = CPharmFix.GetFixRate()
+          xfixname = CPharmFix.GetFixItem()
           If xfixname Then
             xgo = True
           Else
@@ -781,6 +784,7 @@ Public Sub btngroup_Click()
           xgo = True
         Endif
         If xgo = True Then
+          itemmode = $sBillMode
           xtax = modNonMedical.ShowTaxValues(itemtype, res["flditem"])
           xdisc = modNonMedical.DiscPercentForCategoryValue($encid, cmbdisctype.Text, itemtype, res["flditem"], itemmode)
           Select res["fldroute"]
@@ -936,17 +940,12 @@ Private Sub AddNewRegimen(itmList As Long[])
         res = modDatabase.$myConn.Exec("select fldroute,fldbrandid,flddose,fldfreq,fldday,fldqty,fldusage from tblmedregimen where fldid=&1", idx)
         If res.Available Then
           itemtype = modNonMedical.GetBillItemCategoryFromCombo(res["fldroute"])
-          CPharmFix = New CFixRatePharmacy(itemtype, res["fldbrandid"], $sBillMode)
-          xfixrate = CPharmFix.GetFixRate()
-          xfixname = CPharmFix.GetFixItem()
-          If xfixname Then
-            itemmode = $sBillMode
-          Else
-            itemmode = "%"
-          Endif
 
           xgo = False
           If modBasic.$BillPharmFixedModes.Exist($sBillMode) = True Then
+            CPharmFix = New CFixRatePharmacy(itemtype, res["fldbrandid"], $sBillMode)
+            xfixrate = CPharmFix.GetFixRate()
+            xfixname = CPharmFix.GetFixItem()
             If xfixname Then
               xgo = True
             Else
@@ -956,6 +955,7 @@ Private Sub AddNewRegimen(itmList As Long[])
             xgo = True
           Endif
           If xgo = True Then
+            itemmode = $sBillMode
             xtax = modNonMedical.ShowTaxValues(itemtype, res["fldbrandid"])
             xdisc = modNonMedical.DiscPercentForCategoryValue($encid, cmbdisctype.Text, itemtype, res["fldbrandid"], itemmode)
             Select res["fldroute"]
@@ -1030,17 +1030,12 @@ Private Sub AddPastRegimens(itmList As Long[])
         res = modDatabase.$myConn.Exec("select fldroute,flditem,flddose,fldfreq,flddays,fldqtydisp,flddirection from tblpatdosing where fldid=&1", idx)
         If res.Available Then
           itemtype = modNonMedical.GetBillItemCategoryFromCombo(res["fldroute"])
-          CPharmFix = New CFixRatePharmacy(itemtype, res["flditem"], $sBillMode)
-          xfixrate = CPharmFix.GetFixRate()
-          xfixname = CPharmFix.GetFixItem()
-          If xfixname Then
-            itemmode = $sBillMode
-          Else
-            itemmode = "%"
-          Endif
 
           xgo = False
           If modBasic.$BillPharmFixedModes.Exist($sBillMode) = True Then
+            CPharmFix = New CFixRatePharmacy(itemtype, res["flditem"], $sBillMode)
+            xfixrate = CPharmFix.GetFixRate()
+            xfixname = CPharmFix.GetFixItem()
             If xfixname Then
               xgo = True
             Else
@@ -1050,6 +1045,7 @@ Private Sub AddPastRegimens(itmList As Long[])
             xgo = True
           Endif
           If xgo = True Then
+            itemmode = $sBillMode
             xtax = modNonMedical.ShowTaxValues(itemtype, res["flditem"])
             xdisc = modNonMedical.DiscPercentForCategoryValue($encid, cmbdisctype.Text, itemtype, res["flditem"], itemmode)
             Select res["fldroute"]
@@ -1467,6 +1463,18 @@ Public Sub rblabel_Click()
 
 End
 
+Public Sub rballdates_Click()
+
+  RefreshGridsLabel()
+
+End
+
+Public Sub rbcurrent_Click()
+
+  RefreshGridsLabel()
+
+End
+
 Private Sub RefreshGridsLabel()
 
   If $Ready = True Then
@@ -1502,7 +1510,7 @@ Private Sub ShowAllMedicines()
   If rblabel.Value = True Then
     xFields = ["fldid", "fldsave_order", "fldstarttime", "fldroute", "flditem", "fldid", "fldfreq", "flddays", "fldcurval", "fldid", "fldstarttime", "fldstatus", "flduserid_order"]
   Else
-    xFields = ["fldid", "fldsave_order", "fldstarttime", "fldroute", "flditem", "fldid", "fldfreq", "COUNT(fldid)", "fldcurval", "fldid", "fldstarttime", "fldstatus", "flduserid_order"]
+    xFields = ["fldid", "fldsave_order", "fldstarttime", "fldroute", "flditem", "flddose", "fldfreq", "COUNT(fldid)", "fldcurval", "fldid", "fldstarttime", "fldstatus", "flduserid_order"]
   Endif
   If rblabel.Value = True Then
     sql1 = "select " & xFields.Join(",") & " from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and flditemtype=&3 and flddays>&4"
@@ -1530,29 +1538,33 @@ Private Sub ShowRunningMedicine(xCurrent As String)
     asx[i] = "'" & asx[i] & "'"
   Next
 
-  xFields = ["fldid", "fldsave_order", "fldstarttime", "fldroute", "flditem", "fldid", "fldfreq", "flddays", "fldcurval", "fldid", "fldstarttime", "fldstatus", "flduserid_order"]
+  If rblabel.Value = True Then
+    xFields = ["fldid", "fldsave_order", "fldstarttime", "fldroute", "flditem", "fldid", "fldfreq", "flddays", "fldcurval", "fldid", "fldstarttime", "fldstatus", "flduserid_order"]
+  Else
+    xFields = ["fldid", "fldsave_order", "fldstarttime", "fldroute", "flditem", "flddose", "fldfreq", "flddays", "fldcurval", "fldid", "fldstarttime", "fldstatus", "flduserid_order"]
+  Endif
   Select xCurrent
     Case "Continue", "On Hold"
       If rblabel.Value = True Then
-        sql = "select " & xFields.Join(",") & " from tblpatdosing where fldencounterval=&1 and fldstarttime<=&2 and DATE_ADD(fldstarttime, INTERVAL flddays DAY)>=&3 and flditemtype=&4 and fldcurval=&5 ORDER BY fldid DESC"
+        sql = "select " & xFields.Join(",") & " from tblpatdosing where fldencounterval=&1 and fldstarttime<=&2 and DATE_ADD(fldstarttime, INTERVAL flddays DAY)>=&3 and flditemtype=&4 and fldcurval=&5 and fldqtydisp>fldqtyret ORDER BY fldid DESC"
       Else
-        sql = "select " & xFields.Join(",") & " from tblpatdosing where fldencounterval=&1 and fldstarttime<=&2 and DATE_ADD(fldstarttime, INTERVAL flddays DAY)>=&3 and flditemtype=&4 and fldcurval=&5 ORDER BY fldid DESC"                    ''
+        sql = "select " & xFields.Join(",") & " from tblpatdosing where fldencounterval=&1 and fldstarttime<=&2 and DATE_ADD(fldstarttime, INTERVAL flddays DAY)>=&3 and flditemtype=&4 and fldcurval=&5 and fldqtydisp>fldqtyret ORDER BY fldid DESC"                    ''
       Endif
       $rData2 = modDatabase.$myConn.Exec(sql, $encid, Now(), DateAdd(Now(), gb.Hour, -3), "Medicines", xCurrent)
 
     Case "Removed"
       If rblabel.Value = True Then
-        sql = "select " & xFields.Join(",") & " from tblpatdosing where fldencounterval=&1 and fldstarttime<=&2 and DATE_ADD(fldstarttime, INTERVAL flddays DAY)>=&3 and flditemtype=&4 and fldcurval in(" & asx.Join(",") & ") ORDER BY fldid DESC"
+        sql = "select " & xFields.Join(",") & " from tblpatdosing where fldencounterval=&1 and fldstarttime<=&2 and DATE_ADD(fldstarttime, INTERVAL flddays DAY)>=&3 and flditemtype=&4 and fldcurval in(" & asx.Join(",") & ") and fldqtydisp>fldqtyret ORDER BY fldid DESC"
       Else
-        sql = "select " & xFields.Join(",") & " from tblpatdosing where fldencounterval=&1 and fldstarttime<=&2 and DATE_ADD(fldstarttime, INTERVAL flddays DAY)>=&3 and flditemtype=&4 and fldcurval in(" & asx.Join(",") & ") ORDER BY fldid DESC"                    ''
+        sql = "select " & xFields.Join(",") & " from tblpatdosing where fldencounterval=&1 and fldstarttime<=&2 and DATE_ADD(fldstarttime, INTERVAL flddays DAY)>=&3 and flditemtype=&4 and fldcurval in(" & asx.Join(",") & ") and fldqtydisp>fldqtyret ORDER BY fldid DESC"                    ''
       Endif
       $rData2 = modDatabase.$myConn.Exec(sql, $encid, Now(), DateAdd(Now(), gb.Hour, -3), "Medicines")
 
     Case "All Types"
       If rblabel.Value = True Then
-        sql = "select " & xFields.Join(",") & " from tblpatdosing where fldencounterval=&1 and fldstarttime<=&2 and DATE_ADD(fldstarttime, INTERVAL flddays DAY)>=&3 and flditemtype=&4 ORDER BY fldid DESC"
+        sql = "select " & xFields.Join(",") & " from tblpatdosing where fldencounterval=&1 and fldstarttime<=&2 and DATE_ADD(fldstarttime, INTERVAL flddays DAY)>=&3 and flditemtype=&4 and fldqtydisp>fldqtyret ORDER BY fldid DESC"
       Else
-        sql = "select " & xFields.Join(",") & " from tblpatdosing where fldencounterval=&1 and fldstarttime<=&2 and DATE_ADD(fldstarttime, INTERVAL flddays DAY)>=&3 and flditemtype=&4 ORDER BY fldid DESC"                    ''
+        sql = "select " & xFields.Join(",") & " from tblpatdosing where fldencounterval=&1 and fldstarttime<=&2 and DATE_ADD(fldstarttime, INTERVAL flddays DAY)>=&3 and flditemtype=&4 and fldqtydisp>fldqtyret ORDER BY fldid DESC"                    ''
       Endif
       $rData2 = modDatabase.$myConn.Exec(sql, $encid, Now(), DateAdd(Now(), gb.Hour, -3), "Medicines")
 
@@ -1616,16 +1628,26 @@ Public Sub grdmedicine_Data(Row As Integer, Column As Integer, Data As WebTableD
     Endif
   Else If Column = 2 Then
     Data.Text = modReportVar.GetDateTimeReport($rData2[$aMyFields2[Column]], gb.GeneralDate)
-  Else If Column = 4 Then
+  Else If Column = 5 Then
     If rblabel.Value = True Then
-      Data.Text = modPharmacy.GetMedicineDoseInFormat($rData2[$aMyFields2[Column]], "Label")
+      If $rData2[$aMyFields2[Column]] Then
+        Data.Text = modPharmacy.GetMedicineDoseInFormat($rData2[$aMyFields2[Column]], "Label")
+      Endif
     Else
       Data.Text = $rData2[$aMyFields2[Column]]
     Endif
   Else If Column = 9 Then
-    Data.Text = modPharmacy.TotalDoseCount($rData2[$aMyFields2[Column]])
+    If rballdates.Value = True Then
+      Data.Text = ""
+    Else
+      Data.Text = modPharmacy.TotalDoseCount($rData2[$aMyFields2[Column]])
+    Endif
   Else If Column = 12 Then
-    Data.Text = modGeneral.GetUserFullName($rData2[$aMyFields2[Column]])
+    If rballdates.Value = True Then
+      Data.Text = ""
+    Else
+      Data.Text = modGeneral.GetUserFullName($rData2[$aMyFields2[Column]])
+    Endif
   Else
     Data.Text = $rData2[$aMyFields2[Column]]
   Endif
@@ -1694,152 +1716,18 @@ Private Sub SaveOwnDispensing(sID As Long, sStatus As String)
 
   Dim sql1 As String
   Dim res1 As Result
-  Dim res2 As Result
-  Dim sql2 As String
+  Dim hForm As CPharmOwn
 
-  Dim tax As Float
-  Dim disc As Float
-  Dim xrate As Float
-  Dim xtot As Float
-  Dim xitem As String
-
-  Dim qtynew As Float
-  Dim xcateg As String
-  ' Dim xdose As Float
-  ' Dim xunit As String
-  Dim xerr As String
-
-  Dim xrefer As String
-  Dim xpayble As String
-  Dim xallow As Boolean
-  Dim xCshCrd As Float
-
-  xrefer = modBillings.GetReferralUserSetting("Pharmacy", $encid)
-  xpayble = modBillings.GetPayableUserSetting("Pharmacy", $encid)
-
-  xerr = ""
   sql1 = "select fldid,fldtime,fldroute,flditem,flddose,fldfreq,flddays,fldqtydisp,fldlabel,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit from tblpatdosing where fldid=&1 and fldsave_order=&2 and fldcurval=&3 and fldencounterval=&4"                                                   ''
   res1 = modDatabase.$myConn.Exec(sql1, sID, False, "Continue", $encid)
   If res1.Available = True Then
-
-    'get tax and discount percentages
-    xcateg = res1["flditemtype"]
-    If res1["fldtaxper"] Then
-      tax = res1["fldtaxper"]
-    Else
-      tax = 0
+    hForm = New CPharmOwn($encid, $sBillMode, res1)
+    If $sClaimState = "Consultation" Or If $sClaimState = "Patient Ward" Then
+      GetHImedicineCappingVar()
     Endif
-    If res1["flddiscper"] Then
-      disc = res1["flddiscper"]
-    Else
-      disc = 0
-    Endif
-    If res1["fldcashincredit"] Then
-      xCshCrd = res1["fldcashincredit"]
-    Else
-      xCshCrd = 0
-    Endif
-
-    If res1["fldfixrate"] Then
-      xrate = res1["fldfixrate"]
-    Else
-      xrate = modStock.GetCurrentSellingPrice(res1["flditem"], modBasic.$compID)
-    Endif
-
-    ' xallow = modNonMedical.AllowPharmProceedPreBill($encid, $DiscPackage, res1["fldqtydisp"], xrate, res1["flddiscper"], res1["fldbilltype"], xCshCrd, res1["fldroute"], res1["flditem"])
-    xallow = False
-    If modBasic.$AutoBillPharmacy = "Standard" Then
-      xtot = modNonMedical.GetCashBillAmount(xrate, res1["fldqtydisp"], res1["fldbilltype"], disc, tax, xCshCrd)
-      If modNonMedical.AllowPreCheckDeposit($encid, "Pharmacy", res1["flditem"], xtot, res1["fldbilltype"]) = True Then
-        xallow = True
-      Endif
-    Else If modBasic.$AutoBillPharmacy = "Full" Then
-      xtot = modNonMedical.GetCashBillAmount(xrate, res1["fldqtydisp"], res1["fldbilltype"], disc, tax, xCshCrd)
-      If modNonMedical.AllowPreEntryWithDeposit($encid, "Pharmacy", res1["flditem"], xtot, res1["fldbilltype"]) = True Then
-        xallow = True
-      Endif
-    Else
-      If modBasic.$AutoBillSaveZero = "Yes" And If xrate = 0 Then
-        xallow = True
-      Else If modBasic.$AutoBillSaveZero = "Yes" And If res1["flddiscper"] = 100 Then
-        xallow = True
-      Else If modBasic.$AutoBillSaveFullCredit = "Yes" And If res1["fldbilltype"] = "Credit" And If xCshCrd = 0 Then
-        xallow = True
-      Endif
-    Endif
-    If xallow = True Then
-
-      qtynew = res1["fldqtydisp"]
-      modDatabase.$myConn.Begin
-      While qtynew > 0
-        'get stockno, rate and quantity based on expiry check
-        sql2 = "select fldstockno,fldstockid,fldcategory,fldexpiry,fldqty,fldstatus from tblentry where fldstockid=&1 and fldcomp=&2 and fldstatus=&3 and fldqty>&4"
-        res2 = modDatabase.$myConn.Exec(sql2, res1["flditem"], modBasic.$compID, 1, 0)
-        If res2.Available Then
-          res2.MoveFirst
-
-          xitem = res1["flditem"]
-          If res1["fldfixname"] Then
-            xitem = res1["fldfixname"]
-            If res1["fldfixrate"] Then
-              xrate = res1["fldfixrate"]
-            Else
-              xrate = 0
-            Endif
-          Else
-            xrate = modStock.GetSellingPriceByStockNo(res2["fldstockno"], $sBillMode)
-          Endif
-
-          If qtynew <= res2["fldqty"] Then
-            If modBasic.$AutoBillUseOwn = "Enable" Then
-              modBillings.InsertBlankBillItemNewApp($encid, res1["fldbilltype"], res1["fldbillingmode"], res1["flddisctype"], res1["fldacledger"], res1["flditemtype"], res2["fldstockno"], xitem, xrate, qtynew, tax, disc, xCshCrd, "Done", res1["fldid"], True, False, "", xpayble, xrefer)
-            Endif
-            modStockSub.AddToExistEntry(res2["fldstockno"], (0 - qtynew), modBasic.$compID)
-            qtynew = 0
-          Else If qtynew > res2["fldqty"] Then
-            If modBasic.$AutoBillUseOwn = "Enable" Then
-              modBillings.InsertBlankBillItemNewApp($encid, res1["fldbilltype"], res1["fldbillingmode"], res1["flddisctype"], res1["fldacledger"], res1["flditemtype"], res2["fldstockno"], xitem, xrate, res2["fldqty"], tax, disc, xCshCrd, "Done", res1["fldid"], True, False, "", xpayble, xrefer)
-            Endif
-            modStockSub.AddToExistEntry(res2["fldstockno"], (0 - res2["fldqty"]), modBasic.$compID)
-            qtynew = qtynew - res2["fldqty"]
-          Endif
-          Wait
-        Else
-          Break
-        Endif
-      Wend
-
-      If res1["fldqtydisp"] > qtynew Then
-        If qtynew > 0 Then
-          modPharmSub.DuplicateRecordWithQTY(res1["fldid"], qtynew)
-          modPharmSub.UpdateQTYBefDispensing(res1["fldid"], res1["fldqtydisp"] - qtynew)
-        Endif
-        If sStatus = "Completed" Then
-          modPharmSub.UpdateDispensing(res1["fldid"], True, True)
-        Else
-          modPharmSub.UpdateDispensing(res1["fldid"], True, False)
-        Endif
-      Endif
-      modDatabase.$myConn.Commit
-
-      ''Why to insert dosing when save from local stock?
-      ' If modNonMedical.GetBillItemCategoryFromCombo(res1["fldroute"]) = "Medicines" Then
-      '   xdose = Round(res1["flddose"] / modMedConstant.GetDrugInitialStrength(res1["flditem"]), -2)
-      '   xunit = modPharmLabel.GetDosageFormForLabel(res1["flditem"], "Inpatient")
-      '   modPharmSub.InsertNurDosing(res1["fldid"], $encid, xdose, xunit, "")
-      ' Endif
-
-    Else
-      xerr = xerr & res1["fldfixname"] & gb.NewLine
-    Endif
+    hForm.SetCappingLimit($HiCappingVar)
+    hForm.DispenseItem(sStatus)
   Endif
-  If xerr Then
-    Message.Warning("<b>Over Set Discount/Credit Limit:</b>" & gb.NewLine & xerr, "OK")
-  Endif
-
-Catch
-  modDatabase.$myConn.Rollback
-  modHelpVariable.CreateErrorReport()
 
 End
 

@@ -3,6 +3,7 @@
 Private $encid As String
 Private $BillMode As String
 Private $sPackage As String
+Private $sClaimState As String
 Private $bedLocation As String
 Private $xFinClear As Boolean
 Private $PatientNum As String
@@ -116,53 +117,25 @@ End
 
 Private Sub ShowBillingParam(sPack As String)
 
-  Dim resx As Result
+  Dim hForm As CPackageParams
   Dim xbilltype As String
+  Dim xrefernce As String
 
-  txtreference.Text = ""
-  txtreference.Tag = ""
+  hForm = New CPackageParams($encid, sPack)
+  $BillMode = hForm.GetBillingMode()
+  xbilltype = hForm.GetBillType()
+  xrefernce = hForm.GetClaimCode()
+  $sClaimState = hForm.GetClaimState()
 
-  If sPack Then
-    resx = modDatabase.$myConn.Exec("select fldmode,fldbillingmode,fldacledger,fldbilltype,fldreference,fldlimit,fldlockstate from tbldiscount where fldtype=&1", sPack)
-    If resx.Available Then
-      ''billingmode
-      If resx["fldbillingmode"] Then
-        $BillMode = resx["fldbillingmode"]
+  If xbilltype
+    If modBasic.$ClinForceRadioTree = "Both" Then
+      btnselect.Enabled = False
+    Else If modBasic.$ClinForceRadioTree = xbilltype Then
+      btnselect.Enabled = False
+    Else If modBasic.$ClinForceRadioTree = "RefOnly" Then
+      If xrefernce Then
+        btnselect.Enabled = False
       Endif
-      If Not $BillMode Then
-        $BillMode = modpatient.GetPatBillingMode($encid)
-      Endif
-      ''claim code button
-      If resx["fldreference"] Then
-        If resx["fldreference"] = "Claim Code" Then
-          txtreference.Text = modClaim.GetClaimCidePatient($encid, modNonMedical.GetLastCLaimType($encid))
-          If txtreference.Text Then
-            txtreference.Tag = modClaim.GetHIClaimState(txtreference.Text)
-          Endif
-        Endif
-      Endif
-
-      ''BillType
-      xbilltype = resx["fldbilltype"]
-      If xbilltype
-        If modBasic.$ClinForceRadioTree = "Both" Then
-          btnselect.Enabled = False
-        Else If modBasic.$ClinForceRadioTree = xbilltype Then
-          btnselect.Enabled = False
-        Else If modBasic.$ClinForceRadioTree = "RefOnly" Then
-          If resx["fldreference"] Then
-            btnselect.Enabled = False
-          Endif
-        Endif
-      Endif
-
-      ' ''limit
-      ' If resx["fldlimit"] = "PatientCreditAMT" Then
-      '   txtcreditlimit.Value = modNonMedical.ShowCreditLimitEnc(Trim(txtencid.Text))
-      ' Else If resx["fldlimit"] = "PatientDiscount" Then
-      '   txtcreditlimit.Value = modNonMedical.GetPatCharityLimit(Trim(txtencid.Text))
-      ' Endif
-
     Endif
   Endif
 
@@ -632,7 +605,7 @@ Private Sub SavePartialEntry(res As Result, Optional advReceipt As String)
   Dim xgo As Boolean
 
   xgo = True
-  If txtreference.Tag = "Consultation" Or If txtreference.Tag = "Patient Ward" Then
+  If $sClaimState = "Consultation" Or If $sClaimState = "Patient Ward" Then
     xdate = modBillings.CheckLastSalesItemDate(res["flditemname"], $PatientNum, $xNHISCode, res["flddisctype"])
     If xdate Then
       xcapday = modNonMedical.GetCappingDayFromItemName(res["flditemname"])
