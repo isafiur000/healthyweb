@@ -159,7 +159,62 @@ Public Sub AddQualiImageData(encid As String, strSerial As String, strHead As St
 
 End
 
-Public Sub AddQuantiData(encid As String, strSerial As String, strHead As String, sOption As String, strReport As Float, abn As Boolean, strType As String, sysCons As String, Optional sMethod As String)
+''===================== Quanti exams =================================
+Public Sub AddQuantiOnlyExam(encid As String, strSerial As String, strHead As String, sOption As String, strQuanti As Float, abn As Boolean, strType As String, sysCons As String, xmethod As String, Optional strComment As String)
+
+  Dim res As Result
+  Dim xoption As String
+  Dim xIntVal As String
+
+  If sOption Then
+    xoption = sOption
+  Else
+    If sysCons Then
+      xoption = modFixClinic.GetExamSysOptionType(sysCons)
+    Else
+      xoption = modFixClinic.GetExamtOptionType(strHead)
+    Endif
+  Endif
+
+  res = modDatabase.$myConn.Create("tblpatientexam")
+  res["fldencounterval"] = encid
+  res["fldserialval"] = strSerial
+  res["fldinput"] = strType
+  res["fldhead"] = strHead
+  res["fldsysconst"] = sysCons
+  res["fldoption"] = xoption
+  res["fldmethod"] = xmethod
+
+  res["fldtype"] = "Quantitative"
+  If strComment Then
+    res["fldrepquali"] = strComment
+  Else
+    res["fldrepquali"] = ""
+  Endif
+  res["fldrepquanti"] = strQuanti
+
+  res["flduserid"] = modBasic.$lbluser
+  res["fldtime"] = Now()
+  res["fldcomp"] = modBasic.$compID
+  res["fldsave"] = True
+  res["fldabnormal"] = abn
+  res["flduptime"] = ""
+  res["xyz"] = False
+
+  If MMain.$WebEntry = True Then
+    xIntVal = modString.GetDateString(Now())
+    res["fldid"] = CLong(xIntVal)
+    res["fldrepoid"] = modMisc.GetWebIndexStr(xIntVal)
+    res["fldrepodate"] = Now()
+    res["fldrepomac"] = modHelpVariable.$MACAddress
+    res["fldhospcode"] = modBasic.$HospCode
+  Endif
+  res.Update()
+  'don't catch error
+
+End
+
+Public Sub AddQuantiData(encid As String, strSerial As String, strHead As String, sOption As String, strReport As Float, abn As Boolean, strType As String, sysCons As String, Optional sMethod As String, Optional sComment As String)
 
   Dim xsys As String
   Dim metList As String[]
@@ -183,7 +238,11 @@ Public Sub AddQuantiData(encid As String, strSerial As String, strHead As String
       xmethod = InputCombo("Select Method of Examination", strHead, metList, "", True)
     Endif
   Endif
-  AddClinicExam(encid, strSerial, strHead, sOption, "", strReport, abn, strType, xsys, xmethod)
+  If sComment Then
+    AddQuantiOnlyExam(encid, strSerial, strHead, sOption, strReport, abn, strType, xsys, xmethod, sComment)
+  Else
+    AddQuantiOnlyExam(encid, strSerial, strHead, sOption, strReport, abn, strType, xsys, xmethod)
+  Endif
 
 End
 
@@ -223,7 +282,7 @@ Public Sub AddQuantiDataUniq(encid As String, strSerial As String, strHead As St
 
 End
 
-Public Sub AddQuantiDataCheck(encid As String, strSerial As String, strHead As String, sOption As String, strReport As Float, strType As String, Optional sysCons As String)
+Public Sub AddQuantiDataCheck(encid As String, strSerial As String, strHead As String, sOption As String, strReport As Float, strType As String, Optional sysCons As String, Optional sComment As String)
 
   Dim xlimit As Float[]
   Dim xbool As Boolean
@@ -238,10 +297,18 @@ Public Sub AddQuantiDataCheck(encid As String, strSerial As String, strHead As S
       xbool = False
     Endif
   Endif
-  If sysCons Then
-    AddQuantiData(encid, strSerial, strHead, sOption, strReport, xbool, strType, sysCons)
+  If sComment Then
+    If sysCons Then
+      AddQuantiData(encid, strSerial, strHead, sOption, strReport, xbool, strType, sysCons, "", sComment)
+    Else
+      AddQuantiData(encid, strSerial, strHead, sOption, strReport, xbool, strType, "", "", sComment)
+    Endif
   Else
-    AddQuantiData(encid, strSerial, strHead, sOption, strReport, xbool, strType, "")
+    If sysCons Then
+      AddQuantiData(encid, strSerial, strHead, sOption, strReport, xbool, strType, sysCons)
+    Else
+      AddQuantiData(encid, strSerial, strHead, sOption, strReport, xbool, strType, "")
+    Endif
   Endif
 
 End

@@ -1,0 +1,67 @@
+' Gambas class file
+
+Private $patID As String
+Private $sDiseaseId As Integer
+Private $sDate As Date
+Private $sPath As String
+Private $xOutput As String
+
+Public Sub _new(sPatID As String, sDiseaseID As Integer, sDate As Date, xPath As String)
+
+  $patID = sPatID
+  $sDiseaseId = sDiseaseID
+  $sDate = sDate
+  $sPath = xPath
+
+  ExecuteAPI()
+
+End
+
+Private Sub GetCollectionData() As String[]
+
+  Dim aData As String[]
+  Dim asx As String[]
+  Dim xnepdate As String
+
+  asx = Split(modDate.ConvertToLocaldate($sDate), "/")
+  xnepdate = asx[0] & "-" & asx[1] & "-" & asx[2]
+
+  aData = New String[]
+  aData.Add("--form 'patient_id=" & Quote($patID) & "'")
+  aData.Add("--form 'patient_disease_id=" & Quote($sDiseaseId) & "'")
+  aData.Add("--form 'issueddate=" & Quote(xnepdate) & "'")
+  'aData.Add("--form 'dr_name=" & Quote("") & "'")
+  aData.Add("--form 'attachment=@" & Quote($sPath) & "'")
+
+  Return aData
+
+End
+
+Private Sub ExecuteAPI()
+
+  Dim acmd As String
+  Dim xurl As String
+  Dim xauth As String
+  Dim xcont As String
+  Dim ycont As String
+
+  Dim aData As String[]
+
+  xurl = modBasic.$BipannaDocumentURL
+  xauth = "Authorization: Bearer " & modBasic.$BipannaHospitalCode
+  xcont = "Content-Type: application/json"
+  ycont = "Accept: application/json"
+  aData = GetCollectionData()
+
+  acmd = "curl -H " & Quote(xauth) & " --location " & xurl & Space(1) & aData.Join(Space(1))
+  modBasic.DebugAPIString(Replace("Execute " & acmd, xauth, "****"))
+  Shell acmd To $xOutput
+  modBasic.DebugAPIString("Response: " & $xOutput)
+
+End
+
+Public Function GetUploadAPI() As String
+
+  Return $xOutput
+
+End

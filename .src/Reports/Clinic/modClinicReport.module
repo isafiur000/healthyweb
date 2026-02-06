@@ -43,12 +43,15 @@ Public Function GetPatientChiefComplaintsReport(encid As String, sMulti As Boole
 
   Dim compLst2 As String[]
   Dim compLst1 As String[]
+  Dim compLst3 As String[]
   Dim xCompAll As String[]
   Dim compLst As String[]
   Dim xcomp As String
 
   Dim xUnitLst As String[]
   Dim res As Result
+  Dim sql1 As String
+  Dim sql2 As String
   Dim res1 As Result
   Dim xx As String[]
   Dim yyy As String
@@ -66,10 +69,16 @@ Public Function GetPatientChiefComplaintsReport(encid As String, sMulti As Boole
     If compLst1.Count Then
       xCompAll.Insert(compLst1)
     Endif
+    compLst3 = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldcomp) as col from tblpatientnotes where fldencounterval=&1 and fldinput=&2 and flditem=&3", encid, "History", "General Complaints"))
+    If compLst3.Count Then
+      xCompAll.Insert(compLst3)
+    Endif
     compLst = modString.GetDistinctStringArray(xCompAll)
     For Each xcomp In compLst
       ''general complaints
-      res1 = modDatabase.$myConn.Exec("select flddetail,fldreportquali,fldtime,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and flditem=&3 and fldcomp=&4", encid, "History", "General Complaints", xcomp)
+      sql1 = "select flddetail,fldreportquali,fldtime,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and flditem=&3 and fldcomp=&4"
+      sql2 = "select flddetail,fldreportquali,fldtime,flduserid from tblpatientnotes where fldencounterval=&1 and fldinput=&2 and flditem=&3 and fldcomp=&4"
+      res1 = modDatabase.$myConn.Exec(sql1 & " UNION ALL " & sql2 & " ORDER BY fldtime", encid, "History", "General Complaints", xcomp)
       If res1.Available Then
         res1.MoveLast
         yyy = ""
@@ -388,16 +397,16 @@ Public Function GetRequestMedString(encid As String, sType As String, sMulti As 
   Dim xcomp As String
 
   If sMulti = True Then
-    compLst = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldcomp_order) as col from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and fldorder=&3 and fldcurval=&4", encid, sType, "Request", "Continue"))
+    compLst = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldcomp_order) as col from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and (fldorder=&3 or fldorder=&4) and fldcurval=&5", encid, sType, "Request", "UseOwn", "Continue"))
     xx = ""
     For Each xcomp In compLst
-      rs = modDatabase.$myConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,flditemtype,(fldqtydisp-fldqtyret) as fldqtydisp,flddirection,fldstarttime from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and fldorder=&3 and fldcurval=&4 and fldcomp_order=&5", encid, sType, "Request", "Continue", xcomp)
+      rs = modDatabase.$myConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,flditemtype,(fldqtydisp-fldqtyret) as fldqtydisp,flddirection,fldstarttime,fldlevel from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and (fldorder=&3 or fldorder=&4) and fldcurval=&5 and fldcomp_order=&6", encid, sType, "Request", "UseOwn", "Continue", xcomp)
       If rs.Available Then
         xx = xx & xcomp & "<br>" & GetMedicineTable(sType, rs) & "<br>"
       Endif
     Next
   Else
-    rs = modDatabase.$myConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,flditemtype,(fldqtydisp-fldqtyret) as fldqtydisp,flddirection,fldstarttime from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and fldorder=&3 and fldcurval=&4" & modPatReports.GetLockClinicSQL("tblpatdosing"), encid, sType, "Request", "Continue")                 ''
+    rs = modDatabase.$myConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,flditemtype,(fldqtydisp-fldqtyret) as fldqtydisp,flddirection,fldstarttime,fldlevel from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and (fldorder=&3 or fldorder=&4) and fldcurval=&5" & modPatReports.GetLockClinicSQL("tblpatdosing"), encid, sType, "Request", "UseOwn", "Continue")                 ''
     If rs.Available Then
       xx = GetMedicineTable(sType, rs)
     Else
