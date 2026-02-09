@@ -65,7 +65,7 @@ Public Function ShowAllCompleteReport(encid As String, strUnit As String) As Str
   ' $BillingReport.Add(hForm.AddMedicationUsed())
   $BillingReport.Add(hForm.AddVaccinesUsed())
   $BillingReport.Add(hForm.AddNutritionUsed())
-  xdelivery = modPatReports.DeliveryReportbyMother()
+  xdelivery = modPatReports.DeliveryReportbyMother(encid)
   If xdelivery Then
     $BillingReport.Add(AddCustomReport("Delivery Profile", xdelivery.Join(gb.NewLine)))
   Endif
@@ -137,6 +137,9 @@ Public Function ShowCompleteReport(encid As String, xList As String[], strUnit A
 
   If xList.Exist("Outpatient Advice") Then
     $BillingReport.Add(hForm.AddOutpatientAdvice())
+  Endif
+  If xList.Exist("Glass Prescription") Then
+    $BillingReport.Add(hForm.AddGlassPrescription())
   Endif
   If xList.Exist("Orders for New Visit") Then
     $BillingReport.Add(hForm.AddOrderForNewVisit())
@@ -288,6 +291,9 @@ Public Function ShowAllEncounterReport(encounter As String, xList As String[], s
       If xitem = "Outpatient Advice" Then
         $BillingReport.Add(hForm.AddOutpatientAdvice())
       Endif
+      If xitem = "Glass Prescription" Then
+        $BillingReport.Add(hForm.AddGlassPrescription())
+      Endif
       If xitem = "Orders for New Visit" Then
         $BillingReport.Add(hForm.AddOrderForNewVisit())
       Endif
@@ -372,6 +378,7 @@ Public Function ShowAllEncounterSpecific(encounter As String, strUnit As String,
   Dim $BillingReport As CReportHTML
   Dim encid As String
   Dim encList As String[]
+  Dim hForm As CPatReport
 
   If modBasic.$MedRepoBody = "Paragraph" Then
     $BillingReport = New CReportHTML([("Description")], "PatientReport", encounter)
@@ -385,16 +392,17 @@ Public Function ShowAllEncounterSpecific(encounter As String, strUnit As String,
   For Each encid In encList
     $BillingReport.AddSection(encid & " (" & modReportVar.GetDateTimeReport(modPatient.GetRecordDate(encid), gb.MediumDate) & ")", True)
 
+    hForm = New CPatReport(encid)
     If sType = "Medicines" Then
-      $BillingReport.Add(modPatReports.AddMedicineDispensed(encid))
-      $BillingReport.Add(modPatReports.AddUnavailableMeds(encid))
-      $BillingReport.Add(modPatReports.AddMedicationUsed(encid))
+      $BillingReport.Add(hForm.AddMedicineDispensed())
+      $BillingReport.Add(hForm.AddUnavailableMeds())
+      $BillingReport.Add(hForm.AddMedicationUsed())
     Else If sType = "Laboratory" Then
-      $BillingReport.Add(modPatReports.AddSelectedTest(encid, modLabTest.PaientAllTestNameArray(encid), strUnit))
+      $BillingReport.Add(hForm.AddSelectedTest(modLabTest.PaientAllTestNameArray(encid), strUnit))
     Else If sType = "Radiology" Then
-      $BillingReport.Add(modPatReports.AddSelectedRadio(encid, modRadioTest.PaientAllRadioNameArray(encid)))
+      $BillingReport.Add(hForm.AddSelectedRadio(modRadioTest.PaientAllRadioNameArray(encid)))
     Else If sType = "Examination" Then
-      $BillingReport.Add(modPatReports.AddSelectedExamination(encid, modClinic.PaientAllExamNameArray(encid)))
+      $BillingReport.Add(hForm.AddSelectedExamination(modClinic.PaientAllExamNameArray(encid)))
     Endif
 
   Next

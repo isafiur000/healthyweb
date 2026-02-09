@@ -63,26 +63,29 @@ Public Sub _new()
 End
 
 'Note: -------------------------------------- Create Review Report (Sing/Mult) ------------------------------------
-Public Sub ShowMedCompatibleSingleDosID(dosid As Long, druglist As String[], strOutput As String)
+Public Function ShowMedCompatibleSingleDosIDMessage(dosid As Long, druglist As String[]) As String
 
   Dim res As Result
   Dim xdrug As String
+  Dim xout As String
 
   res = modDatabase.$myConn.Exec("select fldencounterval,fldroute,flditem,flddose,fldfreq,flddays,fldtime from tblpatdosing where fldid=&1", dosid)                                                                      ''
   If res.Available = True Then
     For Each xdrug In druglist
       MedicationReviewCurrentMultipleDrugs(res["fldencounterval"], res["flditem"], xdrug)
     Next
-    OutFormatShow(res["fldencounterval"], strOutput)
+    xout = OutFormatShow(res["fldencounterval"], "Message Box")
   Endif
+  Return xout
 
 End
 
-Public Sub ShowMedicationReviewSingleDosID(dosid As Long, druglist As String[], strOutput As String)
+Public Function ShowMedicationReviewSingleDosIDReport(dosid As Long, druglist As String[]) As String
 
   Dim res As Result
   Dim xdrug As String
   Dim codeid As String
+  Dim xout As String
 
   res = modDatabase.$myConn.Exec("select fldencounterval,fldroute,flditem,flddose,fldfreq,flddays,fldtime from tblpatdosing where fldid=&1", dosid)                                                                      ''
   If res.Available = True Then
@@ -109,13 +112,14 @@ Public Sub ShowMedicationReviewSingleDosID(dosid As Long, druglist As String[], 
       MedicationReviewDugExamination(res["fldencounterval"], res["flditem"], codeid)
     Endif
 
-    OutFormatShow(res["fldencounterval"], strOutput)
-
+    xout = OutFormatShow(res["fldencounterval"], "Report")
   Endif
+
+  Return xout
 
 End
 
-Public Sub ShowMedicationReviewMultipleDosID(encid As String, dosid As Long[], strOutput As String)
+Private Sub ShowMedicationReviewMultipleDosID(encid As String, dosid As Long[])
 
   Dim res As Result
   Dim druglist As String[]
@@ -124,9 +128,34 @@ Public Sub ShowMedicationReviewMultipleDosID(encid As String, dosid As Long[], s
   Dim xval As String
   Dim codeid As String
 
-  druglist = New String[]
+  Dim xVar As Variant[]
+  Dim xColl As Collection
+  Dim aColl As Collection
+  Dim curdrug As String
+
+  Dim xAllegLst As String[]
+  Dim xDisesLst As String[]
+  Dim xLabLst As String[]
+  Dim xExamLst As String[]
+  Dim xIntxLst As String[]
+
+  xVar = New Variant[]
   For Each dos In dosid
-    xval = modMedConstant.GetDrugFromStockID(modPharmacy.GetStockIDFromDosing(dos))
+    res = modDatabase.$myConn.Exec("select fldencounterval,fldroute,flditem,flddose,fldfreq,flddays,fldtime from tblpatdosing where fldid=&1 and fldencounterval=&2", dos, encid)                                                                      ''
+    If res.Available Then
+      xColl = New Collection
+      xColl.Add(res["fldroute"], "Route")
+      xColl.Add(res["flditem"], "Medicine")
+      xColl.Add(res["flddose"], "Dose")
+      xColl.Add(res["fldfreq"], "Frequency")
+      xColl.Add(res["flddays"], "Duration")
+      xVar.Add(xColl)
+    Endif
+  Next
+
+  druglist = New String[]
+  For Each aColl In xVar
+    xval = modMedConstant.GetDrugFromStockID(aColl["Medicine"])
     If druglist.Count = 0 Then
       druglist.Add(xval)
     Else
@@ -139,72 +168,138 @@ Public Sub ShowMedicationReviewMultipleDosID(encid As String, dosid As Long[], s
     druglist.Sort()
   Endif
 
-  For Each dos In dosid
-    res = modDatabase.$myConn.Exec("select fldencounterval,fldroute,flditem,flddose,fldfreq,flddays,fldtime from tblpatdosing where fldid=&1 and fldencounterval=&2", dos, encid)                                                                      ''
-    If res.Available = True Then
-      codeid = modMedConstant.GetCodeFromStockID(res["flditem"])
+  xAllegLst = New String[]
+  xDisesLst = New String[]
+  xLabLst = New String[]
+  xExamLst = New String[]
+  xIntxLst = New String[]
+  For Each aColl In xVar
+    codeid = modMedConstant.GetCodeFromStockID(aColl["Medicine"])
+    curdrug = modMedConstant.GetDrugFromStockID(aColl["Medicine"])
 
-      If UseSingleDrugRev() = True Then
-        MedicationReviewSingleDrug(res["fldencounterval"], res["flditem"], codeid, res["fldroute"], res["flddose"], res["fldfreq"])
-      Endif
-      If UseDrugAllerRev() = True Then
-        MedicationReviewDugAllergy(res["fldencounterval"], res["flditem"], codeid)
-      Endif
-      If UseCurrDiseaseRev() = True Then
-        GetMedicationReviewDrugCurrentDisease(res["fldencounterval"], res["flditem"], codeid)
-      Endif
-      If UseMultiDrugRev() = True Then
-        For Each xdrug In druglist
-          MedicationReviewCurrentMultipleDrugs(res["fldencounterval"], res["flditem"], xdrug)
-        Next
-      Endif
-      If UseLabDrugRev() = True Then
-        MedicationReviewDugCurrentLab(res["fldencounterval"], res["flditem"], codeid)
-      Endif
-      If UseExamDrugRev() = True Then
-        MedicationReviewDugExamination(res["fldencounterval"], res["flditem"], codeid)
+    If UseSingleDrugRev() = True Then
+      MedicationReviewSingleDrug(encid, aColl["Medicine"], codeid, aColl["Route"], aColl["Dose"], aColl["Frequency"])
+    Endif
+
+    If UseDrugAllerRev() = True Then
+      If xAllegLst.Exist(aColl["Medicine"]) = False Then
+        MedicationReviewDugAllergy(encid, aColl["Medicine"], codeid)
+        xAllegLst.Add(aColl["Medicine"])
       Endif
     Endif
-  Next
 
-  OutFormatShow(encid, strOutput)
+    If UseCurrDiseaseRev() = True Then
+      If xDisesLst.Exist(aColl["Medicine"]) = False Then
+        GetMedicationReviewDrugCurrentDisease(encid, aColl["Medicine"], codeid)
+        xDisesLst.Add(aColl["Medicine"])
+      Endif
+    Endif
+
+    If UseMultiDrugRev() = True Then
+      For Each xdrug In druglist
+        If curdrug = xdrug Then
+        Else
+          If xIntxLst.Exist(curdrug & "|" & xdrug) = False Then
+            MedicationReviewCurrentMultipleDrugs(encid, aColl["Medicine"], xdrug)
+            xIntxLst.Add(curdrug & "|" & xdrug)
+            xIntxLst.Add(xdrug & "|" & curdrug)
+          Endif
+        Endif
+      Next
+    Endif
+
+    If UseLabDrugRev() = True Then
+      If xLabLst.Exist(aColl["Medicine"]) = False Then
+        MedicationReviewDugCurrentLab(encid, aColl["Medicine"], codeid)
+        xLabLst.Add(aColl["Medicine"])
+      Endif
+    Endif
+
+    If UseExamDrugRev() = True Then
+      If xExamLst.Exist(aColl["Medicine"]) = False Then
+        MedicationReviewDugExamination(encid, aColl["Medicine"], codeid)
+        xExamLst.Add(aColl["Medicine"])
+      Endif
+    Endif
+
+  Next
 
 End
 
-Public Function ShowMedicationReviewPunching(encid As String, txtroute As String, stockid As String, dose As Float, freq As String, drglist As String[], strOutput As String) As Integer
+Public Function ShowMedicationReviewMultipleDosIDReport(encid As String, dosid As Long[]) As String
+
+  Dim xout As String
+
+  ShowMedicationReviewMultipleDosID(encid, dosid)
+  xout = OutFormatShow(encid, "Report")
+
+  Return xout
+
+End
+
+Public Function ShowMedicationReviewMultipleDosIDMessage(encid As String, dosid As Long[]) As String
+
+  Dim xout As String
+
+  ShowMedicationReviewMultipleDosID(encid, dosid)
+  xout = OutFormatShow(encid, "Notification")
+
+  Return xout
+
+End
+
+Public Function ShowMedicationReviewPunching(encid As String, txtroute As String, stockid As String, dose As Float, freq As String, drglist As String[]) As String
 
   Dim xdrug As String
   Dim codeid As String
+  Dim curdrug As String
+  Dim xout As String
+
+  Dim xIntxLst As String[]
 
   codeid = modMedConstant.GetCodeFromStockID(stockid)
+  curdrug = modMedConstant.GetDrugFromStockID(stockid)
 
   If UseSingleDrugRev() = True Then
     MedicationReviewSingleDrug(encid, stockid, codeid, txtroute, dose, freq)
   Endif
+
   If UseDrugAllerRev() = True Then
     MedicationReviewDugAllergy(encid, stockid, codeid)
   Endif
+
   If UseCurrDiseaseRev() = True Then
     GetMedicationReviewDrugCurrentDisease(encid, stockid, codeid)
   Endif
+
+  xIntxLst = New String[]
   If UseMultiDrugRev() = True Then
     For Each xdrug In drglist
-      MedicationReviewCurrentMultipleDrugs(encid, stockid, xdrug)
+      If curdrug = xdrug Then
+      Else
+        If xIntxLst.Exist(curdrug & "|" & xdrug) = False Then
+          MedicationReviewCurrentMultipleDrugs(encid, stockid, xdrug)
+          xIntxLst.Add(curdrug & "|" & xdrug)
+          xIntxLst.Add(xdrug & "|" & curdrug)
+        Endif
+      Endif
     Next
   Endif
+
   If UseLabDrugRev() = True Then
     MedicationReviewDugCurrentLab(encid, stockid, codeid)
   Endif
+
   If UseExamDrugRev() = True Then
     MedicationReviewDugExamination(encid, stockid, codeid)
   Endif
 
-  OutFormatShow(encid, strOutput)
-  Return $encnt.Count
+  xout = OutFormatShow(encid, "Notification")
+  Return xout
 
 End
 
-Public Sub MedicalAuditReport(dtfir As Date, dtlast As Date)
+Public Function MedicalAuditReport(dtfir As Date, dtlast As Date) As String
 
   Dim tot As String[]
   Dim enc As String
@@ -282,42 +377,51 @@ Public Sub MedicalAuditReport(dtfir As Date, dtlast As Date)
 
   If $encnt.Count = $categ.Count And If $encnt.Count = $drug.Count And If $encnt.Count = $condi.Count And If $encnt.Count = $warn.Count Then
     xPath = modReportExtra.ShowMedicationAuditReportHTML($encnt, $categ, $drug, $condi, $warn, tot.Count)
-    modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
+    Return xPath
   Endif
 
 End
 
 'NOTE:-------------------------------- common modules for Review Report ----------------------------------------------
-Private Sub OutFormatShow(encid As String, strOutput As String)
+Private Function OutFormatShow(encid As String, strOutput As String) As String
 
   Dim i As Integer
   Dim messlst As String[]
-  Dim xval As String
   Dim xPath As String
 
   If $encnt.Count = $categ.Count And If $encnt.Count = $drug.Count And If $encnt.Count = $condi.Count And If $encnt.Count = $warn.Count Then
     If strOutput = "Report" Then
       xPath = modCHTMLPatient.ShowMedicationReviewReportHTML(encid, $categ, $drug, $condi, $warn)
-      modControlSub.OpenHTMLPreview(encid, xPath, "ReportSize")
+      Return xPath
+      ' modControlSub.OpenHTMLPreview(encid, xPath, "ReportSize")
 
     Else If strOutput = "Notification" Then
+      messlst = New String[]
       For i = 0 To $categ.Count - 1
-        Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", $categ[i] & " for EncID " & encid, modBasic.$BalloonDelay))
-        ' Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", $categ[i] & " : " & $condi[i] & "::" & $warn[i], modBasic.$BalloonDelay))
+        ' messlst.Add("<u>[" & $categ[i] & "]</u>" & " <b>" & $condi[i] & "</b>" & " : " & $warn[i])
+        If $categ[i] = "Drug Interaction" Then
+          WebForm.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "[" & $categ[i] & "] " & $drug[i] & " : " & $condi[i], modBasic.$BalloonDelay))
+        Else
+          WebForm.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "[" & $categ[i] & "] " & $condi[i], modBasic.$BalloonDelay))
+        Endif
+        If modBasic.$MedLogRecommend = "Yes" Then
+          AddDrugProblemsPopUp(encid, $categ[i], $drug[i], $condi[i], $warn[i], "")
+        Endif
       Next
+      If messlst.Count Then
+        Return messlst.Join("<br>")
+      Endif
 
     Else
       messlst = New String[]
       For i = 0 To $categ.Count - 1
         messlst.Add("<p><u>" & $categ[i] & "</u>" & "<br>" & "<b>" & $condi[i] & "</b>" & "::" & $warn[i] & "</p>")
+        If modBasic.$MedLogRecommend = "Yes" Then
+          AddDrugProblemsPopUp(encid, $categ[i], $drug[i], $condi[i], $warn[i], "")
+        Endif
       Next
       If messlst.Count Then
-        xval = MessageHtml("Drug related Problems", messlst.Join(gb.NewLine), [("Useless"), ("Neutral"), ("Useful")])
-        If modBasic.$MedLogRecommend = "Yes" Then
-          For i = 0 To $categ.Count - 1
-            AddDrugProblemsPopUp(encid, $categ[i], $drug[i], $condi[i], $warn[i], xval)
-          Next
-        Endif
+        Return messlst.Join(gb.NewLine)
       Endif
 
     Endif

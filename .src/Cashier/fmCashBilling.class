@@ -8,6 +8,8 @@ Private $aMyFields1 As String[]
 Private $sTatus As String
 Private $F12Lock As Boolean
 Private $MiniCalc As String
+Private resServ As Result
+Private resPharm As Result
 
 Private hPatient As FmBillingEntry
 Private $ShowAutoPay As String
@@ -389,6 +391,9 @@ Public Sub btnshow_Click()
         modImage.ShowPhotoSplash("Patient", $PatientNum)
         modPatientSub.PopUpPatientForm(Trim(txtencid.Text), Me.Tag)
         $lstEncid = modPatient.GetSecondLastEncidPatient(Trim(txtencid.Text))
+        If $lstEncid <> Trim(txtencid.Text) Then
+          GetPlannedItems()
+        Endif
         If modBasic.$BillWarnCredits = "Yes" Then
           xcredit = modNonMedical.GetTotalCreditInvoice(modDatabase.$myConn, $lstEncid) - modNonMedical.GetDueClearPaidAmtbyPatient(modDatabase.$myConn, $lstEncid)
           If xcredit Then
@@ -418,6 +423,25 @@ Public Sub btnshow_Click()
     TabStrip1.Enabled = False
     Panel2.Enabled = False
     txtencid.SetFocus
+  Endif
+
+End
+
+Private Sub GetPlannedItems()
+
+  resServ = modDatabase.$myConn.Exec("select fldid,flditemname,fldordcomp from tblpatbilling where fldencounterval=&1 and fldsave=&2 and fldstatus=&3 and fldbillno IS NULL", $lstEncid, False, "Planned")
+  If resServ.Available Then
+    If hPatient.$StickerMode = True Then
+    Else
+      Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Planned Services are pending", modBasic.$BalloonDelay))
+    Endif
+  Endif
+  resPharm = modDatabase.$myConn.Exec("select fldid,flditem,fldcomp_order from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldcurval=&3", $lstEncid, False, "Planned")
+  If resPharm.Available Then
+    If hPatient.$StickerMode = True Then
+    Else
+      Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Planned Medicines are pending", modBasic.$BalloonDelay))
+    Endif
   Endif
 
 End
@@ -5577,17 +5601,16 @@ End
 
 Public Sub mnupastorder_Click()
 
-  Dim res As Result
   Dim xList As String[]
   Dim finLst As String[]
   Dim xitem As String
 
   If AllowDiagnosisCheckPunching() = True Then
     xList = New String[]
-    res = modDatabase.$myConn.Exec("select fldid,flditemname,fldordcomp from tblpatbilling where fldencounterval=&1 and fldsave=&2 and fldstatus=&3 and fldbillno IS NULL", $lstEncid, False, "Planned")
-    If res.Available Then
-      For Each res
-        xList.Add(res["flditemname"] & "|" & res["fldordcomp"])
+    ' res = modDatabase.$myConn.Exec("select fldid,flditemname,fldordcomp from tblpatbilling where fldencounterval=&1 and fldsave=&2 and fldstatus=&3 and fldbillno IS NULL", $lstEncid, False, "Planned")
+    If resServ And If resServ.Available Then
+      For Each resServ
+        xList.Add(resServ["flditemname"] & "|" & resServ["fldordcomp"])
       Next
 
       If xList.Count Then
@@ -5642,7 +5665,6 @@ End
 
 Public Sub mnupastmedicine_Click()
 
-  Dim res As Result
   Dim xList As String[]
   Dim finLst As String[]
   Dim xitem As String
@@ -5650,10 +5672,10 @@ Public Sub mnupastmedicine_Click()
 
   If AllowDiagnosisCheckPunching() = True Then
     xList = New String[]
-    res = modDatabase.$myConn.Exec("select fldid,flditem,fldcomp_order from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldcurval=&3", $lstEncid, False, "Planned")
-    If res.Available Then
-      For Each res
-        xList.Add(res["flditem"] & "|" & res["fldcomp_order"])
+    ' res = modDatabase.$myConn.Exec("select fldid,flditem,fldcomp_order from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldcurval=&3", $lstEncid, False, "Planned")
+    If resPharm And If resPharm.Available Then
+      For Each resPharm
+        xList.Add(resPharm["flditem"] & "|" & resPharm["fldcomp_order"])
       Next
 
       If xList.Count Then

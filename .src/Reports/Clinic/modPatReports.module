@@ -131,6 +131,7 @@ Public Function ShowOPatSummary(encid As String) As String
   $BillingReport.Add(hForm.AddInvestigationAdvised())
   $BillingReport.Add(hForm.AddTreatmentAdvised())
   $BillingReport.Add(hForm.AddOPDAdvice())
+  $BillingReport.Add(hForm.AddGlassPrescription())
 
   Return $BillingReport.NewHTMLPath()
 
@@ -159,6 +160,7 @@ Public Function ShowOPDPostSummary(encid As String, strUnit As String) As String
   $BillingReport.Add(hForm.AddMedicineDispensed())
   $BillingReport.Add(hForm.AddSurgicalsDispensed())
   $BillingReport.Add(hForm.AddOPDAdvice())
+  $BillingReport.Add(hForm.AddGlassPrescription())
 
   Return $BillingReport.NewHTMLPath()
 
@@ -896,6 +898,88 @@ Public Function PaientSelExamNameArray(encid As String, sType As String) As Stri
   xx = modControlSub.GetDirectFillresult(res)
 
   Return xx
+
+End
+
+Public Function GetFormattedExaminationReport(encid As String, sExamList As String[]) As String
+
+  Dim sExam As String
+  Dim res As Result
+  Dim xlabel As String
+  Dim xtabval As String
+  Dim xval As String
+
+  Dim xFinal As Variant[]
+  Dim i As Integer
+  Dim xRowVal As Collection
+  Dim colLst As String[]
+  Dim xtable As String
+
+  xFinal = New Variant[]
+  i = 1
+
+  If modBasic.$ShowDayMedReport = "User" Then
+    colLst = ["", "Variable", "Value", "User"]
+  Else If modBasic.$ShowDayMedReport = "Date+User" Then
+    colLst = ["", "Date", "Variable", "Value", "User"]
+  Else If modBasic.$ShowDayMedReport = "Date" Then
+    colLst = ["", "Date", "Variable", "Value"]
+  Else
+    colLst = ["", "Variable", "Value"]
+  Endif
+
+  For Each sExam In sExamList
+    res = modDatabase.$syConn.Exec("select fldid,fldtype,fldtime,fldinput,fldhead,fldoption,fldcomp,fldmethod,flduserid from tblpatientexam where fldencounterval=&1 and fldinput=&2 and fldhead=&3 and fldsave=&4", encid, "Physician Examinations", sExam, True)
+    If res.Available Then
+      res.MoveLast
+
+      xRowVal = New Collection
+      xRowVal.Add(CStr(i), CStr(0))
+
+      If res["fldmethod"] = "Regular" Then
+        xlabel = res["fldhead"]
+      Else
+        xlabel = res["fldhead"] & "<br>" & "<small>[" & res["fldmethod"] & "]</small>"
+      Endif
+
+      xval = ""
+      If res["fldtype"] = "Quantitative" Then
+        xval = modClinic.GetExamValueString(encid, res["fldid"], True)
+      Else If res["fldtype"] = "Qualitative" Then
+        xtabval = modClinic.GetSubExamQualiList(encid, res["fldoption"], res["fldid"])
+        If xtabval Then
+          xval = modString.TextToHTML(modClinic.GetExamValueString(encid, res["fldid"], True) & xtabval)
+        Else
+          xval = modClinic.GetExamValueString(encid, res["fldid"], True)
+        Endif
+      Endif
+
+      If modBasic.$ShowDayMedReport = "User" Then
+        xRowVal.Add(xlabel, CStr(1))
+        xRowVal.Add(xval, CStr(2))
+        xRowVal.Add(res["flduserid"], CStr(3))
+      Else If modBasic.$ShowDayMedReport = "Date+User" Then
+        xRowVal.Add(modReportVar.GetDateTimeReport(res["fldtime"], gb.MediumDate), CStr(1))
+        xRowVal.Add(xlabel, CStr(2))
+        xRowVal.Add(xval, CStr(3))
+        xRowVal.Add(res["flduserid"], CStr(4))
+      Else If modBasic.$ShowDayMedReport = "Date" Then
+        xRowVal.Add(modReportVar.GetDateTimeReport(res["fldtime"], gb.MediumDate), CStr(1))
+        xRowVal.Add(xlabel, CStr(2))
+        xRowVal.Add(xval, CStr(3))
+      Else
+        xRowVal.Add(xlabel, CStr(1))
+        xRowVal.Add(xval, CStr(2))
+      Endif
+
+      xFinal.Add(xRowVal)
+      i = i + 1
+    Endif
+  Next
+
+  xtable = modString.GetRichTableStringFromVariant(colLst, xFinal)
+
+  Return xtable
 
 End
 
