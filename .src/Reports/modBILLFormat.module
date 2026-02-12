@@ -361,7 +361,10 @@ Private Function BillingHTMLInvoice(BillNo As String, txTitle As String, ShowTax
 
   Dim rey1 As Result
   Dim rey2 As Result
+  Dim typLst As String[]
+  Dim xtype As String
 
+  typLst = modNonMedical.BillItemCategory()
   'Query for header and footer content
   sql = "select fldencounterval,flditemamt,fldtaxamt,flddiscountamt,fldchargedamt as chrgeamt,fldreceivedamt,fldcurdeposit,fldbilltype,fldtaxgroup,flddiscountgroup,flduserid,fldtime,fldcomp,fldchequeno,fldbankname,fldprevdeposit from " & $tblpatbilldetail & " where fldbillno=&1"                                                                    '''
   res = modDatabase.$myConn.Exec(sql, BillNo)
@@ -758,14 +761,14 @@ Private Function BillingHTMLInvoice(BillNo As String, txTitle As String, ShowTax
       If rey1.Available Then
         For Each rey1
           If rey1["fldbillitem"] Then
-            rey2 = modDatabase.$myConn.Exec("select SUM(flditemrate) as flditemrate,AVG(flditemqty) as flditemqty from " & $tblpatbilling & " where fldbillno=&1 and flditemname in(select flditemname from tblservicecost where fldbillitem=&2)", BillNo, rey1["fldbillitem"])
+            rey2 = modDatabase.$myConn.Exec("select AVG(flditemrate) as flditemrate,SUM(flditemqty) as flditemqty,SUM(flditemrate*flditemqty) as fldtotal from " & $tblpatbilling & " where fldbillno=&1 and flditemname in(select flditemname from tblservicecost where fldbillitem=&2)", BillNo, rey1["fldbillitem"])
             If rey2.Available Then
               With asx
                 .Add(CStr(i))
                 .Add(rey1["fldbillitem"])
                 .Add(rey2["flditemqty"])
                 .Add(Format(rey2["flditemrate"], gb.Fixed))
-                .Add(Format(rey2["flditemqty"] * rey2["flditemrate"], gb.Fixed))
+                .Add(Format(rey2["fldtotal"], gb.Fixed))
               End With
               $BillingReport.Add(asx)
               asx.Clear()
@@ -791,14 +794,48 @@ Private Function BillingHTMLInvoice(BillNo As String, txTitle As String, ShowTax
         Next
       Endif
 
+    Else If $InvoiceGroupItem = "Location" Then
+      i = 1
+      rey2 = modDatabase.$myConn.Exec("select flditemname,AVG(flditemrate) as flditemrate,SUM(flditemqty) as flditemqty,SUM(flditemrate*flditemqty) as fldtotal from " & $tblpatbilling & " where fldbillno=&1 and fldcomp<>&2 GROUP BY flditemname", BillNo, modBasic.$compID)
+      If rey2.Available Then
+        $BillingReport.AddChapter("DEPARTMENTS")
+        For Each rey2
+          With asx
+            .Add(CStr(i))
+            .Add(rey2["flditemname"])
+            .Add(rey2["flditemqty"])
+            .Add(Format(rey2["flditemrate"], gb.Fixed))
+            .Add(Format(rey2["fldtotal"], gb.Fixed))
+          End With
+          $BillingReport.Add(asx)
+          asx.Clear()
+          i = i + 1
+        Next
+      Endif
+
+      res1 = modDatabase.$myConn.Exec("select flditemname,AVG(flditemrate) as flditemrate,SUM(flditemqty) as flditemqty,SUM(flditemrate*flditemqty) as fldtotal from " & $tblpatbilling & " where fldbillno=&1 and fldcomp=&2 GROUP BY flditemname", BillNo, modBasic.$compID)
+      If res1.Available Then
+        $BillingReport.AddChapter("COUNTER")
+        For Each res1
+          With asx
+            .Add(CStr(i))
+            .Add(res1["flditemname"])
+            .Add(res1["flditemqty"])
+            .Add(Format(res1["flditemrate"], gb.Fixed))
+            .Add(Format(res1["fldtotal"], gb.Fixed))
+          End With
+          $BillingReport.Add(asx)
+          asx.Clear()
+          i = i + 1
+        Next
+      Endif
+
     Else If $InvoiceGroupItem = "Category" Then
       i = 1
-      resx = modDatabase.$myConn.Exec("select distinct(flditemtype) as flditemtype from " & $tblpatbilling & " where fldbillno=&1", BillNo)
-      If resx.Available Then
-        For Each resx
-          $BillingReport.AddChapter(resx["flditemtype"])
-
-          res1 = modDatabase.$myConn.Exec("select fldtime,flditemno,flditemname,flditemrate,flditemqty,fldtaxper,flddiscper,fldditemamt,flditemtype,fldpayto,fldrefer,fldcashincredit from " & $tblpatbilling & " where fldbillno=&1 and flditemtype=&2", BillNo, resx["flditemtype"])
+      For Each xtype In typLst
+        res1 = modDatabase.$myConn.Exec("select fldtime,flditemno,flditemname,flditemrate,flditemqty,fldtaxper,flddiscper,fldditemamt,flditemtype,fldpayto,fldrefer,fldcashincredit from " & $tblpatbilling & " where fldbillno=&1 and flditemtype=&2", BillNo, xtype)
+        If res1.Available Then
+          $BillingReport.AddChapter(xtype)
           For Each res1
 
             If $PartiSuffix = "Payable" Then
@@ -894,9 +931,8 @@ Private Function BillingHTMLInvoice(BillNo As String, txTitle As String, ShowTax
             i = i + 1
 
           Next 'ends res1
-
-        Next
-      Endif
+        Endif
+      Next
 
     Else
       i = 1
@@ -1048,7 +1084,10 @@ Private Function BillingLINEInvoice(BillNo As String, txTitle As String, ShowTax
 
   Dim rey1 As Result
   Dim rey2 As Result
+  Dim typLst As String[]
+  Dim xtype As String
 
+  typLst = modNonMedical.BillItemCategory()
   'Query for header and footer content
   sql = "select fldencounterval,flditemamt,fldtaxamt,flddiscountamt,fldchargedamt as chrgeamt,fldreceivedamt,fldcurdeposit,fldbilltype,fldtaxgroup,flddiscountgroup,flduserid,fldtime,fldcomp,fldchequeno,fldbankname,fldprevdeposit from " & $tblpatbilldetail & " where fldbillno=&1"                                                                    '''
   res = modDatabase.$myConn.Exec(sql, BillNo)
@@ -1433,14 +1472,14 @@ Private Function BillingLINEInvoice(BillNo As String, txTitle As String, ShowTax
       If rey1.Available Then
         For Each rey1
           If rey1["fldbillitem"] Then
-            rey2 = modDatabase.$myConn.Exec("select SUM(flditemrate) as flditemrate,AVG(flditemqty) as flditemqty from " & $tblpatbilling & " where fldbillno=&1 and flditemname in(select flditemname from tblservicecost where fldbillitem=&2)", BillNo, rey1["fldbillitem"])
+            rey2 = modDatabase.$myConn.Exec("select AVG(flditemrate) as flditemrate,SUM(flditemqty) as flditemqty,SUM(flditemrate*flditemqty) as fldtotal from " & $tblpatbilling & " where fldbillno=&1 and flditemname in(select flditemname from tblservicecost where fldbillitem=&2)", BillNo, rey1["fldbillitem"])
             If rey2.Available Then
               With asx
                 .Add(CStr(i))
                 .Add(rey1["fldbillitem"])
                 .Add(rey2["flditemqty"])
                 .Add(Format(rey2["flditemrate"], gb.Fixed))
-                .Add(Format(rey2["flditemqty"] * rey2["flditemrate"], gb.Fixed))
+                .Add(Format(rey2["fldtotal"], gb.Fixed))
               End With
               $BillingReport.Add(asx)
               asx.Clear()
@@ -1466,14 +1505,48 @@ Private Function BillingLINEInvoice(BillNo As String, txTitle As String, ShowTax
         Next
       Endif
 
+    Else If $InvoiceGroupItem = "Location" Then
+      i = 1
+      rey2 = modDatabase.$myConn.Exec("select flditemname,AVG(flditemrate) as flditemrate,SUM(flditemqty) as flditemqty,SUM(flditemrate*flditemqty) as fldtotal from " & $tblpatbilling & " where fldbillno=&1 and fldcomp<>&2 GROUP BY flditemname", BillNo, modBasic.$compID)
+      If rey2.Available Then
+        $BillingReport.AddChapter("DEPARTMENTS")
+        For Each rey2
+          With asx
+            .Add(CStr(i))
+            .Add(rey2["flditemname"])
+            .Add(rey2["flditemqty"])
+            .Add(Format(rey2["flditemrate"], gb.Fixed))
+            .Add(Format(rey2["fldtotal"], gb.Fixed))
+          End With
+          $BillingReport.Add(asx)
+          asx.Clear()
+          i = i + 1
+        Next
+      Endif
+
+      res1 = modDatabase.$myConn.Exec("select flditemname,AVG(flditemrate) as flditemrate,SUM(flditemqty) as flditemqty,SUM(flditemrate*flditemqty) as fldtotal from " & $tblpatbilling & " where fldbillno=&1 and fldcomp=&2 GROUP BY flditemname", BillNo, modBasic.$compID)
+      If res1.Available Then
+        $BillingReport.AddChapter("COUNTER")
+        For Each res1
+          With asx
+            .Add(CStr(i))
+            .Add(res1["flditemname"])
+            .Add(res1["flditemqty"])
+            .Add(Format(res1["flditemrate"], gb.Fixed))
+            .Add(Format(res1["fldtotal"], gb.Fixed))
+          End With
+          $BillingReport.Add(asx)
+          asx.Clear()
+          i = i + 1
+        Next
+      Endif
+
     Else If $InvoiceGroupItem = "Category" Then
       i = 1
-      resx = modDatabase.$myConn.Exec("select distinct(flditemtype) as flditemtype from " & $tblpatbilling & " where fldbillno=&1", BillNo)
-      If resx.Available Then
-        For Each resx
-          $BillingReport.AddChapter(resx["flditemtype"])
-
-          res1 = modDatabase.$myConn.Exec("select fldtime,flditemno,flditemname,flditemrate,flditemqty,fldtaxper,flddiscper,fldditemamt,flditemtype,fldpayto,fldrefer from " & $tblpatbilling & " where fldbillno=&1 and flditemtype=&2", BillNo, resx["flditemtype"])
+      For Each xtype In typLst
+        res1 = modDatabase.$myConn.Exec("select fldtime,flditemno,flditemname,flditemrate,flditemqty,fldtaxper,flddiscper,fldditemamt,flditemtype,fldpayto,fldrefer from " & $tblpatbilling & " where fldbillno=&1 and flditemtype=&2", BillNo, xtype)
+        If res1.Available Then
+          $BillingReport.AddChapter(xtype)
           For Each res1
 
             If $PartiSuffix = "Payable" Then
@@ -1564,9 +1637,8 @@ Private Function BillingLINEInvoice(BillNo As String, txTitle As String, ShowTax
             i = i + 1
 
           Next 'ends res1
-
-        Next
-      Endif
+        Endif
+      Next
 
     Else
       i = 1
@@ -2246,14 +2318,14 @@ Private Function DischargeBillReport(encid As String, BillNo As String, txTitle 
           If rey1.Available Then
             For Each rey1
               If rey1["fldbillitem"] Then
-                rey2 = modDatabase.$myConn.Exec("select SUM(flditemrate) as flditemrate,AVG(flditemqty) as flditemqty from " & $tblpatbilling & " where fldbillno=&1 and flditemname in(select flditemname from tblservicecost where fldbillitem=&2)", resx1["fldbillno"], rey1["fldbillitem"])
+                rey2 = modDatabase.$myConn.Exec("select AVG(flditemrate) as flditemrate,SUM(flditemqty) as flditemqty,SUM(flditemrate*flditemqty) as fldtotal from " & $tblpatbilling & " where fldbillno=&1 and flditemname in(select flditemname from tblservicecost where fldbillitem=&2)", resx1["fldbillno"], rey1["fldbillitem"])
                 If rey2.Available Then
                   With asx
                     .Add(CStr(i))
                     .Add(rey1["fldbillitem"])
                     .Add(rey2["flditemqty"])
                     .Add(Format(rey2["flditemrate"], gb.Fixed))
-                    .Add(Format(rey2["flditemqty"] * rey2["flditemrate"], gb.Fixed))
+                    .Add(Format(rey2["fldtotal"], gb.Fixed))
                   End With
                   $BillingReport.Add(asx)
                   asx.Clear()

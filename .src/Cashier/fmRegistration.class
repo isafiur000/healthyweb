@@ -2341,20 +2341,23 @@ Private Sub GetIMISDataAPI(xfile As String)
 
   Dim xPolicy As String
   Dim xexpdate As Date
-  Dim xcredamt As Float
+  Dim xcredmed As Float
+  Dim xcredopd As Float
   Dim xallow As Boolean
   Dim xpayval As Float
   Dim xpayType As String
 
   Dim aPolicy As String
   Dim aexpdate As Date
-  Dim acredamt As Float
+  Dim acredmed As Float
+  Dim acredopd As Float
   Dim apayval As Float
   Dim apayType As String
 
   Dim bPolicy As String
   Dim bexpdate As Date
-  Dim bcredamt As Float
+  Dim bcredmed As Float
+  Dim bcredopd As Float
   Dim bpayval As Float
   Dim bpayType As String
 
@@ -2383,27 +2386,29 @@ Private Sub GetIMISDataAPI(xfile As String)
         If aColl["Policy Name"] = "HIB-3500" Then
           aPolicy = aColl["Policy Name"]
           aexpdate = aColl["Expiry Date"]
-          acredamt = aColl["Credit Limit"]
+          acredmed = aColl["Medical Credit Limit"]
+          acredopd = aColl["OPD Credit Limit"]
           apayval = aColl["Credit Value"]
           apayType = aColl["Credit Type"]
           xallow1 = True
           If aexpdate < modDate.StartSqlDate(Now()) Then
             xallow1 = False
           Endif
-          If acredamt < 200 Then
+          If (acredmed + acredopd) < 200 Then
             xallow1 = False
           Endif
         Else
           bPolicy = aColl["Policy Name"]
           bexpdate = aColl["Expiry Date"]
-          bcredamt = aColl["Credit Limit"]
+          bcredmed = aColl["Medical Credit Limit"]
+          bcredopd = aColl["OPD Credit Limit"]
           bpayval = aColl["Credit Value"]
           bpayType = aColl["Credit Type"]
           xallow2 = True
           If bexpdate < modDate.StartSqlDate(Now()) Then
             xallow2 = False
           Endif
-          If bcredamt < 200 Then
+          If (bcredmed + bcredopd) < 200 Then
             xallow2 = False
           Endif
         Endif
@@ -2411,14 +2416,15 @@ Private Sub GetIMISDataAPI(xfile As String)
       ''for use
       xPolicy = hCElig.GetPolicyNo()
       xexpdate = hCElig.GetexpiryDaye()
-      xcredamt = hCElig.GetAllowedAmt()
+      xcredmed = hCElig.GetAllowedMedAmt()
+      xcredopd = hCElig.GetAllowedOPDAmt()
       xpayval = hCElig.GetCopayValue()
       xpayType = hCElig.PatientPayType()
       xallow = True
       If xexpdate < modDate.StartSqlDate(Now()) Then
         xallow = False
       Endif
-      If xcredamt < 100 Then
+      If (xcredmed + xcredopd) < 100 Then
         xallow = False
       Endif
       If Not xdistrict Then
@@ -2458,8 +2464,9 @@ Private Sub GetIMISDataAPI(xfile As String)
       Endif
 
       xmessage = xmessage & "<br>" & "<b>Expiry Date:</b> " & modReportVar.GetDateTimeReport(xexpdate, gb.MediumDate)
-      xmessage = xmessage & "<br>" & "<b>Credit Limit:</b> " & modReportVar.GetLocaleNumberFormat(xcredamt, gb.Currency)
-      If xcredamt < 1000 Then
+      xmessage = xmessage & "<br>" & "<b>OPD Credit Limit:</b> " & modReportVar.GetLocaleNumberFormat(xcredopd, gb.Currency)
+      xmessage = xmessage & "<br>" & "<b>Medical Credit Limit:</b> " & modReportVar.GetLocaleNumberFormat(xcredmed, gb.Currency)
+      If (xcredopd + xcredmed) < 1000 Then
         xmessage = xmessage & "<h4> Low Balance</h4>"
       Endif
       If xpayval = 0.1 Then
@@ -2493,7 +2500,7 @@ Private Sub GetIMISDataAPI(xfile As String)
 
           $APISelect = xPolicy
           $ValidExpiry = xexpdate
-          $CredAmount = xcredamt
+          $CredAmount = xcredopd
           If $CredAmount Then
             txtpatcode.Text = xfile
             txtpatcode.Enabled = False
@@ -2524,7 +2531,7 @@ Private Sub GetIMISDataAPI(xfile As String)
 
           $APISelect = xPolicy
           $ValidExpiry = xexpdate
-          $CredAmount = xcredamt
+          $CredAmount = xcredmed
           If $CredAmount Then
             txtpatcode.Text = xfile
             txtpatcode.Enabled = False

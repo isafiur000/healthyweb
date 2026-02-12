@@ -283,12 +283,12 @@ Public Function ShowFollowMedicineReport($dt As Date) As String
     $BillingReport.AddChapter("ENCOUNTER: " & encid & "<br>" & "NAME: " & modPatient.GetPatientNameByEnc(encid, modDatabase.$syConn) & "<br>" & "ADDRESS: " & modPatient.GetPatientAddressByEnc(encid, modDatabase.$syConn) & "<br>" & "CONTACT: " & modPatient.GetPatientContactByEnc(encid))
     res = modDatabase.$syConn.Exec("select fldid,fldstarttime,fldroute,flditem,flddose,fldfreq,flddays,fldqtydisp from tblpatdosing where fldsave_order=&1 and fldendtime>&2 and fldencounterval=&3", True, $dt, encid)
     For Each res
-      If Ceil(modMedConstant.GetQuantityDosing(res["flditem"], res["flddose"], res["fldfreq"], res["flddays"])) > res["fldqtydisp"] And If DateDiff(res["fldstarttime"], $dt, gb.Day) > modMedConstant.GetDrugUseDurationDosing(res["flditem"], res["flddose"], res["fldfreq"], res["fldqtydisp"]) Then
+      If Ceil(modMedConstant.GetQuantityDosing(res["flditem"], res["flddose"], res["fldfreq"], res["flddays"], modBasic.$SalesQTYPack)) > res["fldqtydisp"] And If DateDiff(res["fldstarttime"], $dt, gb.Day) > modMedConstant.GetDrugUseDurationDosing(res["flditem"], res["flddose"], res["fldfreq"], res["fldqtydisp"]) Then
         With asx
           .Add(modReportVar.GetDateTimeReport(res["fldstarttime"], gb.GeneralDate))
           .Add(modPharmacy.GetMedFormatForMedReport(res["flditem"], res["fldroute"]) & Space(1) & modPharmacy.GetDoseRegimenString(res["fldid"], True, True))
           .Add(res["fldqtydisp"])
-          .Add(Ceil(modMedConstant.GetQuantityDosing(res["flditem"], res["flddose"], res["fldfreq"], res["flddays"])))
+          .Add(Ceil(modMedConstant.GetQuantityDosing(res["flditem"], res["flddose"], res["fldfreq"], res["flddays"], modBasic.$SalesQTYPack)))
         End With
         $BillingReport.Add(asx)
         asx.Clear()
@@ -301,7 +301,6 @@ Public Function ShowFollowMedicineReport($dt As Date) As String
 End
 
 ''------------------------------------------ Bed management ----------------------------------------------------
-
 Public Function ShowWardOccupancyReport(sType As String) As String
 
   Dim $BillingReport As CReportHTML

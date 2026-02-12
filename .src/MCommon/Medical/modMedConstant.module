@@ -548,6 +548,34 @@ Public Function GetNarcoticType(stockid As String) As String
 
 End
 
+Public Function GetDispenseSizeMedicine(stockid As String) As Float
+
+  Dim res As Result
+  Dim xx As Float
+
+  If modTableCache.$MedicineDataVar.Exist(stockid) Then
+    xx = modTableCache.$MedicineDataVar[stockid]["flddispsize"]
+    If Not xx Then
+      xx = 1
+    Endif
+
+  Else
+    res = modDatabase.$medConn.Exec("select flddispsize from tblmedbrand where fldbrandid=&1", stockid)
+    If res.Available Then
+      If res["flddispsize"] Then
+        xx = res["flddispsize"]
+      Else
+        xx = 1
+      Endif
+    Else
+      xx = 1
+    Endif
+  Endif
+
+  Return xx
+
+End
+
 Public Function GetPacketSizeMedicine(stockid As String) As Float
 
   Dim res As Result
@@ -805,21 +833,21 @@ Public Function ConvertGenericToDrug(txtstockid As String) As String
 
 End
 
-Public Function GetQuantityDosingForCOunt(txtmedicine As String, txtdose As Float, sCount As Integer) As Float
+Public Function GetQuantityDosingForCOunt(txtmedicine As String, txtdose As Float, sCount As Integer, xSetting As String) As Float
 
   Dim qty As Float
   Dim xqty As Float
   Dim res As Result
 
-  res = modDatabase.$medConn.Exec("select tblmedbrand.fldtabbreak as fldtabbreak,tblmedbrand.fldpackvol as fldpackvol,tblmedbrand.fldpacksize as fldpacksize,tbldrug.fldstrength as fldstrength,tbldrug.fldroute as fldroute from tblmedbrand inner join tbldrug on tblmedbrand.flddrug=tbldrug.flddrug where tblmedbrand.fldbrandid=&1", txtmedicine)                                                                         ''
+  res = modDatabase.$medConn.Exec("select tblmedbrand.fldtabbreak as fldtabbreak,tblmedbrand.fldpackvol as fldpackvol,tblmedbrand.flddispsize as flddispsize,tbldrug.fldstrength as fldstrength,tbldrug.fldroute as fldroute from tblmedbrand inner join tbldrug on tblmedbrand.flddrug=tbldrug.flddrug where tblmedbrand.fldbrandid=&1", txtmedicine)                                                                         ''
   If res.Available = True Then
     If res["fldpackvol"] And If res["fldstrength"] Then
 
       If res["fldtabbreak"] = "No" Then
         xqty = txtdose / (res["fldpackvol"] * res["fldstrength"])
         If xqty Then
-          If res["fldpacksize"] And If modBasic.$SalesQTYPack = "Enable" Then
-            qty = Ceil(xqty / res["fldpacksize"]) * res["fldpacksize"] * sCount
+          If res["flddispsize"] And If xSetting = "Enable" Then
+            qty = Ceil(xqty / res["flddispsize"]) * res["flddispsize"] * sCount
           Else
             qty = Ceil(xqty) * sCount
           Endif
@@ -829,8 +857,8 @@ Public Function GetQuantityDosingForCOunt(txtmedicine As String, txtdose As Floa
       Else
         xqty = (txtdose * sCount) / (res["fldpackvol"] * res["fldstrength"])
         If xqty Then
-          If res["fldpacksize"] And If modBasic.$SalesQTYPack = "Enable" Then
-            qty = Ceil(xqty / res["fldpacksize"]) * res["fldpacksize"]
+          If res["flddispsize"] And If xSetting = "Enable" Then
+            qty = Ceil(xqty / res["flddispsize"]) * res["flddispsize"]
           Else
             qty = Ceil(xqty)
           Endif
@@ -849,21 +877,21 @@ Public Function GetQuantityDosingForCOunt(txtmedicine As String, txtdose As Floa
 
 End
 
-Public Function GetQuantityDosing(txtmedicine As String, txtdose As Float, txtftreq As String, txtday As Float) As Float
+Public Function GetQuantityDosing(txtmedicine As String, txtdose As Float, txtftreq As String, txtday As Float, xSetting As String) As Float
 
   Dim qty As Float
   Dim xqty As Float
   Dim res As Result
 
-  res = modDatabase.$medConn.Exec("select tblmedbrand.fldtabbreak as fldtabbreak,tblmedbrand.fldpackvol as fldpackvol,tblmedbrand.fldpacksize as fldpacksize,tbldrug.fldstrength as fldstrength,tbldrug.fldroute as fldroute from tblmedbrand inner join tbldrug on tblmedbrand.flddrug=tbldrug.flddrug where tblmedbrand.fldbrandid=&1", txtmedicine)                                                                         ''
+  res = modDatabase.$medConn.Exec("select tblmedbrand.fldtabbreak as fldtabbreak,tblmedbrand.fldpackvol as fldpackvol,tblmedbrand.flddispsize as flddispsize,tbldrug.fldstrength as fldstrength,tbldrug.fldroute as fldroute from tblmedbrand inner join tbldrug on tblmedbrand.flddrug=tbldrug.flddrug where tblmedbrand.fldbrandid=&1", txtmedicine)                                                                         ''
   If res.Available = True Then
     If res["fldpackvol"] And If res["fldstrength"] Then
 
       If res["fldtabbreak"] = "No" Then
         xqty = txtdose / (res["fldpackvol"] * res["fldstrength"])
         If xqty Then
-          If res["fldpacksize"] And If modBasic.$SalesQTYPack = "Enable" Then
-            qty = Ceil(xqty / res["fldpacksize"]) * res["fldpacksize"] * modPharmLabel.ConvertFrequencyToNumber(txtftreq) * txtday
+          If res["flddispsize"] And If xSetting = "Enable" Then
+            qty = Ceil(xqty / res["flddispsize"]) * res["flddispsize"] * modPharmLabel.ConvertFrequencyToNumber(txtftreq) * txtday
           Else
             qty = Ceil(xqty) * modPharmLabel.ConvertFrequencyToNumber(txtftreq) * txtday
           Endif
@@ -873,8 +901,8 @@ Public Function GetQuantityDosing(txtmedicine As String, txtdose As Float, txtft
       Else
         xqty = (txtdose * modPharmLabel.ConvertFrequencyToNumber(txtftreq) * txtday) / (res["fldpackvol"] * res["fldstrength"])
         If xqty Then
-          If res["fldpacksize"] And If modBasic.$SalesQTYPack = "Enable" Then
-            qty = Ceil(xqty / res["fldpacksize"]) * res["fldpacksize"]
+          If res["flddispsize"] And If xSetting = "Enable" Then
+            qty = Ceil(xqty / res["flddispsize"]) * res["flddispsize"]
           Else
             qty = Ceil(xqty)
           Endif

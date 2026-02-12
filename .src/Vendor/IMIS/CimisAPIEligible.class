@@ -4,7 +4,8 @@ Private $xAuthString As String
 Private $HeadString As String
 
 Private $PatCode As String
-Private $CreditAmt As Float
+Private $CreditMedAmt As Float
+Private $CreditOPDAmt As Float
 Private $ExpiryDate As Date
 Private $PolicyNo As String
 Private $PayValue As Float
@@ -86,9 +87,12 @@ Private Sub ShowFinancialParams()
   Dim xVarPat As Collection
   Dim xVarElig As Variant[]
 
+  Dim aVar As Variant[]
+  Dim Row As Integer
   Dim xamt As String
   Dim xdate As String
   Dim asx As String[]
+
   Dim xexColl As Collection
 
   Dim xexten As Variant[]
@@ -109,12 +113,31 @@ Private Sub ShowFinancialParams()
       $EligibilityVar = New Variant[]
       For Each xeligCol In xVarElig
         aColl = New Collection
-        xamt = xeligCol["benefitBalance"][0]["financial"][0]["allowedMoney"]["value"]
-        If xamt Then
-          aColl.Add(CFloat(xamt), "Credit Limit")
-        Else
-          aColl.Add(0, "Credit Limit")
-        Endif
+
+        ' xamt = xeligCol["benefitBalance"][0]["financial"][0]["allowedMoney"]["value"]
+        ' If xamt Then
+        '   aColl.Add(CFloat(xamt), "Credit Limit")
+        ' Else
+        '   aColl.Add(0, "Credit Limit")
+        ' Endif
+        aVar = xeligCol["benefitBalance"]
+        For Row = 0 To aVar.Count - 1
+          If aVar[Row]["category"]["text"] = "medical" Then
+            xamt = aVar[Row]["financial"][0]["allowedMoney"]["value"]
+            If xamt Then
+              aColl.Add(CFloat(xamt), "Medical Credit Limit")
+            Else
+              aColl.Add(0, "Medical Credit Limit")
+            Endif
+          Else If aVar[Row]["category"]["text"] = "opd" Then
+            xamt = aVar[Row]["financial"][0]["allowedMoney"]["value"]
+            If xamt Then
+              aColl.Add(CFloat(xamt), "OPD Credit Limit")
+            Else
+              aColl.Add(0, "OPD Credit Limit")
+            Endif
+          Endif
+        Next
 
         xdate = xeligCol["contract"]["reference"]
         asx = Split(xdate, "/")
@@ -211,7 +234,7 @@ Private Sub SetAllVariables()
   Dim xColl As Collection
 
   For Each aColl In $EligibilityVar
-    If aColl["Credit Limit"] >= 500 Then
+    If aColl["OPD Credit Limit"] >= 500 Then
       If aColl["Expiry Date"] >= modDate.StartSqlDate(Now()) Then
         If aColl["Policy Name"] = "HIB-3500" Then
           xColl = aColl
@@ -223,7 +246,7 @@ Private Sub SetAllVariables()
 
   If Not xcoll Then
     For Each aColl In $EligibilityVar
-      If aColl["Credit Limit"] >= 500 Then
+      If aColl["OPD Credit Limit"] >= 500 Then
         If aColl["Expiry Date"] >= modDate.StartSqlDate(Now()) Then
           xcoll = aColl
           Break
@@ -235,7 +258,8 @@ Private Sub SetAllVariables()
   If xcoll Then
     $PolicyNo = xcoll["Policy Name"]
     $ExpiryDate = xcoll["Expiry Date"]
-    $CreditAmt = xcoll["Credit Limit"]
+    $CreditMedAmt = xcoll["Medical Credit Limit"]
+    $CreditOPDAmt = xcoll["OPD Credit Limit"]
     $PayValue = xcoll["Credit Value"]
     $PayType = xcoll["Credit Type"]
   Endif
@@ -254,9 +278,15 @@ Public Function GetexpiryDaye() As Date
 
 End
 
-Public Function GetAllowedAmt() As Float
+Public Function GetAllowedMedAmt() As Float
 
-  Return $CreditAmt
+  Return $CreditMedAmt
+
+End
+
+Public Function GetAllowedOPDAmt() As Float
+
+  Return $CreditOPDAmt
 
 End
 
