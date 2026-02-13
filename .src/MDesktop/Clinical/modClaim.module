@@ -130,7 +130,7 @@ Public Function CheckIMISStatus(encid As String) As String
   Dim xexpdate As Date
   Dim xcredamt As Float
 
-  res = modDatabase.$myConn.Exec("select fldcashcredit,fldvalidity from tblencounter where fldencounterval=&1", encid)
+  res = modDatabase.$myConn.Exec("select fldcashcredit,fldvalidity,fldadmission,fldadmitlocat from tblencounter where fldencounterval=&1", encid)
   If res.Available Then
     xnhis = modPatient.GetPatientExtCOdebyEnc(encid)
     If Not xnhis Then
@@ -139,7 +139,18 @@ Public Function CheckIMISStatus(encid As String) As String
 
     hCElig = New CimisAPIEligible(xnhis)
     xexpdate = hCElig.GetexpiryDaye()
-    xcredamt = hCElig.GetAllowedAmt()
+
+    Select res["fldadmission"]
+      Case "Recorded", "Registered"
+        If modGeneral.GetDepartCaption(res["fldadmitlocat"]) = "Emergency" Then
+          xcredamt = hCElig.GetAllowedMedAmt()
+        Else
+          xcredamt = hCElig.GetAllowedOPDAmt()
+        Endif
+      Case Else
+        xcredamt = hCElig.GetAllowedMedAmt()
+    End Select
+
     xmsg = "<b>Credit Limit :</b> " & CStr(xcredamt)
     xmsg = xmsg & "<br>" & "<b>Expiry :</b> " & Format(xexpdate, gb.MediumDate)
     If xcredamt <> res["fldcashcredit"] Then
