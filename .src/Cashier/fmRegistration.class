@@ -2366,6 +2366,8 @@ Private Sub GetIMISDataAPI(xfile As String)
   Dim xallow1 As Boolean
   Dim xallow2 As Boolean
 
+  Dim depLst As String[]
+
   If xfile Then
     hCform = New CimisAPIPatient(xfile)
     xname = hCform.GetPatientName()
@@ -2420,6 +2422,16 @@ Private Sub GetIMISDataAPI(xfile As String)
       xcredopd = hCElig.GetAllowedOPDAmt()
       xpayval = hCElig.GetCopayValue()
       xpayType = hCElig.PatientPayType()
+
+      depLst = New String[]
+      depLst.Add("Cancel")
+      If xcredopd >= 200 Then
+        depLst.Add("Outpatient")
+      Endif
+      If xcredmed >= 200 Then
+        depLst.Add("Emergency")
+      Endif
+
       xallow = True
       If xexpdate < modDate.StartSqlDate(Now()) Then
         xallow = False
@@ -2479,11 +2491,10 @@ Private Sub GetIMISDataAPI(xfile As String)
         xmessage = xmessage & "<br><b>FSP : </b>" & xfirserv
       Endif
       If xallow = True Then
-        xresp = MessageValue(xmessage, ["Cancel", "Outpatient", "Emergency"], ximage)
-        ' xresp = Message.Question(xmessage, ("Cancel"), ("Outpatient"), ("Emergency"))
+        xresp = MessageValue(xmessage, depLst, ximage)
+        ' xresp = MessageValue(xmessage, ["Cancel", "Outpatient", "Emergency"], ximage)
       Else If xallow = False Then
         xresp = MessageValue(xmessage, ["Cancel"], ximage)
-        ' xresp = Message.Question(xmessage, ("Cancel"))
       Endif
 
       If xresp = "Outpatient" Then
