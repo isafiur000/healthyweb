@@ -385,6 +385,29 @@ Public Sub UpdateDaysBefDispensing(xid As Long, Value As Float)
 
 End
 
+Public Sub AddNewDaysAfterDispensing(did As Long, Value As Float)
+
+  Dim res As Result
+  Dim xtot As Float
+
+  res = modDatabase.$myConn.Edit("tblpatdosing", "fldid=&1", did)
+  If res.Available Then
+    If modGeneral.AllowClinicalEdit(res["flduserid_order"]) = True Then
+      xtot = res["flddays"] + Value
+      res["flddays"] = xtot
+      res["flduptime"] = Now()
+      res["fldendtime"] = DateAdd(res["fldstarttime"], gb.Day, CInt(xtot))
+      res["flduserid_order"] = modBasic.$lbluser
+      res["xyz"] = False
+      res.Update()
+    Else
+      Message.Warning("Authorization with " & res["flduserid_order"], ("OK"))
+    Endif
+  Endif
+  'don't catch error
+
+End
+
 Public Sub UpdateAdviceBefDispensing(did As Long, Value As String)
 
   Dim res As Result
@@ -509,13 +532,13 @@ Public Sub DuplicateRecordWithQTY(did As Long, qty As Float)
 
 End
 
-Public Sub GetSplitRecordWithQTY(xIndex As Long, newqty As Float)
+Public Sub GetSplitRecordWithQTY(encid As String, xIndex As Long, newqty As Float)
 
   Dim rs As Result
   Dim hField As ResultField
   Dim res As Result
 
-  rs = modDatabase.$myConn.Edit("tblpatdosing", "fldid=&1 and fldqtyret=&2", xIndex, 0)
+  rs = modDatabase.$myConn.Edit("tblpatdosing", "fldencounterval=&1 and fldid=&2 and fldqtyret=&3", encid, xIndex, 0)
   If rs.Available Then
     If newqty < rs["fldqtydisp"] Then
       res = modDatabase.$myConn.Create("tblpatdosing")
@@ -535,32 +558,69 @@ Public Sub GetSplitRecordWithQTY(xIndex As Long, newqty As Float)
 
 End
 
+Public Sub GetSplitRecordWithQTYIndoor(encid As String, xIndex As Long, newqty As Float, xStart As Date, xEnd As Date)
+
+  Dim rs As Result
+  Dim hField As ResultField
+  Dim res As Result
+
+  rs = modDatabase.$myConn.Edit("tblpatdosing", "fldencounterval=&1 and fldid=&2 and fldqtyret=&3", encid, xIndex, 0)
+  If rs.Available Then
+    If newqty < rs["fldqtydisp"] Then
+      res = modDatabase.$myConn.Create("tblpatdosing")
+      For Each hField In rs.Fields
+        If hField.Name = "fldqtydisp" Then
+          res[hField.Name] = newqty
+        Else If hField.Name = "fldstarttime" Then
+          res[hField.Name] = xStart
+        Else If hField.Name = "fldendtime" Then
+          res[hField.Name] = xEnd
+        Else
+          res[hField.Name] = rs[hField.Name]
+        Endif
+      Next
+      res.Update
+
+      rs["fldqtydisp"] = rs["fldqtydisp"] - newqty
+      rs.Update
+    Endif
+  Endif
+
+End
+
 Public Sub InsertNurDosing(dosid As Long, encid As String, Value As Float, sUnit As String, sStart As Date)
 
   Dim res As Result
+  Dim rsx As Result
   Dim xIntVal As String
 
-  res = modDatabase.$myConn.Create("tblnurdosing")
-  res["fldencounterval"] = encid
-  res["flddoseno"] = dosid
-  res["fldvalue"] = Value
-  res["fldunit"] = sUnit
-  res["fldfromtime"] = sStart
-  res["fldtotime"] = ""
-  res["flduserid"] = modBasic.$lbluser
-  res["fldtime"] = Now()
-  res["fldcomp"] = modBasic.$compID
-  res["fldsave"] = True
-  res["xyz"] = False
-  If MMain.$WebEntry = True Then
-    xIntVal = modString.GetDateString(Now())
-    res["fldid"] = CLong(xIntVal)
-    res["fldrepoid"] = modMisc.GetWebIndexStr(xIntVal)
-    res["fldrepodate"] = Now()
-    res["fldrepomac"] = CGI["REMOTE_ADDR"] & ":" & CGI["REMOTE_PORT"]
-    res["fldhospcode"] = modBasic.$HospCode
+  rsx = modDatabase.$myConn.Exec("select flditem,flddose,fldfreq from tblpatdosing where fldid=&1 and fldencounterval=&2", dosid, encid)
+  If rsx.Available Then
+    res = modDatabase.$myConn.Create("tblnurdosing")
+    res["fldencounterval"] = encid
+    res["flddoseno"] = dosid
+    res["fldmedicine"] = rsx["flditem"]
+    res["fldrecdose"] = rsx["flddose"]
+    res["fldrecfreq"] = rsx["fldfreq"]
+    res["fldvalue"] = Value
+    res["fldunit"] = sUnit
+    res["fldfromtime"] = sStart
+    res["fldtotime"] = ""
+    res["flduserid"] = modBasic.$lbluser
+    res["fldtime"] = Now()
+    res["fldcomp"] = modBasic.$compID
+    res["fldsave"] = True
+    res["xyz"] = False
+    If MMain.$WebEntry = True Then
+      xIntVal = modString.GetDateString(Now())
+      res["fldid"] = CLong(xIntVal)
+      res["fldrepoid"] = modMisc.GetWebIndexStr(xIntVal)
+      res["fldrepodate"] = Now()
+      res["fldrepomac"] = CGI["REMOTE_ADDR"] & ":" & CGI["REMOTE_PORT"]
+      res["fldhospcode"] = modBasic.$HospCode
+    Endif
+    res.Update
   Endif
-  res.Update
   'don't catch error
 
 End

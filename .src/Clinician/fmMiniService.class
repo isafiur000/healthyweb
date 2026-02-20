@@ -18,18 +18,29 @@ Private $allVar As Variant[]
 Private $GridVar As Variant[]
 Private $cashPack As String[]
 
+Private $rDatax As Result
+Private $aMyFieldsx As String[]
+Private $rData1 As Result
+Private $aMyFields1 As String[]
+
 Private $encid As String
 Private $discModeService As String
 Private $discModeProcedure As String
 Private $discModeOthers As String
+Private $discModePharmacy As String
 
 Private $ratePlanService As String
 Private $ratePlanProcedure As String
 Private $ratePlanOthers As String
+Private $ratePlanPharm As String
 
 Private $ClaimStateService As String
 Private $ClaimStateProcedure As String
 Private $ClaimStateOthers As String
+Private $ClaimStatePharm As String
+
+Private $phmLedger As String
+Private $phmBillType As String
 
 ''------- group
 Private $billReference As String
@@ -41,12 +52,13 @@ Private $billModeEquipment As String
 Private $billModeService As String
 Private $billModeOthers As String
 
-Public Sub _new(encid As String, packService As String, packProced As String, packOthers As String)
+Public Sub _new(encid As String, packService As String, packProced As String, packOthers As String, packPharm As String)
 
   $encid = encid
   $discModeService = packService
   $discModeProcedure = packProced
   $discModeOthers = packOthers
+  $discModePharmacy = packPharm
 
   txtpatientname.Text = modPatient.GetPatientNameByEnc($encid)
   $PatientNum = modPatient.GetPatientNoByEnc($encid)
@@ -62,6 +74,7 @@ Public Sub _new(encid As String, packService As String, packProced As String, pa
       $Dept = "OPD"
   End Select
 
+  ''Service
   cmbdiscservice.List = modBasic.$BillDiscountCash
   If cmbdiscservice.List.Count = 0 Then
     cmbdiscservice.Add($discModeService)
@@ -69,6 +82,7 @@ Public Sub _new(encid As String, packService As String, packProced As String, pa
   cmbdiscservice.Text = $discModeService
   ShowServiceParam(cmbdiscservice.Text)
 
+  ''Procedures
   cmbdiscprocedure.List = modBasic.$BillDiscountCash
   If cmbdiscprocedure.List.Count = 0 Then
     cmbdiscprocedure.Add($discModeProcedure)
@@ -76,12 +90,21 @@ Public Sub _new(encid As String, packService As String, packProced As String, pa
   cmbdiscprocedure.Text = $discModeProcedure
   ShowProcedureParam(cmbdiscprocedure.Text)
 
+  ''Others
   cmbdiscother.List = modBasic.$BillDiscountCash
   If cmbdiscother.List.Count = 0 Then
     cmbdiscother.Add($discModeOthers)
   Endif
   cmbdiscother.Text = $discModeOthers
   ShowOthersParam(cmbdiscother.Text)
+
+  ''Surgicals
+  cmbdiscpharmacy.List = modBasic.$BillDiscountCash
+  If cmbdiscpharmacy.List.Count = 0 Then
+    cmbdiscpharmacy.Add($discModePharmacy)
+  Endif
+  cmbdiscpharmacy.Text = $discModePharmacy
+  ShowPharmacyParam(cmbdiscpharmacy.Text)
 
   btnrefer.Tag = modBillings.GetReferralUserSetting("Service", $encid)
   If btnrefer.Tag Then
@@ -96,6 +119,7 @@ Public Sub _new(encid As String, packService As String, packProced As String, pa
   If $cashPack.Count Then
     lstgroup.List = $cashPack.Sort()
   Endif
+  rbroute.Value = True
 
   FillLabtable()
   CompleteGrid()
@@ -115,6 +139,9 @@ Public Sub TabPanel1_Click()
   Else If TabPanel1.Index = 1 Then
     CompleteGrid()
   Else If TabPanel1.Index = 2 Then
+    LoadCategories()
+    ShowUsedGridViewList()
+  Else If TabPanel1.Index = 3 Then
     ShowGroupGrid()
     FillDosingGrid()
   Endif
@@ -208,6 +235,27 @@ Public Sub btnothers_Click()
   If cmbdiscother.Text Then
     ShowOthersParam(cmbdiscother.Text)
     GetFirstList()
+  Endif
+
+End
+
+''---------------- surgicals --------------
+Private Sub ShowPharmacyParam(sPack As String)
+
+  Dim hForm As CPackageParams
+
+  hForm = New CPackageParams($encid, sPack)
+  $ratePlanPharm = hForm.GetBillingMode()
+  $ClaimStatePharm = hForm.GetClaimState()
+  $phmLedger = hForm.GetLedgerAC()
+  $phmBillType = hForm.GetBillType()
+
+End
+
+Public Sub btnpharmacy_Click()
+
+  If cmbdiscpharmacy.Text Then
+    ShowPharmacyParam(cmbdiscpharmacy.Text)
   Endif
 
 End
@@ -865,9 +913,9 @@ Private Sub AddMedProtocols(sProtocol As String)
         xdisc = modNonMedical.DiscPercentForCategoryValue($encid, $billModePharmacy, itemtype, res["flditemname"], itemmode)
         Select res["flditemtype"]
           Case "suture", "msurg", "ortho"
-            modPharmSub.InsertNonMedDosingEntry("Surgicals", $encid, xBillType, xbilMode, $billModePharmacy, xBillType, res["flditemtype"], res["flditemname"], res["fldqty"], $status, Now(), xtax, xdisc, xfixname, xfixrate, "Request", $Dept, "", False, xcurVal)
+            modPharmSub.InsertNonMedDosingEntry("Surgicals", $encid, xBillType, xbilMode, $billModePharmacy, xBillType, res["flditemtype"], res["flditemname"], res["fldqty"], $status, 0, xtax, xdisc, xfixname, xfixrate, "Request", $Dept, "", False, xcurVal)
           Case "extra"
-            modPharmSub.InsertNonMedDosingEntry("Extra Items", $encid, xBillType, xbilMode, $billModePharmacy, xBillType, res["flditemtype"], res["flditemname"], res["fldqty"], $status, Now(), xtax, xdisc, xfixname, xfixrate, "Request", $Dept, "", False, xcurVal)
+            modPharmSub.InsertNonMedDosingEntry("Extra Items", $encid, xBillType, xbilMode, $billModePharmacy, xBillType, res["flditemtype"], res["flditemname"], res["fldqty"], $status, 0, xtax, xdisc, xfixname, xfixrate, "Request", $Dept, "", False, xcurVal)
         End Select
       Endif
 
@@ -1067,6 +1115,301 @@ Public Sub btngrpdelete_Click()
     If Message.Question(("Are you sure?"), ("No"), ("Yes")) = 2 Then
       modDatabase.$myConn.Delete("tblpatbilling", "fldid=&1 and fldsave=&2", $rData4["fldid"], False)
       ShowGroupGrid()
+    Endif
+  Endif
+
+End
+
+''================================ Pharmacy ==============================
+Private Sub LoadCategories()
+
+  If rbroute.Value = True Then
+    chkall2.Value = False
+    chkall2.Enabled = False
+    cmbgroup.List = modMedicine.RouteNonMedicine()
+
+  Else If rbprot.Value = True Then
+    chkall2.Enabled = True
+    cmbgroup.List = modMedicine.GetNonMedicineProcolsList()
+
+  Endif
+  ShowUsedGridViewList()
+
+End
+
+Public Sub rbroute_Click()
+
+  LoadCategories()
+
+End
+
+Public Sub rbprot_Click()
+
+  LoadCategories()
+
+End
+
+Public Sub cmbgroup_Select()
+
+  If cmbgroup.Text Then
+    If rbroute.Value = True Then
+      ShowCurrStockGrid(cmbgroup.Text, "%")
+    Else If rbprot.Value = True Then
+      ShowProtocolStockGrid(cmbgroup.Text, "%")
+    Endif
+    If modBasic.$TabletModeEnable = "Yes" Then
+    Else
+      txtsearch2.SetFocus
+    Endif
+  Endif
+
+End
+
+Public Sub txtsearch2_Change()
+
+  Dim xText As String
+
+  If chkleftmain2.Value = True Then
+    xText = "%" & LCase(txtsearch2.Text) & "%"
+  Else
+    xText = LCase(txtsearch2.Text) & "%"
+  Endif
+
+  If cmbgroup.Text Then
+    If rbroute.Value = True Then
+      ShowCurrStockGrid(cmbgroup.Text, xText)
+    Else If rbprot.Value = True Then
+      ShowProtocolStockGrid(cmbgroup.Text, xText)
+    Endif
+  Endif
+
+End
+
+Private Sub ShowCurrStockGrid(sRoute As String, sSearch As String)
+
+  Dim xType As String
+  Dim xList As String[]
+
+  xType = modNonMedical.GetBillItemCategoryFromCombo(sRoute)
+  Select xType
+    Case "Surgicals"
+      $rDatax = modDatabase.$syConn.Exec("select t1.fldbrandid,t1.fldbrandid as xitem,t1.fldbrandid,t2.fldsurgcateg as extra from tblsurgbrand as t1 inner join tblsurgicals as t2 on t1.fldsurgid=t2.fldsurgid where t1.fldbrandid in(select fldstockid from tblentry where fldqty>&1 and fldcomp like &2) and t2.fldsurgcateg=&3 and lower(t1.fldbrandid) like &4 ORDER BY t1.fldbrandid ASC", 0, modBasic.$compID, sRoute, sSearch)
+    Case "Extra Items"
+      xList = ["fldbrandid", "fldbrandid", "fldbrandid"]
+      xList.Add(Quote("extra"))
+      $rDatax = modDatabase.$syConn.Exec("select " & xList.Join(",") & " from tblextrabrand where fldbrandid in(select fldstockid from tblentry where fldqty>&1 and fldcomp like &2) and lower(fldbrandid) like &3 ORDER BY fldbrandid ASC", 0, modBasic.$compID, sSearch)
+  End Select
+
+  $aMyFieldsx = New String[]
+  modGridView.ReadSmallData(GridView6, $rDatax, $aMyFieldsx)
+  ResizeFirstGrid()
+
+End
+
+Private Sub ShowProtocolStockGrid(sPack As String, sSearch As String)
+
+  $rDatax = modDatabase.$myConn.Exec("select fldid,flditem as xitem,fldqty,fldroute as extra from tblproductgroup where fldmedgroup=&1 and (fldcomp=&2 or fldcomp=&3) and flditem like &4 and (fldroute=&5 or fldroute=&6 or fldroute=&7 or fldroute=&8)", sPack, modBasic.$compID, "%", sSearch, "suture", "msurg", "ortho", "extra")
+  $aMyFieldsx = New String[]
+  modGridView.ReadSmallData(GridView6, $rDatax, $aMyFieldsx)
+  ResizeFirstGrid()
+
+End
+
+Private Sub ResizeFirstGrid()
+
+  With GridView6
+    .Columns[0].Hidden = True
+    .Columns[1].Width = CStr(300 * modBasic.$AppWidthRatio) & "px"
+    .Columns[2].Width = CStr(50 * modBasic.$AppWidthRatio) & "px"
+    .Columns[3].Hidden = True
+    .Columns[1].Text = "Particulars"
+    If rbroute.Value = True Then
+      .Columns[2].Text = "Stock"
+    Else If rbprot.Value = True Then
+      .Columns[2].Text = "QTY"
+    Endif
+  End With
+
+End
+
+Public Sub GridView6_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  $rDatax.MoveTo(Row)
+  modGridView.GridViewDecoration(Data, Row)
+  If Column = 2 Then
+    If rbroute.Value = True Then
+      Data.Text = modStock.TotalQTYbyBrand($rDatax[$aMyFieldsx[Column]], modBasic.$compID)
+    Else
+      Data.Text = $rDatax[$aMyFieldsx[Column]]
+    Endif
+  Else
+    Data.Text = $rDatax[$aMyFieldsx[Column]]
+  Endif
+
+End
+
+Public Sub chkall2_Click()
+
+  If chkall2.Value = True Then
+    GridView6.SelectAll()
+  Else If chkall2.Value = False Then
+    GridView6.UnselectAll()
+  Endif
+
+End
+
+Public Sub btnselect_Click()
+
+  Dim Row As Integer
+  Dim sType As String
+  Dim xqty As Float
+
+  If GridView6.Count Then
+    For Row = 0 To GridView6.Count - 1
+      If GridView6.IsSelected(Row) = True Then
+        $rDatax.MoveTo(Row)
+
+        sType = modNonMedical.GetBillItemCategoryFromCombo($rDatax["extra"])
+        xqty = 0
+        If rbroute.Value = True Then
+          xqty = 1
+        Else If rbprot.Value = True Then
+          xqty = $rDatax["fldqty"]
+        Endif
+        If xqty Then
+          EntryPharmRequest(sType, $rDatax["xitem"], xqty)
+        Endif
+
+      Endif
+    Next
+
+    GridView6.UnselectAll()
+    ShowUsedGridViewList()
+  Endif
+
+End
+
+Private Sub EntryPharmRequest(sType As String, sItem As String, sQty As Float)
+
+  Dim xroute As String
+  Dim xtax As Float
+  Dim xdisc As Float
+  Dim xfixrate As Float
+  Dim xfixname As String
+  Dim xcurVal As String
+
+  Dim itemmode As String
+  Dim CPharmFix As CFixRatePharmacy
+  Dim xgo As Boolean
+
+  If chknextvisit2.Value = True Then
+    xcurVal = "Planned"
+  Else
+    If modBasic.$DispRequestStatus = "Reserve" Then
+      xcurVal = "Reserve"
+    Else
+      xcurVal = "Continue"
+    Endif
+  Endif
+
+  xgo = False
+  If modBasic.$BillPharmFixedModes.Exist($ratePlanPharm) = True Then
+    CPharmFix = New CFixRatePharmacy(sType, sItem, $ratePlanPharm)
+    xfixrate = CPharmFix.GetFixRate()
+    xfixname = CPharmFix.GetFixItem()
+    If xfixname Then
+      xgo = True
+    Else
+      xgo = False
+    Endif
+  Else
+    xgo = True
+  Endif
+  If xgo = True Then
+    itemmode = $ratePlanPharm
+    xtax = modNonMedical.ShowTaxValues(sType, sItem)
+    xdisc = modNonMedical.DiscPercentForCategoryValue($encid, cmbdiscpharmacy.Text, sType, sItem, itemmode)
+    xroute = modMedicine.GetRouteFromItem(sItem, sType)
+
+    modPharmSub.InsertNonMedDosingEntry(sType, $encid, $phmBillType, $ratePlanPharm, cmbdiscpharmacy.Text, $phmLedger, xroute, sItem, sQty, $status, 0, xtax, xdisc, xfixname, xfixrate, "Request", $Dept, "", False, xcurVal)
+  Endif
+
+End
+
+Private Sub ShowUsedGridViewList()
+
+  Dim sql As String
+
+  sql = "select fldid,fldstarttime,fldroute,flditem,flddose,fldfreq,flddays,fldqtydisp,fldcurval from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldstatus=&3 and fldorder=&4 and (fldcurval=&5 or fldcurval=&6)"
+  $rData1 = modDatabase.$myConn.Exec(sql, $encid, False, $status, "Request", "Continue", "Planned")
+  $aMyFields1 = New String[]
+  modGridView.ReadSmallData(GridView7, $rData1, $aMyFields1)
+  ResizeGrid()
+
+End
+
+Private Sub ResizeGrid()
+
+  With GridView7
+    .Columns[0].Hidden = True
+    .Columns[1].Hidden = True
+    .Columns[2].Hidden = True
+    .Columns[3].Expand = True
+    .Columns[4].Hidden = True
+    .Columns[5].Hidden = True
+    .Columns[6].Hidden = True
+    .Columns[7].Width = CStr(35 * modBasic.$AppWidthRatio) & "px"
+    .Columns[8].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
+
+    .Columns[3].Text = "Particulars"
+    .Columns[7].Text = "QTY"
+    .Columns[8].Text = "Status"
+  End With
+
+End
+
+Public Sub GridView7_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  $rData1.MoveTo(Row)
+  modGridView.GridViewDecoration(Data, Row)
+  Data.Text = $rData1[$aMyFields1[Column]]
+
+End
+
+Public Sub btnownwty_Click()
+
+  Dim xval As Float
+
+  If GridView7.Selection.Count Then
+    $rData1.MoveTo(GridView7.Selection[0])
+    xval = InputValue($rData1["flditem"], ("Change Value"), $rData1["fldqtydisp"])
+    If xval Then
+      modPharmSub.UpdateQTYBefDispensing($rData1["fldid"], xval)
+      ShowUsedGridViewList()
+    Endif
+  Endif
+
+End
+
+Public Sub btnowndelete_Click()
+
+  Dim res As Result
+
+  If GridView7.Selection.Count Then
+    $rData1.MoveTo(GridView7.Selection[0])
+    If Message.Question(("Are you sure?"), ("No"), ("Yes")) = 2 Then
+
+      res = modDatabase.$myConn.Edit("tblpatdosing", "fldid=&1 and fldsave_order=&2", $rData1["fldid"], False)
+      If modGeneral.AllowClinicalEdit(res["flduserid_order"]) = True Then
+        modDatabase.$myConn.Delete("tblpatdosing", "fldid=&1 and fldsave_order=&2", $rData1["fldid"], False)
+      Else
+        res["fldcurval"] = "Cancelled"
+        res["flduserid_order"] = modBasic.$lbluser
+        res["xyz"] = False
+        res.Update
+      Endif
+      ShowUsedGridViewList()
+
     Endif
   Endif
 

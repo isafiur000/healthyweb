@@ -921,6 +921,25 @@ Public Function GetQuantityDosing(txtmedicine As String, txtdose As Float, txtft
 
 End
 
+Public Function GetExactQuantityDosing(txtmedicine As String, txtdose As Float, txtftreq As String, txtday As Float) As Float
+
+  Dim res As Result
+  Dim qty As Float
+
+  res = modDatabase.$medConn.Exec("select tblmedbrand.fldtabbreak as fldtabbreak,tblmedbrand.fldpackvol as fldpackvol,tblmedbrand.flddispsize as flddispsize,tbldrug.fldstrength as fldstrength,tbldrug.fldroute as fldroute from tblmedbrand inner join tbldrug on tblmedbrand.flddrug=tbldrug.flddrug where tblmedbrand.fldbrandid=&1", txtmedicine)                                                                         ''
+  If res.Available = True Then
+    If res["fldpackvol"] And If res["fldstrength"] Then
+      qty = (txtdose * modPharmLabel.ConvertFrequencyToNumber(txtftreq) * txtday) / (res["fldpackvol"] * res["fldstrength"])
+    Else
+      qty = 0
+    Endif
+  Else
+    qty = 0
+  Endif
+  Return qty
+
+End
+
 Public Function GetDrugUseDurationDosing(txtmedicine As String, txtdose As Float, txtftreq As String, txtqty As Float) As Integer
 
   Dim txtday As Integer

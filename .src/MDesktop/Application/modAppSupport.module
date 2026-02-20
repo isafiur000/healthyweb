@@ -1,8 +1,7 @@
 ' Gambas module file
 
-' Public Sub AddNewFormToWorkspace(frm As WebForm)
-'
-' End
+Public $ImagePort As Integer = 5555
+Public $alphabetAll As String[] = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
 
 Public Function FindWorkProgressBar(LogInType As String) As WebProgressBar
 
@@ -173,6 +172,189 @@ Public Sub SaveSMSEntry(sTarget As String, sText As String, xStatus As String, x
 
 End
 
+'NOTE: ------------------------------- SOCKET PROGRAMMING ----------------------------
+Public Function GetSelectedPort(userid As String) As Integer
+
+  Dim xx As Integer
+
+  xx = 35900 + modGeneral.GetMainUserCode(userid)
+  Return xx
+
+End
+
+Public Function GetTransferPort(userid As String) As Integer
+
+  Dim xx As Integer
+
+  xx = 45900 + modGeneral.GetMainUserCode(userid)
+  Return xx
+
+End
+
+Public Sub OpenPortForListening(SvrSock As ServerSocket)
+
+  ' SvrSock.Type = Net.Internet
+  ' SvrSock.Port = modAppSupport.GetSelectedPort(modBasic.$lbluser)
+  ' modBasic.DebugString("Open Port " & CStr(SvrSock.Port) & " and Listen to it")
+  ' SvrSock.Listen()
+
+' Catch
+'   modBasic.DebugString(Error.Text)
+
+End
+
+Public Sub GetMessaging(SvrSock As ServerSocket)
+
+  ' SvrSock.Type = Net.Internet
+  ' SvrSock.Port = modAppSupport.GetTransferPort(modBasic.$lbluser)
+  ' modBasic.DebugString("Open Port " & CStr(SvrSock.Port) & " and Listen to it")
+  ' SvrSock.Listen()
+
+' Catch
+'   modBasic.DebugString(Error.Text)
+
+End
+
+Public Function FindServerSocket(LoginType As String) As ServerSocket
+
+  Dim xx As ServerSocket
+
+  If LoginType = "Account" Then
+    xx = fmAccount.ServerSocket1
+  Else If LoginType = "Cashier" Then
+    xx = fmCashier.ServerSocket1
+  Else If LoginType = "Record" Then
+    xx = fmRecord.ServerSocket1
+  Else If LoginType = "Medical" Then
+    xx = fmMedical.ServerSocket1
+  Else If LoginType = "Technologist" Then
+    xx = fmTechnologist.ServerSocket1
+  Else If LoginType = "Technician" Then
+    xx = fmTechnician.ServerSocket1
+  Else If LoginType = "Consultant" Then
+    xx = fmConsultant.ServerSocket1
+  Else If LoginType = "Clinician" Then
+    xx = fmOfficer.ServerSocket1
+  Else If LoginType = "Research" Then
+    xx = fmResearch.ServerSocket1
+  Else If LoginType = "Purchase" Then
+    xx = fmPurchase.ServerSocket1
+  Else If LoginType = "Store" Then
+    xx = fmStore.ServerSocket1
+  Else If LoginType = "Pharmacist" Then
+    xx = fmPharmacist.ServerSocket1
+  Else If LoginType = "Dispensar" Then
+    xx = fmDispensar.ServerSocket1
+  Endif
+
+  Return xx
+
+End
+
+Public Function FindTransferSocket(LoginType As String) As ServerSocket
+
+  Dim xx As ServerSocket
+
+  If LoginType = "Account" Then
+    xx = fmAccount.ServerSocket2
+  Else If LoginType = "Cashier" Then
+    xx = fmCashier.ServerSocket2
+  Else If LoginType = "Record" Then
+    xx = fmRecord.ServerSocket2
+  Else If LoginType = "Medical" Then
+    xx = fmMedical.ServerSocket2
+  Else If LoginType = "Technologist" Then
+    xx = fmTechnologist.ServerSocket2
+  Else If LoginType = "Technician" Then
+    xx = fmTechnician.ServerSocket2
+  Else If LoginType = "Consultant" Then
+    xx = fmConsultant.ServerSocket2
+  Else If LoginType = "Clinician" Then
+    xx = fmOfficer.ServerSocket2
+  Else If LoginType = "Research" Then
+    xx = fmResearch.ServerSocket2
+  Else If LoginType = "Purchase" Then
+    xx = fmPurchase.ServerSocket2
+  Else If LoginType = "Store" Then
+    xx = fmStore.ServerSocket2
+  Else If LoginType = "Pharmacist" Then
+    xx = fmPharmacist.ServerSocket2
+  Else If LoginType = "Dispensar" Then
+    xx = fmDispensar.ServerSocket2
+  Endif
+
+  Return xx
+
+End
+
+''------------------------ Send Secure Message ---------------------------------
+Private Sub SaveSettingsToTransferFile(strSetting As String, strVal As String)
+
+  Dim ConfFile As Settings
+
+  ConfFile = New Settings(modHelpVariable.AppCacheDir &/ "send.conf")
+  ConfFile[strSetting] = Trim(strVal)
+
+End
+
+Public Sub SendMessageTo(ToUser As String, ToUserIP As String, txtsubject As String, txtcontent As String, sAttchment As String, sReply As Boolean, sImportant As Boolean)
+
+  Dim MySock As Socket
+  Dim sPath As String
+  Dim xx As String
+  Dim yy As String
+  Dim hFile As File
+  Dim sLine As String
+  Dim hMsg As String
+
+  sPath = modHelpVariable.AppCacheDir &/ "send.conf"
+  If sReply = True Then
+    xx = "Yes"
+  Else If sReply = False Then
+    xx = "No"
+  Endif
+  If sImportant = True Then
+    yy = "Yes"
+  Else If sImportant = False Then
+    yy = "No"
+  Endif
+
+  If Exist(sPath) Then Kill sPath
+  File.Save(sPath, "")
+  MySock = New Socket As "MySock"
+  MySock.Connect(ToUserIP, modAppSupport.GetTransferPort(ToUser))
+  modBasic.DebugString("Connect to Port " & CStr(MySock.Port) & " on Host " & MySock.Host)
+
+  SaveSettingsToTransferFile("Message/To", ToUser)
+  SaveSettingsToTransferFile("Message/From", modBasic.$lbluser)
+  SaveSettingsToTransferFile("Message/Subject", txtsubject)
+  SaveSettingsToTransferFile("Message/Content", txtcontent)
+  SaveSettingsToTransferFile("Message/Attachment", File.Name(sAttchment))
+  SaveSettingsToTransferFile("Message/Reply", xx)
+  SaveSettingsToTransferFile("Message/Important", yy)
+
+  hFile = Open sPath For Input
+  modBasic.DebugString("Open File " & sPath)
+  hMsg = ""
+  While Not Eof(hFile)
+    Line Input #hFile, sLine
+    hMsg = hMsg & sLine & gb.NewLine
+  Wend
+
+  While (MySock.Status <> 7) And (MySock.Status > 0)
+    Wait 0.1
+  Wend
+
+  If MySock.Status = Net.Connected Then
+    Write #MySock, hMsg, Len(hMsg)
+    Close #MySock
+  Endif
+
+  If Exist(sPath) Then Kill sPath
+
+End
+
+''----------------------------------  Send SMS --------------------------------
 Public Sub SendSMSSingle(sPhone As String, sMessage As String)
 
   Dim arcmd As String[]

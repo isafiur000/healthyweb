@@ -5,10 +5,12 @@ Private $sType As String
 Private $xSerial As Long
 Private $sTatus As String
 
+Private $referLst As String[]
+Private $admitLst As String[]
+
 Public Sub _new(sType As String, encid As String, xSerial As Long)
 
-  Dim res As Result
-  Dim xList As String[]
+  ' Dim res As Result
 
   $sType = sType
   $encid = encid
@@ -20,14 +22,14 @@ Public Sub _new(sType As String, encid As String, xSerial As Long)
     rblama.Visible = False
     rbdeath.Visible = False
   Endif
-  xList = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select fldlocation from tblreferlist"))
-  cmbrefer.List = xList
+  $referLst = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select fldlocation from tblreferlist"))
+  $admitLst = modGeneral.GetDepartmentAllList("Patient Ward")
 
-  res = modDatabase.$myConn.Exec("select fldfollowdate,fldreferto from tblencounter where fldencounterval=&1", $encid)
-  If res.Available Then
-    cmbrefer.Text = res["fldreferto"]
-    dtfollowup.Value = res["fldfollowdate"]
-  Endif
+  ' res = modDatabase.$myConn.Exec("select fldfollowdate,fldreferto from tblencounter where fldencounterval=&1", $encid)
+  ' If res.Available Then
+  '   cmbrefer.Text = res["fldreferto"]
+  '   dtfollowup.Value = res["fldfollowdate"]
+  ' Endif
 
 End
 
@@ -42,6 +44,7 @@ End
 Public Sub rbreferred_Click()
 
   cmbrefer.Visible = True
+  cmbrefer.List = $referLst
   dtfollowup.Visible = False
 
 End
@@ -55,7 +58,8 @@ End
 
 Public Sub rbadmission_Click()
 
-  cmbrefer.Visible = False
+  cmbrefer.Visible = True
+  cmbrefer.List = $admitLst
   dtfollowup.Visible = False
 
 End
@@ -100,7 +104,7 @@ Public Sub btnsave_Click()
     If $sType = "Consultation" Then
       If rbadmission.Value = True Then
         modPatientSub.UpdateConsultData($xSerial, $encid, "Done", txtcomment.Text, xmode, cmbrefer.Text)
-        modPatientSub.EmergencyAdmission($encid)
+        ' modPatientSub.EmergencyAdmission($encid)
       Else If rbreferred.Value = True Then
         modPatientSub.UpdateConsultData($xSerial, $encid, "Done", txtcomment.Text, xmode, cmbrefer.Text)
       Else If rbfollowup.Value = True Then
@@ -156,17 +160,6 @@ Public Sub btnreport_Click()
       Endif
 
     Endif
-  Endif
-
-End
-
-Public Sub btnward_Click()
-
-  Dim xList As String[]
-
-  If rbadmission.Value = True Then
-    xList = modGeneral.GetDepartmentAllList("Patient Ward")
-    txtcomment.Text = InputCombo("Select Admission Department", $encid, xList, "", True)
   Endif
 
 End

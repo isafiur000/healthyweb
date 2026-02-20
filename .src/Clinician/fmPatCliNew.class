@@ -118,7 +118,6 @@ Public Sub _new(encid As String, sIndex As Long, sMode As String, sComp As Strin
   SetHtmlTextOption(txtgencomplaint)
   SetHtmlTextOption(txthistory)
   SetHtmlTextOption(txtplan)
-  SetHtmlTextOption(txtplanfinal)
   SetHtmlTextOption(txtquery)
   SetHtmlTextOption(txtfeedback)
   SetHtmlTextOption(txtcomment)
@@ -508,6 +507,7 @@ Private Sub BasicInfoPatient()
     Endif
     ShowGeneralComplaints()
     modPatientGeneral.SetPatientFindingTree(Trim(txtencid.Text), lsticdisease, chkalldiagno.Value)
+    txtlongirecord.Text = modPatient.GetPatientCommentByEnc(Trim(txtencid.Text))
     ShowSymptomData()
     ShowEssentialExamRange()
     ShowEssentialExam()
@@ -609,13 +609,6 @@ End
 Private Sub ShowPlanningsBoth()
 
   Dim xplanAr As String[]
-  Dim xexptAr As String[]
-
-  xexptAr = modPatPatho.ShowSelectedNoteUser(Trim(txtencid.Text), "Expert Planning")
-  If xexptAr And If xexptAr.Count Then
-    txtplanfinal.RichText = xexptAr[0]
-    lblfinaluser.Text = xexptAr[1]
-  Endif
 
   xplanAr = modPatPatho.ShowSelectedNoteUser(Trim(txtencid.Text), "Initial Planning")
   If xplanAr And If xplanAr.Count Then
@@ -688,7 +681,6 @@ Private Sub ButtonControl()
   ''history
   btnhistory.Enabled = xx
   btnplan.Enabled = xx
-  btnplanfinal.Enabled = xx
   ''findings
   btnfinadd.Enabled = xx
   btnfindcomponent.Enabled = xx
@@ -824,6 +816,26 @@ Public Sub mnupatlock_Click()
 
   If txtencid.Text Then
     modPatientSub.LockPatientActivity(Me.Name, Trim(txtencid.Text))
+  Endif
+
+End
+
+Public Sub btnsavelongrecord_Click()
+
+  Dim res As Result
+
+  If $PatientNum Then
+    res = modDatabase.$myConn.Edit("tblpatientinfo", "fldpatientval=&1", $PatientNum)
+    If res.Available Then
+      If txtlongirecord.Text Then
+        res["fldcomment"] = txtlongirecord.Text
+        res["fldupuser"] = modBasic.$lbluser
+        res["flduptime"] = Now()
+        res.Update
+        Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+        modPatient.$PatProfileData.Remove(Trim(txtencid.Text))
+      Endif
+    Endif
   Endif
 
 End
@@ -2092,23 +2104,6 @@ Public Sub btnplan_Click()
 
 End
 
-Public Sub btnplanfinal_Click()
-
-  Dim xboolean As Boolean
-
-  If modBasic.$ClinHistoryInput = "Single" Then
-    xboolean = True
-  Else
-    xboolean = False
-  Endif
-
-  If txtplanfinal.Text Then
-    modPatientGeneral.AddPatientParagraph(Trim(txtencid.Text), "Notes", "Expert Planning", txtplanfinal.KeyList.Join(";"), txtplanfinal.RichText, xboolean)
-    Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
-  Endif
-
-End
-
 Private Sub ShowGeneralComplaints()
 
   Dim xcomplAr As String[]
@@ -2399,7 +2394,7 @@ Public Sub mnugenservice_Click()
 
   If txtencid.Text Then
     If modNonMedical.AllowEntryWithDeposit(Trim(txtencid.Text), "Service") = True Then
-      hForm = New FmMiniService(Trim(txtencid.Text), $billModeService, $billModeProcedure, $billModeOthers)
+      hForm = New FmMiniService(Trim(txtencid.Text), $billModeService, $billModeProcedure, $billModeOthers, $billModePharmacy)
       hForm.ShowModal
     Endif
   Endif
@@ -3534,9 +3529,6 @@ Private Sub RestrictUserAccess()
   If $UserRestrict.Exist("Initial Planning") Then
     btnplan.Visible = False
   Endif
-  If $UserRestrict.Exist("Expert Planning") Then
-    btnplanfinal.Visible = False
-  Endif
 
   If $UserRestrict.Exist("Provisional Diagnosis") Then
     tlbtndeldises.Visible = False
@@ -3930,12 +3922,6 @@ Public Sub btndataopd_Click()
 
 End
 
-Public Sub btndataexpert_Click()
-
-  txtplanfinal.RichText = AddHistory("Discharge", Trim(txtencid.Text), "Expert Planning")
-
-End
-
 ''----------- pen
 Public Sub btnpancompl_Click()
 
@@ -3957,12 +3943,6 @@ Public Sub btnpanopd_Click()
 
 End
 
-Public Sub btnpanexpert_Click()
-
-  txtplanfinal.RichText = txtplanfinal.RichText & Space(1) & modFillContainer.GetExtraTextArea("Expert Advice", txtplanfinal.Text)
-
-End
-
 ''--------------- exec
 Public Sub btnexeccompl_Click()
 
@@ -3979,12 +3959,6 @@ End
 Public Sub btnexecopd_Click()
 
   txtplan.RichText = txtplan.RichText & modString.TextToHTML(modCloudAI.GetPatCloudAIResponse(Trim(txtencid.Text), txtplan.Text))
-
-End
-
-Public Sub btnexecexpert_Click()
-
-  txtplanfinal.RichText = txtplanfinal.RichText & modString.TextToHTML(modCloudAI.GetPatCloudAIResponse(Trim(txtencid.Text), txtplanfinal.Text))
 
 End
 
@@ -4009,12 +3983,6 @@ Public Sub btnattopd_Click()
 
 End
 
-Public Sub btnattexpert_Click()
-
-  txtplanfinal.RichText = txtplanfinal.RichText & DictionaryVIew("Expert Advice")
-
-End
-
 Public Sub btnclearhistory_Click()
 
   txthistory.RichText = ""
@@ -4024,12 +3992,6 @@ End
 Public Sub btnclearinitial_Click()
 
   txtplan.RichText = ""
-
-End
-
-Public Sub btnclearexpert_Click()
-
-  txtplanfinal.RichText = ""
 
 End
 
@@ -4173,7 +4135,7 @@ Public Sub btnoutcome_Click()
       If txtclinmode.Text = "Consultation" Then
         If rbadmission.Value = True Then
           modPatientSub.UpdateConsultData(txtclinIndex.Value, Trim(txtencid.Text), "Done", txtcomment.RichText, xmode, cmbrefer.Text)
-          modPatientSub.EmergencyAdmission(Trim(txtencid.Text))
+          ' modPatientSub.EmergencyAdmission(Trim(txtencid.Text))
         Else If rbreferred.Value = True Then
           modPatientSub.UpdateConsultData(txtclinIndex.Value, Trim(txtencid.Text), "Done", txtcomment.RichText, xmode, cmbrefer.Text)
         Else If rbfollowup.Value = True Then

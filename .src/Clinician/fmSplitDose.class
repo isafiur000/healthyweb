@@ -1,0 +1,101 @@
+' Gambas class file
+
+Private $encid As String
+Private $xDoseNo As Long
+
+Public Sub _new(encid As String, xDoseNo As Long)
+
+  $encid = encid
+  $xDoseNo = xDoseNo
+
+  cmbfreq.List = modMedicine.FrequencyCombo()
+  ShowDoseProfile()
+
+End
+
+Private Sub ShowDoseProfile()
+
+  Dim res As Result
+  Dim xfixqty As Float
+  Dim xday As Float
+
+  res = modDatabase.$myConn.Exec("select fldid,flditem,flddose,fldfreq,flddays,fldqtydisp,fldstarttime,fldendtime from tblpatdosing where fldencounterval=&1 and fldid=&2", $encid, $xDoseNo)
+  If res.Available Then
+    txtname.Text = "<p>" & res["flditem"] & "</p>"
+    txtdose.Value = res["flddose"]
+    cmbfreq.Text = res["fldfreq"]
+    txtdays.Value = res["flddays"]
+
+    If res["fldendtime"] > Now() Then
+      dtstart.Value = res["fldendtime"]
+    Else
+      dtstart.Value = Now()
+    Endif
+
+    If res["flddays"] Then
+      xday = res["flddays"]
+    Else
+      xday = 1
+    Endif
+    xfixqty = modMedConstant.GetExactQuantityDosing(res["flditem"], res["flddose"], res["fldfreq"], xday)
+    txtqty.Value = res["fldqtydisp"] - xfixqty
+  Endif
+
+End
+
+Public Sub btnsave_Click()
+
+  Dim xstart As Date
+  Dim xend As Date
+
+  Dim rs As Result
+  Dim hField As ResultField
+  Dim res As Result
+
+  If txtdose.Value And If cmbfreq.Text And If txtdays.Value Then
+    If Message.Question("Are you sure ?", ("NO"), ("YES")) = 2 Then
+      xstart = dtstart.Value
+      xend = DateAdd(dtstart.Value, gb.Day, CInt(txtdays.Value))
+
+      modDatabase.$myConn.Begin
+      rs = modDatabase.$myConn.Edit("tblpatdosing", "fldencounterval=&1 and fldid=&2 and fldqtyret=&3", $encid, $xDoseNo, 0)
+      If rs.Available Then
+        If txtqty.Value < rs["fldqtydisp"] Then
+          res = modDatabase.$myConn.Create("tblpatdosing")
+          For Each hField In rs.Fields
+            Select hField.Name
+              Case "flddose"
+                res[hField.Name] = txtdose.Value
+              Case "fldfreq"
+                res[hField.Name] = cmbfreq.Text
+              Case "flddays"
+                res[hField.Name] = txtdays.Value
+              Case "fldqtydisp"
+                res[hField.Name] = txtqty.Value
+              Case "fldstarttime"
+                res[hField.Name] = xstart
+              Case "fldendtime"
+                res[hField.Name] = xend
+              Case "flduserid_order"
+                res[hField.Name] = modBasic.$lbluser
+              Case "fldtime_order"
+                res[hField.Name] = Now()
+              Case "fldcomp_order"
+                res[hField.Name] = modBasic.$compID
+              Case Else
+                res[hField.Name] = rs[hField.Name]
+            End Select
+          Next
+          res.Update
+
+          rs["fldqtydisp"] = rs["fldqtydisp"] - txtqty.Value
+          rs.Update
+        Endif
+      Endif
+      modDatabase.$myConn.Commit
+
+      Me.Close()
+    Endif
+  Endif
+
+End

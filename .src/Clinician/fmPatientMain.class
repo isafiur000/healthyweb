@@ -574,6 +574,7 @@ Private Sub BasicInfoPatient()
     lstallergy.List = modPathoSub.GetAllergyMedicineList(Trim(txtencid.Text), chkallergy.Value)
     lsticdisease.List = modPathoSub.GetSelectedDiagnosisList("Final Diagnosis", Trim(txtencid.Text))
     lstsyndrome.List = modPathoSub.GetSelectedDiagnosisList("Provisional Diagnosis", Trim(txtencid.Text))
+    txtlongirecord.Text = modPatient.GetPatientCommentByEnc(Trim(txtencid.Text))
     ''first tab
     ShowChiefSymptomData()
     ShowGeneralComplaints()
@@ -1119,6 +1120,26 @@ Public Sub lstsyndrome_Click()
 
 End
 
+Public Sub btnsavelongrecord_Click()
+
+  Dim res As Result
+
+  If $PatientNum Then
+    res = modDatabase.$myConn.Edit("tblpatientinfo", "fldpatientval=&1", $PatientNum)
+    If res.Available Then
+      If txtlongirecord.Text Then
+        res["fldcomment"] = txtlongirecord.Text
+        res["fldupuser"] = modBasic.$lbluser
+        res["flduptime"] = Now()
+        res.Update
+        Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+        modPatient.$PatProfileData.Remove(Trim(txtencid.Text))
+      Endif
+    Endif
+  Endif
+
+End
+
 ''----------------------------- final diagnosis -----------------------
 Public Sub tlbtndelfinal_Click()
 
@@ -1548,7 +1569,7 @@ Public Sub mnugenservice_Click()
 
   If txtencid.Text Then
     If modNonMedical.AllowEntryWithDeposit(Trim(txtencid.Text), "Service") = True Then
-      hForm = New FmMiniService(Trim(txtencid.Text), $billModeService, $billModeProcedure, $billModeOthers)
+      hForm = New FmMiniService(Trim(txtencid.Text), $billModeService, $billModeProcedure, $billModeOthers, $billModePharmacy)
       hForm.ShowModal
     Endif
   Endif
