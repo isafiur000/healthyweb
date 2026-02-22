@@ -232,12 +232,25 @@ Private Sub SetAllVariables()
 
   Dim aColl As Collection
   Dim xColl As Collection
+  Dim xmed As Float
+  Dim xopd As Float
 
   If $EligibilityVar And If $EligibilityVar.Count Then
     For Each aColl In $EligibilityVar
-      If aColl["OPD Credit Limit"] >= 500 Or If aColl["Medical Credit Limit"] >= 500 Then
-        If aColl["Expiry Date"] >= modDate.StartSqlDate(Now()) Then
-          If aColl["Policy Name"] = "HIB-3500" Then
+      If aColl["Policy Name"] = "HIB-3500" Then
+        If aColl["OPD Credit Limit"] Then
+          xopd = aColl["OPD Credit Limit"]
+        Else
+          xopd = 0
+        Endif
+        If aColl["Medical Credit Limit"] Then
+          xmed = aColl["Medical Credit Limit"]
+        Else
+          xmed = 0
+        Endif
+
+        If xopd >= 500 Or If xmed >= 500 Then
+          If aColl["Expiry Date"] >= modDate.StartSqlDate(Now()) Then
             xColl = aColl
             Break
           Endif
@@ -247,7 +260,18 @@ Private Sub SetAllVariables()
 
     If Not xcoll Then
       For Each aColl In $EligibilityVar
-        If aColl["OPD Credit Limit"] >= 500 Or If aColl["Medical Credit Limit"] >= 500 Then
+        If aColl["OPD Credit Limit"] Then
+          xopd = aColl["OPD Credit Limit"]
+        Else
+          xopd = 0
+        Endif
+        If aColl["Medical Credit Limit"] Then
+          xmed = aColl["Medical Credit Limit"]
+        Else
+          xmed = 0
+        Endif
+
+        If xopd >= 500 Or If xmed >= 500 Then
           If aColl["Expiry Date"] >= modDate.StartSqlDate(Now()) Then
             xcoll = aColl
             Break
@@ -259,8 +283,16 @@ Private Sub SetAllVariables()
     If xcoll Then
       $PolicyNo = xcoll["Policy Name"]
       $ExpiryDate = xcoll["Expiry Date"]
-      $CreditMedAmt = xcoll["Medical Credit Limit"]
-      $CreditOPDAmt = xcoll["OPD Credit Limit"]
+      If xcoll["Medical Credit Limit"] Then
+        $CreditMedAmt = xcoll["Medical Credit Limit"]
+      Else
+        $CreditMedAmt = 0
+      Endif
+      If xcoll["OPD Credit Limit"] Then
+        $CreditOPDAmt = xcoll["OPD Credit Limit"]
+      Else
+        $CreditOPDAmt = 0
+      Endif
       $PayValue = xcoll["Credit Value"]
       $PayType = xcoll["Credit Type"]
     Endif
