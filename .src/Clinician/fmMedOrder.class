@@ -75,7 +75,7 @@ Public Sub _new(encid As String, sStatus As String, DiscPackage As String)
     cmbroute.List = modMedicine.InpatientRoute(False)
   Endif
   cmbfreq.List = modMedicine.FrequencyCombo()
-  cmbcurrent.List = ["Continue", "On Hold", "Removed", "All Types"]
+  cmbcurrent.List = ["Continue", "On Hold", "Removed", "All Active"]
   cmbstatus.List = ["Continue", "Completed", "Discontinue", "On Hold", "Change", "ReWrite", "Cancelled", "Wasted"]
   $ClinicianLst = modGeneral.GetClinicianCodeList()
   modStockSub.DisplayDefaultDispensingMode(rbrand, rbgeneric)
@@ -437,6 +437,8 @@ Public Sub btnmedlist_Click()
 
   Dim xlist As String[]
   Dim xlist1 As String[]
+  Dim aList As String[]
+  Dim aList1 As String[]
 
   $HideErr = False
   xlist = GetMedicineList()
@@ -447,10 +449,20 @@ Public Sub btnmedlist_Click()
       If modBasic.$ClinCategoryGrid = "Yes" Then
         xlist1 = modMedConstant.GetStockIDWithCategory(xlist)
         If xlist1 Then
-          cmbmedicine.Text = GridViewGroup("Select Medicine", xlist1, False)
+          If modBasic.$ClinicDisableMedicines And If modBasic.$ClinicDisableMedicines.Count Then
+            aList1 = modString.GetRemainingArray(xlist1, modBasic.$ClinicDisableMedicines)
+            cmbmedicine.Text = GridViewGroup("Select Medicine", aList1, False)
+          Else
+            cmbmedicine.Text = GridViewGroup("Select Medicine", xlist1, False)
+          Endif
         Endif
       Else
-        cmbmedicine.Text = GridViewNew("Select Particulars", xlist, False)
+        If modBasic.$ClinicDisableMedicines And If modBasic.$ClinicDisableMedicines.Count Then
+          aList = modString.GetRemainingArray(xlist, modBasic.$ClinicDisableMedicines)
+          cmbmedicine.Text = GridViewNew("Select Particulars", aList, False)
+        Else
+          cmbmedicine.Text = GridViewNew("Select Particulars", xlist, False)
+        Endif
       Endif
     Endif
   Endif
@@ -719,10 +731,12 @@ Private Sub EnterDosingRecord()
           Endif
         Endif
         If txprescriber And If txpresno Then
-          modPharmSub.InsertDosingEntry($encid, $xBillType, $sBillMode, cmbdisctype.Text, $LedgerAC, cmbroute.Text, cmbmedicine.Text, txtdose.Value, cmbfreq.Text, txtday.Value, txtqty.Value, $status, txprescriber, txpresno, txtstart.Value, xtax, xdisc, xfixname, xfixrate, "Request", $Dept, Trim(txtdirection.Text), False, xcurVal)                     '
+          ' modPharmSub.InsertDosingEntry($encid, $xBillType, $sBillMode, cmbdisctype.Text, $LedgerAC, cmbroute.Text, cmbmedicine.Text, txtdose.Value, cmbfreq.Text, txtday.Value, txtqty.Value, $status, txprescriber, txpresno, txtstart.Value, xtax, xdisc, xfixname, xfixrate, "Request", $Dept, Trim(txtdirection.Text), False, xcurVal)                     '
+          modPharmSub.InsertDosingMedicine($encid, $xBillType, $sBillMode, cmbdisctype.Text, $LedgerAC, cmbroute.Text, cmbmedicine.Text, txtdose.Value, cmbfreq.Text, txtday.Value, txtqty.Value, $status, txprescriber, txpresno, txtstart.Value, xtax, xdisc, xfixname, xfixrate, "Request", $Dept, Trim(txtdirection.Text), "", 0, "", 0, xcurVal)
         Endif
       Else
-        modPharmSub.InsertDosingEntry($encid, $xBillType, $sBillMode, cmbdisctype.Text, $LedgerAC, cmbroute.Text, cmbmedicine.Text, txtdose.Value, cmbfreq.Text, txtday.Value, txtqty.Value, $status, "", "", txtstart.Value, xtax, xdisc, xfixname, xfixrate, "Request", $Dept, Trim(txtdirection.Text), False, xcurVal)                     '
+        ' modPharmSub.InsertDosingEntry($encid, $xBillType, $sBillMode, cmbdisctype.Text, $LedgerAC, cmbroute.Text, cmbmedicine.Text, txtdose.Value, cmbfreq.Text, txtday.Value, txtqty.Value, $status, "", "", txtstart.Value, xtax, xdisc, xfixname, xfixrate, "Request", $Dept, Trim(txtdirection.Text), False, xcurVal)                     '
+        modPharmSub.InsertDosingMedicine($encid, $xBillType, $sBillMode, cmbdisctype.Text, $LedgerAC, cmbroute.Text, cmbmedicine.Text, txtdose.Value, cmbfreq.Text, txtday.Value, txtqty.Value, $status, "", "", txtstart.Value, xtax, xdisc, xfixname, xfixrate, "Request", $Dept, Trim(txtdirection.Text), "", 0, "", 0, xcurVal)
       Endif
     Endif
 
@@ -752,6 +766,7 @@ Public Sub btngroup_Click()
   Dim xnarcotic As String[]
   Dim CPharmFix As CFixRatePharmacy
   Dim xgo As Boolean
+  Dim ygo As Boolean
 
   If chknextplan.Value = True Then
     xcurVal = "Planned"
@@ -783,7 +798,13 @@ Public Sub btngroup_Click()
         Else
           xgo = True
         Endif
-        If xgo = True Then
+        ygo = False
+        If modBasic.$ClinicDisableMedicines.Exist(res["flditem"]) = True Then
+          ygo = False
+        Else
+          ygo = True
+        Endif
+        If xgo = True And If ygo = True Then
           itemmode = $sBillMode
           xtax = modNonMedical.ShowTaxValues(itemtype, res["flditem"])
           xdisc = modNonMedical.DiscPercentForCategoryValue($encid, cmbdisctype.Text, itemtype, res["flditem"], itemmode)
@@ -922,6 +943,7 @@ Private Sub AddNewRegimen(itmList As Long[])
   Dim xnarcotic As String[]
   Dim CPharmFix As CFixRatePharmacy
   Dim xgo As Boolean
+  Dim ygo As Boolean
 
   If chknextplan.Value = True Then
     xcurVal = "Planned"
@@ -954,7 +976,13 @@ Private Sub AddNewRegimen(itmList As Long[])
           Else
             xgo = True
           Endif
-          If xgo = True Then
+          ygo = False
+          If modBasic.$ClinicDisableMedicines.Exist(res["fldbrandid"]) = True Then
+            ygo = False
+          Else
+            ygo = True
+          Endif
+          If xgo = True And If ygo = True Then
             itemmode = $sBillMode
             xtax = modNonMedical.ShowTaxValues(itemtype, res["fldbrandid"])
             xdisc = modNonMedical.DiscPercentForCategoryValue($encid, cmbdisctype.Text, itemtype, res["fldbrandid"], itemmode)
@@ -1012,6 +1040,7 @@ Private Sub AddPastRegimens(itmList As Long[])
   Dim xnarcotic As String[]
   Dim CPharmFix As CFixRatePharmacy
   Dim xgo As Boolean
+  Dim ygo As Boolean
 
   If chknextplan.Value = True Then
     xcurVal = "Planned"
@@ -1044,7 +1073,13 @@ Private Sub AddPastRegimens(itmList As Long[])
           Else
             xgo = True
           Endif
-          If xgo = True Then
+          ygo = False
+          If modBasic.$ClinicDisableMedicines.Exist(res["flditem"]) = True Then
+            ygo = False
+          Else
+            ygo = True
+          Endif
+          If xgo = True And If ygo = True Then
             itemmode = $sBillMode
             xtax = modNonMedical.ShowTaxValues(itemtype, res["flditem"])
             xdisc = modNonMedical.DiscPercentForCategoryValue($encid, cmbdisctype.Text, itemtype, res["flditem"], itemmode)
@@ -1570,13 +1605,13 @@ Private Sub ShowRunningMedicine(xCurrent As String)
       Endif
       $rData2 = modDatabase.$myConn.Exec(sql, $encid, "Medicines")
 
-    Case "All Types"
+    Case "All Active"
       If rblabel.Value = True Then
-        sql = "select " & xFields.Join(",") & " from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and fldqtydisp>fldqtyret ORDER BY fldid DESC"
+        sql = "select " & xFields.Join(",") & " from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and fldcurval=&3 and fldqtydisp>fldqtyret ORDER BY fldid DESC"
       Else
-        sql = "select " & xFields.Join(",") & " from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and fldqtydisp>fldqtyret ORDER BY fldid DESC"                    ''
+        sql = "select " & xFields.Join(",") & " from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and fldcurval=&3 and fldqtydisp>fldqtyret ORDER BY fldid DESC"                    ''
       Endif
-      $rData2 = modDatabase.$myConn.Exec(sql, $encid, "Medicines")
+      $rData2 = modDatabase.$myConn.Exec(sql, $encid, "Medicines", "Continue")
 
   End Select
   $aMyFields2 = New String[]

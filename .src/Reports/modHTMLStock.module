@@ -1763,3 +1763,77 @@ Public Function GetPurchaseDetailByStockName(itemLst As String[], toDate As Date
   Return $BillingReport.NewHTMLPath()
 
 End
+
+Public Function ShowTotalStockReturnReport(suppname As String, dtfir As Date, dtlast As Date, aCompLst As String[]) As String
+
+  Dim $BillingReport As CReportHTML
+  Dim res As Result
+  Dim asx As New String[0]
+  Dim sCompLst As String[]
+  Dim i As Integer
+
+  Dim xcost As Float
+  Dim tot As Float
+  Dim xstr As String
+  Dim RepoStr As String
+
+  sCompLst = aCompLst.Copy()
+  RepoStr = modDataRepo.GetRepoLastStr()
+  $BillingReport = New CReportHTML([("Location"), ("Category"), ("Reference"), ("Supplier"), ("Particulars"), ("Batch"), ("Expiry"), ("Cost"), ("QTY"), ("Total")], "", "")
+  $BillingReport.UserData.Add("STOCK RETURNS: " & suppname & " Depart: " & sCompLst.Join(", "), "PARAM1")
+  $BillingReport.UserData.Add("DATE: " & modReportVar.GetDateTimeReport(dtfir, gb.MediumDate) & " TO " & modReportVar.GetDateTimeReport(dtlast, gb.MediumDate), "PARAM2")
+
+  For i = 0 To sCompLst.Count - 1
+    sCompLst[i] = "'" & sCompLst[i] & "'"
+  Next
+  xstr = " and fldcomp in(" & sCompLst.Join(",") & ")"
+
+  tot = 0
+  res = modDatabase.$syConn.Exec("select fldcomp,fldcategory,fldstockno,fldstockid,fldqty,fldcost,fldsuppname,fldreference,fldtime from tblstockreturn where fldsuppname like &1 and fldtime>=&2 and fldtime<=&3 and fldsave=&4" & xstr & RepoStr, suppname, modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast), True)
+  If res.Available Then
+    For Each res
+      xcost = 0
+      Select modBasic.$InvReportCost
+        Case "Average", "Latest", "Fixed"
+          xcost = modStock.GetAverageCostPriceByStockNo(res["fldstockno"], res["fldtime"])
+        Case Else
+          xcost = res["fldcost"]
+      End Select
+
+      tot = tot + res["fldqty"] * xcost
+      With asx
+        .Add(res["fldcomp"])
+        .Add(res["fldcategory"])
+        .Add(res["fldreference"])
+        .Add(res["fldsuppname"])
+        .Add(res["fldstockid"])
+        .Add(modStock.GetBatchFromStockNo(res["fldstockno"]))
+        .Add(modReportVar.GetDateTimeReport(modStock.GetExpiryFromStockNo(res["fldstockno"]), gb.MediumDate))
+        .Add(modReportVar.GetLocaleNumberFormat(xcost, gb.Currency))
+        .Add(modReportVar.GetLocaleNumberFormat(res["fldqty"], -2))
+        .Add(modReportVar.GetLocaleNumberFormat(res["fldqty"] * xcost, gb.Currency))
+      End With
+      $BillingReport.Add(asx)
+      asx.Clear()
+    Next
+  Endif
+
+  With asx
+    .Add("")
+    .Add("")
+    .Add("")
+    .Add("GRAND TOTAL")
+    .Add("")
+    .Add("")
+    .Add("")
+    .Add("")
+    .Add("")
+    .Add(modReportVar.GetLocaleNumberFormat(tot, gb.Currency))
+  End With
+  $BillingReport.Add(asx)
+  asx.Clear()
+
+  $BillingReport.AddSummary("Cost Price Calculation: " & modBasic.$InvReportCost)
+  Return $BillingReport.NewHTMLPath()
+
+End

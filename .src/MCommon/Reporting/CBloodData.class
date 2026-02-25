@@ -1,0 +1,129 @@
+' Gambas class file
+
+Private $sCategory As String
+Private $sCode As String
+Private ReportPath As String
+
+Private $BloodName As String
+Private $DonorEncID As String
+Private $DonorName As String
+Private $CollectDate As Date
+Private $ExpiryDate As Date
+Private $comment As String
+Private $CrossMatch As String
+Private $PatEncid As String
+Private $BloodStatus As String
+
+Private $EntryUser As String
+Private $EntryDate As Date
+Private $EntryComp As String
+
+Public Sub _new(sCategory As String, sCode As String)
+
+  $sCategory = sCategory
+  $sCode = sCode
+  LoadBloodData()
+
+End
+
+Private Sub LoadBloodData()
+
+  Dim res As Result
+
+  res = modDatabase.$myConn.Exec("select flditem,fldencounterval,fldencname,fldcollect,fldexpiry,fldcomment,fldcrossmatch,fldreceiver,fldstatus,flduserid,fldtime,fldcomp from tblmedinventory where fldcode=&1 and fldcategory=&2", $sCode, $sCategory)
+  If res.Available Then
+    $BloodName = res["flditem"]
+    $DonorEncID = res["fldencounterval"]
+    $DonorName = res["fldencname"]
+    $CollectDate = res["fldcollect"]
+    $ExpiryDate = res["fldexpiry"]
+    $comment = res["fldcomment"]
+    $CrossMatch = res["fldcrossmatch"]
+    $PatEncid = res["fldreceiver"]
+    $BloodStatus = res["fldstatus"]
+    $EntryUser = res["flduserid"]
+    $EntryDate = res["fldtime"]
+    $EntryComp = res["fldcomp"]
+  Endif
+
+End
+
+Private Function GenerateFile() As String
+
+  Dim sPath As String
+
+  ReportPath = Temp() & ".html"
+  File.Save(ReportPath, t_ReadPart())
+  sPath = modControlSub.PrePrintFormatting(ReportPath, "LabelSize")
+  Return sPath
+
+End
+
+Private Function t_ReadPart() As String
+
+  Dim sLine As String
+  Dim repo As String
+
+  If Exist(modBasic.$LabBloodBagPath) Then
+    sLine = File.Load(modBasic.$LabBloodBagPath)
+    repo = t_replace(sLine)
+  Endif
+
+  Return repo
+
+End
+
+Private Function t_replace(sLine As String) As String
+
+  If (String.InStr(sLine, "BloodBagCode") > 0) Then                                   ''
+    sLine = Replace(sLine, "{BloodBagCode}", $sCode)
+  Endif
+  If (String.InStr(sLine, "BloodBagBarCodePath") > 0) Then                                   ''
+    sLine = Replace(sLine, "{BloodBagBarCodePath}", modDevAll.GetBarCodeSample($sCode))
+  Endif
+  If (String.InStr(sLine, "BloodName") > 0) Then                                   ''
+    sLine = Replace(sLine, "{BloodName}", $BloodName)
+  Endif
+  If (String.InStr(sLine, "BloodDonor") > 0) Then                                   ''
+    sLine = Replace(sLine, "{BloodDonor}", $DonorName)
+  Endif
+  If (String.InStr(sLine, "CollectionDate") > 0) Then                                   ''
+    sLine = Replace(sLine, "{CollectionDate}", modReportVar.GetDateTimeReport($CollectDate, gb.MediumDate))
+  Endif
+  If (String.InStr(sLine, "ExpiryDate") > 0) Then                                   ''
+    sLine = Replace(sLine, "{ExpiryDate}", modReportVar.GetDateTimeReport($ExpiryDate, gb.MediumDate))
+  Endif
+  If (String.InStr(sLine, "BloodComment") > 0) Then                                   ''
+    sLine = Replace(sLine, "{BloodComment}", $comment)
+  Endif
+  If (String.InStr(sLine, "CrossMatching") > 0) Then                                   ''
+    sLine = Replace(sLine, "{CrossMatching}", $CrossMatch)
+  Endif
+  If (String.InStr(sLine, "BloodBagStatus") > 0) Then                                   ''
+    sLine = Replace(sLine, "{BloodBagStatus}", $BloodStatus)
+  Endif
+  If (String.InStr(sLine, "BloodEntryUser") > 0) Then                                   ''
+    sLine = Replace(sLine, "{BloodEntryUser}", $EntryUser)
+  Endif
+  If (String.InStr(sLine, "BloodEntryDate") > 0) Then                                   ''
+    sLine = Replace(sLine, "{BloodEntryDate}", modReportVar.GetDateTimeReport($EntryDate, gb.GeneralDate))
+  Endif
+  If (String.InStr(sLine, "BloodEntryComp") > 0) Then                                   ''
+    sLine = Replace(sLine, "{BloodEntryComp}", $EntryComp)
+  Endif
+
+  sLine = modReportVar.GetReportVarTitle(sLine)
+  If $PatEncid Then
+    sLine = modReportVar.GetReportVarPatient($PatEncid, sLine)
+    sLine = modReportVar.GetReportVarEncounter($PatEncid, sLine)
+  Endif
+
+  Return sLine
+
+End
+
+Public Function LabelPath() As String
+
+  Return GenerateFile()
+
+End

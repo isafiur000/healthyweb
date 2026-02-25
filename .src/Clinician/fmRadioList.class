@@ -176,7 +176,7 @@ Private Sub SHowSavedGrid()
 
   Dim sql As String
 
-  sql = "select fldid,fldtime,flditemname,fldrefer,fldordcomp,fldreason from tblpatbilling where fldencounterval=&1 and flditemtype=&2 and fldsave=&3 and (fldstatus=&4 or fldstatus=&5) and fldsample=&6 and (flditemqty-fldretqty)>&7"
+  sql = "select fldid,fldtime,flditemname,fldrefer,fldordcomp,fldreason,fldordtime from tblpatbilling where fldencounterval=&1 and flditemtype=&2 and fldsave=&3 and (fldstatus=&4 or fldstatus=&5) and fldsample=&6 and (flditemqty-fldretqty)>&7"
   $rData1 = modDatabase.$myConn.Exec(sql, $encid, "Radio Diagnostics", True, "Done", "Cleared", "Waiting", 0)
   $aMyFields1 = New String[]
   modGridView.ReadSmallData(GridView2, $rData1, $aMyFields1)
@@ -188,12 +188,14 @@ Private Sub SHowSavedGrid()
     .Columns[3].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
     .Columns[4].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
     .Columns[5].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+    .Columns[6].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
 
     .Columns[1].Text = "DateTime"
     .Columns[2].Text = "Test Name"
     .Columns[3].Text = "ReferBy"
     .Columns[4].Text = "From"
     .Columns[5].Text = "Comment"
+    .Columns[6].Text = "OrderDate"
   End With
 
 End
@@ -206,6 +208,8 @@ Public Sub GridView2_Data(Row As Integer, Column As Integer, Data As WebTableDat
     Data.Text = modReportVar.GetDateTimeReport($rData1[$aMyFields1[Column]], gb.GeneralDate)
   Else If Column = 3 Then
     Data.Text = modGeneral.GetUserFullName($rData1[$aMyFields1[Column]])
+  Else If Column = 6 Then
+    Data.Text = modReportVar.GetDateTimeReport($rData1[$aMyFields1[Column]], gb.GeneralDate)
   Else
     Data.Text = $rData1[$aMyFields1[Column]]
   Endif
@@ -236,7 +240,7 @@ Private Sub ShowSampled()
 
   Dim sql As String
 
-  sql = "select fldid,fldmethod,fldtestid,fldabnormal,fldrefername,fldstatus from tblpatradiotest where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3)"
+  sql = "select fldid,fldmethod,fldtestid,fldabnormal,fldrefername,fldstatus,fldnewdate from tblpatradiotest where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3)"
   $rData2 = modDatabase.$myConn.Exec(sql, $encid, "Ordered", "Sampled")
   $aMyFields2 = New String[]
   modGridView.ReadSmallData(GridView3, $rData2, $aMyFields2)
@@ -247,11 +251,13 @@ Private Sub ShowSampled()
     .Columns[3].Width = CStr(20 * modBasic.$AppWidthRatio) & "px"
     .Columns[4].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
     .Columns[5].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
+    .Columns[6].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
 
     .Columns[1].Text = "Method"
     .Columns[2].Text = "Test Name"
     .Columns[4].Text = "ReferBy"
     .Columns[5].Text = "Status"
+    .Columns[6].Text = "PlanDate"
   End With
 
 End
@@ -263,6 +269,8 @@ Public Sub GridView3_Data(Row As Integer, Column As Integer, Data As WebTableDat
   If Column = 3 Then
     Data.Html = modString.GetImageForHTMLGrid("/" &/ Application.Root &/ "icons/null.svg", "75%", "75%")
     Data.Text = ""
+  Else If Column = 6 Then
+    Data.Text = modReportVar.GetDateTimeReport($rData2[$aMyFields2[Column]], gb.GeneralDate)
   Else
     Data.Text = $rData2[$aMyFields2[Column]]
   Endif

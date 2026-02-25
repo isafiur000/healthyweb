@@ -5,6 +5,7 @@ Private $aAge As Float
 Private $sStockId As String
 Private $DoseRate As String
 
+Private $recDose As Float
 Private $unitDose As Float
 Private $doseUnit As String
 Private $frequency As String
@@ -23,10 +24,6 @@ Private Sub GetResults()
 
   Dim sql As String
   Dim res As Result
-  Dim xdose As Float
-
-  Dim xval As Float
-  Dim creatclr As Float
 
   If $aAge <= 12 Then
     sql = "select fldrecpeddose as dose,fldrecpeddoseunit as unit,fldrecpedfreq as freq from tblcode where fldcodename in(select fldcodename from tbldrug where flddrug in(select flddrug from tblmedbrand where fldbrandid=&1))"
@@ -36,9 +33,9 @@ Private Sub GetResults()
   res = modDatabase.$medConn.Exec(sql, $sStockId)
   If res.Available Then
     If res["dose"] Then
-      xdose = res["dose"]
+      $recDose = res["dose"]
     Else
-      xdose = 0
+      $recDose = 0
     Endif
     If res["unit"] Then
       $doseUnit = res["unit"]
@@ -52,42 +49,18 @@ Private Sub GetResults()
     Endif
 
   Else
-    xdose = 0
+    $recDose = 0
     $doseUnit = ""
     $frequency = "1"
   Endif
 
-  $DoseRate = CStr(xdose) & Space(1) & $doseUnit
-
-  If xdose Then
-    xval = modMedDosing.GetDoseInMg(xdose, $doseUnit, $encid)
-    If xval Then
-      $unitDose = xval
-    Else
-      $unitDose = 0
-    Endif
-  Else
-    $unitDose = 0
-  Endif
-
-  If modBasic.$MedRenalAdjustment = "Yes" Then
-    creatclr = modSysCons.GetCreatinineClearance($encid)
-    If creatclr Then
-      If (modMedConstant.GetDrugRenalEliminFraction($sStockId) * 100) > modBasic.$MedMinRenalElimin And If creatclr < modBasic.$MedMaxCreatClear Then                                             ''
-        $unitDose = $unitDose * modMedDosing.GetDoseAdjustmentFactor($encid, $sStockId)
-      Endif
-    Endif
-  Endif
-
-  If $unitDose = 0 Then
-    $unitDose = modMedConstant.GetDrugInitialStrength($sStockId)
-  Endif
+  $DoseRate = CStr($recDose) & Space(1) & $doseUnit
 
 End
 
-Public Function UnitDose() As Float
+Public Function RecommendDose() As Float
 
-  Return $unitDose
+  Return $recDose
 
 End
 
@@ -106,5 +79,62 @@ End
 Public Function Regimen() As String
 
   Return $DoseRate
+
+End
+
+Public Function UnitDose() As Float
+
+  Dim xval As Float
+  Dim creatclr As Float
+  Dim xelimfrac As Float
+
+  If $recDose Then
+    xval = modMedDosing.GetDoseInMg($recDose, $doseUnit, $encid)
+    If xval Then
+      $unitDose = xval
+    Else
+      $unitDose = 0
+    Endif
+  Else
+    $unitDose = 0
+  Endif
+
+  If modBasic.$MedRenalAdjustment = "Yes" Then
+    creatclr = modSysCons.GetCreatinineClearance($encid)
+    If creatclr Then
+      xelimfrac = modMedConstant.GetDrugRenalEliminFraction($sStockId)
+      If (xelimfrac * 100) > modBasic.$MedMinRenalElimin And If creatclr < modBasic.$MedMaxCreatClear Then                                             ''
+        $unitDose = $unitDose * modMedDosing.GetDoseAdjustmentFactor(xelimfrac, creatclr)
+      Endif
+    Endif
+  Endif
+
+  If $unitDose = 0 Then
+    $unitDose = modMedConstant.GetDrugInitialStrength($sStockId)
+  Endif
+
+  Return $unitDose
+
+End
+
+Public Function UnitDoseUnit() As String
+
+  Dim xunit As String
+
+  Select $doseUnit
+    Case "mg", "mg/Kg", "mg/sqm"
+      xunit = "mg"
+    Case "mcg", "mcg/Kg", "mcg/sqm"
+      xunit = "mcg"
+    Case "gram", "gram/Kg", "gram/sqm"
+      xunit = "gram"
+    Case "IU", "IU/Kg", "IU/sqm"
+      xunit = "IU"
+    Case "Unit", "Unit/Kg", "Unit/sqm"
+      xunit = "Unit"
+    Case "mL", "mL/Kg", "mL/sqm"
+      xunit = "mL"
+  End Select
+  Return xunit
 
 End
