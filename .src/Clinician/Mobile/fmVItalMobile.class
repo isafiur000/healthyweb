@@ -6,6 +6,7 @@ Private aWebFrame As New Object[50]
 Private aIndexLabel As New Object[50]
 Private aNameLabel As New Object[50]
 Private aCheckAbn As New Object[50]
+Private aQuantiKey As New Object[50]
 Private aQuantiBox As New Object[50]
 Private sButtonPlus As New Object[50]
 Private sButtonMinus As New Object[50]
@@ -23,6 +24,8 @@ Private aBlankFrame As New Object[50]
 Private $enableControl As Boolean
 Private $viewSlider As Boolean
 Private $TriageColor As Integer
+
+Private $hKeyBoard As FmQuantiEntry
 
 Public Sub _new(encid As String)
 
@@ -47,6 +50,11 @@ Public Sub btnshow_Click()
   Dim xx As Boolean
 
   If txtencid.Text Then
+    If modBasic.$TabletModeEnable = "Yes" Then
+      $hKeyBoard = New FmQuantiEntry(pnlkeyboard)
+    Else
+      pnlkeyboard.Visible = False
+    Endif
     txtname.Text = modPatient.GetPatientNameByEnc(Trim(txtencid.Text))
     $TriageColor = modPatient.GetPatientColorStatic(Trim(txtencid.Text))
     $sVitalsVar = modPathoSub.GetAllEssentialExams(Trim(txtencid.Text))
@@ -101,6 +109,7 @@ Private Sub GetControlParams()
     aNameLabel[i] = New WebHtml(aWebFrame[i])
     aCheckAbn[i] = New WebCheckBox(aWebFrame[i])
     If $sVitalsVar[i]["DataType"] = "Quantitative" Then
+      aQuantiKey[i] = New WebButton(aWebFrame[i]) As "QuantiKey"
       aQuantiBox[i] = New WebValueBox(aWebFrame[i]) As "QuantiGroup"
       sButtonPlus[i] = New WebButton(aWebFrame[i]) As "PlusGroup"
       sButtonMinus[i] = New WebButton(aWebFrame[i]) As "MinusGroup"
@@ -165,6 +174,14 @@ Private Sub GetControlParams()
         .Text = "Abn"
         .Enabled = False
         .Tag = i
+      End With
+      With aQuantiKey[i]
+        .Class = "toolButton hide-control"
+        .Width = "2em"
+        .Height = "2em"
+        .Tag = i
+        .Text = ""
+        .Image = "icon:/32/pen"
       End With
       With aQuantiBox[i]
         .Width = "4em"
@@ -282,6 +299,17 @@ Private Sub GetControlParams()
       .Height = "1em"
     End With
   Next
+
+End
+
+Public Sub QuantiKey_Click()
+
+  Dim i As Integer
+
+  i = Last.Tag
+
+  $hKeyBoard.SetValueBox(aQuantiBox[i])
+  Me.Exec("$_(" & JS(aQuantiBox[i].Name & ":entry") & ").select()")
 
 End
 
