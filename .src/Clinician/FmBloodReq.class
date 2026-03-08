@@ -30,6 +30,7 @@ Public Sub _new(encid As String, sPackage As String)
 
   cmbitem.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(flditem) as col from tblbloodstore"))
   cmbgroup.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldgroup) as col from tblbloodstore"))
+  cmbcomment.List = ["Transfuse", "Crossmatch and Hold"]
   def = modSettings.ShowSettingFromFIle("BloodBank/GroupingCode")
   If def Then
     xList = GetBloodTypeList($PatientNum, modFixLab.GetLabTestIDFromSysConst(def))
@@ -104,7 +105,7 @@ Public Sub btnsubOK_Click()
     If lblcode.Text Then
       modDatabase.$myConn.Begin
       For i = 1 To txtqty.Value
-        modPatientGeneral.PatMedicalItemRequest("Blood", $encid, lblcode.Text, TextArea1.Text)
+        modPatientGeneral.PatMedicalItemRequest("Blood", $encid, lblcode.Text, cmbcomment.Text)
       Next
       If $billMode And If lblcost.Text Then
         xitem = modNonMedical.GetItemFromGroupName(lblcost.Text, $billMode)
@@ -193,8 +194,8 @@ Private Sub CompleteGrid()
 
   Dim sql As String
 
-  sql = "select fldid,fldcode,flditem,fldid,fldfirsttime,fldsecondtime,fldcomment,fldexpiry,fldstatus,fldcrossmatch from tblmedinventory where fldreceiver=&1 and fldcategory=&2 and (fldstatus=&3 or fldstatus=&4)"            '
-  $rData2 = modDatabase.$myConn.Exec(sql, $encid, "Blood", "Transferred", "Administered")
+  sql = "select fldid,fldcode,flditem,fldid,fldfirsttime,fldsecondtime,fldcomment,fldexpiry,fldstatus,fldcrossmatch from tblmedinventory where fldreceiver=&1 and fldcategory=&2 and (fldstatus=&3 or fldstatus=&4 or fldstatus=&5 or fldstatus=&6)"            '
+  $rData2 = modDatabase.$myConn.Exec(sql, $encid, "Blood", "Transferred", "Administered", "On Hold", "Discontinue")
   $aMyFields2 = New String[]
   modGridView.ReadSmallData(GridView2, $rData2, $aMyFields2)
 
@@ -294,14 +295,41 @@ Public Sub btnplay_Click()
 
 End
 
+Public Sub btnhold_Click()
+
+  If btnhold.Text = "On Hold"
+    ChangeReceiveStatus("On Hold")
+  Else If btnhold.Text = "Continue"
+    ChangeReceiveStatus("Transferred")
+  Endif
+
+End
+
+Public Sub btndiscontinue_Click()
+
+  ChangeReceiveStatus("Discontinue")
+
+End
+
 Public Sub btnreturn_Click()
+
+  ChangeReceiveStatus("Returned")
+
+End
+
+Private Sub ChangeReceiveStatus(xStatus As String)
 
   Dim res As Result
 
   If txtidval.Value Then
-    res = modDatabase.$myConn.Edit("tblmedinventory", "fldid=&1 and fldstatus=&2 and flduserid_start IS NULL", txtidval.Value, "Transferred")
+    Select xStatus
+      Case "On Hold", "Returned", "Discontinue"
+        res = modDatabase.$myConn.Edit("tblmedinventory", "fldid=&1 and fldstatus=&2 and flduserid_start IS NULL", txtidval.Value, "Transferred")
+      Case "Transferred"
+        res = modDatabase.$myConn.Edit("tblmedinventory", "fldid=&1 and fldstatus=&2 and flduserid_start IS NULL", txtidval.Value, "On Hold")
+    End Select
     If res.Available Then
-      res["fldstatus"] = "Returned"
+      res["fldstatus"] = xStatus
       res["xyz"] = False
       res.Update
       CompleteGrid()
