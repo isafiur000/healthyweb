@@ -190,7 +190,7 @@ Public Function ShowDischargeReport(encid As String, exam As String[], radio As 
   $BillingReport.Add(hForm.AddChiefComplaints())
   $BillingReport.Add(hForm.AddHistoryOfIllness())
 
-  res1 = modDatabase.$myConn.Exec("select distinct(flditem) as flditem from tblhistory")
+  res1 = modDatabase.$syConn.Exec("select distinct(flditem) as flditem from tblhistory")
   If res1.Available Then
     For Each res1
       $BillingReport.Add(hForm.AddSelectedHistory(res1["flditem"]))
@@ -220,7 +220,7 @@ Public Function ShowDischargeReport(encid As String, exam As String[], radio As 
   $BillingReport.Add(hForm.AddDischargeFindings())
   $BillingReport.Add(hForm.AddDischargeMedication())
 
-  res2 = modDatabase.$myConn.Exec("select distinct(flditem) as flditem from tbldischarge")
+  res2 = modDatabase.$syConn.Exec("select distinct(flditem) as flditem from tbldischarge")
   If res2.Available Then
     For Each res2
       $BillingReport.Add(hForm.AddSelectedDischarge(res2["flditem"]))
@@ -390,7 +390,7 @@ Public Function GetPatientHistoryReport(encid As String, sType As String) As Str
 
   sql1 = "select flddetail,fldreportquali,fldtime,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and flditem=&3" & GetLockClinicSQL()
   sql2 = "select flddetail,fldreportquali,fldtime,flduserid from tblpatientnotes where fldencounterval=&1 and fldinput=&2 and flditem=&3" & GetLockClinicSQL()
-  res = modDatabase.$myConn.Exec(sql1 & " UNION ALL " & sql2 & " ORDER BY fldtime", encid, "History", sType)
+  res = modDatabase.$syConn.Exec(sql1 & " UNION ALL " & sql2 & " ORDER BY fldtime", encid, "History", sType)
   If res.Available = True Then
     res.MoveLast
     If modBasic.$ShowDayMedReport = "User" Then
@@ -436,7 +436,7 @@ Public Function GetPatientNotesAllTypes(encid As String, sType As String) As Str
     Next
 
   Else If sType = "Discharge Notes" Then
-    xList = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select DISTINCT(flditem) as col from tbldischarge"))
+    xList = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec("select DISTINCT(flditem) as col from tbldischarge"))
     For Each xcateg In xList
       xnote.Add("<p><b>" & xcateg & "</b><br>" & GetPatientNoteReport(encid, xcateg) & "</p>")
     Next
@@ -543,7 +543,7 @@ Public Function GetPastBillingOrders(encid As String) As String
 
   xFinal = New Variant[]
   sColmList = ["", "Category", "Particulars", "QTY"]
-  res = modDatabase.$myConn.Exec("select flditemtype,flditemname,flditemqty from tblpatbilling where fldencounterval=&1 and fldsave=&2 and fldstatus=&3 and fldbillno IS NULL", encid, False, "Planned")
+  res = modDatabase.$syConn.Exec("select flditemtype,flditemname,flditemqty from tblpatbilling where fldencounterval=&1 and fldsave=&2 and fldstatus=&3 and fldbillno IS NULL", encid, False, "Planned")
   If res.Available Then
     i = 1
     For Each res
@@ -1904,9 +1904,9 @@ Public Function GetInvoiceDetailTable(encid As String, sStatus As String, sBillM
 
   xvar = New Variant[]
   If sStatus = "OPD" Then
-    res = modDatabase.$myConn.Exec("select flditemname,flditemtype from tblpatbilling where fldencounterval=&1 and fldbillingmode=&2 and fldbillno in(select fldbillno from tblpatbilldetail where fldprevdeposit=&3)", encid, sBillMode, 1)
+    res = modDatabase.$syConn.Exec("select flditemname,flditemtype from tblpatbilling where fldencounterval=&1 and fldbillingmode=&2 and fldbillno in(select fldbillno from tblpatbilldetail where fldprevdeposit=&3)", encid, sBillMode, 1)
   Else If sStatus = "IPD" Then
-    res = modDatabase.$myConn.Exec("select flditemname,flditemtype from tblpatbilling where fldencounterval=&1 and fldbillingmode=&2 and fldbillno in(select fldbillno from tblpatbilldetail where fldprevdeposit>&3)", encid, sBillMode, 1)
+    res = modDatabase.$syConn.Exec("select flditemname,flditemtype from tblpatbilling where fldencounterval=&1 and fldbillingmode=&2 and fldbillno in(select fldbillno from tblpatbilldetail where fldprevdeposit>&3)", encid, sBillMode, 1)
   Endif
   If res.Available Then
     i = 1
@@ -2008,7 +2008,7 @@ Public Sub GetVisitHistoryResult(xpatno As String)
 
   If xpatno Then
     If modPatientSub.GetPatPassCheck(modDatabase.$myConn, xpatno) = True Then
-      res = modDatabase.$myConn.Exec("select fldencounterval,fldregdate,fldadmission,fldcurrlocat,flduserid,flddisctype from tblencounter where fldpatientval=&1 ORDER BY fldregdate", xpatno)
+      res = modDatabase.$syConn.Exec("select fldencounterval,fldregdate,fldadmission,fldcurrlocat,flduserid,flddisctype from tblencounter where fldpatientval=&1 ORDER BY fldregdate", xpatno)
       hForm = New FRequest(res, "Patient Encounters", "PatientEncounters", False)
       hForm.ShowModal
     Endif
@@ -2028,7 +2028,7 @@ Public Sub GetRepoVisitHistoryResult(xpatno As String)
       sCon = modDatabase.$myConn
       xCon = modDatabase.$syConn
       modRepository.TransferRemoConn(xpatno)
-      res = modDatabase.$myConn.Exec("select fldencounterval,fldregdate,fldadmission,fldcurrlocat,flduserid,fldhospcode from tblencounter where fldpatientval=&1 ORDER BY fldregdate", xpatno)
+      res = modDatabase.$syConn.Exec("select fldencounterval,fldregdate,fldadmission,fldcurrlocat,flduserid,fldhospcode from tblencounter where fldpatientval=&1 ORDER BY fldregdate", xpatno)
       hForm = New FRequest(res, "Patient Encounters", "PatientRemoteEncounters", False)
       hForm.ShowModal
       modDatabase.$myConn = sCon

@@ -2511,7 +2511,7 @@ Public Function EnableClinicForm(xStatus As String) As Boolean
 
 End
 
-Public Function EnableClinicOPDForm(encid As String) As Boolean
+Public Function GetEnabledConsultAny(encid As String) As Boolean
 
   Dim sql As String
   Dim res As Result
@@ -2519,23 +2519,33 @@ Public Function EnableClinicOPDForm(encid As String) As Boolean
   Dim Row As Integer
 
   Row = 0
-  If modBasic.$SuperUser = True Then
-    fme = True
-  Else
-    sql = "select count(fldencounterval) as xcnt from tblconsult where fldencounterval=&1 and fldstatus=&2 UNION ALL select count(fldencounterval) as xcnt from tblopvisit where fldencounterval=&1 and fldstatus=&2"
-    res = modDatabase.$myConn.Exec(sql, encid, "Planned")
-    If res.Available Then
-      For Each res
-        Row = Row + res["xcnt"]
-      Next
-      If Row > 0 Then
-        fme = True
-      Else
-        fme = False
-      Endif
+  sql = "select count(fldencounterval) as xcnt from tblconsult where fldencounterval=&1 and fldstatus=&2 UNION ALL select count(fldencounterval) as xcnt from tblopvisit where fldencounterval=&1 and fldstatus=&2"
+  res = modDatabase.$myConn.Exec(sql, encid, "Planned")
+  If res.Available Then
+    For Each res
+      Row = Row + res["xcnt"]
+    Next
+    If Row > 0 Then
+      fme = True
     Else
       fme = False
     Endif
+  Else
+    fme = False
+  Endif
+
+  Return fme
+
+End
+
+Public Function EnableClinicOPDForm(encid As String) As Boolean
+
+  Dim fme As Boolean
+
+  If modBasic.$SuperUser = True Then
+    fme = True
+  Else
+    fme = GetEnabledConsultAny(encid)
   Endif
 
   Return fme

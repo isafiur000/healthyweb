@@ -194,7 +194,7 @@ Private Sub CompleteGrid()
 
   Dim sql As String
 
-  sql = "select fldid,fldcode,flditem,fldid,fldfirsttime,fldsecondtime,fldcomment,fldexpiry,fldstatus,fldcrossmatch from tblmedinventory where fldreceiver=&1 and fldcategory=&2 and (fldstatus=&3 or fldstatus=&4 or fldstatus=&5 or fldstatus=&6)"            '
+  sql = "select fldid,fldcode,flditem,fldid,fldfirsttime,fldsecondtime,fldcrossmatch,fldexpiry,fldstatus,fldcomment from tblmedinventory where fldreceiver=&1 and fldcategory=&2 and (fldstatus=&3 or fldstatus=&4 or fldstatus=&5 or fldstatus=&6)"            '
   $rData2 = modDatabase.$myConn.Exec(sql, $encid, "Blood", "Transferred", "Administered", "On Hold", "Discontinue")
   $aMyFields2 = New String[]
   modGridView.ReadSmallData(GridView2, $rData2, $aMyFields2)
@@ -206,17 +206,17 @@ Private Sub CompleteGrid()
     .Columns[3].Width = CStr(35 * modBasic.$AppWidthRatio) & "px"
     .Columns[4].Hidden = True
     .Columns[5].Hidden = True
-    .Columns[6].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
-    .Columns[7].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+    .Columns[6].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
+    .Columns[7].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
     .Columns[8].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
     .Columns[9].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
 
     .Columns[1].Text = "Bag No"
     .Columns[2].Text = "Particulars"
-    .Columns[6].Text = "Comment"
+    .Columns[6].Text = "Cross-match"
     .Columns[7].Text = "Expiry"
     .Columns[8].Text = "Status"
-    .Columns[9].Text = "Cross-match"
+    .Columns[9].Text = "Comment"
   End With
 
 End
@@ -228,7 +228,7 @@ Public Sub GridView2_Data(Row As Integer, Column As Integer, Data As WebTableDat
   If Column = 3 Then
     Data.Html = modString.GetImageForHTMLGrid(modGeneralMain.GetSystemIcon(GetStateIcon($rData2[$aMyFields2[Column]])), "75%", "auto")
   Else If Column = 7 Then
-    Data.Text = modReportVar.GetDateTimeReport($rData2[$aMyFields2[Column]], gb.GeneralDate)
+    Data.Text = modReportVar.GetDateTimeReport($rData2[$aMyFields2[Column]], gb.MediumDate)
   Else
     Data.Text = $rData2[$aMyFields2[Column]]
   Endif
@@ -307,29 +307,39 @@ End
 
 Public Sub btndiscontinue_Click()
 
-  ChangeReceiveStatus("Discontinue")
+  Dim xmsg As String
+
+  xmsg = GetTextArea("Reason for Discontinuation")
+  If xmsg Then
+    ChangeReceiveStatus("Discontinue", xmsg)
+  Endif
 
 End
 
 Public Sub btnreturn_Click()
 
-  ChangeReceiveStatus("Returned")
+  If Message.Question("Are you sure ?", ("No"), ("Yes")) = 2 Then
+    ChangeReceiveStatus("Returned")
+  Endif
 
 End
 
-Private Sub ChangeReceiveStatus(xStatus As String)
+Private Sub ChangeReceiveStatus(xStatus As String, Optional xmsg As String)
 
   Dim res As Result
 
-  If txtidval.Value Then
+  If GridView2.Rows.Selection.Count Then
     Select xStatus
       Case "On Hold", "Returned", "Discontinue"
-        res = modDatabase.$myConn.Edit("tblmedinventory", "fldid=&1 and fldstatus=&2 and flduserid_start IS NULL", txtidval.Value, "Transferred")
+        res = modDatabase.$myConn.Edit("tblmedinventory", "fldid=&1 and fldstatus=&2 and flduserid_start IS NULL", GridView2[GridView2.Row, 0].Text, "Transferred")
       Case "Transferred"
-        res = modDatabase.$myConn.Edit("tblmedinventory", "fldid=&1 and fldstatus=&2 and flduserid_start IS NULL", txtidval.Value, "On Hold")
+        res = modDatabase.$myConn.Edit("tblmedinventory", "fldid=&1 and fldstatus=&2 and flduserid_start IS NULL", GridView2[GridView2.Row, 0].Text, "On Hold")
     End Select
     If res.Available Then
       res["fldstatus"] = xStatus
+      If xmsg Then
+        res["fldretreason"] = xmsg
+      Endif
       res["xyz"] = False
       res.Update
       CompleteGrid()
@@ -342,7 +352,7 @@ Private Sub PendingRequest()
 
   Dim sql As String
 
-  sql = "select fldid,fldcode,flditem,fldid,fldfirsttime,fldsecondtime,fldcomment,fldstatus,fldexpiry,fldcrossmatch from tblmedinventory where fldreceiver=&1 and fldcategory=&2 and (fldstatus=&3 or fldstatus=&4 or fldstatus=&5)"            '
+  sql = "select fldid,fldcode,flditem,fldid,fldfirsttime,fldsecondtime,fldcrossmatch,fldstatus,fldexpiry,fldcomment from tblmedinventory where fldreceiver=&1 and fldcategory=&2 and (fldstatus=&3 or fldstatus=&4 or fldstatus=&5)"            '
   $rData3 = modDatabase.$myConn.Exec(sql, $encid, "Blood", "Reserved", "Allocated", "Requested")
   $aMyFields3 = New String[]
   modGridView.ReadSmallData(GridView3, $rData3, $aMyFields3)
@@ -354,16 +364,16 @@ Private Sub PendingRequest()
     .Columns[3].Hidden = True
     .Columns[4].Hidden = True
     .Columns[5].Hidden = True
-    .Columns[6].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+    .Columns[6].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
     .Columns[7].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
     .Columns[8].Hidden = True
     .Columns[9].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
 
     .Columns[1].Text = "Bag No"
     .Columns[2].Text = "Particulars"
-    .Columns[6].Text = "Comment"
+    .Columns[6].Text = "Cross-match"
     .Columns[7].Text = "Status"
-    .Columns[9].Text = "Cross-match"
+    .Columns[9].Text = "Comment"
   End With
 
 End

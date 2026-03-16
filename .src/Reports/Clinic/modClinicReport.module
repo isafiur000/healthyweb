@@ -61,15 +61,15 @@ Public Function GetPatientChiefComplaintsReport(encid As String, sMulti As Boole
   xx = New String[]
   If sMulti = True Then
     xCompAll = New String[]
-    compLst2 = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldcomp) as col from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and fldsave=&3", encid, "Presenting Symptoms", True))
+    compLst2 = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec("select distinct(fldcomp) as col from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and fldsave=&3", encid, "Presenting Symptoms", True))
     If compLst2.Count Then
       xCompAll.Insert(compLst2)
     Endif
-    compLst1 = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldcomp) as col from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and flditem=&3", encid, "History", "General Complaints"))
+    compLst1 = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec("select distinct(fldcomp) as col from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and flditem=&3", encid, "History", "General Complaints"))
     If compLst1.Count Then
       xCompAll.Insert(compLst1)
     Endif
-    compLst3 = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldcomp) as col from tblpatientnotes where fldencounterval=&1 and fldinput=&2 and flditem=&3", encid, "History", "General Complaints"))
+    compLst3 = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec("select distinct(fldcomp) as col from tblpatientnotes where fldencounterval=&1 and fldinput=&2 and flditem=&3", encid, "History", "General Complaints"))
     If compLst3.Count Then
       xCompAll.Insert(compLst3)
     Endif
@@ -78,7 +78,7 @@ Public Function GetPatientChiefComplaintsReport(encid As String, sMulti As Boole
       ''general complaints
       sql1 = "select flddetail,fldreportquali,fldtime,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and flditem=&3 and fldcomp=&4"
       sql2 = "select flddetail,fldreportquali,fldtime,flduserid from tblpatientnotes where fldencounterval=&1 and fldinput=&2 and flditem=&3 and fldcomp=&4"
-      res1 = modDatabase.$myConn.Exec(sql1 & " UNION ALL " & sql2 & " ORDER BY fldtime", encid, "History", "General Complaints", xcomp)
+      res1 = modDatabase.$syConn.Exec(sql1 & " UNION ALL " & sql2 & " ORDER BY fldtime", encid, "History", "General Complaints", xcomp)
       If res1.Available Then
         res1.MoveLast
         yyy = ""
@@ -194,7 +194,7 @@ Public Function GetPatientDemographicReport(encid As String, sMulti As Boolean) 
 
   xx = New String[]
   If sMulti = True Then
-    compLst = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldcomp) as col from tblexamgeneral where fldencounterval=&1 and fldinput=&2", encid, "Demographics"))
+    compLst = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec("select distinct(fldcomp) as col from tblexamgeneral where fldencounterval=&1 and fldinput=&2", encid, "Demographics"))
     For Each xcomp In compLst
       res = modDatabase.$syConn.Exec("select fldtime,flditem,fldreportquali,flddetail,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and fldcomp=&3", encid, "Demographics", xcomp)
       If res.Available Then
@@ -248,21 +248,21 @@ Public Function GetPatientHistoryAllTypes(encid As String) As String[]
   xval = New String[]
   sql1 = "select distinct(fldcomp) as col from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and flditem<>&3"
   sql2 = "select distinct(fldcomp) as col from tblpatientnotes where fldencounterval=&1 and fldinput=&2 and flditem<>&3"
-  rsx = modDatabase.$myConn.Exec(sql1 & " UNION " & sql2, encid, "History", "General Complaints")
+  rsx = modDatabase.$syConn.Exec(sql1 & " UNION " & sql2, encid, "History", "General Complaints")
   compLst = modControlSub.GetDirectFillresult(rsx)
 
   For Each xcomp In compLst
     xval.Add("<b>" & xcomp & "</b>")
     sql1 = "select distinct(flditem) as col from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and flditem<>&3 and fldcomp=&4"
     sql2 = "select distinct(flditem) as col from tblpatientnotes where fldencounterval=&1 and fldinput=&2 and flditem<>&3 and fldcomp=&4"
-    rsy = modDatabase.$myConn.Exec(sql1 & " UNION " & sql2, encid, "History", "General Complaints", xcomp)
+    rsy = modDatabase.$syConn.Exec(sql1 & " UNION " & sql2, encid, "History", "General Complaints", xcomp)
     xList = modControlSub.GetDirectFillresult(rsy)
     If xList And If xList.Count Then
 
       For Each xtype In xList
         sql1 = "select flddetail,fldreportquali,fldtime,flduserid from tblexamgeneral where fldencounterval=&1 and fldinput=&2 and flditem=&3 and fldcomp=&4"
         sql2 = "select flddetail,fldreportquali,fldtime,flduserid from tblpatientnotes where fldencounterval=&1 and fldinput=&2 and flditem=&3 and fldcomp=&4"
-        res = modDatabase.$myConn.Exec(sql1 & " UNION ALL " & sql2 & " ORDER BY fldtime", encid, "History", xtype, xcomp)
+        res = modDatabase.$syConn.Exec(sql1 & " UNION ALL " & sql2 & " ORDER BY fldtime", encid, "History", xtype, xcomp)
         If res.Available = True Then
           res.MoveLast
 
@@ -368,16 +368,16 @@ Public Function NonAvailableMedString(encid As String, sType As String, sMulti A
   Dim xcomp As String
 
   If sMulti = True Then
-    compLst = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldcomp) as col from tblpatoutdosing where fldencounterval=&1 and flditemtype=&2", encid, sType))
+    compLst = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec("select distinct(fldcomp) as col from tblpatoutdosing where fldencounterval=&1 and flditemtype=&2", encid, sType))
     xx = ""
     For Each xcomp In compLst
-      rs = modDatabase.$myConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,flditemtype,fldqtydisp,flddirection,fldstarttime from tblpatoutdosing where fldencounterval=&1 and flditemtype=&2 and fldcomp=&3", encid, sType, xcomp)                 ''
+      rs = modDatabase.$syConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,flditemtype,fldqtydisp,flddirection,fldstarttime from tblpatoutdosing where fldencounterval=&1 and flditemtype=&2 and fldcomp=&3", encid, sType, xcomp)                 ''
       If rs.Available Then
         xx = xx & xcomp & "<br>" & GetMedicineTable(sType, rs) & "<br>"
       Endif
     Next
   Else
-    rs = modDatabase.$myConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,flditemtype,fldqtydisp,flddirection,fldstarttime from tblpatoutdosing where fldencounterval=&1 and flditemtype=&2" & modPatReports.GetLockClinicSQL(), encid, sType)                 ''
+    rs = modDatabase.$syConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,flditemtype,fldqtydisp,flddirection,fldstarttime from tblpatoutdosing where fldencounterval=&1 and flditemtype=&2" & modPatReports.GetLockClinicSQL(), encid, sType)                 ''
     If rs.Available Then
       xx = GetMedicineTable(sType, rs)
     Else
@@ -397,16 +397,16 @@ Public Function GetRequestMedString(encid As String, sType As String, sMulti As 
   Dim xcomp As String
 
   If sMulti = True Then
-    compLst = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldcomp_order) as col from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and (fldorder=&3 or fldorder=&4) and fldcurval=&5", encid, sType, "Request", "UseOwn", "Continue"))
+    compLst = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec("select distinct(fldcomp_order) as col from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and (fldorder=&3 or fldorder=&4) and fldcurval=&5", encid, sType, "Request", "UseOwn", "Continue"))
     xx = ""
     For Each xcomp In compLst
-      rs = modDatabase.$myConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,flditemtype,(fldqtydisp-fldqtyret) as fldqtydisp,flddirection,fldstarttime,fldlevel from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and (fldorder=&3 or fldorder=&4) and fldcurval=&5 and fldcomp_order=&6", encid, sType, "Request", "UseOwn", "Continue", xcomp)
+      rs = modDatabase.$syConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,flditemtype,(fldqtydisp-fldqtyret) as fldqtydisp,flddirection,fldstarttime,fldlevel from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and (fldorder=&3 or fldorder=&4) and fldcurval=&5 and fldcomp_order=&6", encid, sType, "Request", "UseOwn", "Continue", xcomp)
       If rs.Available Then
         xx = xx & xcomp & "<br>" & GetMedicineTable(sType, rs) & "<br>"
       Endif
     Next
   Else
-    rs = modDatabase.$myConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,flditemtype,(fldqtydisp-fldqtyret) as fldqtydisp,flddirection,fldstarttime,fldlevel from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and (fldorder=&3 or fldorder=&4) and fldcurval=&5" & modPatReports.GetLockClinicSQL("tblpatdosing"), encid, sType, "Request", "UseOwn", "Continue")                 ''
+    rs = modDatabase.$syConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,flditemtype,(fldqtydisp-fldqtyret) as fldqtydisp,flddirection,fldstarttime,fldlevel from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and (fldorder=&3 or fldorder=&4) and fldcurval=&5" & modPatReports.GetLockClinicSQL("tblpatdosing"), encid, sType, "Request", "UseOwn", "Continue")                 ''
     If rs.Available Then
       xx = GetMedicineTable(sType, rs)
     Else
@@ -426,16 +426,16 @@ Public Function PendingRequestMedString(encid As String, sType As String, sMulti
   Dim xcomp As String
 
   If sMulti = True Then
-    compLst = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldcomp_order) as col from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and fldorder=&3 and fldsave_order=&4 and fldlevel=&5 and fldcurval=&6", encid, sType, "Request", False, "Requested", "Continue"))
+    compLst = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec("select distinct(fldcomp_order) as col from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and fldorder=&3 and fldsave_order=&4 and fldlevel=&5 and fldcurval=&6", encid, sType, "Request", False, "Requested", "Continue"))
     xx = ""
     For Each xcomp In compLst
-      rs = modDatabase.$myConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,flditemtype,(fldqtydisp-fldqtyret) as fldqtydisp,flddirection,fldstarttime from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and fldorder=&3 and fldsave_order=&4 and fldlevel=&5 and fldcurval=&6 and fldcomp_order=&7", encid, sType, "Request", False, "Requested", "Continue", xcomp)                 ''
+      rs = modDatabase.$syConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,flditemtype,(fldqtydisp-fldqtyret) as fldqtydisp,flddirection,fldstarttime from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and fldorder=&3 and fldsave_order=&4 and fldlevel=&5 and fldcurval=&6 and fldcomp_order=&7", encid, sType, "Request", False, "Requested", "Continue", xcomp)                 ''
       If rs.Available Then
         xx = xx & xcomp & "<br>" & GetMedicineTable(sType, rs) & "<br>"
       Endif
     Next
   Else
-    rs = modDatabase.$myConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,flditemtype,(fldqtydisp-fldqtyret) as fldqtydisp,flddirection,fldstarttime from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and fldorder=&3 and fldsave_order=&4 and fldlevel=&5 and fldcurval=&6" & modPatReports.GetLockClinicSQL("tblpatdosing"), encid, sType, "Request", False, "Requested", "Continue")                 ''
+    rs = modDatabase.$syConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,flditemtype,(fldqtydisp-fldqtyret) as fldqtydisp,flddirection,fldstarttime from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and fldorder=&3 and fldsave_order=&4 and fldlevel=&5 and fldcurval=&6" & modPatReports.GetLockClinicSQL("tblpatdosing"), encid, sType, "Request", False, "Requested", "Continue")                 ''
     If rs.Available Then
       xx = GetMedicineTable(sType, rs)
     Else
@@ -455,7 +455,7 @@ Public Function GetDispensedPharm(encid As String, sType As String, sMulti As Bo
   Dim xcomp As String
 
   If sMulti = True Then
-    compLst = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldcomp_order) as col from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and (fldorder=&3 or fldorder=&4) and fldsave_order=&5 and fldlevel=&6 and fldqtydisp>fldqtyret", encid, sType, "Request", "UseOwn", True, "Dispensed"))
+    compLst = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec("select distinct(fldcomp_order) as col from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and (fldorder=&3 or fldorder=&4) and fldsave_order=&5 and fldlevel=&6 and fldqtydisp>fldqtyret", encid, sType, "Request", "UseOwn", True, "Dispensed"))
     xx = ""
     For Each xcomp In compLst
       rs = modDatabase.$syConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,flditemtype,(fldqtydisp-fldqtyret) as fldqtydisp,flddirection,fldstarttime from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and (fldorder=&3 or fldorder=&4) and fldsave_order=&5 and fldlevel=&6 and fldcomp_order=&7 and fldqtydisp>fldqtyret", encid, sType, "Request", "UseOwn", True, "Dispensed", xcomp)       ''
@@ -481,7 +481,7 @@ Public Function AdmittedMedString(encid As String) As String
   Dim xx As String
   Dim rs As Result
 
-  rs = modDatabase.$myConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,flditemtype,(fldqtydisp-fldqtyret) as fldqtydisp,flddirection,fldstarttime from tblpatdosing where fldencounterval=&1 and fldstatus=&2 and fldcurval=&3 and flditemtype=&4", encid, "Admitted", "Continue", "Medicines")
+  rs = modDatabase.$syConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,flditemtype,(fldqtydisp-fldqtyret) as fldqtydisp,flddirection,fldstarttime from tblpatdosing where fldencounterval=&1 and fldstatus=&2 and fldcurval=&3 and flditemtype=&4", encid, "Admitted", "Continue", "Medicines")
   If rs.Available Then
     xx = GetMedicineTable("Medicines", rs)
   Else
@@ -497,7 +497,7 @@ Public Function DischargeMedString(encid As String) As String
   Dim xx As String
   Dim rs As Result
 
-  rs = modDatabase.$myConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,flditemtype,(fldqtydisp-fldqtyret) as fldqtydisp,flddirection,fldstarttime from tblpatdosing where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3 or fldstatus=&4 or fldstatus=&5 or fldstatus=&6) and fldcurval=&7 and flditemtype=&8", encid, "Discharged", "LAMA", "Death", "Refer", "Absconder", "Continue", "Medicines")
+  rs = modDatabase.$syConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,flditemtype,(fldqtydisp-fldqtyret) as fldqtydisp,flddirection,fldstarttime from tblpatdosing where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3 or fldstatus=&4 or fldstatus=&5 or fldstatus=&6) and fldcurval=&7 and flditemtype=&8", encid, "Discharged", "LAMA", "Death", "Refer", "Absconder", "Continue", "Medicines")
   If rs.Available Then
     xx = GetMedicineTable("Medicines", rs)
   Else
@@ -519,7 +519,7 @@ Public Function GetCurrExamTimeValueSysConst(encid As String, xSysConst As Strin
   Dim sColl As Collection
   Dim xvalue As String
 
-  res = modDatabase.$myConn.Exec("select fldid,fldtime,fldtype,fldhead,fldabnormal,fldrepquali,fldrepquanti,fldoption,fldfilepath,flduserid from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldinput=&3 and fldhead in(select fldexamid from tblexam where fldsysconst=&4) and fldrepquali IS NOT &5" & modPatReports.GetLockClinicSQL(), encid, True, sType, xSysConst, Null)
+  res = modDatabase.$syConn.Exec("select fldid,fldtime,fldtype,fldhead,fldabnormal,fldrepquali,fldrepquanti,fldoption,fldfilepath,flduserid from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldinput=&3 and fldhead in(select fldexamid from tblexam where fldsysconst=&4) and fldrepquali IS NOT &5" & modPatReports.GetLockClinicSQL(), encid, True, sType, xSysConst, Null)
   If res.Available Then
     res.MoveLast
     If res["fldtype"] = "Quantitative" Then
@@ -636,7 +636,7 @@ Public Function GetCurrExamTimeValueStructured(encid As String, xConstVal As Str
   Dim sColl As Collection
   Dim xvalue As String
 
-  res = modDatabase.$myConn.Exec("select fldid,fldtime,fldtype,fldhead,fldabnormal,fldrepquali,fldrepquanti,fldoption,fldfilepath,flduserid from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldserialval=&3 and fldrepquali IS NOT &4" & modPatReports.GetLockClinicSQL(), encid, True, xConstVal, Null)
+  res = modDatabase.$syConn.Exec("select fldid,fldtime,fldtype,fldhead,fldabnormal,fldrepquali,fldrepquanti,fldoption,fldfilepath,flduserid from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldserialval=&3 and fldrepquali IS NOT &4" & modPatReports.GetLockClinicSQL(), encid, True, xConstVal, Null)
   If res.Available Then
     res.MoveLast
     If res["fldtype"] = "Quantitative" Then

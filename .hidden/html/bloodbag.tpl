@@ -1,3 +1,5 @@
+<p style="vertical-align: top; height: 30px; width: 100px;"><img style="width: 100px; height: 30px;" alt="" src={BloodBagBarCodePath}></p>
+
 Bag Code: {BloodBagCode}
 <br>
 Blood Type: {BloodName}

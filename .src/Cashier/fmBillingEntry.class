@@ -1338,54 +1338,58 @@ Public Sub btndepositreturn_Click()
   Dim xcopystr As String
 
   If $encid Then
-    xexpense = modNonMedical.TotalUnpaidCountPatient(modDatabase.$myConn, $encid)
-    If xexpense = 0 Then
+    If modPatient.GetEnabledConsultAny($encid) = False Then
+      xexpense = modNonMedical.TotalUnpaidCountPatient(modDatabase.$myConn, $encid)
+      If xexpense = 0 Then
 
-      xdepoamt = modNonMedical.GetPatientDeposit(modDatabase.$myConn, $encid)
-      If xdepoamt Then
-        txttitle = "DEPOSIT RECEIPT"
-        idLock = modBillLock.LockTableForID("Invoice")
-        If idLock = True Then
-          modDatabase.$myConn.Begin
+        xdepoamt = modNonMedical.GetPatientDeposit(modDatabase.$myConn, $encid)
+        If xdepoamt Then
+          txttitle = "DEPOSIT RECEIPT"
+          idLock = modBillLock.LockTableForID("Invoice")
+          If idLock = True Then
+            modDatabase.$myConn.Begin
 
-          $billno = modBillLock.ReceiptSaleValue("Cash Deposit")
-          If $billno Then
-            modBillings.InsertDepositDetail(modDatabase.$myConn, $encid, $billno, "Cash", 0 - xdepoamt, "", "Cash Deposit", GetPatStatusCode())
-            ' modBillings.InsertDepositDetail(modDatabase.$myConn, $encid, $billno, "Cash", 0 - xdepoamt, "", xLedgerAC, GetPatStatusCode())
-            ' modBillings.UpdatePatientDeposit(Trim(txtencid.Text), txtrecvamt.Value)
+            $billno = modBillLock.ReceiptSaleValue("Cash Deposit")
+            If $billno Then
+              modBillings.InsertDepositDetail(modDatabase.$myConn, $encid, $billno, "Cash", 0 - xdepoamt, "", "Cash Deposit", GetPatStatusCode())
+              ' modBillings.InsertDepositDetail(modDatabase.$myConn, $encid, $billno, "Cash", 0 - xdepoamt, "", xLedgerAC, GetPatStatusCode())
+              ' modBillings.UpdatePatientDeposit(Trim(txtencid.Text), txtrecvamt.Value)
+            Endif
+
+            modDatabase.$myConn.Commit
+            modBillLock.ReleaseLockTable("Invoice")
           Endif
-
-          modDatabase.$myConn.Commit
-          modBillLock.ReleaseLockTable("Invoice")
+          ShowBillingDatainBox()
+          btndepositreturn.Enabled = False
         Endif
-        ShowBillingDatainBox()
-        btndepositreturn.Enabled = False
-      Endif
 
-      If $billno Then
-        If $InvoicePrintTime = "Later" Then
-        Else
-          modBILLFormat.BillingReceipt($encid, $billno, txttitle)
-          xcopystr = modBasic.$BillInvoiceCopy
-          If Not xcopystr Then
-            xcopystr = modSettings.ShowSettingFromFIle("Invoice/ExtraCopy")
-          Endif
-          If xcopystr = "Print" Then
+        If $billno Then
+          If $InvoicePrintTime = "Later" Then
+          Else
             modBILLFormat.BillingReceipt($encid, $billno, txttitle)
-          Else If xcopystr = "Print+Print" Then
-            modBILLFormat.BillingReceipt($encid, $billno, txttitle)
-            modBILLFormat.BillingReceipt($encid, $billno, txttitle)
-          Else If xcopystr = "Save" Then
-            modImage.SaveReportLog("Invoice", modBILLFormat.GetReceiptCopyPDFPath($billno), $encid)
-          Else If xcopystr = "Print+Save" Then
-            modBILLFormat.BillingReceipt($encid, $billno, txttitle)
-            modImage.SaveReportLog("Invoice", modBILLFormat.GetReceiptCopyPDFPath($billno), $encid)
+            xcopystr = modBasic.$BillInvoiceCopy
+            If Not xcopystr Then
+              xcopystr = modSettings.ShowSettingFromFIle("Invoice/ExtraCopy")
+            Endif
+            If xcopystr = "Print" Then
+              modBILLFormat.BillingReceipt($encid, $billno, txttitle)
+            Else If xcopystr = "Print+Print" Then
+              modBILLFormat.BillingReceipt($encid, $billno, txttitle)
+              modBILLFormat.BillingReceipt($encid, $billno, txttitle)
+            Else If xcopystr = "Save" Then
+              modImage.SaveReportLog("Invoice", modBILLFormat.GetReceiptCopyPDFPath($billno), $encid)
+            Else If xcopystr = "Print+Save" Then
+              modBILLFormat.BillingReceipt($encid, $billno, txttitle)
+              modImage.SaveReportLog("Invoice", modBILLFormat.GetReceiptCopyPDFPath($billno), $encid)
+            Endif
           Endif
         Endif
-      Endif
 
+      Else
+        Message.Warning(("Please invoice Pending items"), ("OK"))
+      Endif
     Else
-      Message.Warning(("Please invoice Pending items"), ("OK"))
+      Message.Warning(("Pending Consultations"), ("OK"))
     Endif
   Endif
 
