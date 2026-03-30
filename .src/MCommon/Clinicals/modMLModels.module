@@ -1,0 +1,68 @@
+' Gambas module file
+
+Public Function GetMLModelsList() As String[]
+
+  Dim i As Integer
+  Dim xxx As String[]
+
+  xxx = New String[]
+  For i = 1 To 20
+    If modSettings.ShowModelsSettingFromFIle("Model" & CStr(i) & "/" & "Name") Then
+      xxx.Add(modSettings.ShowModelsSettingFromFIle("Model" & CStr(i) & "/" & "Name"))
+    Endif
+  Next
+  Return xxx
+
+End
+
+Public Function GetModelValue(encid As String, xModel As String) As String
+
+  Dim i As Integer
+  Dim xargs As String
+  Dim xurl As String
+
+  Dim asx As String[]
+  Dim xx As String
+  Dim xvar As Variant
+  Dim xVarLst As String[]
+
+  Dim xcoll As Collection
+  Dim xval As String
+
+  For i = 1 To 20
+    If modSettings.ShowModelsSettingFromFIle("Model" & CStr(i) & "/" & "Name") = xModel Then
+      xargs = modSettings.ShowModelsSettingFromFIle("Model" & CStr(i) & "/" & "Arguments")
+      xurl = modSettings.ShowModelsSettingFromFIle("Model" & CStr(i) & "/" & "URL")
+      Break
+    Endif
+  Next
+
+  If xargs Then
+    asx = Split(xargs, ";")
+    xVarLst = New Variant[]
+    For Each xx In asx
+      xvar = modReportVar.GetPatientVariableValue(xx, encid)
+      If xvar Then
+        If xvar = "__" Then
+        Else
+          xVarLst.Add(CStr(xvar))
+        Endif
+      Endif
+    Next
+
+    If asx.Count = xVarLst.Count Then
+      xcoll = New Collection
+      xcoll.Add(xModel, "model")
+      xcoll.Add(xVarLst.Join(","), "args")
+
+      If xurl Then
+        modBasic.DebugAPIString("Parameters:" & JSON.Encode(xcoll))
+        modBasic.DebugAPIString("curl " & xurl & "?" & Base64(JSON.Encode(xcoll)))
+        Shell "curl " & xurl & "?" & Base64(JSON.Encode(xcoll)) To xval
+      Endif
+    Endif
+  Endif
+
+  Return xval
+
+End

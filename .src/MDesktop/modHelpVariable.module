@@ -5,6 +5,7 @@ Public $appusrFolder As String
 Public $appetcConfFile As String
 Public $appetc7zFile As String
 Public $appWebconfFile As String
+Public $MLModelFolder As String
 
 Public AppName As String
 Public AppDirectory As String
@@ -67,24 +68,28 @@ Private $SysUseSSL As Boolean
 Public $SysLockOnDC As String
 
 Public $SysMainService As String
-Private $SysExtService As String
-Private $SysFallService As String
-
 Public $SysMainHost As String
-Public $SysExtHost As String
-Public $SysFallHost As String
-
 Public $SysMainUser As String
-Private $SysExtUser As String
-Private $SysFallUser As String
-
 Public $SysMainPassword As String
-Private $SysExtPass As String
-Private $SysFallPass As String
-
 Public $SysMainPort As String
+
+Private $SysExtService As String
+Public $SysExtHost As String
+Private $SysExtUser As String
+Private $SysExtPass As String
 Private $SysExtPort As String
+
+Private $SysFallService As String
+Public $SysFallHost As String
+Private $SysFallUser As String
+Private $SysFallPass As String
 Private $SysFallPort As String
+
+Private $SysSyncService As String
+Public $SysSyncHost As String
+Private $SysSyncUser As String
+Private $SysSyncPass As String
+Private $SysSyncPort As String
 
 Public $SysFTPHost As String
 Public $SysFTPFolder As String
@@ -139,6 +144,7 @@ Public Sub MakeWorkingDir()
   AppName = Application.Name
   $appetcFolder = "/etc" &/ AppName
   $appusrFolder = "/usr/share" &/ AppName
+  $MLModelFolder = "/etc/web_api"
 
   $appetcConfFile = $appetcFolder &/ AppName & ".conf"
   $appetc7zFile = $appetcFolder &/ AppName & ".conf.7z"
@@ -480,6 +486,12 @@ Public Sub ReadConfigFile()
   $SysFallPass = modPassword.DecryptDBPass(modControlSub.ShowSettingValue(xfile, "SystemFallback/Password"), $SysUseSSL)
   $SysFallPort = modControlSub.ShowSettingValue(xfile, "SystemFallback/Port")
 
+  $SysSyncService = modControlSub.ShowSettingValue(xfile, "SystemSync/Service")
+  $SysSyncHost = modControlSub.ShowSettingValue(xfile, "SystemSync/Host")
+  $SysSyncUser = modControlSub.ShowSettingValue(xfile, "SystemSync/User")
+  $SysSyncPass = modPassword.DecryptDBPass(modControlSub.ShowSettingValue(xfile, "SystemSync/Password"), $SysUseSSL)
+  $SysSyncPort = modControlSub.ShowSettingValue(xfile, "SystemSync/Port")
+
   $SysFTPHost = modControlSub.ShowSettingValue(xfile, "LocalFTP/Host")
   $SysFTPFolder = modControlSub.ShowSettingValue(xfile, "LocalFTP/Folder")
   $SysFTPUser = modControlSub.ShowSettingValue(xfile, "LocalFTP/User")
@@ -538,6 +550,7 @@ Public Sub ConnectionMain()
   If modDatabase.$myConn.Opened = True Then
     modBasic.DebugString("App connected to " & $DBName & " on Main Server at " & $DBHost & " . Database Driver: " & CStr(modDatabase.$myConn.Version))
     ConnectionExtra()
+    ConnectionSync()
   Else
     If $conTarget = "Remote" Then
     Else
@@ -575,6 +588,7 @@ Private Sub ConnectionFallBack()
   If modDatabase.$myConn.Opened = True Then
     modBasic.DebugString("App connected to " & DBName & " on Fallback Server at " & DBHost & " . Database Driver: " & CStr(modDatabase.$myConn.Version))
     ConnectionExtra()
+    ConnectionSync()
   Else
     Message.Error(("Please check network connections") & "<br>" & ("1. Please check network cables.") & "<br>" & ("2. Ping To Server " & modHelpVariable.$SysMainHost), ("OK"))
   Endif
@@ -607,19 +621,76 @@ Private Sub ConnectionExtra()
   Endif
 
   If sPort Then
-    modDatabase.$syConn = modDBApp.OpenConnection(DBType, DBHost, DBName, UserName, UserPassword, sPort)
+    modDatabase.$sreadConn = modDBApp.OpenConnection(DBType, DBHost, DBName, UserName, UserPassword, sPort)
   Else
-    modDatabase.$syConn = modDBApp.OpenConnection(DBType, DBHost, DBName, UserName, UserPassword)
+    modDatabase.$sreadConn = modDBApp.OpenConnection(DBType, DBHost, DBName, UserName, UserPassword)
   Endif
-  If modDatabase.$syConn.Opened = False Then
-    modDatabase.$syConn = modDatabase.$myConn
+  If modDatabase.$sreadConn.Opened = False Then
+    modDatabase.$sreadConn = modDatabase.$myConn
     modBasic.DebugString("Main/Fallback Server used as Read Server")
   Else
-    modBasic.DebugString("App connected to " & DBName & " on Read Server at " & DBHost & " . Database Driver: " & CStr(modDatabase.$syConn.Version))
+    modBasic.DebugString("App connected to " & DBName & " on Read Server at " & DBHost & " . Database Driver: " & CStr(modDatabase.$sreadConn.Version))
   Endif
 
 End
 
+Private Sub ConnectionSync()
+
+  Dim UserName As String
+  Dim UserPassword As String
+  Dim DBName As String
+  Dim DBType As String
+  Dim DBHost As String
+  Dim sPort As String
+
+  If $conTarget = "Remote" Then
+    DBName = $DBName
+    DBType = $DBType
+    DBHost = $DBHost
+    UserName = $UserName
+    UserPassword = $UserPassword
+    sPort = $sPort
+  Else
+    DBName = $SysDataBase
+    DBType = $SysSyncService
+    DBHost = $SysSyncHost
+    UserName = $SysSyncUser
+    UserPassword = $SysSyncPass
+    sPort = $SysSyncPort
+  Endif
+
+  If sPort Then
+    modDatabase.$ssyncConn = modDBApp.OpenConnection(DBType, DBHost, DBName, UserName, UserPassword, sPort)
+  Else
+    modDatabase.$ssyncConn = modDBApp.OpenConnection(DBType, DBHost, DBName, UserName, UserPassword)
+  Endif
+  If modDatabase.$ssyncConn.Opened = False Then
+    If modDatabase.$sreadConn.Opened = True Then
+      modDatabase.$ssyncConn = modDatabase.$sreadConn
+      modBasic.DebugString("Read Server used as Sync Server")
+    Else
+      modDatabase.$ssyncConn = modDatabase.$myConn
+      modBasic.DebugString("Main/Fallback Server used as Sync Server")
+    Endif
+  Else
+    modBasic.DebugString("App connected to " & DBName & " on Sync Server at " & DBHost & " . Database Driver: " & CStr(modDatabase.$ssyncConn.Version))
+  Endif
+
+End
+
+Public Sub SetReadAsReportCon()
+
+  modDatabase.$syConn = modDatabase.$sreadConn
+
+End
+
+Public Sub SetSlaveAsReportCon()
+
+  modDatabase.$syConn = modDatabase.$ssyncConn
+
+End
+
+''--------------- dashboard ------------------
 Public Sub ConnectionDashboard()
 
   Dim UserName As String

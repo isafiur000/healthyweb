@@ -2905,47 +2905,49 @@ Private Sub GetF12KeyPress()
 
     If ShowBilling() = True Then
       If hPatient.Enabled = True Then
-        hPatient.$ACLedger = cmbledgerac.Text
-        hPatient.$ACReference = Trim(txtreference.Text)
-        hPatient.DirectCashBilling()
-        Wait
-        RefresgOldData()
+        If AllowInvoicePrint() = True Then
+          hPatient.$ACLedger = cmbledgerac.Text
+          hPatient.$ACReference = Trim(txtreference.Text)
+          hPatient.DirectCashBilling()
+          Wait
+          RefresgOldData()
 
-        xinvlst = New String[]
-        xtotamt = 0
-        xinvlst = hPatient.GetInvoiceList()
-        xtotamt = hPatient.GetBillTotal()
-        $MiniCalc = hPatient.$DisplayMiniCalc
-        If cmbdisctype.Text = modBasic.$SSFAccident Or If cmbdisctype.Text = modBasic.$SSFMedical Or If cmbdisctype.Text = modBasic.$SSFCritical Then
-          If modBasic.$SSFBookLock = "Enable" Then
-            For Each xinvno In xinvlst
-              GetSSFBookingLock(xinvno)
-            Next
+          xinvlst = New String[]
+          xtotamt = 0
+          xinvlst = hPatient.GetInvoiceList()
+          xtotamt = hPatient.GetBillTotal()
+          $MiniCalc = hPatient.$DisplayMiniCalc
+          If cmbdisctype.Text = modBasic.$SSFAccident Or If cmbdisctype.Text = modBasic.$SSFMedical Or If cmbdisctype.Text = modBasic.$SSFCritical Then
+            If modBasic.$SSFBookLock = "Enable" Then
+              For Each xinvno In xinvlst
+                GetSSFBookingLock(xinvno)
+              Next
+            Endif
+
+          Else If cmbdisctype.Text = modBasic.$HIPackage Or If cmbdisctype.Text = modBasic.$HIPackageER Then
+            UploadHIClaimAuto()
+
           Endif
 
-        Else If cmbdisctype.Text = modBasic.$HIPackage Or If cmbdisctype.Text = modBasic.$HIPackageER Then
-          UploadHIClaimAuto()
-
-        Endif
-
-        If modBasic.$BillCashSource = "Enable" Then
-        Else
-          If $MiniCalc = "BlankForm" Then
-            hPatient.GetBillingFormBlank()
-          Else If $MiniCalc = "Calculator" Then
-            ' hForm = New FmMiniCalc(xtotamt)
-            ' hForm.ShowModal
-          Else If $MiniCalc = "InvoiceInfo" Then
-            xline = "<b>EncID:</b> " & Trim(txtencid.Text) & "<br>"
-            xline = xline & "<b>Name:</b> " & txtpatientname.Text & "<br>"
-            xline = xline & "<b>Invoice:</b> " & xinvlst.Join("; ") & "<br>"
-            xline = xline & "<b>RecvAMT:</b> " & modReportVar.GetLocaleNumberFormat(xtotamt, gb.Currency)
-            If Message.Question(xline, ("Close"), ("Blank")) = 2 Then
+          If modBasic.$BillCashSource = "Enable" Then
+          Else
+            If $MiniCalc = "BlankForm" Then
               hPatient.GetBillingFormBlank()
+            Else If $MiniCalc = "Calculator" Then
+              ' hForm = New FmMiniCalc(xtotamt)
+              ' hForm.ShowModal
+            Else If $MiniCalc = "InvoiceInfo" Then
+              xline = "<b>EncID:</b> " & Trim(txtencid.Text) & "<br>"
+              xline = xline & "<b>Name:</b> " & txtpatientname.Text & "<br>"
+              xline = xline & "<b>Invoice:</b> " & xinvlst.Join("; ") & "<br>"
+              xline = xline & "<b>RecvAMT:</b> " & modReportVar.GetLocaleNumberFormat(xtotamt, gb.Currency)
+              If Message.Question(xline, ("Close"), ("Blank")) = 2 Then
+                hPatient.GetBillingFormBlank()
+              Endif
             Endif
           Endif
-        Endif
 
+        Endif
       Else
         RefresgOldData()
       Endif
@@ -2954,6 +2956,35 @@ Private Sub GetF12KeyPress()
     Endif
 
   Endif
+
+End
+
+Private Function AllowInvoicePrint() As Boolean
+
+  Dim paidamt As Float
+  Dim expenseamt As Float
+  Dim zval As Boolean
+
+  zval = True
+  If hPatient.GetCashCreditMode() = "Credit" Then
+    If modBasic.$BillCounterCreditCheck = "RefOnly" And If txtreference.Text Then
+      paidamt = modNonMedical.ShowCreditLimitEnc(Trim(txtencid.Text))
+      expenseamt = modNonMedical.TotalSavedCreditExpensebyPatient(modDatabase.$myConn, Trim(txtencid.Text))
+      If expenseamt > paidamt Then
+        zval = False
+        Message.Warning("Insufficient Credit Limit", ("OK"))
+      Endif
+    Else If modBasic.$BillCounterCreditCheck = "Enable" Then
+      paidamt = modNonMedical.ShowCreditLimitEnc(Trim(txtencid.Text))
+      expenseamt = modNonMedical.TotalSavedCreditExpensebyPatient(modDatabase.$myConn, Trim(txtencid.Text))
+      If expenseamt > paidamt Then
+        zval = False
+        Message.Warning("Insufficient Credit Limit", ("OK"))
+      Endif
+    Endif
+  Endif
+
+  Return zval
 
 End
 

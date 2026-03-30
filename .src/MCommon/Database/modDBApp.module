@@ -107,27 +107,31 @@ End
 'NOTE:-------------------- General Procedures -----------------------------
 Public Sub WarmUpDatabase(sCon As Connection)
 
+  Dim tblList As String[]
   Dim hTable As Table
   Dim sql As String
   Dim res As Result
   Dim xInd As Index
 
   db.Debug = True
+  tblList = modDBApp.DBRegularTablesSelField(sCon, ["fldencounterval"])
   For Each hTable In sCon.Tables
-    If hTable.Indexes.Count > 1 Then
+    If tblList.Exist(hTable.Name) Then
+      If hTable.Indexes.Count > 1 Then
 
-      If hTable.PrimaryKey.Count Then
-        sql = Subst("SELECT count(*) FROM &1 ORDER BY &2", hTable.Name, hTable.PrimaryKey[0])
-        res = sCon.Exec(sql)
-      Endif
-      For Each xInd In hTable.Indexes
-        If xInd.Name = "PRIMARY" Then
-        Else
-          sql = Subst("SELECT count(*) FROM &1 FORCE INDEX(&2)", hTable.Name, xInd.Name)
+        If hTable.PrimaryKey.Count Then
+          sql = Subst("SELECT count(*) FROM &1 ORDER BY &2", hTable.Name, hTable.PrimaryKey[0])
           res = sCon.Exec(sql)
         Endif
-      Next
+        For Each xInd In hTable.Indexes
+          If xInd.Name = "PRIMARY" Then
+          Else
+            sql = Subst("SELECT count(*) FROM &1 FORCE INDEX(&2)", hTable.Name, xInd.Name)
+            res = sCon.Exec(sql)
+          Endif
+        Next
 
+      Endif
     Endif
   Next
 
