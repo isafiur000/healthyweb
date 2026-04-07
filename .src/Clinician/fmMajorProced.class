@@ -2,7 +2,13 @@
 
 Private $encid As String
 Private $sPackage As String
+Private $BillMode As String
+Private $sClaimState As String
+Private $sClaimRefno As String
 Private $ProcList As Variant[]
+
+Private $PatientNum As String
+Private $xNHISCode As String
 
 ' Private $rData As Result
 ' Private $aMyFields As String[]
@@ -31,6 +37,8 @@ Public Sub _new(encid As String, sPackage As String)
   cmbdisctype.Text = $sPackage
   txtpatientname.Text = modPatient.GetPatientNameByEnc($encid)
   txtgender.Text = modPatient.GetPatientAgeString($encid, Now()) & "/" & modPatient.GetPatientSex($encid)
+  $PatientNum = modPatient.GetPatientNoByEnc($encid)
+  $xNHISCode = modPatient.GetPatientExtCOdebyEnc($encid)
 
   xstatus = modPatient.CurrentAdmissionStatus($encid)
   txtlocation.Text = modPatient.GetLocationSetting($encid, xstatus)
@@ -39,7 +47,7 @@ Public Sub _new(encid As String, sPackage As String)
   cmbsection.Text = "All Sections"
   cmbstatus.List = ["Planned", "Referred", "On Hold", "Cancelled"]
   cmbstatus.Text = "Planned"
-  txtmode.Text = modNonMedical.GetDiscBindBillMode($sPackage)
+  ShowBillingParam($sPackage)
   SHowUnpaidGrid()
 
 End
@@ -69,8 +77,19 @@ End
 Public Sub btnscheme_Click()
 
   If cmbdisctype.Text Then
-    txtmode.Text = modNonMedical.GetDiscBindBillMode(cmbdisctype.Text)
+    ShowBillingParam(cmbdisctype.Text)
   Endif
+
+End
+
+Private Sub ShowBillingParam(sPack As String)
+
+  Dim hForm As CPackageParams
+
+  hForm = New CPackageParams($encid, sPack)
+  $BillMode = hForm.GetBillingMode()
+  $sClaimState = hForm.GetClaimState()
+  $sClaimRefno = hForm.GetReferenceType()
 
 End
 
@@ -111,10 +130,10 @@ Public Sub btnproced_Click()
   If Not cmbprocedure.Text Then
     If cmbsection.Text = "All Sections" Then
       If $ProcList And If $ProcList.Count Then
-        xList = modString.GetListFromCompareVariant($ProcList, "flditemname", "fldgroup", txtmode.Text, False)
+        xList = modString.GetListFromCompareVariant($ProcList, "flditemname", "fldgroup", $BillMode, False)
       Endif
     Else
-      xList = GetProcedureList(txtmode.Text, cmbsection.Text)
+      xList = GetProcedureList($BillMode, cmbsection.Text)
     Endif
     If xList.Count Then
       xList.Sort()
@@ -161,7 +180,8 @@ Public Sub btnsubOK_Click()
           If modMisc.GetDuplicationAllow(xList, cmbprocedure.Text) = True Then
             xrefer = modBillings.GetReferralUserSetting("Procedure", $encid)
             xTarg = GetProcTarget(cmbprocedure.Text)
-            If modBasic.$AutoBillProcedure = "Standard" Or If modBasic.$AutoBillProcedure = "Full" Or If modBasic.$AutoBillProcedure = "Partial" Then
+            If modBasic.$AutoBillProcedure = "No" Then
+            Else
               If chknextvisit.Value = True Then
                 modBillings.GetAutoBillingEntry($encid, cmbdisctype.Text, "Procedure", cmbprocedure.Text, 1, "Planned", 0, False, False, "", xrefer, xTarg)
               Else
@@ -200,6 +220,16 @@ Public Sub btnsaveproc_Click()
         If modNonMedical.AllowPreCheckDeposit($encid, "Procedure", res["flditemname"], res["fldditemamt"], res["fldbilltype"]) = True Then
           SavePartialEntry(res, xadv)
         Endif
+      Else If modBasic.$AutoBillProcedure = "RefOnly" Then
+        If $sClaimRefno Then
+          If modNonMedical.AllowPreCheckDeposit($encid, "Procedure", res["flditemname"], res["fldditemamt"], res["fldbilltype"]) = True Then
+            SavePartialEntry(res, xadv)
+          Endif
+        Else
+          If modNonMedical.AllowPreEntryWithDeposit($encid, "Procedure", res["flditemname"], res["fldditemamt"], res["fldbilltype"]) = True Then
+            SavePartialEntry(res, xadv)
+          Endif
+        Endif
       Else If modBasic.$AutoBillProcedure = "Full" Then
         If modNonMedical.AllowPreEntryWithDeposit($encid, "Procedure", res["flditemname"], res["fldditemamt"], res["fldbilltype"]) = True Then
           SavePartialEntry(res, xadv)
@@ -223,16 +253,34 @@ End
 
 Private Sub SavePartialEntry(res As Result, Optional advReceipt As String)
 
-  res["fldstatus"] = "Done"
-  If advReceipt Then
-    res["fldextracol"] = advReceipt
+  Dim xdate As Date
+  Dim xcapday As Integer
+  Dim xgo As Boolean
+
+  xgo = True
+  If $sClaimState = "Consultation" Or If $sClaimState = "Patient Ward" Then
+    xdate = modBillings.CheckLastSalesItemDate(res["flditemname"], $PatientNum, $xNHISCode, res["flddisctype"])
+    If xdate Then
+      xcapday = modNonMedical.GetCappingDayFromItemName(res["flditemname"])
+      If xcapday Then
+        If DateDiff(xdate, Now(), gb.Day) <= xcapday Then
+          xgo = False
+        Endif
+      Endif
+    Endif
   Endif
-  res["fldsave"] = True
-  res["flduserid"] = modBasic.$lbluser
-  res["fldtime"] = Now()
-  res["fldcomp"] = modBasic.$compID
-  res["xyz"] = False
-  res.Update()
+  If xgo = True Then
+    res["fldstatus"] = "Done"
+    If advReceipt Then
+      res["fldextracol"] = advReceipt
+    Endif
+    res["fldsave"] = True
+    res["flduserid"] = modBasic.$lbluser
+    res["fldtime"] = Now()
+    res["fldcomp"] = modBasic.$compID
+    res["xyz"] = False
+    res.Update()
+  Endif
 
 End
 

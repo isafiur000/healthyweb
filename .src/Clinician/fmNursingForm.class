@@ -574,7 +574,10 @@ Private Sub ButtonControl()
   xval = modBasic.$LockDiagnosisList
   If xval = "No" Then
   Else
-    btndismanual.Enabled = False
+    If modBasic.$ProvDiagnosisObstetrics = "Custom Text" Then
+    Else
+      btndismanual.Enabled = False
+    Endif
   Endif
 
 End
@@ -711,7 +714,7 @@ Public Sub tbnsyndro_Click()
   Dim sName As String[]
 
   If txtencid.Text Then
-    If modBasic.$ProvDiagnosisRule = "Obstetrics" Then
+    If modBasic.$ProvDiagnosisObstetrics = "Selection List" Then
       sName = DiagnoObstetrics(Trim(txtencid.Text), True)
     Else
       sName = GetSyndromes()
@@ -731,14 +734,23 @@ End
 Public Sub btndismanual_Click()
 
   Dim xx As String
+  Dim sName As String[]
 
   If txtencid.Text Then
-    xx = InputBox(("Enter custom Nursing Diagnosis"), ("Nursing Diagnosis"), "")
-    If xx Then
-      modPatientGeneral.AddPatientFindings("Nursing Diagnosis", Trim(txtencid.Text), xx, "Other", "Other")
-      Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
-      lsticdisease.List = modPathoSub.GetSelectedDiagnosisList("Nursing Diagnosis", Trim(txtencid.Text))
+    If modBasic.$ProvDiagnosisObstetrics = "Custom Text" Then
+      sName = DiagnoObstetrics(Trim(txtencid.Text), True)
+      If sName Then
+        modPatientGeneral.AddPatientFindings("Nursing Diagnosis", Trim(txtencid.Text), sName[0], sName[1], sName[1])
+        Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+      Endif
+    Else
+      xx = InputBox(("Enter custom Nursing Diagnosis"), ("Nursing Diagnosis"), "")
+      If xx Then
+        modPatientGeneral.AddPatientFindings("Nursing Diagnosis", Trim(txtencid.Text), xx, "Other", "Other")
+        Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+      Endif
     Endif
+    lsticdisease.List = modPathoSub.GetSelectedDiagnosisList("Nursing Diagnosis", Trim(txtencid.Text))
   Endif
 
 End

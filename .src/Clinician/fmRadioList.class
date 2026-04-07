@@ -4,6 +4,7 @@ Private $encid As String
 Private $BillMode As String
 Private $sPackage As String
 Private $sClaimState As String
+Private $sClaimRefno As String
 Private $bedLocation As String
 Private $xFinClear As Boolean
 Private $PatientNum As String
@@ -119,13 +120,12 @@ Private Sub ShowBillingParam(sPack As String)
 
   Dim hForm As CPackageParams
   Dim xbilltype As String
-  Dim xrefernce As String
 
   hForm = New CPackageParams($encid, sPack)
   $BillMode = hForm.GetBillingMode()
   xbilltype = hForm.GetBillType()
-  xrefernce = hForm.GetClaimCode()
   $sClaimState = hForm.GetClaimState()
+  $sClaimRefno = hForm.GetReferenceType()
 
   If xbilltype
     If modBasic.$ClinForceRadioTree = "Both" Then
@@ -133,7 +133,7 @@ Private Sub ShowBillingParam(sPack As String)
     Else If modBasic.$ClinForceRadioTree = xbilltype Then
       btnselect.Enabled = False
     Else If modBasic.$ClinForceRadioTree = "RefOnly" Then
-      If xrefernce Then
+      If $sClaimRefno Then
         btnselect.Enabled = False
       Endif
     Endif
@@ -516,7 +516,7 @@ Public Sub btnselect_Click()
     Case "Partial"
       xList = New String[]
       xList.Insert($rData3.All("flditemname"))
-    Case "Standard", "Full"
+    Case "Standard", "RefOnly", "Full"
       xList = New String[]
       xList.Insert($rData3.All("flditemname"))
       xList.Insert($rData1.All("flditemname"))
@@ -527,7 +527,8 @@ Public Sub btnselect_Click()
     For i = 0 To ListView1.List.Count - 1
       If ListView1.IsSelected(i) = True Then
 
-        If modBasic.$AutoBillRadio = "Standard" Or If modBasic.$AutoBillRadio = "Full" Or If modBasic.$AutoBillRadio = "Partial" Then
+        If modBasic.$AutoBillRadio = "No" Then
+        Else
           If chknextvisit.Value = True Then
             modBillings.GetAutoBillingClinic($encid, cmbdisctype.Text, "Radio", ListView1.List[i], 1, "Planned", 0, False, False, xpayble, xrefer)
           Else
@@ -657,6 +658,16 @@ Public Sub btnsave_Click()
       If modBasic.$AutoBillRadio = "Standard" Then
         If modNonMedical.AllowPreCheckDeposit($encid, "Radio", res["flditemname"], res["fldditemamt"], res["fldbilltype"]) = True Then
           SavePartialEntry(res, xadv)
+        Endif
+      Else If modBasic.$AutoBillRadio = "RefOnly" Then
+        If $sClaimRefno Then
+          If modNonMedical.AllowPreCheckDeposit($encid, "Radio", res["flditemname"], res["fldditemamt"], res["fldbilltype"]) = True Then
+            SavePartialEntry(res, xadv)
+          Endif
+        Else
+          If modNonMedical.AllowPreEntryWithDeposit($encid, "Radio", res["flditemname"], res["fldditemamt"], res["fldbilltype"]) = True Then
+            SavePartialEntry(res, xadv)
+          Endif
         Endif
       Else If modBasic.$AutoBillRadio = "Full" Then
         If modNonMedical.AllowPreEntryWithDeposit($encid, "Radio", res["flditemname"], res["fldditemamt"], res["fldbilltype"]) = True Then
@@ -950,7 +961,7 @@ Public Sub btnselecttree_Click()
     Case "Partial"
       xList = New String[]
       xList.Insert($rData4.All("flditemname"))
-    Case "Standard", "Full"
+    Case "Standard", "RefOnly", "Full"
       xList = New String[]
       xList.Insert($rData4.All("flditemname"))
       xList.Insert($rData1.All("flditemname"))
@@ -959,7 +970,8 @@ Public Sub btnselecttree_Click()
   If modMisc.AllowDiagnoBilling($encid) = True Then
 
     If TreeView1.Current.Image = "icons/coll3.png" Then
-      If modBasic.$AutoBillRadio = "Standard" Or If modBasic.$AutoBillRadio = "Full" Or If modBasic.$AutoBillRadio = "Partial" Then
+      If modBasic.$AutoBillRadio = "No" Then
+      Else
         xparent = Split(TreeView1.Current.ParentKey, "@")
         If chknextvisitree.Value = True Then
           modBillings.GetAutoBillingClinic($encid, cmbdisctype.Text, "Radio", TreeView1.Current.Text, 1, "Planned", 0, False, False, xpayble, xrefer, "", xparent[1])
@@ -1007,6 +1019,16 @@ Public Sub btnsavetree_Click()
       If modBasic.$AutoBillRadio = "Standard" Then
         If modNonMedical.AllowPreCheckDeposit($encid, "Radio", res["flditemname"], res["fldditemamt"], res["fldbilltype"]) = True Then
           SavePartialEntry(res, xadv)
+        Endif
+      Else If modBasic.$AutoBillRadio = "RefOnly" Then
+        If $sClaimRefno Then
+          If modNonMedical.AllowPreCheckDeposit($encid, "Radio", res["flditemname"], res["fldditemamt"], res["fldbilltype"]) = True Then
+            SavePartialEntry(res, xadv)
+          Endif
+        Else
+          If modNonMedical.AllowPreEntryWithDeposit($encid, "Radio", res["flditemname"], res["fldditemamt"], res["fldbilltype"]) = True Then
+            SavePartialEntry(res, xadv)
+          Endif
         Endif
       Else If modBasic.$AutoBillRadio = "Full" Then
         If modNonMedical.AllowPreEntryWithDeposit($encid, "Radio", res["flditemname"], res["fldditemamt"], res["fldbilltype"]) = True Then

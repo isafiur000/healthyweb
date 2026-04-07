@@ -4691,7 +4691,11 @@ Public Sub mnupackphmall_Click()
           If res1["fldbilltype"] = "Cash" Then
             res["fldcashincredit"] = 0
           Else
-            ' res["fldcashincredit"] = modNonMedical.CashInCreditPerForCategory(xpack, res["flditemtype"], res["flditemname"], res1["fldbillingmode"])
+            res["fldcashincredit"] = modNonMedical.CashInCreditPerForCategory(xpack, res["flditemtype"], res["flditemname"], res1["fldbillingmode"])
+          Endif
+          If modBasic.$BillPharmFixedModes.Exist(res1["fldbillingmode"]) = False Then
+            res["fldfixname"] = ""
+            res["fldfixrate"] = 0
           Endif
           res.Update
         Next
@@ -4874,6 +4878,7 @@ End
 
 Private Sub TransferOutPendingPharmacy()
 
+  Dim xint As Integer
   Dim res As Result
   Dim res1 As Result
   Dim hField As ResultField
@@ -4888,7 +4893,10 @@ Private Sub TransferOutPendingPharmacy()
 
   res = modDatabase.$myConn.Edit("tblpatdosing", "fldencounterval=&1 and fldsave_order=&2 and fldqtydisp>&3 and fldbilltype=&4 and fldacledger=&5 and fldcomp_order like &6 and fldcurval=&7", Trim(txtencid.Text), False, 0, hPatient.GetCashCreditMode(), cmbledgerac.Text, xcomp, "Continue")
   If res.Available = True Then
-    If Message.Question("Transfer Out Pharmacy Items not dispensed ?", ("No"), ("Yes")) = 2 Then
+    xint = Message.Question("Pharmacy Items not dispensed ?", ("Cancel"), ("Change")("Send Out"))
+    If xint = 2 Then
+      mnupackphmall_Click()
+    Else If xint = 3 Then
 
       xhash = modString.GetNowString()
       modDatabase.$myConn.Begin
@@ -4953,6 +4961,7 @@ Private Sub PharmacySave()
   Dim res2 As Result
   Dim sql2 As String
   Dim qtynew As Float
+  Dim xRow As Integer
 
   Dim patno As String
   Dim xerr As String
@@ -4991,7 +5000,7 @@ Private Sub PharmacySave()
               res2 = modDatabase.$myConn.Exec(sql2, res1["flditem"], GetPharmTarget(res1["fldroute"]), 1, 0)
             Endif
             If res2.Available Then
-              res2.MoveFirst
+              xRow = 0
 
               'get tax and discount percentages
               If res1["fldtaxper"] Then
@@ -5026,6 +5035,7 @@ Private Sub PharmacySave()
                   qtynew = res1["fldqtydisp"]
                   modDatabase.$myConn.Begin
                   While qtynew > 0
+                    res2.MoveTo(xRow)
                     xitem = res1["flditem"]
                     If res1["fldfixname"] Then
                       xitem = res1["fldfixname"]
@@ -5042,10 +5052,16 @@ Private Sub PharmacySave()
                       modBillings.InsertBlankBillItemNewApp(Trim(txtencid.Text), res1["fldbilltype"], res1["fldbillingmode"], res1["flddisctype"], res1["fldacledger"], res1["flditemtype"], res2["fldstockno"], xitem, xrate, qtynew, tax, disc, xCshCrd, "Done", res1["fldid"], True, False)
                       modStockSub.AddToExistEntry(res2["fldstockno"], (0 - qtynew), GetPharmTarget(res1["fldroute"]))
                       qtynew = 0
+                      Break
                     Else If qtynew > res2["fldqty"] Then
                       modBillings.InsertBlankBillItemNewApp(Trim(txtencid.Text), res1["fldbilltype"], res1["fldbillingmode"], res1["flddisctype"], res1["fldacledger"], res1["flditemtype"], res2["fldstockno"], xitem, xrate, res2["fldqty"], tax, disc, xCshCrd, "Done", res1["fldid"], True, False)
                       modStockSub.AddToExistEntry(res2["fldstockno"], (0 - res2["fldqty"]), GetPharmTarget(res1["fldroute"]))
                       qtynew = qtynew - res2["fldqty"]
+                      If xRow = res2.Count - 1 Then
+                        Break
+                      Else
+                        xRow = xRow + 1
+                      Endif
                     Endif
                     Wait
                   Wend

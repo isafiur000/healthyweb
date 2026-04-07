@@ -164,7 +164,7 @@ Public Function CheckIMISStatus(encid As String) As String
 
 End
 
-Public Function CheckIMISValues(encid As String) As Variant[]
+Public Function CheckIMISValues(encid As String, DiscType As String) As Variant[]
 
   Dim hCElig As CimisAPIEligible
   Dim xnhis As String
@@ -177,8 +177,9 @@ Public Function CheckIMISValues(encid As String) As Variant[]
   Dim xpolicy As String
   Dim xexpdate As Date
   Dim xcredamt As Float
+  Dim xpayval As Float
 
-  res = modDatabase.$myConn.Exec("select fldcashcredit,fldvalidity from tblencounter where fldencounterval=&1", encid)
+  res = modDatabase.$myConn.Exec("select fldcashcredit,fldvalidity,fldadmission,fldadmitlocat from tblencounter where fldencounterval=&1", encid)
   If res.Available Then
     xnhis = modPatient.GetPatientExtCOdebyEnc(encid)
     If Not xnhis Then
@@ -196,15 +197,20 @@ Public Function CheckIMISValues(encid As String) As Variant[]
           For Each aColl In xPatVar
             If aColl["Policy Name"] = xpolicy Then
               xexpdate = aColl["Expiry Date"]
+              If DiscType = modBasic.$HIPackage Then
+                xpayval = aColl["Credit Value"]
+              Else
+                xpayval = 0
+              Endif
               Select res["fldadmission"]
                 Case "Recorded", "Registered"
                   If modGeneral.GetDepartCaption(res["fldadmitlocat"]) = "Emergency" Then
                     xcredamt = aColl["Medical Credit Limit"]
                   Else
-                    xcredamt = aColl["OPD Credit Limit"]
+                    xcredamt = aColl["OPD Credit Limit"] * (1 - xpayval)
                   Endif
                 Case Else
-                  xcredamt = aColl["Medical Credit Limit"]
+                  xcredamt = aColl["Medical Credit Limit"] * (1 - xpayval)
               End Select
 
               xmsg = [xcredamt, xexpdate, xpolicy]
@@ -213,6 +219,61 @@ Public Function CheckIMISValues(encid As String) As Variant[]
           Next
 
         Endif
+      Endif
+    Endif
+  Endif
+  Return xmsg
+
+End
+
+Public Function CheckFixedIMISValues(encid As String, sClaimCode As String, DiscType As String) As Variant[]
+
+  Dim hCElig As CimisAPIEligible
+  Dim res As Result
+  Dim xmsg As Variant[]
+
+  Dim xPatVar As Variant[]
+  Dim aColl As Collection
+  Dim xpolicy As String
+  Dim xexpdate As Date
+  Dim xcredamt As Float
+  Dim xpayval As Float
+
+  res = modDatabase.$myConn.Exec("select fldptcode,fldstatus,fldclaimtype from tblclaimcode where fldclaimid=&1 and fldencounterval=&2", sClaimCode, encid)
+  If res.Available Then
+    hCElig = New CimisAPIEligible(res["fldptcode"])
+    xPatVar = hCElig.GetPatientPolicyData()
+    If xPatVar And If xPatVar.Count Then
+      If res["fldclaimtype"] Then
+        xpolicy = res["fldclaimtype"]
+      Else
+        xpolicy = "HIB-3500"
+      Endif
+      If xpolicy Then
+
+        For Each aColl In xPatVar
+          If aColl["Policy Name"] = xpolicy Then
+            xexpdate = aColl["Expiry Date"]
+            If DiscType = modBasic.$HIPackage Then
+              xpayval = aColl["Credit Value"]
+            Else
+              xpayval = 0
+            Endif
+
+            Select res["fldstatus"]
+              Case "Emergency"
+                xcredamt = aColl["Medical Credit Limit"]
+              Case "Patient Ward"
+                xcredamt = aColl["Medical Credit Limit"] * (1 - xpayval)
+              Case "Consultation"
+                xcredamt = aColl["OPD Credit Limit"] * (1 - xpayval)
+            End Select
+
+            xmsg = [xcredamt, xexpdate, xpolicy]
+            Break
+          Endif
+        Next
+
       Endif
     Endif
   Endif

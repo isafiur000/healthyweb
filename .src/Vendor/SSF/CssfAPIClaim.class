@@ -180,7 +180,6 @@ Public Sub AddBilling(sList As Variant[])
 
   Dim sNo As Variant
   Dim sColl As Collection
-  Dim res As Result
   Dim i As Integer
   Dim xcode As String
 
@@ -198,28 +197,29 @@ Public Sub AddBilling(sList As Variant[])
   xtot = 0
   For Each sNo In sList
     sColl = sNo
-    res = modDatabase.$myConn.Exec(Subst("select fldid,flditemname,flditemtype,flditemrate,flditemqty from &1", sColl["table"]) & " where fldid=&1", sColl["id"])
-    If res.Available Then
-      If res["flditemrate"] * res["flditemqty"] Then
-        xtot = xtot + res["flditemrate"] * res["flditemqty"]
+    xcode = sColl["code"]
+    If xcode Then
+
+      If sColl["rate"] * sColl["qty"] Then
+        xtot = xtot + sColl["rate"] * sColl["qty"]
       Endif
       gColl = New Collection
       gColl.Add(i, "sequence")
 
       hColl = New Collection
       xitem = ""
-      Select res["flditemtype"]
+      Select sColl["type"]
         Case "Diagnostic Tests", "Radio Diagnostics", "General Services", "Procedures", "Equipment"
           xcateg = "service"
-          xcode = modNonMedical.GetBillItemHIAbbv(res["flditemname"], res["flditemtype"])
+          xcode = modNonMedical.GetBillItemHIAbbv(sColl["item"], sColl["type"])
           If Not xcode Then
             xcode = "ADJS01"
-            xitem = res["flditemname"]
+            xitem = sColl["item"]
           Endif
         Case Else
           xcateg = "item"
           xcode = "ADJ02"
-          xitem = res["flditemname"]
+          xitem = sColl["item"]
       End Select
       hColl.Add(xcateg, "text")
       gColl.Add(hColl, "category")
@@ -229,11 +229,11 @@ Public Sub AddBilling(sList As Variant[])
       gColl.Add(hColl, "productOrService")
 
       hColl = New Collection
-      hColl.Add(res["flditemqty"], "value")
+      hColl.Add(sColl["qty"], "value")
       gColl.Add(hColl, "quantity")
 
       hColl = New Collection
-      hColl.Add(res["flditemrate"], "value")
+      hColl.Add(sColl["rate"], "value")
       gColl.Add(hColl, "unitPrice")
 
       If xitem Then
@@ -253,6 +253,84 @@ Public Sub AddBilling(sList As Variant[])
   $ItemTot = xtot
 
 End
+
+' Public Sub AddBilling(sList As Variant[])
+'
+'   Dim sNo As Variant
+'   Dim sColl As Collection
+'   Dim res As Result
+'   Dim i As Integer
+'   Dim xcode As String
+'
+'   Dim gColl As Collection
+'   Dim hColl As Collection
+'
+'   Dim extVar As Variant[]
+'   Dim extcol As Collection
+'   Dim xitem As String
+'
+'   Dim xcateg As String
+'   Dim xtot As Float
+'
+'   i = 1
+'   xtot = 0
+'   For Each sNo In sList
+'     sColl = sNo
+'     res = modDatabase.$myConn.Exec(Subst("select fldid,flditemname,flditemtype,flditemrate,flditemqty from &1", sColl["table"]) & " where fldid=&1", sColl["id"])
+'     If res.Available Then
+'       If res["flditemrate"] * res["flditemqty"] Then
+'         xtot = xtot + res["flditemrate"] * res["flditemqty"]
+'       Endif
+'       gColl = New Collection
+'       gColl.Add(i, "sequence")
+'
+'       hColl = New Collection
+'       xitem = ""
+'       Select res["flditemtype"]
+'         Case "Diagnostic Tests", "Radio Diagnostics", "General Services", "Procedures", "Equipment"
+'           xcateg = "service"
+'           xcode = modNonMedical.GetBillItemHIAbbv(res["flditemname"], res["flditemtype"])
+'           If Not xcode Then
+'             xcode = "ADJS01"
+'             xitem = res["flditemname"]
+'           Endif
+'         Case Else
+'           xcateg = "item"
+'           xcode = "ADJ02"
+'           xitem = res["flditemname"]
+'       End Select
+'       hColl.Add(xcateg, "text")
+'       gColl.Add(hColl, "category")
+'
+'       hColl = New Collection
+'       hColl.Add(xcode, "text")
+'       gColl.Add(hColl, "productOrService")
+'
+'       hColl = New Collection
+'       hColl.Add(res["flditemqty"], "value")
+'       gColl.Add(hColl, "quantity")
+'
+'       hColl = New Collection
+'       hColl.Add(res["flditemrate"], "value")
+'       gColl.Add(hColl, "unitPrice")
+'
+'       If xitem Then
+'         extVar = New Variant[]
+'         extcol = New Collection
+'         extcol.Add("http://hl7.org/fhir/StructureDefinition/contactpoint-comment", "url")
+'         extcol.Add(xitem, "valueString")
+'         extVar.Add(extcol)
+'         gColl.Add(extVar, "extension")
+'       Endif
+'
+'       $ItemVar.Add(gColl)
+'
+'       i = i + 1
+'     Endif
+'   Next
+'   $ItemTot = xtot
+'
+' End
 
 Private Sub GetSSFExtension()
 

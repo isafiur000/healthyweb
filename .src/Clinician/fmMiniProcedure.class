@@ -4,6 +4,7 @@ Private $encid As String
 Private $BillMode As String
 Private $sPackage As String
 Private $sClaimState As String
+Private $sClaimRefno As String
 Private $xFinClear As Boolean
 Private $PatientNum As String
 Private $xNHISCode As String
@@ -86,6 +87,7 @@ Private Sub ShowBillingParam(sPack As String)
   hForm = New CPackageParams($encid, sPack)
   $BillMode = hForm.GetBillingMode()
   $sClaimState = hForm.GetClaimState()
+  $sClaimRefno = hForm.GetReferenceType()
 
 End
 
@@ -226,7 +228,8 @@ Public Sub btnsubOK_Click()
     If modMisc.AllowDiagnoBilling($encid) = True Then
       If modNonMedical.AllowEntryWithDeposit($encid, "Procedure") = True Then
 
-        If modBasic.$AutoBillProcedure = "Standard" Or If modBasic.$AutoBillProcedure = "Full" Or If modBasic.$AutoBillProcedure = "Partial" Then
+        If modBasic.$AutoBillProcedure = "No" Then
+        Else
           If chknextvisit.Value = True Then
             modBillings.GetAutoBillingEntry($encid, cmbdisctype.Text, "Procedure", cmbprocedure.Text, 1, "Planned", 0, False, False, "", btnrefer.Tag, GetProcedType())
           Else
@@ -329,6 +332,16 @@ Public Sub btnsave_Click()
       If modBasic.$AutoBillProcedure = "Standard" Then
         If modNonMedical.AllowPreCheckDeposit($encid, "Procedure", res["flditemname"], res["fldditemamt"], res["fldbilltype"]) = True Then
           SavePartialEntry(res, xadv)
+        Endif
+      Else If modBasic.$AutoBillProcedure = "RefOnly" Then
+        If $sClaimRefno Then
+          If modNonMedical.AllowPreCheckDeposit($encid, "Procedure", res["flditemname"], res["fldditemamt"], res["fldbilltype"]) = True Then
+            SavePartialEntry(res, xadv)
+          Endif
+        Else
+          If modNonMedical.AllowPreEntryWithDeposit($encid, "Procedure", res["flditemname"], res["fldditemamt"], res["fldbilltype"]) = True Then
+            SavePartialEntry(res, xadv)
+          Endif
         Endif
       Else If modBasic.$AutoBillProcedure = "Full" Then
         If modNonMedical.AllowPreEntryWithDeposit($encid, "Procedure", res["flditemname"], res["fldditemamt"], res["fldbilltype"]) = True Then

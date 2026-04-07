@@ -5,6 +5,7 @@ Private $LedgerAC As String
 Private $xBillType As String
 Private $ClaimCode As String
 Private $ClaimState As String
+Private $Reference As String
 
 Private $encid As String
 Private $discType As String
@@ -35,23 +36,8 @@ Private Sub ShowBillingParam()
     Else
       $sBillMode = modPatient.GetPatBillingMode($encid)
     Endif
-    ''claim code button
-    If resx["fldreference"] Then
-      If resx["fldreference"] = "Claim Code" Then
-        $ClaimCode = modClaim.GetClaimCidePatient($encid, modNonMedical.GetLastCLaimType($encid))
-        If $ClaimCode Then
-          $ClaimState = modClaim.GetHIClaimState($ClaimCode)
-        Endif
-      Endif
-    Else If resx["fldreference"] = "Accident SSF" Then
-      $ClaimCode = modSSF.GetSSFClaimCodePatient($encid, "Accident SSF")
-    Else If resx["fldreference"] = "Critical SSF" Then
-      $ClaimCode = modSSF.GetSSFClaimCodePatient($encid, "Critical SSF")
-    Else If resx["fldreference"] = "MedExtra SSF" Then
-      $ClaimCode = modSSF.GetSSFClaimCodePatient($encid, "MedExtra SSF")
-    Else If resx["fldreference"] = "Medical SSF" Then
-      $ClaimCode = modSSF.GetSSFClaimCodePatient($encid, "Medical SSF")
-    Endif
+    ''Reference
+    $Reference = resx["fldreference"]
     ''ledger A/C
     $LedgerAC = resx["fldacledger"]
     ''BillType
@@ -81,7 +67,27 @@ Public Function GetLedgerAC() As String
 
 End
 
+Public Function GetReferenceType() As String
+
+  Return $Reference
+
+End
+
 Public Function GetClaimCode() As String
+
+  If $Reference = "Claim Code" Then
+    If Not $ClaimCode Then
+      $ClaimCode = modClaim.GetClaimCidePatient($encid, modNonMedical.GetLastCLaimType($encid))
+    Endif
+  Else If $Reference = "Accident SSF" Then
+    $ClaimCode = modSSF.GetSSFClaimCodePatient($encid, "Accident SSF")
+  Else If $Reference = "Critical SSF" Then
+    $ClaimCode = modSSF.GetSSFClaimCodePatient($encid, "Critical SSF")
+  Else If $Reference = "MedExtra SSF" Then
+    $ClaimCode = modSSF.GetSSFClaimCodePatient($encid, "MedExtra SSF")
+  Else If $Reference = "Medical SSF" Then
+    $ClaimCode = modSSF.GetSSFClaimCodePatient($encid, "Medical SSF")
+  Endif
 
   Return $ClaimCode
 
@@ -89,6 +95,14 @@ End
 
 Public Function GetClaimState() As String
 
+  If $Reference = "Claim Code" Then
+    If Not $ClaimCode Then
+      $ClaimCode = modClaim.GetClaimCidePatient($encid, modNonMedical.GetLastCLaimType($encid))
+    Endif
+    If $ClaimCode Then
+      $ClaimState = modClaim.GetHIClaimState($ClaimCode)
+    Endif
+  Endif
   Return $ClaimState
 
 End

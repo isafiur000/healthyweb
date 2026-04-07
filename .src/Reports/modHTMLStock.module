@@ -570,7 +570,7 @@ Public Function GetDispenseSummaryReport(sType As String, dt1 As Date, dt2 As Da
 
 End
 
-Public Function ShowTotalInventory(sType As String, aCompLst As String[], sLocaType As String, sLocation As String) As String
+Public Function ShowTotalInventory(sType As String, sRoute As String, aCompLst As String[], sLocaType As String, sLocation As String) As String
 
   Dim $BillingReport As CReportHTML
   Dim res As Result
@@ -580,6 +580,7 @@ Public Function ShowTotalInventory(sType As String, aCompLst As String[], sLocaT
   Dim tot As Float
   Dim i As Integer
   Dim RepoStr As String
+  Dim xstr As String
 
   Dim sCompLst As String[]
   Dim j As Integer
@@ -594,14 +595,30 @@ Public Function ShowTotalInventory(sType As String, aCompLst As String[], sLocaT
     sCompLst[j] = "'" & sCompLst[j] & "'"
   Next
 
+  If sType = "Medicines" Then
+    xstr = db.Subst(" and fldstockid in(select fldbrandid from tblmedbrand where flddrug in(select flddrug from tbldrug where fldroute=&1))", sRoute)
+  Else If sType = "Surgicals" Then
+    xstr = db.Subst(" and fldstockid in(select fldbrandid from tblsurgbrand where fldsurgid in(select fldsurgid from tblsurgicals where fldsurgcateg=&1))", sRoute)
+  Else If sType = "Extra Items" Then
+    xstr = " and fldstockid in(select fldbrandid from tblextrabrand)"
+  Endif
+
   tot = 0
-  res1 = modDatabase.$syConn.Exec("select distinct(fldcomp) as fldcomp from tblentry where fldcategory=&1 and fldcomp in(" & sCompLst.Join(",") & ")" & RepoStr, sType)
+  If sRoute = "%" Then
+    res1 = modDatabase.$syConn.Exec("select distinct(fldcomp) as fldcomp from tblentry where fldcategory=&1 and fldcomp in(" & sCompLst.Join(",") & ")" & RepoStr, sType)
+  Else
+    res1 = modDatabase.$syConn.Exec("select distinct(fldcomp) as fldcomp from tblentry where fldcategory=&1 and fldcomp in(" & sCompLst.Join(",") & ")" & xstr & RepoStr, sType)
+  Endif
   For Each res1
     $BillingReport.AddSection(res1["fldcomp"], True)
 
     subtot = 0
     i = 1
-    res = modDatabase.$syConn.Exec("select fldcomp,fldcategory,fldstockno,fldstockid,fldbatch,fldexpiry,fldstatus,fldqty,fldsellpr from tblentry where fldcomp=&1 and fldqty>&2 and fldcategory=&3" & RepoStr & " ORDER BY fldstockid ASC", res1["fldcomp"], 0, sType)
+    If sRoute = "%" Then
+      res = modDatabase.$syConn.Exec("select fldcomp,fldcategory,fldstockno,fldstockid,fldbatch,fldexpiry,fldstatus,fldqty,fldsellpr from tblentry where fldcomp=&1 and fldqty>&2 and fldcategory=&3" & RepoStr & " ORDER BY fldstockid ASC", res1["fldcomp"], 0, sType)
+    Else
+      res = modDatabase.$syConn.Exec("select fldcomp,fldcategory,fldstockno,fldstockid,fldbatch,fldexpiry,fldstatus,fldqty,fldsellpr from tblentry where fldcomp=&1 and fldqty>&2 and fldcategory=&3" & xstr & RepoStr & " ORDER BY fldstockid ASC", res1["fldcomp"], 0, sType)
+    Endif
     For Each res
       subtot = subtot + res["fldqty"] * res["fldsellpr"]
       With asx

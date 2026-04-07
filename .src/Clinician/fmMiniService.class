@@ -39,6 +39,11 @@ Private $ClaimStateProcedure As String
 Private $ClaimStateOthers As String
 Private $ClaimStatePharm As String
 
+Private $ClaimReferService As String
+Private $ClaimReferProcedure As String
+Private $ClaimReferOthers As String
+Private $ClaimReferPharm As String
+
 Private $phmLedger As String
 Private $phmBillType As String
 
@@ -187,6 +192,7 @@ Private Sub ShowServiceParam(sPack As String)
   hForm = New CPackageParams($encid, sPack)
   $ratePlanService = hForm.GetBillingMode()
   $ClaimStateService = hForm.GetClaimState()
+  $ClaimReferService = hForm.GetReferenceType()
 
 End
 
@@ -207,6 +213,7 @@ Private Sub ShowProcedureParam(sPack As String)
   hForm = New CPackageParams($encid, sPack)
   $ratePlanProcedure = hForm.GetBillingMode()
   $ClaimStateProcedure = hForm.GetClaimState()
+  $ClaimReferProcedure = hForm.GetReferenceType()
 
 End
 
@@ -227,6 +234,7 @@ Private Sub ShowOthersParam(sPack As String)
   hForm = New CPackageParams($encid, sPack)
   $ratePlanOthers = hForm.GetBillingMode()
   $ClaimStateOthers = hForm.GetClaimState()
+  $ClaimReferOthers = hForm.GetReferenceType()
 
 End
 
@@ -247,6 +255,7 @@ Private Sub ShowPharmacyParam(sPack As String)
   hForm = New CPackageParams($encid, sPack)
   $ratePlanPharm = hForm.GetBillingMode()
   $ClaimStatePharm = hForm.GetClaimState()
+  $ClaimReferPharm = hForm.GetReferenceType()
   $phmLedger = hForm.GetLedgerAC()
   $phmBillType = hForm.GetBillType()
 
@@ -577,7 +586,8 @@ Private Sub InsertClinicService(sCateg As String, sItem As String, sQty As Float
   Endif
 
   If xauto Then
-    If xauto = "Standard" Or If xauto = "Full" Or If xauto = "Partial" Then
+    If xauto = "No" Then
+    Else
       If btnrefer.Tag Then
         xrefer = btnrefer.Tag
       Else
@@ -646,6 +656,7 @@ Public Sub btnsave_Click()
   Dim xauto As String
   Dim xadv As String
   Dim xstate As String
+  Dim xrefno As String
 
   res = modDatabase.$myConn.Edit("tblpatbilling", "fldencounterval=&1 and fldsave=&2 and fldprint=&3 and fldordcomp like &4 and fldstatus=&5 and (flditemtype=&6 or flditemtype=&7 or flditemtype=&8)", $encid, False, False, modBasic.$compID, "Punched", "General Services", "Procedures", "Other Items")                 ''
   If res.Available Then
@@ -660,17 +671,30 @@ Public Sub btnsave_Click()
       If xform = "Service" Then
         xauto = modBasic.$AutoBillService
         xstate = $ClaimStateService
+        xrefno = $ClaimReferService
       Else If xform = "Procedure" Then
         xauto = modBasic.$AutoBillProcedure
         xstate = $ClaimStateProcedure
+        xrefno = $ClaimReferProcedure
       Else If xform = "Others" Then
         xauto = modBasic.$AutoBillOthers
         xstate = $ClaimStateOthers
+        xrefno = $ClaimReferOthers
       Endif
 
       If xauto = "Standard" Then
         If modNonMedical.AllowPreCheckDeposit($encid, xform, res["flditemname"], res["fldditemamt"], res["fldbilltype"]) = True Then
           SavePartialEntry(res, xstate, xadv)
+        Endif
+      Else If xauto = "RefOnly" Then
+        If xrefno Then
+          If modNonMedical.AllowPreCheckDeposit($encid, xform, res["flditemname"], res["fldditemamt"], res["fldbilltype"]) = True Then
+            SavePartialEntry(res, xstate, xadv)
+          Endif
+        Else
+          If modNonMedical.AllowPreEntryWithDeposit($encid, xform, res["flditemname"], res["fldditemamt"], res["fldbilltype"]) = True Then
+            SavePartialEntry(res, xstate, xadv)
+          Endif
         Endif
       Else If xauto = "Full" Then
         If modNonMedical.AllowPreEntryWithDeposit($encid, xform, res["flditemname"], res["fldditemamt"], res["fldbilltype"]) = True Then

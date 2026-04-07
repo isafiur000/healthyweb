@@ -771,8 +771,6 @@ End
 
 Public Function NonStockBillingItemArray(sType As String, txtmode As String) As String[]
 
-  Dim res As Result
-  Dim res1 As Result
   Dim xx As String[]
 
   If sType = "%" And If txtmode = "%" Then
@@ -4257,6 +4255,26 @@ Public Function TotalSavedCashExpensebyPatient($conn As Connection, encid As Str
   Dim res As Result
 
   res = $conn.Exec("select SUM((REPLACE(REPLACE(fldbilltype , 'Cash', 100), 'Credit', 0) + COALESCE(fldcashincredit, 0)) * fldditemamt / 100) as tot from tblpatbilling where fldencounterval=&1 and fldsave=&2", encid, True)
+  If res.Available Then
+    If res["tot"] Then
+      amt = res["tot"]
+    Else
+      amt = 0
+    Endif
+  Else
+    amt = 0
+  Endif
+
+  Return amt
+
+End
+
+Public Function TotalClaimedCreditExpensebyPatient($conn As Connection, encid As String) As Float
+
+  Dim amt As Float
+  Dim res As Result
+
+  res = $conn.Exec("select SUM((REPLACE(REPLACE(fldbilltype , 'Cash', 0), 'Credit', 100) - COALESCE(fldcashincredit, 0)) * fldditemamt / 100) as tot from tblpatbilling where fldencounterval=&1 and fldsave=&2 and fldbilltype=&3 and fldclaimid IS NOT NULL", encid, True, "Credit")
   If res.Available Then
     If res["tot"] Then
       amt = res["tot"]

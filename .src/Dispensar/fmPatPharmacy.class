@@ -2394,8 +2394,9 @@ Private Sub PharmacySave()
 
   Dim res2 As Result
   Dim sql2 As String
-
   Dim qtynew As Float
+  Dim xRow As Integer
+
   Dim sList As Long[]
   Dim xerr As String
   Dim xallow As Boolean
@@ -2424,7 +2425,7 @@ Private Sub PharmacySave()
             res2 = modDatabase.$myConn.Exec(sql2, res1["flditem"], modBasic.$compID, 1, 0)
           Endif
           If res2.Available Then
-            res2.MoveFirst
+            xRow = 0
 
             'get tax and discount percentages
             If res1["fldtaxper"] Then
@@ -2459,6 +2460,7 @@ Private Sub PharmacySave()
                 qtynew = res1["fldqtydisp"]
                 modDatabase.$myConn.Begin
                 While qtynew > 0
+                  res2.MoveTo(xRow)
                   xitem = res1["flditem"]
                   If res1["fldfixname"] Then
                     xitem = res1["fldfixname"]
@@ -2475,18 +2477,26 @@ Private Sub PharmacySave()
                     modBillings.InsertBlankBillItemNewApp(Trim(txtencid.Text), res1["fldbilltype"], res1["fldbillingmode"], res1["flddisctype"], res1["fldacledger"], res1["flditemtype"], res2["fldstockno"], xitem, xrate, qtynew, tax, disc, xCshCrd, "Done", res1["fldid"], True, False, modBasic.$compID)
                     modStockSub.AddToExistEntry(res2["fldstockno"], (0 - qtynew), modBasic.$compID)
                     qtynew = 0
+                    Break
                   Else If qtynew > res2["fldqty"] Then
                     modBillings.InsertBlankBillItemNewApp(Trim(txtencid.Text), res1["fldbilltype"], res1["fldbillingmode"], res1["flddisctype"], res1["fldacledger"], res1["flditemtype"], res2["fldstockno"], xitem, xrate, res2["fldqty"], tax, disc, xCshCrd, "Done", res1["fldid"], True, False, modBasic.$compID)
                     modStockSub.AddToExistEntry(res2["fldstockno"], (0 - res2["fldqty"]), modBasic.$compID)
                     qtynew = qtynew - res2["fldqty"]
-                  Endif
-                  Wait
-                  If res1["flddose"] And If res1["fldfreq"] And If res1["flddays"] And If res1["fldqtydisp"] Then
-                    If res1["fldlabel"] = True Then
-                      sList.Add(res1["fldid"])
+                    If xRow = res2.Count - 1 Then
+                      Break
+                    Else
+                      xRow = xRow + 1
                     Endif
                   Endif
+                  Wait
                 Wend
+
+                If res1["flddose"] And If res1["fldfreq"] And If res1["flddays"] And If res1["fldqtydisp"] Then
+                  If res1["fldlabel"] = True Then
+                    sList.Add(res1["fldid"])
+                  Endif
+                Endif
+
                 If res1["fldqtydisp"] > qtynew Then
                   If qtynew > 0 Then
                     modPharmSub.DuplicateRecordWithQTY(res1["fldid"], qtynew)
