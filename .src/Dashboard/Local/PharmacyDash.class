@@ -1,0 +1,261 @@
+' Gambas class file
+
+Export
+
+Private $sTable As String
+Private $wdFactor As Float
+
+Private $Headers As String[]
+Private $GridVar1 As Variant[]
+Private $GridVar2 As Variant[]
+Private $GridVar3 As Variant[]
+
+Static Public Sub _init()
+
+  Env["GB_WEB_GUI_DEBUG"] = "1"
+  modHelpVariable.GetSessionParam()
+
+End
+
+Public Sub _new()
+
+  Dim xdef As String
+  Dim xwid As String
+  Dim xfont As String
+
+  Me.AddHeader("<meta name='viewport' content='width=device-width, initial-scale=1'>")
+  Me.AddHeader("<link rel=\"stylesheet\" href=\"" & modPrint.GetHTTPReferer() & "://" & modHelpVariable.$HostPath & "/css/" & Application.Name & ".css" & "\">")
+  Me.AddJavascriptFile("js/jquery.min.js")
+  Me.AddJavascriptFile("js/webcontrols.js")
+  WebForm.Debug = True
+
+  modHelpVariable.MakeWorkingDir()
+  modHelpVariable.CreateWorkingDir()
+  modHelpVariable.SetAppConfigFile()
+
+  ' cmbleftrow.List = ["Medicines", "Surgicals"]
+  cmbleftrow.Text = "Medicines"
+  ' cmbmidrow.List = ["Medicines", "Surgicals"]
+  cmbmidrow.Text = "Medicines"
+  cmbrightrow.List = ["Medicines", "Surgicals"]
+  cmbrightrow.Text = "Surgicals"
+  cmbdepart.List = modGeneralMain.GetWebDepartList()
+  If cmbdepart.List.Count Then
+    cmbdepart.Text = cmbdepart.List[0]
+  Endif
+
+  xfont = modSettings.ShowSettingFromFIle("Application/ApplicationFont")
+  If xfont Then
+    Me.Font = xfont
+  Endif
+
+  WebImage1.Image = modPrint.GetFixedWebURL(modHelpVariable.$appetcFolder &/ "header-logo.png")
+  WebImage2.Image = modPrint.GetFixedWebURL(modHelpVariable.$appetcFolder &/ "header.jpg")
+  WebHtml2.Html = "<small>Developed By: D Code Technology Pvt Ltd, Kathmandu</small>"
+
+  xwid = modSettings.ShowSettingFromFIle("PatientDashBoard/WidthFactor")
+  If xwid Then
+    $wdFactor = CFloat(xwid)
+  Else
+    $wdFactor = 1
+  Endif
+
+End
+
+Public Sub btnfullscreen_Click()
+
+  If btnfullscreen.Image = "icon:/small/zoom-normal" Then
+    btnfullscreen.Image = "icon:/small/zoom-fit"
+    Me.Exec("openFullscreen()")
+
+  Else If btnfullscreen.Image = "icon:/small/zoom-fit" Then
+    btnfullscreen.Image = "icon:/small/zoom-normal"
+    Me.Exec("closeFullscreen()")
+
+  Endif
+
+End
+
+Public Sub WebForm_Close()
+
+  Session.Abandon()
+  Try modDatabase.$syConn.Close()
+  Try modDatabase.$myConn.Close()
+  modExternal.DeleteFolderRecursive("/tmp" &/ modHelpVariable.AppName &/ "docs" &/ modHelpVariable.$SessionCode)
+  modExternal.DeleteFolderRecursive(modHelpVariable.AppCacheDir)
+
+End
+
+Public Sub btnrefresh_Click()
+
+  If Not modDatabase.$syConn Or If Not modDatabase.$syConn.Opened Then
+    modHelpVariable.ConnectionDashboard()
+    modGeneralMain.EnableCollectionCache()
+    modTableCache.InitializeTableCache()
+  Endif
+  If modDatabase.$syConn.Opened = True Then
+    If cmbdepart.Text Then
+      FillBedGrid()
+      If chkrefresh.Value = True Then
+        Timer1.Enabled = True
+      Else
+        Timer1.Enabled = False
+      Endif
+    Endif
+  Endif
+
+End
+
+Public Sub Timer1_Timer()
+
+  If Minute(Now()) = 10 Then
+    If cmbdepart.Text Then
+      FillBedGrid()
+    Endif
+  Endif
+
+End
+
+Public Function GetSelectedResult(sCategory As String, sRoute As String[]) As Result
+
+  Dim sql As String
+  Dim res As Result
+  Dim xstr As String
+
+  Dim strItem As String[]
+  Dim i As Integer
+
+  strItem = sRoute.Copy()
+  For i = 0 To strItem.Count - 1
+    strItem[i] = "'" & strItem[i] & "'"
+  Next
+
+  If sCategory = "Medicines" Then
+    xstr = " and fldstockid in(select fldbrandid from tblmedbrand where flddrug in(select flddrug from tbldrug where fldroute in(" & strItem.Join(",") & ")" & "))"
+  Else If sCategory = "Surgicals" Then
+    xstr = " and fldstockid in(select fldbrandid from tblsurgbrand where fldsurgid in(select fldsurgid from tblsurgicals where fldsurgcateg in(" & strItem.Join(",") & ")" & "))"
+  Endif
+  sql = "select fldstockid,fldsellpr from tblentry where fldcomp=&1 and fldcategory=&2 and fldstatus=&3" & xstr & "ORDER BY fldstockid"
+  res = modDatabase.$syConn.Exec(sql, cmbdepart.Text, sCategory, 1, sRoute)
+
+  Return res
+
+End
+
+Private Sub FillBedGrid()
+
+  Dim res1 As Result
+  Dim res2 As Result
+  Dim res3 As Result
+
+  Dim xGridVar1 As Variant[]
+  Dim xGridVar2 As Variant[]
+  Dim xGridVar3 As Variant[]
+  Dim sColl As Collection
+
+  $Headers = ["Particular", "Price"]
+  If cmbleftrow.Text = "Medicines" And If cmbmidrow.Text = "Medicines" And If cmbrightrow.Text = "Medicines" Then
+    res1 = GetSelectedResult("Medicines", ["oral", "liquid"])
+    res2 = GetSelectedResult("Medicines", ["injection", "fluid"])
+    res3 = GetSelectedResult("Medicines", ["resp", "topical", "eye/ear", "anal/vaginal"])
+  Else If cmbleftrow.Text = "Medicines" And If cmbmidrow.Text = "Medicines" And If cmbrightrow.Text = "Surgicals" Then
+    res1 = GetSelectedResult("Medicines", ["oral", "liquid"])
+    res2 = GetSelectedResult("Medicines", ["injection", "fluid"])
+    res3 = GetSelectedResult("Surgicals", ["msurg"])
+  Endif
+
+  xGridVar1 = New Variant[]
+  If res1.Available Then
+    For Each res1
+      sColl = New Collection
+      sColl.Add(res1["fldstockid"], $Headers[0])
+      sColl.Add(res1["fldsellpr"], $Headers[1])
+      xGridVar1.Add(sColl)
+    Next
+  Endif
+
+  xGridVar2 = New Variant[]
+  If res2.Available Then
+    For Each res2
+      sColl = New Collection
+      sColl.Add(res2["fldstockid"], $Headers[0])
+      sColl.Add(res2["fldsellpr"], $Headers[1])
+      xGridVar2.Add(sColl)
+    Next
+  Endif
+
+  xGridVar3 = New Variant[]
+  If res3.Available Then
+    For Each res3
+      sColl = New Collection
+      sColl.Add(res3["fldstockid"], $Headers[0])
+      sColl.Add(res3["fldsellpr"], $Headers[1])
+      xGridVar3.Add(sColl)
+    Next
+  Endif
+
+  GetGridViewOne(xGridVar1)
+  GetGridViewTwo(xGridVar2)
+  GetGridViewThree(xGridVar3)
+
+End
+
+Private Sub GetGridViewOne(xGridVar As Variant[])
+
+  $GridVar1 = xGridVar
+  GridView1.Count = $GridVar1.Count
+  GridView1.Columns.Count = $Headers.Count
+  ResizeGrid(GridView1)
+
+End
+
+Private Sub GetGridViewTwo(xGridVar As Variant[])
+
+  $GridVar2 = xGridVar
+  GridView2.Count = $GridVar2.Count
+  GridView2.Columns.Count = $Headers.Count
+  ResizeGrid(GridView2)
+
+End
+
+Private Sub GetGridViewThree(xGridVar As Variant[])
+
+  $GridVar3 = xGridVar
+  GridView3.Count = $GridVar3.Count
+  GridView3.Columns.Count = $Headers.Count
+  ResizeGrid(GridView3)
+
+End
+
+Private Sub ResizeGrid(xGridView As WebTable)
+
+  With xGridView
+    .Columns[0].Expand = True
+    .Columns[1].Width = CStr(75 * $wdFactor) & "px"
+
+    .Columns[0].Text = $Headers[0]
+    .Columns[1].Text = $Headers[1]
+  End With
+
+End
+
+Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  modGridView.GridViewDecoration(Data, Row)
+  Data.Text = $GridVar1[Row][$Headers[Column]]
+
+End
+
+Public Sub GridView2_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  modGridView.GridViewDecoration(Data, Row)
+  Data.Text = $GridVar2[Row][$Headers[Column]]
+
+End
+
+Public Sub GridView3_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  modGridView.GridViewDecoration(Data, Row)
+  Data.Text = $GridVar3[Row][$Headers[Column]]
+
+End

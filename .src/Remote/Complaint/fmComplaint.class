@@ -1,0 +1,59 @@
+' Gambas class file
+
+Private $sUser As String
+Private $sFormat As String
+
+Public Sub _new(sUser As String, sFormat As String)
+
+  $sUser = sUser
+  $sFormat = sFormat
+
+  cmbcategory.List = ["Streetlight Issue", "Waste Collection Delay", "Water Leakage", "Road Damage", "Illegal Construction", "Health", "Education", "Infrastructure", "Water & Sanitation", "Electricity", "Transport", "Governance", "Environment", "Law & Order", "Others"]
+  cmbdepartment.List = ["Sanitation", "Water Works", "Roads", "Public Health"]
+  cmbpriority.List = ["High", "Medium", "Low"]
+
+End
+
+Public Sub cmbcategory_Click()
+
+  If cmbcategory.Text = "Waste Collection Delay" Then
+    cmbissuetype.List = ["Not Collected", "Irregular Pickup", "Overflowing Bin"]
+  Endif
+
+End
+
+Public Sub btnsave_Click()
+
+  Dim res As Result
+
+  If txtdetail.Text And If cmbissuetype.Text Then
+    res = modDatabase.$myConn.Create("tblpublicissues")
+    res["fldcategory"] = cmbcategory.Text
+    res["fldissue"] = cmbissuetype.Text
+    res["fldsection"] = cmbdepartment.Text
+    res["fldpriority"] = cmbpriority.Text
+    res["fldcomment"] = txtdetail.Text
+    res["fldanonymoue"] = chkanonym.Value
+
+    res["fldstatus"] = "Requested"
+    res["fldtarget"] = ""
+    res["flduserid"] = modBasic.$lbluser
+    res["fldtime"] = Now()
+    res["fldcomp"] = modBasic.$compID
+    res["fldsave"] = True
+    res.Update
+    Me.Exec("Toastify({text: 'Information Saved', duration: 3000}).showToast()")
+  Endif
+
+End
+
+Public Sub btnattach_Click()
+
+  Dim hForm As FmOfficeDocs
+
+  If $sUser Then
+    hForm = New FmOfficeDocs($sFormat, $sUser, False, "")
+    hForm.ShowModal
+  Endif
+
+End

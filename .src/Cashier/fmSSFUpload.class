@@ -377,7 +377,8 @@ Private Sub SHowCreditGrid()
   Dim abil As String
 
   ' xList = ["fldid", "CONCAT(flditemtype,'|', flditemname)", "flditemname", "flditemrate", "flditemqty", "fldditemamt", "fldbillno", "fldclaimstate", "fldclaimid"]
-  xList = ["flditemname", "CONCAT(flditemtype,'|', flditemname) as flditemcode", "flditemname", "AVG(flditemrate) as flditemrate", "SUM(flditemqty) as flditemqty", "SUM(fldditemamt) as fldditemamt", "GROUP_CONCAT(DISTINCT fldbillno) as fldbillno", "GROUP_CONCAT(DISTINCT fldclaimstate) as fldclaimstate", "GROUP_CONCAT(DISTINCT fldclaimid) as fldclaimid", "GROUP_CONCAT(DISTINCT fldid) as fldid", "flditemtype"]
+  ' xList = ["flditemname", "CONCAT(flditemtype,'|', flditemname) as flditemcode", "flditemname", "AVG(flditemrate) as flditemrate", "SUM(flditemqty) as flditemqty", "SUM(fldditemamt) as fldditemamt", "GROUP_CONCAT(DISTINCT fldbillno) as fldbillno", "GROUP_CONCAT(DISTINCT fldclaimstate) as fldclaimstate", "GROUP_CONCAT(DISTINCT fldclaimid) as fldclaimid", "GROUP_CONCAT(DISTINCT fldid) as fldid", "flditemtype"]
+  xList = ["flditemname", "CONCAT(flditemtype,'|', flditemname) as flditemcode", "flditemname", "SUM(flditemrate*flditemqty)/SUM(flditemqty) as flditemrate", "SUM(flditemqty) as flditemqty", "SUM(fldditemamt) as fldditemamt", "GROUP_CONCAT(DISTINCT fldbillno) as fldbillno", "GROUP_CONCAT(DISTINCT fldclaimstate) as fldclaimstate", "GROUP_CONCAT(DISTINCT fldclaimid) as fldclaimid", "GROUP_CONCAT(DISTINCT fldid) as fldid", "flditemtype"]
   xList1 = xList.Copy()
   xList1.Add(Quote($tblpatbilling))
   xList2 = xList.Copy()
@@ -509,6 +510,7 @@ Public Sub btngridclaim_Click()
   Dim aCode As String
   Dim asx As String[]
   Dim abil As String
+  Dim xstate As String
 
   If cmbnodiagno.Text = "Enable" Then
     NoDiagno = True
@@ -584,12 +586,17 @@ Public Sub btngridclaim_Click()
         If aColl Then
           xmsg = "<b>" & aColl["outcome"] & "</b>"
           aVar = aColl["item"]
+          xstate = aColl["outcome"]
 
           If aVar Then
             For Each xvar In aVar
               bColl = xvar
               xRow = bColl["itemSequence"]
-              UpdateClaimRecord(xSNo[xRow]["index"], bColl["extension"][0]["valueReference"]["reference"], bColl["adjudication"][0]["category"]["text"])
+              If xRow <= xSNo.Count Then
+                If bColl["extension"] And If bColl["extension"][0]["valueReference"]["reference"] Then
+                  UpdateClaimRecord(xSNo[xRow - 1]["index"], bColl["extension"][0]["valueReference"]["reference"], xstate)
+                Endif
+              Endif
             Next
             For Each xinv In invall
               modAccount.InsertClaimInvoice(xinv)

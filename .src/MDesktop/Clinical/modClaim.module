@@ -202,16 +202,20 @@ Public Function CheckIMISValues(encid As String, DiscType As String) As Variant[
               Else
                 xpayval = 0
               Endif
-              Select res["fldadmission"]
-                Case "Recorded", "Registered"
-                  If modGeneral.GetDepartCaption(res["fldadmitlocat"]) = "Emergency" Then
-                    xcredamt = aColl["Medical Credit Limit"]
-                  Else
-                    xcredamt = aColl["OPD Credit Limit"] * (1 - xpayval)
-                  Endif
-                Case Else
-                  xcredamt = aColl["Medical Credit Limit"] * (1 - xpayval)
-              End Select
+              If aColl["Policy Name"] = "HIB-3500" Then
+                Select res["fldadmission"]
+                  Case "Recorded", "Registered"
+                    If modGeneral.GetDepartCaption(res["fldadmitlocat"]) = "Emergency" Then
+                      xcredamt = aColl["Medical Credit Limit"]
+                    Else
+                      xcredamt = aColl["OPD Credit Limit"] * (1 - xpayval)
+                    Endif
+                  Case Else
+                    xcredamt = aColl["Medical Credit Limit"] * (1 - xpayval)
+                End Select
+              Else
+                xcredamt = aColl["Medical Credit Limit"]
+              Endif
 
               xmsg = [xcredamt, xexpdate, xpolicy]
               Break
@@ -260,14 +264,18 @@ Public Function CheckFixedIMISValues(encid As String, sClaimCode As String, Disc
               xpayval = 0
             Endif
 
-            Select res["fldstatus"]
-              Case "Emergency"
-                xcredamt = aColl["Medical Credit Limit"]
-              Case "Patient Ward"
-                xcredamt = aColl["Medical Credit Limit"] * (1 - xpayval)
-              Case "Consultation"
-                xcredamt = aColl["OPD Credit Limit"] * (1 - xpayval)
-            End Select
+            If aColl["Policy Name"] = "HIB-3500" Then
+              Select res["fldstatus"]
+                Case "Emergency"
+                  xcredamt = aColl["Medical Credit Limit"]
+                Case "Patient Ward"
+                  xcredamt = aColl["Medical Credit Limit"] * (1 - xpayval)
+                Case "Consultation"
+                  xcredamt = aColl["OPD Credit Limit"] * (1 - xpayval)
+              End Select
+            Else
+              xcredamt = aColl["Medical Credit Limit"]
+            Endif
 
             xmsg = [xcredamt, xexpdate, xpolicy]
             Break

@@ -5,6 +5,7 @@ Export
 ''NEED TO DO: $ sudo mkdir /var/www/html/docs
 ''NEED TO DO: $ sudo chmod -R a+rwx /var/www/html/docs
 
+Private $AppType As String = "Complaint" '"Staff","Portal","Complaint"
 Private $URL As String
 Private $AppName As String
 
@@ -26,6 +27,9 @@ Public Sub _new()
   Dim xref As String
   Dim xhash As String
 
+  Dim hForm As FmSetSqlite
+  Dim xver As String
+
   Me.AddHeader("<meta name='viewport' content='width=device-width, initial-scale=1'>")
   Me.AddJavascriptFile("js/toastify.js")
   modPatPortal.$PaymentReferred = CGI["HTTP_REFERER"]
@@ -33,7 +37,6 @@ Public Sub _new()
   modHelpVariable.MakeWorkingDir()
   modHelpVariable.CreateWorkingDir()
   modHelpVariable.SetAppConfigFile()
-
   PictureBox1.Image = modPrint.GetFixedWebURL("/etc" &/ Application.Name &/ "header-logo.png")
 
   If InStr(xx, "?") > 0 Then
@@ -62,15 +65,25 @@ Public Sub _new()
     Endif
   Endif
 
-  If xhash Then
-    $sRefer = xref
-    $sHash = xhash
+  If Not Exist(modHelpVariable.$SysConfigPath) Then
+    pnlextra.Visible = True
     WebContainer2.Visible = False
-    WebVBox2.Visible = False
-    WebHtml2.Text = modPatPortal.$PaymentReferred
+    modHelpVariable.$FIrstTimeSetting = True
+    WebForm.Debug = True
+    hForm = New FmSetSqlite(pnlextra)
+
   Else
-    WebContainer18.Visible = False
-    WebContainer15.Visible = False
+    pnlextra.Visible = False
+    If xhash Then
+      $sRefer = xref
+      $sHash = xhash
+      WebContainer2.Visible = False
+      WebVBox2.Visible = False
+      WebHtml2.Text = modPatPortal.$PaymentReferred
+    Else
+      WebContainer18.Visible = False
+      WebContainer15.Visible = False
+    Endif
   Endif
 
 End
@@ -89,22 +102,36 @@ Public Sub btnOK_Click()
   If modDatabase.$myConn.Opened = True Then
     modHelpVariable.$localIP = CGI["REMOTE_ADDR"] & ":" & CGI["REMOTE_PORT"]
 
-    res2 = modDatabase.$myConn.Exec("select fldpatientval,fldptnamefir,fldemail from tblremoteusers where fldusrcode=&1 and fldpassword=&2 and fldstatus=&3", Trim(txtuser.text), modPassword.EncryptSimple(txtpass.Text), "Active")
+    Select $AppType
+      Case "Staff", "Portal"
+        res2 = modDatabase.$myConn.Exec("select fldpatientval,fldptnamefir,fldemail from tblremoteusers where fldusrcode=&1 and fldpassword=&2 and fldstatus=&3", Trim(txtuser.text), modPassword.EncryptSimple(txtpass.Text), "Active")
+      Case "Complaint"
+        res2 = modDatabase.$myConn.Exec("select fldusrcode,fldptnamefir,fldemail from tblcomplaintusers where fldusrcode=&1 and fldpassword=&2 and fldstatus=&3", Trim(txtuser.text), modPassword.EncryptSimple(txtpass.Text), "Active")
+    End Select
     If res2.Available = False Then
       Me.Exec("Toastify({text: 'Incorrect User or Password', duration: 3000}).showToast()")
     Else
       MMain.InitialAppMode()
-      modBasic.$lbluser = res2["fldpatientval"]
       If Not modBasic.$compID Then
         modBasic.$compID = "Portal"
       Endif
-      modHelpVariable.SetApplicationGUI()
       If modBasic.$LocalTableCaching = "Disable" Then
       Else
         ''table cache
       Endif
-      WebForm.Current = fmRemotePage
-      ' WebForm.Current = fmRemoteStaff
+      Select $AppType
+        Case "Staff"
+          modBasic.$lbluser = res2["fldpatientval"]
+          modHelpVariable.SetApplicationGUI()
+          WebForm.Current = fmRemoteStaff
+        Case "Portal"
+          modBasic.$lbluser = res2["fldpatientval"]
+          modHelpVariable.SetApplicationGUI()
+          WebForm.Current = fmRemotePage
+        Case "Complaint"
+          modBasic.$lbluser = res2["fldusrcode"]
+          WebForm.Current = fmPublicPage
+      End Select
     Endif
   Endif
 
@@ -117,8 +144,13 @@ Public Sub btnCreate_Click()
   modHelpVariable.CalenderConnection()
   modGeneralMain.EnableCollectionCache()
   modTableCache.InitializeTableCache()
-  WebForm.Current = fmVerifyEmail
-  ' WebForm.Current = fmVerifyStaff
+  If $AppType = "Staff" Then
+    WebForm.Current = fmVerifyStaff
+  Else If $AppType = "Portal" Then
+    WebForm.Current = fmVerifyEmail
+  Else If $AppType = "Complaint" Then
+    WebForm.Current = fmVerifyPublic
+  Endif
 
 End
 
