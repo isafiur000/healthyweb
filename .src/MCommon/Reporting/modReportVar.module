@@ -648,9 +648,8 @@ Public Function GetPatientVariableValue(sVariable As String, encid As String) As
   Dim xval As Variant
 
   xval = GetPatientVarValue(sVariable, encid)
-  If Not xval Then
-    xval = GetCalcValue(sVariable, encid)
-  Endif
+  xval = GetCalcValue(xval, encid)
+
   Return xval
 
 End
@@ -901,11 +900,8 @@ Public Function GetReportNumber($encid As String, $Line As String) As String
 
 End
 
-Public Function GetCalcValue(sVariable As String, encid As String) As String
+Public Function GetCalcValue(sLine As String, encid As String) As String
 
-  Dim sLine As String
-
-  sLine = sVariable
   If (String.InStr(sLine, "AgeInDays") > 0) Then
     sLine = Replace(sLine, "{AgeInDays}", CStr(DateDiff(modPatient.GetPatientBirthDay(encid), Now(), gb.Day)))
   Endif
@@ -1580,9 +1576,32 @@ Public Function GetReportLastConsult($encid As String, $Line As String) As Strin
 
 End
 
-Public Function GetReportCurrConsult($encid As String, $Line As String, VarIndex As Long) As String
+''consultation
+Public Function GetReportCurrConsult($encid As String, $Line As String, Optional VarIndex As Long) As String
 
-  ''consultation
+  Dim xx As String
+  Dim xstr As String
+  Dim xIndLst As Long[]
+  Dim xindex As Long
+
+  If VarIndex Then
+    xx = GetReportCurrConsultData($encid, $Line, VarIndex)
+  Else
+    xstr = modString.GetSelectedTextBetween($Line, "<Consultation>", "</Consultation>")
+    If xstr Then
+      xIndLst = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec("select fldid as col from tblconsult where fldencounterval=&1", $encid))
+      If xIndLst And If xIndLst.Count Then
+        For Each xindex In xIndLst
+          xx = GetReportCurrConsultData($encid, xstr, xindex) & gb.NewLine
+        Next
+      Endif
+    Endif
+  Endif
+
+End
+
+Private Function GetReportCurrConsultData($encid As String, $Line As String, VarIndex As Long) As String
+
   If (String.InStr($Line, "CurrConsultDept") > 0) Then
     $Line = Replace($Line, "{CurrConsultDept}", GetSelectedValue("tblconsult", "fldconsultname", "fldid", VarIndex, $encid))
   Endif
@@ -1615,9 +1634,32 @@ Public Function GetReportCurrConsult($encid As String, $Line As String, VarIndex
 
 End
 
-Public Function GetReportCurrOPVisit($encid As String, $Line As String, VarIndex As Long) As String
+''OP Visit
+Public Function GetReportCurrOPVisit($encid As String, $Line As String, Optional VarIndex As Long) As String
 
-  ''OP Visit
+  Dim xx As String
+  Dim xstr As String
+  Dim xIndLst As Long[]
+  Dim xindex As Long
+
+  If VarIndex Then
+    xx = GetReportCurrOPVisitData($encid, $Line, VarIndex)
+  Else
+    xstr = modString.GetSelectedTextBetween($Line, "<OPVisit>", "</OPVisit>")
+    If xstr Then
+      xIndLst = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec("select fldid as col from tblopvisit where fldencounterval=&1", $encid))
+      If xIndLst And If xIndLst.Count Then
+        For Each xindex In xIndLst
+          xx = GetReportCurrOPVisitData($encid, xstr, xindex) & gb.NewLine
+        Next
+      Endif
+    Endif
+  Endif
+
+End
+
+Private Function GetReportCurrOPVisitData($encid As String, $Line As String, VarIndex As Long) As String
+
   If (String.InStr($Line, "CurrConsultDept") > 0) Then
     $Line = Replace($Line, "{CurrConsultDept}", GetSelectedValue("tblopvisit", "fldconsultname", "fldid", VarIndex, $encid))
   Endif
@@ -1688,7 +1730,32 @@ Public Function GetReportBirthDetail($encid As String, $Line As String) As Strin
 End
 
 ''used for procedure report custom report
-Public Function GetReportProcedureDetail($encid As String, $Line As String, sid As Long) As String
+Public Function GetReportProcedureDetail($encid As String, $Line As String, Optional sid As Long) As String
+
+  Dim xx As String
+  Dim xstr As String
+  Dim xIndLst As Long[]
+  Dim xindex As Long
+
+  If sid Then
+    xx = GetReportProcedureString($encid, $Line, sid)
+  Else
+    xstr = modString.GetSelectedTextBetween($Line, "<Procedure>", "</Procedure>")
+    If xstr Then
+      xIndLst = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec("select fldid as col from tblpatgeneral where fldencounterval=&1 and fldinput=&2", $encid, "Procedures"))
+      If xIndLst And If xIndLst.Count Then
+        For Each xindex In xIndLst
+          xx = GetReportProcedureString($encid, xstr, xindex) & gb.NewLine
+        Next
+      Endif
+    Endif
+  Endif
+
+  Return xx
+
+End
+
+Private Function GetReportProcedureString($encid As String, $Line As String, sid As Long) As String
 
   If (String.InStr($Line, "Procedure_Status") > 0) Then
     $Line = Replace($Line, "{Procedure_Status}", GetLastProcedureValue($encid, sid, "fldreportquali"))

@@ -101,7 +101,11 @@ Public Sub WebTable1_Select()
     txtnoteid.Value = $rData["fldid"]
     cmbcategory.Text = $rData["flditem"]
     txtimpression.Text = $rData["fldreportquali"]
-    txtnote.RichText = $rData["flddetail"]
+    If modString.GetRichTextMode($rData["flddetail"]) = True Then
+      txtnote.Text = modString.ConvertRichTextToPlain($rData["flddetail"])
+    Else
+      txtnote.Text = $rData["flddetail"]
+    Endif
     lblnoteuser.Text = modGeneral.GetUserFullName($rData["flduserid"]) & " [" & modReportVar.GetDateTimeReport($rData["fldtime"], gb.GeneralDate) & "]"
 
     If $categList.Exist($rData["flditem"]) Then
@@ -117,28 +121,28 @@ End
 Public Sub btnpannote_Click()
 
   If cmbcategory.Text Then
-    txtnote.RichText = txtnote.RichText & Space(1) & modFillContainer.GetExtraTextArea(cmbcategory.Text, txtnote.Text)
+    txtnote.Text = txtnote.Text & Space(1) & modFillContainer.GetExtraTextArea(cmbcategory.Text, txtnote.Text)
   Endif
 
 End
 
 Public Sub btnexecnote_Click()
 
-  txtnote.RichText = txtnote.RichText & modString.TextToHTML(modCloudAI.GetPatCloudAIResponse($encid, txtnote.Text))
+  txtnote.Text = txtnote.Text & modString.TextToHTML(modCloudAI.GetPatCloudAIResponse($encid, txtnote.Text))
 
 End
 
 Public Sub btnattnote_Click()
 
   If cmbcategory.Text Then
-    txtnote.RichText = txtnote.RichText & DictionaryVIew(cmbcategory.Text)
+    txtnote.Text = txtnote.Text & DictionaryVIew(cmbcategory.Text)
   Endif
 
 End
 
 Public Sub btnclear_Click()
 
-  txtnote.RichText = ""
+  txtnote.Text = ""
 
 End
 
@@ -146,7 +150,7 @@ Public Sub btnoteadd_Click()
 
   If cmbcategory.Text Then
     If txtnote.Text Then
-      modPatientGeneral.AddPatientParagraph($encid, "Notes", cmbcategory.Text, txtimpression.Text, txtnote.RichText, False)                ''
+      modPatientGeneral.AddPatientParagraph($encid, "Notes", cmbcategory.Text, txtimpression.Text, txtnote.Text, False)                ''
       Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
       ShowNoteGrid()
     Endif
@@ -157,7 +161,7 @@ End
 Public Sub btnotedit_Click()
 
   If txtnoteid.Value Then
-    modPatientGeneral.UpdatePatNoteQualiData(txtnoteid.Value, $encid, cmbcategory.Text, txtimpression.Text, txtnote.RichText)
+    modPatientGeneral.UpdatePatNoteQualiData(txtnoteid.Value, $encid, cmbcategory.Text, txtimpression.Text, txtnote.Text)
     Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
     ShowNoteGrid()
   Endif

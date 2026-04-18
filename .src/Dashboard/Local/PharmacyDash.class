@@ -2,13 +2,23 @@
 
 Export
 
-Private $sTable As String
 Private $wdFactor As Float
 
 Private $Headers As String[]
+Private xGridVar1 As Variant[]
+Private xGridVar2 As Variant[]
+Private xGridVar3 As Variant[]
+
 Private $GridVar1 As Variant[]
 Private $GridVar2 As Variant[]
 Private $GridVar3 As Variant[]
+
+Private $grdInit1 As Integer
+Private $grdInit2 As Integer
+Private $grdInit3 As Integer
+Private $grdTot1 As Integer
+Private $grdTot2 As Integer
+Private $grdTot3 As Integer
 
 Static Public Sub _init()
 
@@ -19,13 +29,12 @@ End
 
 Public Sub _new()
 
-  Dim xdef As String
   Dim xwid As String
   Dim xfont As String
 
   Me.AddHeader("<meta name='viewport' content='width=device-width, initial-scale=1'>")
   Me.AddHeader("<link rel=\"stylesheet\" href=\"" & modPrint.GetHTTPReferer() & "://" & modHelpVariable.$HostPath & "/css/" & Application.Name & ".css" & "\">")
-  Me.AddJavascriptFile("js/jquery.min.js")
+  ' Me.AddJavascriptFile("js/jquery.min.js")
   Me.AddJavascriptFile("js/webcontrols.js")
   WebForm.Debug = True
 
@@ -102,7 +111,14 @@ Public Sub btnrefresh_Click()
         Timer1.Enabled = False
       Endif
     Endif
+    Try modDatabase.$syConn.Close()
   Endif
+
+End
+
+Public Sub WebTimer1_Timer()
+
+  txttimer.Text = Format(Time(Now()), "hh:nn:ss")
 
 End
 
@@ -112,6 +128,36 @@ Public Sub Timer1_Timer()
     If cmbdepart.Text Then
       FillBedGrid()
     Endif
+
+  Else
+
+    Select Second(Now())
+      Case 9, 19, 29, 39, 49, 59
+        If xGridVar1.Count Then
+          If ($grdInit1 + 1) >= $grdTot1 Then
+            $grdInit1 = 0
+          Endif
+          GetGridViewOne(xGridVar1, $grdInit1, $grdInit1 + spncolumn1.Value)
+          $grdInit1 = $grdInit1 + spncolumn1.Value
+        Endif
+
+        If xGridVar2.Count Then
+          If ($grdInit2 + 1) >= $grdTot2 Then
+            $grdInit2 = 0
+          Endif
+          GetGridViewTwo(xGridVar2, $grdInit2, $grdInit2 + spncolumn2.Value)
+          $grdInit2 = $grdInit2 + spncolumn2.Value
+        Endif
+
+        If xGridVar3.Count Then
+          If ($grdInit3 + 1) >= $grdTot3 Then
+            $grdInit3 = 0
+          Endif
+          GetGridViewThree(xGridVar3, $grdInit3, $grdInit3 + spncolumn3.Value)
+          $grdInit3 = $grdInit3 + spncolumn3.Value
+        Endif
+    End Select
+
   Endif
 
 End
@@ -147,13 +193,13 @@ Private Sub FillBedGrid()
   Dim res1 As Result
   Dim res2 As Result
   Dim res3 As Result
+  Dim i As Integer
+  Dim j As Integer
+  Dim k As Integer
 
-  Dim xGridVar1 As Variant[]
-  Dim xGridVar2 As Variant[]
-  Dim xGridVar3 As Variant[]
   Dim sColl As Collection
 
-  $Headers = ["Particular", "Price"]
+  $Headers = ["Particular", "Price", "Index"]
   If cmbleftrow.Text = "Medicines" And If cmbmidrow.Text = "Medicines" And If cmbrightrow.Text = "Medicines" Then
     res1 = GetSelectedResult("Medicines", ["oral", "liquid"])
     res2 = GetSelectedResult("Medicines", ["injection", "fluid"])
@@ -164,63 +210,116 @@ Private Sub FillBedGrid()
     res3 = GetSelectedResult("Surgicals", ["msurg"])
   Endif
 
+  i = 0
   xGridVar1 = New Variant[]
   If res1.Available Then
+    $grdTot1 = res1.Count
+    $grdInit1 = 0
     For Each res1
       sColl = New Collection
       sColl.Add(res1["fldstockid"], $Headers[0])
       sColl.Add(res1["fldsellpr"], $Headers[1])
+      sColl.Add(i, $Headers[2])
       xGridVar1.Add(sColl)
+      i = i + 1
     Next
   Endif
 
+  j = 0
   xGridVar2 = New Variant[]
   If res2.Available Then
+    $grdTot2 = res2.Count
+    $grdInit2 = 0
     For Each res2
       sColl = New Collection
       sColl.Add(res2["fldstockid"], $Headers[0])
       sColl.Add(res2["fldsellpr"], $Headers[1])
+      sColl.Add(j, $Headers[2])
       xGridVar2.Add(sColl)
+      j = j + 1
     Next
   Endif
 
+  k = 0
   xGridVar3 = New Variant[]
   If res3.Available Then
+    $grdTot3 = res3.Count
+    $grdInit3 = 0
     For Each res3
       sColl = New Collection
       sColl.Add(res3["fldstockid"], $Headers[0])
       sColl.Add(res3["fldsellpr"], $Headers[1])
+      sColl.Add(k, $Headers[2])
       xGridVar3.Add(sColl)
+      k = k + 1
     Next
   Endif
 
-  GetGridViewOne(xGridVar1)
-  GetGridViewTwo(xGridVar2)
-  GetGridViewThree(xGridVar3)
-
 End
 
-Private Sub GetGridViewOne(xGridVar As Variant[])
+Private Sub GetGridViewOne(xGridVar As Variant[], xStart As Integer, sEnd As Integer)
 
-  $GridVar1 = xGridVar
+  Dim xVarLst As Variant[]
+  Dim xVar As Variant
+  Dim sColl As Collection
+
+  xVarLst = New Variant[]
+  For Each xVar In xGridVar
+    sColl = xVar
+    If sColl["Index"] <= xGridVar.Count - 1
+      If sColl["Index"] >= xStart And If sColl["Index"] < sEnd Then
+        xVarLst.Add(sColl)
+      Endif
+    Endif
+  Next
+
+  $GridVar1 = xVarLst
   GridView1.Count = $GridVar1.Count
   GridView1.Columns.Count = $Headers.Count
   ResizeGrid(GridView1)
 
 End
 
-Private Sub GetGridViewTwo(xGridVar As Variant[])
+Private Sub GetGridViewTwo(xGridVar As Variant[], xStart As Integer, sEnd As Integer)
 
-  $GridVar2 = xGridVar
+  Dim xVarLst As Variant[]
+  Dim xVar As Variant
+  Dim sColl As Collection
+
+  xVarLst = New Variant[]
+  For Each xVar In xGridVar
+    sColl = xVar
+    If sColl["Index"] <= xGridVar.Count - 1
+      If sColl["Index"] >= xStart And If sColl["Index"] < sEnd Then
+        xVarLst.Add(sColl)
+      Endif
+    Endif
+  Next
+
+  $GridVar2 = xVarLst
   GridView2.Count = $GridVar2.Count
   GridView2.Columns.Count = $Headers.Count
   ResizeGrid(GridView2)
 
 End
 
-Private Sub GetGridViewThree(xGridVar As Variant[])
+Private Sub GetGridViewThree(xGridVar As Variant[], xStart As Integer, sEnd As Integer)
 
-  $GridVar3 = xGridVar
+  Dim xVarLst As Variant[]
+  Dim xVar As Variant
+  Dim sColl As Collection
+
+  xVarLst = New Variant[]
+  For Each xVar In xGridVar
+    sColl = xVar
+    If sColl["Index"] <= xGridVar.Count - 1
+      If sColl["Index"] >= xStart And If sColl["Index"] < sEnd Then
+        xVarLst.Add(sColl)
+      Endif
+    Endif
+  Next
+
+  $GridVar3 = xVarLst
   GridView3.Count = $GridVar3.Count
   GridView3.Columns.Count = $Headers.Count
   ResizeGrid(GridView3)
@@ -232,6 +331,7 @@ Private Sub ResizeGrid(xGridView As WebTable)
   With xGridView
     .Columns[0].Expand = True
     .Columns[1].Width = CStr(75 * $wdFactor) & "px"
+    .Columns[2].Hidden = True
 
     .Columns[0].Text = $Headers[0]
     .Columns[1].Text = $Headers[1]
