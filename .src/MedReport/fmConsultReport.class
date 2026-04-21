@@ -1,5 +1,6 @@
 ' Gambas class file
 
+Private $table As String
 Private $rData As Result
 Private $aMyFields As String[]
 Private $SSQLFields As String[]
@@ -8,9 +9,18 @@ Private $ColCount As Integer
 Private $newColumn As String[]
 Private $RepoStr As String
 
-Public Sub _new()
+Public Sub _new(sTable As String)
 
   Dim xhospfld As String
+
+  $table = sTable
+  If $table = "tblconsult" Then
+    Me.Tag = "Consult Report"
+    Me.Title = "Consultation Report"
+  Else If $table = "tblopvisit" Then
+    Me.Tag = "OP Visit Report"
+    Me.Title = "OP Services Report"
+  Endif
 
   If MMain.$WebReport = "Multiple" Then
     If modBasic.$HospCode Then
@@ -31,8 +41,12 @@ Public Sub _new()
     pnlocat.Visible = False
   Endif
 
-  cmbcolumn.List = ["Surname", "Ethnic Group", "Municipality", "Package", "Visit Type", "Visit Mode", "Location"]
-  cmbdepart.List = modGeneral.GetDepartForConsultOnly()
+  cmbcolumn.List = ["Surname", "Ethnic Group", "District", "Municipality", "Package", "Visit Type", "Visit Mode", "Location"]
+  If $table = "tblconsult" Then
+    cmbdepart.List = modGeneral.GetDepartForConsultOnly()
+  Else If $table = "tblopvisit" Then
+    cmbdepart.List = modGeneral.GetDepartForOPVisitOnly()
+  Endif
   cmbdepart.Add("%")
   cmbdepart.Text = "%"
   cmbbillmode.List = modNonMedical.FillCashModeCombo()
@@ -40,15 +54,18 @@ Public Sub _new()
   cmbbillmode.Text = "%"
   cmbgender.List = ["Male", "Female", "Other", "%"]
   cmbgender.Text = "%"
-  cmbdistrict.List = modBasic.$DistrictList
-  cmbdistrict.Add("%")
-  cmbdistrict.Text = "%"
+  cmboutcome.List = ["Admission", "Follow Up", "Referred", "LAMA", "Death", "Discharged", "Completed", "%"]
+  cmboutcome.Text = "%"
 
   dtfir.Value = Now()
   dtlast.Value = Now()
 
   xhospfld = modDataRepo.HospitalField()
-  $SSQLFields = ["fldid", "fldencounterval", "fldencounterval", modDataRepo.SerialField(), "fldencounterval", "fldencounterval", "fldconsulttime", "fldconsultname", "fldoutcome", "fldnotice", "flduserid", "fldstatus", "fldid", "fldpresummary", "fldsummary"]
+  If $table = "tblconsult" Then
+    $SSQLFields = ["fldid", "fldencounterval", "fldencounterval", modDataRepo.SerialField(), "fldencounterval", "fldencounterval", "fldconsulttime", "fldconsultname", "fldoutcome", "fldnotice", "flduserid", "fldstatus", "fldid", "fldpresummary", "fldsummary"]
+  Else If $table = "tblopvisit" Then
+    $SSQLFields = ["fldid", "fldencounterval", "fldencounterval", modDataRepo.SerialField(), "fldencounterval", "fldencounterval", "fldconsulttime", "fldconsultname", "fldoutcome", "fldnotice", "fldflaguser", "fldstatus", "fldid", "fldpresummary", "fldsummary"]
+  Endif
   If xhospfld Then
     $SSQLFields.Add(xhospfld)
   Endif
@@ -59,6 +76,22 @@ End
 Public Sub WebForm_Open()
 
   modGeneralMain.RecordFormUse(Me)
+
+End
+
+Public Sub cmbcolumn_Click()
+
+  If cmbcolumn.Text = "District" Then
+    txtoption.List = modBasic.$DistrictList
+  Else If cmbcolumn.Text = "Municipality" Then
+    txtoption.List = modBasic.$MunicipalList
+  Else If cmbcolumn.Text = "Package" Then
+    txtoption.List = modNonMedical.FillDiscountCombo()
+  Else If cmbcolumn.Text = "Visit Type" Then
+    txtoption.List = ["NEW", "OLD"]
+  Else If cmbcolumn.Text = "Visit Mode" Then
+    txtoption.List = ["New", "Follow-up"]
+  Endif
 
 End
 
@@ -146,7 +179,7 @@ Public Sub mnusearch_Click()
   SetRepoStr()
   If encid Then
     xFldList = GetSQLColumns()
-    sql = "select " & xFldList.Join(",") & " from tblconsult where fldencounterval=&1" & $RepoStr
+    sql = "select " & xFldList.Join(",") & " from " & $table & " where fldencounterval=&1" & $RepoStr
     $rData = modDatabase.$syConn.Exec(sql, encid)
     FillPatientGrid()
   Endif
@@ -163,7 +196,7 @@ Public Sub mnusearname_Click()
   SetRepoStr()
   If xname Then
     xFldList = GetSQLColumns()
-    sql = "select " & xFldList.Join(",") & " from tblconsult where fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where lower(fldptnamefir) like &1 and lower(fldptnamelast) like &2))" & $RepoStr
+    sql = "select " & xFldList.Join(",") & " from " & $table & " where fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where lower(fldptnamefir) like &1 and lower(fldptnamelast) like &2))" & $RepoStr
     $rData = modDatabase.$syConn.Exec(sql, LCase(xname[0]), LCase(xname[1]))
     FillPatientGrid()
   Endif
@@ -200,36 +233,56 @@ Private Function ExecuteQuery(xFldList As String[], Optional sGroup As String) A
     Else
       xquery = ""
     Endif
-    sql = "select " & xFldList.Join(",") & " from tblconsult where fldconsulttime>=&1 and fldconsulttime<=&2" & xquery & $RepoStr & xgroup
+    sql = "select " & xFldList.Join(",") & " from " & $table & " where fldconsulttime>=&1 and fldconsulttime<=&2" & xquery & $RepoStr & xgroup
     sResult = modDatabase.$syConn.Exec(sql, modDate.StartSqlDate(dtfir.value), modDate.EndSqlDate(dtlast.value))
-
   Else
-    If txtval2.Value Then
-      xdtstr = modMedReports.GetAgeStringByTable("tblconsult", modDatabase.$syConn)
-      agestr = " and " & xdtstr & ">=&8 and " & xdtstr & "<&9"
+
+    If cmbgender.Text Or If txtval2.Value Then
+      agestr = "and fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where"
+      If cmbgender.Text And If txtval2.Value Then
+        xdtstr = modMedReports.GetAgeStringByTable($table, modDatabase.$syConn)
+        agestr = agestr & db.Subst(" fldptsex like &1 and " & xdtstr & ">=&2 and " & xdtstr & "<&3))", cmbgender.Text, 365 * txtval1.Value, 365 * txtval2.Value)
+      Else
+        If cmbgender.Text Then
+          agestr = agestr & db.Subst(" fldptsex like &1))", cmbgender.Text)
+        Endif
+        If txtval2.Value Then
+          xdtstr = modMedReports.GetAgeStringByTable($table, modDatabase.$syConn)
+          agestr = agestr & db.Subst(" and " & xdtstr & ">=&1 and " & xdtstr & "<&2))", 365 * txtval1.Value, 365 * txtval2.Value)
+        Endif
+      Endif
     Else
       agestr = ""
     Endif
+
     If Not cmbcolumn.Text Then
-      If cmbdistrict.Text = "%" Then
+      If cmboutcome.Text = "%" Then
         If btnconsult.Tag Then
-          sql = "select " & xFldList.Join(",") & " from tblconsult where fldconsulttime>=&1 and fldconsulttime<=&2 and fldconsultname like &3 and fldbillingmode like &4 and fldstatus<> &5 and flduserid like &6 and fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &7" & agestr & "))" & $RepoStr & xgroup
+          If $table = "tblconsult" Then
+            sql = "select " & xFldList.Join(",") & " from " & $table & " where fldconsulttime>=&1 and fldconsulttime<=&2 and fldconsultname like &3 and fldbillingmode like &4 and fldstatus<>&5 and flduserid like &6" & agestr & $RepoStr & xgroup
+          Else If $table = "tblopvisit" Then
+            sql = "select " & xFldList.Join(",") & " from " & $table & " where fldconsulttime>=&1 and fldconsulttime<=&2 and fldconsultname like &3 and fldbillingmode like &4 and fldstatus<>&5 and fldflaguser like &6" & agestr & $RepoStr & xgroup
+          Endif
         Else
-          sql = "select " & xFldList.Join(",") & " from tblconsult where fldconsulttime>=&1 and fldconsulttime<=&2 and fldconsultname like &3 and fldbillingmode like &4 and fldstatus<> &5 and fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &7" & agestr & "))" & $RepoStr & xgroup
+          sql = "select " & xFldList.Join(",") & " from " & $table & " where fldconsulttime>=&1 and fldconsulttime<=&2 and fldconsultname like &3 and fldbillingmode like &4 and fldstatus<>&5" & agestr & $RepoStr & xgroup
         Endif
       Else
         If btnconsult.Tag Then
-          sql = "select " & xFldList.Join(",") & " from tblconsult where fldconsulttime>=&1 and fldconsulttime<=&2 and fldconsultname like &3 and fldbillingmode like &4 and fldstatus<> &5 and flduserid like &6 and fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &7" & agestr & " and fldptadddist like &{10}))" & $RepoStr & xgroup                                                  ''
+          If $table = "tblconsult" Then
+            sql = "select " & xFldList.Join(",") & " from " & $table & " where fldconsulttime>=&1 and fldconsulttime<=&2 and fldconsultname like &3 and fldbillingmode like &4 and fldstatus<>&5 and flduserid like &6 and fldoutcome=&7" & agestr & $RepoStr & xgroup                                                  ''
+          Else If $table = "tblopvisit" Then
+            sql = "select " & xFldList.Join(",") & " from " & $table & " where fldconsulttime>=&1 and fldconsulttime<=&2 and fldconsultname like &3 and fldbillingmode like &4 and fldstatus<>&5 and fldflaguser like &6 and fldoutcome=&7" & agestr & $RepoStr & xgroup
+          Endif
         Else
-          sql = "select " & xFldList.Join(",") & " from tblconsult where fldconsulttime>=&1 and fldconsulttime<=&2 and fldconsultname like &3 and fldbillingmode like &4 and fldstatus<> &5 and fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &7" & agestr & " and fldptadddist like &{10}))" & $RepoStr & xgroup
+          sql = "select " & xFldList.Join(",") & " from " & $table & " where fldconsulttime>=&1 and fldconsulttime<=&2 and fldconsultname like &3 and fldbillingmode like &4 and fldstatus<>&5 and fldoutcome=&7" & agestr & $RepoStr & xgroup
         Endif
       Endif
-      sResult = modDatabase.$syConn.Exec(sql, modDate.StartSqlDate(dtfir.value), modDate.EndSqlDate(dtlast.value), cmbdepart.Text, cmbbillmode.Text, "Cancelled", btnconsult.Tag, cmbgender.Text, 365 * txtval1.Value, 365 * txtval2.Value, cmbdistrict.Text)
-
+      sResult = modDatabase.$syConn.Exec(sql, modDate.StartSqlDate(dtfir.value), modDate.EndSqlDate(dtlast.value), cmbdepart.Text, cmbbillmode.Text, "Cancelled", btnconsult.Tag, cmboutcome.Text)
     Else
+
       xfld = modMedReports.GetColumnEncounter(cmbcolumn.Text)
       Select cmbcolumn.Text
-        Case "Surname", "Ethnic Group", "Municipality"
+        Case "Surname", "Ethnic Group", "Municipality", "District"
           xstr = " and fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where " & xfld & " like &{11}))"
         Case "Package", "Visit Type", "Visit Mode"
           xstr = " and fldencounterval in(select fldencounterval from tblencounter where " & xfld & " like &{11})"
@@ -239,20 +292,28 @@ Private Function ExecuteQuery(xFldList As String[], Optional sGroup As String) A
           xstr = ""
       End Select
 
-      If cmbdistrict.Text = "%" Then
+      If cmboutcome.Text = "%" Then
         If btnconsult.Tag Then
-          sql = "select " & xFldList.Join(",") & " from tblconsult where fldconsulttime>=&1 and fldconsulttime<=&2 and fldconsultname like &3 and fldbillingmode like &4 and fldstatus<> &5 and flduserid like &6 and fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &7" & agestr & "))" & xstr & $RepoStr & xgroup
+          If $table = "tblconsult" Then
+            sql = "select " & xFldList.Join(",") & " from " & $table & " where fldconsulttime>=&1 and fldconsulttime<=&2 and fldconsultname like &3 and fldbillingmode like &4 and fldstatus<>&5 and flduserid like &6" & agestr & xstr & $RepoStr & xgroup
+          Else If $table = "tblopvisit" Then
+            sql = "select " & xFldList.Join(",") & " from " & $table & " where fldconsulttime>=&1 and fldconsulttime<=&2 and fldconsultname like &3 and fldbillingmode like &4 and fldstatus<>&5 and fldflaguser like &6" & agestr & xstr & $RepoStr & xgroup
+          Endif
         Else
-          sql = "select " & xFldList.Join(",") & " from tblconsult where fldconsulttime>=&1 and fldconsulttime<=&2 and fldconsultname like &3 and fldbillingmode like &4 and fldstatus<> &5 and fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &7" & agestr & "))" & xstr & $RepoStr & xgroup
+          sql = "select " & xFldList.Join(",") & " from " & $table & " where fldconsulttime>=&1 and fldconsulttime<=&2 and fldconsultname like &3 and fldbillingmode like &4 and fldstatus<>&5" & agestr & xstr & $RepoStr & xgroup
         Endif
       Else
         If btnconsult.Tag Then
-          sql = "select " & xFldList.Join(",") & " from tblconsult where fldconsulttime>=&1 and fldconsulttime<=&2 and fldconsultname like &3 and fldbillingmode like &4 and fldstatus<> &5 and flduserid like &6 and fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &7" & agestr & " and fldptadddist like &{10}))" & xstr & $RepoStr & xgroup                                                 ''
+          If $table = "tblconsult" Then
+            sql = "select " & xFldList.Join(",") & " from " & $table & " where fldconsulttime>=&1 and fldconsulttime<=&2 and fldconsultname like &3 and fldbillingmode like &4 and fldstatus<>&5 and flduserid like &6 and fldoutcome=&7" & agestr & xstr & $RepoStr & xgroup                                                 ''
+          Else If $table = "tblopvisit" Then
+            sql = "select " & xFldList.Join(",") & " from " & $table & " where fldconsulttime>=&1 and fldconsulttime<=&2 and fldconsultname like &3 and fldbillingmode like &4 and fldstatus<>&5 and fldflaguser like &6 and fldoutcome=&7" & agestr & xstr & $RepoStr & xgroup
+          Endif
         Else
-          sql = "select " & xFldList.Join(",") & " from tblconsult where fldconsulttime>=&1 and fldconsulttime<=&2 and fldconsultname like &3 and fldbillingmode like &4 and fldstatus<> &5 and fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &7" & agestr & " and fldptadddist like &{10}))" & xstr & $RepoStr & xgroup
+          sql = "select " & xFldList.Join(",") & " from " & $table & " where fldconsulttime>=&1 and fldconsulttime<=&2 and fldconsultname like &3 and fldbillingmode like &4 and fldstatus<>&5 and fldoutcome=&7" & agestr & xstr & $RepoStr & xgroup
         Endif
       Endif
-      sResult = modDatabase.$syConn.Exec(sql, modDate.StartSqlDate(dtfir.value), modDate.EndSqlDate(dtlast.value), cmbdepart.Text, cmbbillmode.Text, "Cancelled", btnconsult.Tag, cmbgender.Text, 365 * txtval1.Value, 365 * txtval2.Value, cmbdistrict.Text, txtoption.Text)
+      sResult = modDatabase.$syConn.Exec(sql, modDate.StartSqlDate(dtfir.value), modDate.EndSqlDate(dtlast.value), cmbdepart.Text, cmbbillmode.Text, "Cancelled", btnconsult.Tag, cmboutcome.Text, txtoption.Text)
 
     Endif
   Endif
@@ -271,7 +332,7 @@ Private Function GetGridViewValue(Column As Integer, xVariable As Variant) As Va
   If Column = 2 Then
     xxx = modPatient.GetPatientNameByEnc(xVariable, modDatabase.$syConn)
   Else If Column = 3 Then
-    xxx = modMedReports.GetPatientPastAgeString("tblconsult", xVariable)
+    xxx = modMedReports.GetPatientPastAgeString($table, xVariable)
   Else If Column = 4 Then
     xxx = modPatient.GetPatientSex(xVariable, modDatabase.$syConn)
   Else If Column = 5 Then
@@ -847,7 +908,7 @@ Private Sub ShowSummReport(sField As String)
   SetRepoString()
   xdate = DoubleDates("Select Dates", "Consultation", [dtfir.Value, dtlast.Value])
   If xdate Then
-    xPath = modCHTMLDate.SummaryStatReport(modDatabase.$syConn, "tblconsult", modDataRepo.SerialField(), sField, "fldconsulttime", xdate[0], xdate[1], cmblocation.Text, cmbvalue.Text)
+    xPath = modCHTMLDate.SummaryStatReport(modDatabase.$syConn, $table, modDataRepo.SerialField(), sField, "fldconsulttime", xdate[0], xdate[1], cmblocation.Text, cmbvalue.Text)
     modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
   Endif
 
@@ -867,7 +928,11 @@ End
 
 Public Sub mnuconsult_Click()
 
-  ShowSummReport("flduserid")
+  If $table = "tblconsult" Then
+    ShowSummReport("flduserid")
+  Else If $table = "tblopvisit" Then
+    ShowSummReport("fldflaguser")
+  Endif
 
 End
 
@@ -897,7 +962,7 @@ Private Sub ShowSummDatewiseReport(sField As String)
   SetRepoString()
   xdate = DoubleDates("Select Dates", "Consultation", [dtfir.Value, dtlast.Value], 1)
   If xdate Then
-    xPath = modCHTMLDate.SummaryStatDateWiseReport(modDatabase.$syConn, "tblconsult", modDataRepo.SerialField(), sField, "fldconsulttime", xdate[0], xdate[1], cmblocation.Text, cmbvalue.Text)
+    xPath = modCHTMLDate.SummaryStatDateWiseReport(modDatabase.$syConn, $table, modDataRepo.SerialField(), sField, "fldconsulttime", xdate[0], xdate[1], cmblocation.Text, cmbvalue.Text)
     modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
   Endif
 
@@ -917,7 +982,11 @@ End
 
 Public Sub mnudtconsult_Click()
 
-  ShowSummDatewiseReport("flduserid")
+  If $table = "tblconsult" Then
+    ShowSummDatewiseReport("flduserid")
+  Else If $table = "tblopvisit" Then
+    ShowSummDatewiseReport("fldflaguser")
+  Endif
 
 End
 

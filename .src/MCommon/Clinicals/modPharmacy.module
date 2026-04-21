@@ -234,11 +234,16 @@ Public Function NurDosingString(encid As String) As String
   Dim i As Integer
   Dim xRowVal As Collection
   Dim colLst As String[] = ["", "Medicine", "Regimen", "Count"]
+  Dim xrouLst As String[] = ["fluid", "CIV", "CIn(Epid)", "CIn(Block)"]
+  Dim j As Integer
 
+  For j = 0 To xrouLst.Count - 1
+    xrouLst[j] = "'" & xrouLst[j] & "'"
+  Next
   xFinal = New Variant[]
 
   regm = New String[]
-  rs = modDatabase.$myConn.Exec("select fldroute,flditem,flddose,fldfreq from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and (fldstatus=&3 or fldstatus=&4 or fldstatus=&5) and flddose>&6 GROUP BY fldroute,flditem,flddose,fldfreq", encid, "Medicines", "Registered", "Admitted", "Recorded", 0)
+  rs = modDatabase.$myConn.Exec("select fldroute,flditem,flddose,fldfreq from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and (fldstatus=&3 or fldstatus=&4 or fldstatus=&5) and flddose>&6 and fldroute NOT IN(" & xrouLst.Join(",") & ") GROUP BY fldroute,flditem,flddose,fldfreq", encid, "Medicines", "Registered", "Admitted", "Recorded", 0)
   If rs.Available Then
     For Each rs
       xval = rs["fldroute"] & "|" & rs["flditem"] & "|" & rs["flddose"] & "|" & rs["fldfreq"]
@@ -272,6 +277,71 @@ Public Function NurDosingString(encid As String) As String
         xRowVal.Add(CStr(tot) & " dose", CStr(3))
         xFinal.Add(xRowVal)
         i = i + 1
+      Endif
+      sPt.Clear
+    Next
+
+    yy = modString.GetRichTableStringFromVariant(colLst, xFinal)
+  Endif
+
+  Return yy
+
+End
+
+Public Function NurInfusionString(encid As String) As String
+
+  Dim rs As Result
+  Dim res As Result
+  Dim xx As String
+  Dim yy As String
+  Dim regm As String[]
+  Dim sPt As String[]
+  Dim xval As String
+  Dim xFinal As Variant[]
+  Dim i As Integer
+  Dim xRowVal As Collection
+  Dim colLst As String[] = ["", "Medicine", "Route", "Rate", "Start", "Close"]
+  Dim xrouLst As String[] = ["fluid", "CIV", "CIn(Epid)", "CIn(Block)"]
+  Dim j As Integer
+
+  For j = 0 To xrouLst.Count - 1
+    xrouLst[j] = "'" & xrouLst[j] & "'"
+  Next
+  xFinal = New Variant[]
+
+  regm = New String[]
+  rs = modDatabase.$myConn.Exec("select fldroute,flditem,flddose,fldfreq from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and (fldstatus=&3 or fldstatus=&4 or fldstatus=&5) and flddose>&6 and fldroute IN(" & xrouLst.Join(",") & ") GROUP BY fldroute,flditem", encid, "Medicines", "Registered", "Admitted", "Recorded", 0)
+  If rs.Available Then
+    For Each rs
+      xval = rs["fldroute"] & "|" & rs["flditem"]
+      If regm.Count = 0 Then
+        regm.Add(xval)
+      Else
+        If regm.Exist(xval) = False
+          regm.Add(xval)
+        Endif
+      Endif
+    Next
+    If regm Then
+      regm.Sort()
+    Endif
+
+    i = 1
+    For Each xx In regm
+      sPt = Split(xx, "|")
+      res = modDatabase.$myConn.Exec("select fldfromtime,fldtotime,fldvalue,fldunit from tblnurdosing where flddoseno in(select fldid from tblpatdosing where fldencounterval=&1 and flditemtype=&2 and (fldstatus=&3 or fldstatus=&4 or fldstatus=&5) and fldroute=&6 and flditem=&7)", encid, "Medicines", "Registered", "Admitted", "Recorded", sPt[0], sPt[1])                          ''
+      If res.Available Then
+        For Each res
+          xRowVal = New Collection
+          xRowVal.Add(CStr(i), CStr(0))
+          xRowVal.Add(GetMedFormatForMedReport(sPt[1], sPt[0]), CStr(1))
+          xRowVal.Add(sPt[0], CStr(2))
+          xRowVal.Add(CStr(res["fldvalue"]) & Space(1) & res["fldunit"], CStr(3))
+          xRowVal.Add(modReportVar.GetDateTimeReport(res["fldfromtime"], gb.GeneralDate), CStr(4))
+          xRowVal.Add(modReportVar.GetDateTimeReport(res["fldtotime"], gb.GeneralDate), CStr(5))
+          xFinal.Add(xRowVal)
+          i = i + 1
+        Next
       Endif
       sPt.Clear
     Next

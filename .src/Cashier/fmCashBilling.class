@@ -269,6 +269,8 @@ Public Sub btnshow_Click()
           If resx["fldreference"] Then
             If resx["fldreference"] = "Staff List" Then
               txtreference.ReadOnly = False
+            Else If resx["fldreference"] = "Social List" Then
+              txtreference.ReadOnly = False
             Else
               If resx["fldreference"] = "Claim Code" Then
                 txtreference.Text = modClaim.GetClaimCidePatient(Trim(txtencid.Text), modNonMedical.GetLastCLaimType(Trim(txtencid.Text)))
@@ -478,6 +480,8 @@ Private Sub ShowBillingParam(sPack As String)
       ''claim code button
       If resx["fldreference"] Then
         If resx["fldreference"] = "Staff List" Then
+          txtreference.ReadOnly = False
+        Else If resx["fldreference"] = "Social List" Then
           txtreference.ReadOnly = False
         Else
           If resx["fldreference"] = "Claim Code" Then
@@ -3306,6 +3310,8 @@ End
 Private Function ShowCurrStatus(xStatus As String) As String
 
   Dim xx As String
+  Dim xfirdep As String
+  Dim xoutcm As String
 
   Select xStatus
     Case "Discharged", "LAMA", "Death", "Refer", "Absconder"
@@ -3315,7 +3321,33 @@ Private Function ShowCurrStatus(xStatus As String) As String
         xx = "Waiting"
       Endif
     Case Else
-      xx = xStatus
+      xfirdep = modPatient.GetAdmitLocation(Trim(txtencid.Text))
+      If xfirdep Then
+        If modBasic.$OPDConsultDepartments.Exist(xfirdep) = True Then
+          xoutcm = modPatient.GetLastOutcomeConsult(Trim(txtencid.Text), xfirdep)
+          If xoutcm Then
+            Select xoutcm
+              Case "Admission", "Completed"
+                xx = xStatus
+              Case Else
+                xx = xoutcm & "*"
+            End Select
+          Else
+            xx = xStatus
+          Endif
+        Else If modBasic.$OPDServiceDepartments.Exist(xfirdep) = True Then
+          xoutcm = modPatient.GetLastOutcomeOPVisit(Trim(txtencid.Text), xfirdep)
+          If xoutcm Then
+            xx = xoutcm & "*"
+          Else
+            xx = xStatus
+          Endif
+        Else
+          xx = xStatus
+        Endif
+      Else
+        xx = xStatus
+      Endif
   End Select
   Return xx
 

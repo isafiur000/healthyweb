@@ -1591,10 +1591,16 @@ Public Function ShowNursingDosing(encid As String) As String
 
   Dim red1 As Result
   Dim xdt As Date
+  Dim xrouLst As String[] = ["fluid", "CIV", "CIn(Epid)", "CIn(Block)"]
+  Dim j As Integer
 
   $BillingReport = New CReportHTML([("Time"), ("Medicine"), ("Regimen"), ("Dose")], "PatientReport", encid)
   $BillingReport.UserData.Add("REPORT", "Report")
   $BillingReport.UserData.Add("Dosing Report", "PARAM1")
+
+  For j = 0 To xrouLst.Count - 1
+    xrouLst[j] = "'" & xrouLst[j] & "'"
+  Next
 
   red1 = modDatabase.$syConn.Exec("select DISTINCT DATE(fldtime) as fldtime from tblnurdosing where fldencounterval=&1 ORDER BY fldtime DESC", encid)
   If red1.Available Then
@@ -1604,16 +1610,69 @@ Public Function ShowNursingDosing(encid As String) As String
 
       res = modDatabase.$syConn.Exec("select fldtime,flddoseno,fldvalue,fldunit from tblnurdosing where fldencounterval=&1 and fldtime>=&2 and fldtime<=&3", encid, modDate.StartSqlDate(xdt), modDate.EndSqlDate(xdt))
       For Each res
-        rs = modDatabase.$syConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,flditemtype from tblpatdosing where fldid=&1", res["flddoseno"])
-        If rs["flditemtype"] = "Medicines" Then
-          With asx
-            .Add(modReportVar.GetDateTimeReport(res["fldtime"], gb.MediumTime))
-            .Add(modPharmacy.GetMedFormatForMedReport(rs["flditem"], rs["fldroute"]))
-            .Add(modPharmacy.GetDoseRegimenString(rs["fldid"], True))
-            .Add(res["fldvalue"] & Space(1) & res["fldunit"])
-          End With
-          $BillingReport.Add(asx)
-          asx.Clear()
+        rs = modDatabase.$syConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,flditemtype from tblpatdosing where fldid=&1 and fldroute NOT IN(" & xrouLst.Join(",") & ")", res["flddoseno"])
+        If rs.Available Then
+          If rs["flditemtype"] = "Medicines" Then
+            With asx
+              .Add(modReportVar.GetDateTimeReport(res["fldtime"], gb.MediumTime))
+              .Add(modPharmacy.GetMedFormatForMedReport(rs["flditem"], rs["fldroute"]))
+              .Add(modPharmacy.GetDoseRegimenString(rs["fldid"], True))
+              .Add(CStr(res["fldvalue"]) & Space(1) & res["fldunit"])
+            End With
+            $BillingReport.Add(asx)
+            asx.Clear()
+          Endif
+        Endif
+      Next
+
+    Next
+  Endif
+
+  Return $BillingReport.NewHTMLPath()
+
+End
+
+Public Function ShowInfusionDosing(encid As String) As String
+
+  Dim $BillingReport As CReportHTML
+  Dim res As Result
+  Dim rs As Result
+  Dim asx As New String[0]
+
+  Dim red1 As Result
+  Dim xdt As Date
+  Dim xrouLst As String[] = ["fluid", "CIV", "CIn(Epid)", "CIn(Block)"]
+  Dim j As Integer
+
+  $BillingReport = New CReportHTML([("Medicine"), ("Route"), ("Rate"), ("Start"), ("Close")], "PatientReport", encid)
+  $BillingReport.UserData.Add("REPORT", "Report")
+  $BillingReport.UserData.Add("Dosing Report", "PARAM1")
+
+  For j = 0 To xrouLst.Count - 1
+    xrouLst[j] = "'" & xrouLst[j] & "'"
+  Next
+
+  red1 = modDatabase.$syConn.Exec("select DISTINCT DATE(fldtime) as fldtime from tblnurdosing where fldencounterval=&1 ORDER BY fldtime DESC", encid)
+  If red1.Available Then
+    For Each red1
+      xdt = red1["fldtime"]
+      $BillingReport.AddSection(modReportVar.GetDateTimeReport(xdt, gb.MediumDate), True)
+
+      res = modDatabase.$syConn.Exec("select fldtime,flddoseno,fldvalue,fldunit,fldfromtime,fldtotime from tblnurdosing where fldencounterval=&1 and fldtime>=&2 and fldtime<=&3", encid, modDate.StartSqlDate(xdt), modDate.EndSqlDate(xdt))
+      For Each res
+        rs = modDatabase.$syConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,flditemtype from tblpatdosing where fldid=&1 and fldroute IN(" & xrouLst.Join(",") & ")", res["flddoseno"])
+        If rs.Available Then
+          If rs["flditemtype"] = "Medicines" Then
+            With asx
+              .Add(modPharmacy.GetMedFormatForMedReport(rs["flditem"], rs["fldroute"]))
+              .Add(rs["fldroute"])
+              .Add(CStr(res["fldvalue"]) & Space(1) & res["fldunit"])
+              .Add(modReportVar.GetDateTimeReport(res["fldfromtime"], gb.GeneralDate))
+              .Add(modReportVar.GetDateTimeReport(res["fldtotime"], gb.GeneralDate))
+            End With
+            $BillingReport.Add(asx)
+            asx.Clear()
+          Endif
         Endif
       Next
 

@@ -73,41 +73,45 @@ Public Function GetHandOverReport(encList As String[], sDept As String) As Strin
   Dim asx As New String[0]
   Dim res As Result
   Dim enc As String
-  Dim ximpres As String
+  Dim xexam As String
+  Dim xvital As String
   Dim xplan As String
   Dim xdate As Date
   Dim xuser As String
 
-  $BillingReport = New CReportHTML([("BedNo"), ("EncID"), ("Name"), ("Age/Sex"), ("Diagnosis"), ("Vitals"), ("Impression"), ("Nursing Plan"), ("Date"), ("User")], "", "")
+  $BillingReport = New CReportHTML([("BedNo"), ("Patient"), ("Diagnosis"), ("Vitals"), ("Examination"), ("Nursing Plan"), ("User")], "", "")
   $BillingReport.UserData.Add("LATEST PROGRESS REPORT : " & sDept, "PARAM1")
   $BillingReport.UserData.Add(modReportVar.GetDateTimeReport(Now(), gb.GeneralDate), "PARAM2")
 
   For Each enc In encList
-    res = modDatabase.$syConn.Exec("select fldtime,fldproblem,fldplan,flduserid from tblpatplanning where fldencounterval=&1 and fldplancategory=&2", enc, "IP Monitoring")
+    res = modDatabase.$syConn.Exec("select fldid,fldtime,fldproblem,fldplan,flduserid from tblpatplanning where fldencounterval=&1 and fldplancategory=&2", enc, "IP Monitoring")
     If res.Available Then
       res.MoveLast
-      ximpres = res["fldproblem"]
+      xexam = modString.TextToHTML(modPatSurgery.UniProcedureExamination(enc, res["fldid"], "IP Monitoring").Join(gb.NewLine))
+      xvital = modString.TextToHTML(modPatReports.GetSelectFindingReport(enc, "Essential Examinations").Join(gb.NewLine))
       xplan = res["fldplan"]
+      If res["fldproblem"] Then
+        xplan = xplan & gb.NewLine & "IMPRESSION : " & res["fldproblem"]
+      Endif
+      xplan = modString.TextToHTML(xplan)
       xdate = res["fldtime"]
       xuser = modGeneral.GetUserFullName(res["flduserid"])
     Else
-      ximpres = ""
+      xexam = ""
+      xvital = ""
       xplan = ""
       xdate = ""
       xuser = ""
     Endif
 
     With asx
-      .Add(modPatient.GetPatientLocation(enc))
-      .Add(enc)
-      .Add(modPatient.GetPatientNameByEnc(enc, modDatabase.$syConn))
-      .Add(modPatient.GetPatientAgeString(enc, Now()) & "/" & modPatient.GetPatientSex(enc))
+      .Add(modPatient.GetPatientLocation(enc) & "<br><b>" & enc & "</b>")
+      .Add(modPatient.GetPatientNameByEnc(enc, modDatabase.$syConn) & "<br><small>" & modPatient.GetPatientAgeString(enc, Now()) & "/" & modPatient.GetPatientSex(enc) & "</small>")
       .Add(modPatient.PatientDiagnoCurrentList(enc).Join(gb.NewLine))
-      .Add(modPatReports.GetSelectFindingReport(enc, "Essential Examinations").Join(gb.NewLine))
-      .Add(ximpres)
+      .Add(xvital)
+      .Add(xexam)
       .Add(xplan)
-      .Add(modReportVar.GetDateTimeReport(xdate, gb.GeneralDate))
-      .Add(xuser)
+      .Add(modReportVar.GetDateTimeReport(xdate, gb.GeneralDate) & "<br>" & xuser)
     End With
     $BillingReport.Add(asx)
     asx.Clear()

@@ -290,6 +290,7 @@ Private Sub GetEncounterValue()
             $vidRoom = LCase(Trim(txtencid.Text) & Format(Now(), "yymmdd"))
             $VidIndex = modApplication.GetMD5SumString($vidRoom)
             If $sTatus = "Admitted" Then
+              rbimproved.Visible = False
               rblama.Visible = False
               rbdeath.Visible = False
             Endif
@@ -694,7 +695,9 @@ Private Sub ButtonControl()
   btndismanual.Enabled = xx
   tbnsyndro.Enabled = xx
   tbndisease.Enabled = xx
-  tnfinaldiagno.Enabled = xx
+  tbnfinaldisease.Enabled = xx
+  btnfinalsyndro.Enabled = xx
+  btnfinalcustom.Enabled = xx
   ''lab
   btnlab.Enabled = xx
   ''radio
@@ -975,31 +978,79 @@ Public Sub btnregimen_Click()
 End
 
 ''final diagnosis
-Public Sub tnfinaldiagno_Click()
+Public Sub tbnfinaldisease_Click()
 
   Dim sName As String[]
-  Dim xList As String[]
 
   If txtencid.Text Then
-    xList = modPathoSub.GetSelectedDiagnosisList("Provisional Diagnosis", Trim(txtencid.Text))
-    If xList.Count Then
-      If MMain.$Ayurveda = "Yes" Then
-        sName = AyurvedicDiagnosis(modAyurv.$AyurvedicDiagnosis)
+    If modBasic.$FinalDiagnosisObstetrics = "Selection List" Then
+      sName = DiagnoObstetrics(Trim(txtencid.Text), True)
+    Else
+      sName = GetSyndromes()
+    Endif
+
+    If sName Then
+      If sName[1] And If sName[0] Then
+        modPatientGeneral.AddPatientFindings("Final Diagnosis", Trim(txtencid.Text), sName[0], sName[1], sName[1])
+        Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+        modPatientGeneral.SetPatientFindingTree(Trim(txtencid.Text), lsticdisease, chkalldiagno.Value)
+      Endif
+    Endif
+  Endif
+
+End
+
+Public Sub btnfinalsyndro_Click()
+
+  Dim sName As String[]
+  Dim xGroup As String
+
+  If txtencid.Text Then
+    If MMain.$Ayurveda = "Yes" Then
+      sName = AyurvedicDiagnosis(modAyurv.$AyurvedicDiagnosis)
+    Else
+      If modBasic.$ClinICDPunchFormat = "GridView" Then
+        sName = ICDGridView("Select Diseases")
       Else
-        If modBasic.$ClinICDPunchFormat = "GridView" Then
-          sName = ICDGridView("Select Diseases")
+        xGroup = modPathoSub.GetDiagnoGroupForService(txtbedno.Text)
+        If xGroup Then
+          sName = ICDTree(modDatabase.$icdConn, "Disease", modBasic.$ClinDiagnoChapterGrouped, xGroup, modBasic.$FixDiagnoGroupER, modBasic.$ClinDiagnoSelectGrouped, modBasic.$ClinDiagnoSelectERGroup)
         Else
           sName = ICDTree(modDatabase.$icdConn, "Disease", modBasic.$ClinDiagnoChapterGrouped, modBasic.$FixDiagnoGroupOPD, modBasic.$FixDiagnoGroupER, modBasic.$ClinDiagnoSelectGrouped, modBasic.$ClinDiagnoSelectERGroup)
         Endif
       Endif
-      If sName Then
-        If sName[1] And If sName[0] Then
-          modPatientGeneral.AddPatientFindings("Final Diagnosis", Trim(txtencid.Text), sName[0], sName[1], sName[2])
-          Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
-          modPatientGeneral.SetPatientFindingTree(Trim(txtencid.Text), lsticdisease, chkalldiagno.Value)
-        Endif
+    Endif
+    If sName Then
+      If sName[1] And If sName[0] Then
+        modPatientGeneral.AddPatientFindings("Final Diagnosis", Trim(txtencid.Text), sName[0], sName[1], sName[2])
+        Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+        modPatientGeneral.SetPatientFindingTree(Trim(txtencid.Text), lsticdisease, chkalldiagno.Value)
       Endif
     Endif
+  Endif
+
+End
+
+Public Sub btnfinalcustom_Click()
+
+  Dim xx As String
+  Dim sName As String[]
+
+  If txtencid.Text Then
+    If modBasic.$FinalDiagnosisObstetrics = "Custom Text" Then
+      sName = DiagnoObstetrics(Trim(txtencid.Text), True)
+      If sName Then
+        modPatientGeneral.AddPatientFindings("Final Diagnosis", Trim(txtencid.Text), sName[0], sName[1], sName[2])
+        Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+      Endif
+    Else
+      xx = InputBox(("Enter custom Final Diagnosis"), ("Final Diagnosis"), "")
+      If xx Then
+        modPatientGeneral.AddPatientFindings("Final Diagnosis", Trim(txtencid.Text), xx, "Other", "Other")
+        Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+      Endif
+    Endif
+    modPatientGeneral.SetPatientFindingTree(Trim(txtencid.Text), lsticdisease, chkalldiagno.Value)
   Endif
 
 End
@@ -2685,6 +2736,17 @@ Public Sub mnudrugdosing_Click()
 
 End
 
+Public Sub mnuinfusionview_Click()
+
+  Dim xPath As String
+
+  If txtencid.Text Then
+    xPath = modCHTMLPatient.ShowInfusionDosing(Trim(txtencid.Text))
+    modControlSub.OpenHTMLPreview(Trim(txtencid.Text), xPath, "ReportSize")
+  Endif
+
+End
+
 Public Sub mnuexamlocal_Click()
 
   modPatReports.GetPatHistoryLocalResult("Examination", Trim(txtencid.Text), LabUnitForm())
@@ -3549,7 +3611,9 @@ Private Sub RestrictUserAccess()
     tbndisease.Visible = False
   Endif
   If $UserRestrict.Exist("Final Diagnosis") Then
-    tnfinaldiagno.Enabled = False
+    tbnfinaldisease.Visible = False
+    btnfinalsyndro.Visible = False
+    btnfinalcustom.Visible = False
   Endif
   If $UserRestrict.Exist("Drug Allergy") Then
     tlbtndelallergy.Visible = False
@@ -4069,6 +4133,15 @@ Public Sub rbimproved_Click()
 
 End
 
+Public Sub rbcomplete_Click()
+
+  lbloutcome.Visible = False
+  cmbrefer.Visible = False
+  dtfollowup.Visible = False
+  btnfollownep.Visible = False
+
+End
+
 Public Sub rblama_Click()
 
   lbloutcome.Visible = False
@@ -4140,7 +4213,9 @@ Public Sub btnoutcome_Click()
       xmode = "Death"
       modPatientSub.UpdateCurrentStatus(Trim(txtencid.Text), "Death(OPD)", dtfollowup.Value)
     Else If rbimproved.Value = True Then
-      xmode = "Improved"
+      xmode = "Discharged"
+    Else If rbcomplete.Value = True Then
+      xmode = "Completed"
     Endif
 
     If xmode Then

@@ -94,8 +94,8 @@ Private Sub FillMedicineList()
   Dim sql1 As String
   Dim sql2 As String
 
-  sql1 = "select fldsave_order,fldid,fldroute,flditem,flddose,fldfreq,flddays,fldstatus,flddirection,fldmixing,flddosecount,fldqtydisp from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldstarttime<=&3 and fldendtime>=&4 and fldroute<>&5 and flditemtype=&6 and fldcurval=&7 and flddose>&8 and fldqtydisp>fldqtyret"                    ''
-  sql2 = "select fldsave_order,fldid,fldroute,flditem,flddose,fldfreq,flddays,fldstatus,flddirection,fldmixing,flddosecount,fldqtydisp from tblpatdosing where fldencounterval=&1 and fldsave_order=&9 and fldstarttime<=&3 and DATE_ADD(fldstarttime, INTERVAL flddays DAY)>=&4 and fldroute<>&5 and flditemtype=&6 and fldcurval=&7 and flddose>&8 and fldqtydisp>fldqtyret"
+  sql1 = "select fldsave_order,fldid,fldroute,flditem,flddose,fldfreq,flddays,fldstatus,flddirection,fldmixing,flddosecount,fldqtydisp,flduserid_order from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldstarttime<=&3 and fldendtime>=&4 and fldroute<>&5 and flditemtype=&6 and fldcurval=&7 and flddose>&8 and fldqtydisp>fldqtyret"                    ''
+  sql2 = "select fldsave_order,fldid,fldroute,flditem,flddose,fldfreq,flddays,fldstatus,flddirection,fldmixing,flddosecount,fldqtydisp,flduserid_order from tblpatdosing where fldencounterval=&1 and fldsave_order=&9 and fldstarttime<=&3 and DATE_ADD(fldstarttime, INTERVAL flddays DAY)>=&4 and fldroute<>&5 and flditemtype=&6 and fldcurval=&7 and flddose>&8 and fldqtydisp>fldqtyret"
   $rData1 = modDatabase.$myConn.Exec(sql1 & " UNION ALL " & sql2, $encid, True, Now(), DateAdd(Now(), gb.Hour, -3), "fluid", "Medicines", "Continue", 0, False)
   $aMyFields1 = New String[]
   modGridView.ReadSmallData(ListBox1, $rData1, $aMyFields1)
@@ -112,6 +112,7 @@ Private Sub FillMedicineList()
     .Columns[9].Hidden = True
     .Columns[10].Hidden = True
     .Columns[11].Hidden = True
+    .Columns[12].Hidden = True
   End With
 
 End
@@ -180,11 +181,14 @@ Private Sub ShowSelectedDosing()
     Endif
     If $rData1["fldmixing"] Then
       pnlmixture.Visible = True
-      txtmixture.Html = "<p>" & $rData1["fldmixing"] & "</p>"
+      txtmixture.Html = $rData1["fldmixing"]
     Else
       pnlmixture.Visible = False
     Endif
-    txtdose.Value = Round($rData1["flddose"] / txtinitstren.Value, -2)
+    txtprescriber.Text = modGeneral.GetUserFullName($rData1["flduserid_order"])
+    If txtinitstren.Value Then
+      txtdose.Value = Round($rData1["flddose"] / txtinitstren.Value, -2)
+    Endif
 
     FillGridView(txtid.Value)
     If chkdisp.Value = True Then
@@ -203,24 +207,26 @@ End
 
 Private Sub FillGridView(dosno As Long)
 
-  $rData = modDatabase.$syConn.Exec("select fldid,fldtime,fldid,fldvalue,fldunit,fldid,fldvalue from tblnurdosing where fldencounterval=&1 and flddoseno=&2", $encid, dosno)
+  $rData = modDatabase.$syConn.Exec("select fldid,fldtime,fldid,fldvalue,fldunit,fldid,fldvalue,flduserid from tblnurdosing where fldencounterval=&1 and flddoseno=&2", $encid, dosno)
   $aMyFields = New String[]
   modGridView.ReadSmallData(GridView1, $rData, $aMyFields)
 
   With GridView1
     .Columns[0].Hidden = True
-    .Columns[1].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
+    .Columns[1].Width = CStr(140 * modBasic.$AppWidthRatio) & "px"
     .Columns[2].Width = CStr(275 * modBasic.$AppWidthRatio) & "px"
     .Columns[3].Width = CStr(50 * modBasic.$AppWidthRatio) & "px"
     .Columns[4].Width = CStr(50 * modBasic.$AppWidthRatio) & "px"
     .Columns[5].Width = CStr(25 * modBasic.$AppWidthRatio) & "px"
     .Columns[6].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
+    .Columns[7].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
 
     .Columns[1].Text = "DateTime"
     .Columns[2].Text = "Particulars"
     .Columns[3].Text = "QTY"
     .Columns[4].Text = "Unit"
     .Columns[6].Text = "Dose"
+    .Columns[7].Text = "Medicator"
   End With
 
   txtcounttoday.Value = modPharmacy.TotalDoseCount(dosno, Now())
@@ -236,7 +242,7 @@ Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableDat
   $rData.MoveTo(Row)
   modGridView.GridViewDecoration(Data, Row)
   If Column = 1 Then
-    Data.Text = modPatient.GetDayTimeFromAdmission($encid, $rData[$aMyFields[Column]])
+    Data.Text = modReportVar.GetDateTimeReport($rData[$aMyFields[Column]], gb.MediumDate) & Space(1) & modReportVar.GetDateTimeReport($rData[$aMyFields[Column]], gb.ShortTime)
   Else If Column = 2 Then
     Data.Text = txtmedname.Text
   Else If Column = 5 Then
@@ -244,6 +250,8 @@ Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableDat
     Data.Text = ""
   Else If Column = 6 Then
     Data.Text = $rData[$aMyFields[Column]] * txtinitstren.Value
+  Else If Column = 7 Then
+    Data.Text = modGeneral.GetUserFullName($rData[$aMyFields[Column]])
   Else
     Data.Text = $rData[$aMyFields[Column]]
   Endif

@@ -78,11 +78,11 @@ Public Sub _new(sTable As String)
   Else
     xdepList = New String[]
     If $sTable = "tblconsult" Then
-      aList = modGeneral.GetDepartForConsultOnly()
+      aList = modBasic.$OPDConsultDepartments
       pnlconsult.Visible = True
       chkshowdepart.Value = True
     Else If $sTable = "tblopvisit" Then
-      aList = modGeneral.GetDepartForOPVisitOnly()
+      aList = modBasic.$OPDServiceDepartments
       pnlconsult.Visible = False
       chkshowdepart.Value = False
     Endif
@@ -244,7 +244,7 @@ Private Function GetFieldsList()
   If $sTable = "tblconsult" Then
     $SSQLFields = ["fldid", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldflag", "fldencounterval", "flduserid", "fldconsultname", "fldconsulttime", "fldbillingmode", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldnotice"]
   Else If $sTable = "tblopvisit" Then
-    $SSQLFields = ["fldid", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldflag", "fldencounterval", "fldencounterval", "fldconsultname", "fldconsulttime", "fldbillingmode", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldnotice"]
+    $SSQLFields = ["fldid", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldflag", "fldencounterval", "fldflaguser", "fldconsultname", "fldconsulttime", "fldbillingmode", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldencounterval", "fldnotice"]
   Endif
   If xhospfld Then
     $SSQLFields.Add(xhospfld)
@@ -509,9 +509,7 @@ Private Function GetGridViewValue(Column As Integer, xVariable As Variant) As Va
     xxx = modPatient.PatientDiagnoCurrentList(xVariable).Join(gb.NewLine)
   Else If Column = 7 Then
     If chkshowdepart.Value = True Then
-      If $sTable = "tblconsult" Then
-        xxx = modGeneral.GetUserFullName(xVariable)
-      Endif
+      xxx = modGeneral.GetUserFullName(xVariable)
     Else
       xxx = ""
     Endif
@@ -600,12 +598,8 @@ Private Sub ResizeGrid()
     .Columns[5].Width = CStr(30 * modBasic.$AppWidthRatio) & "px"
     .Columns[6].Width = CStr(200 * modBasic.$AppWidthRatio) & "px"
     If chkshowdepart.Value = True Then
-      If $sTable = "tblconsult" Then
-        .Columns[7].Hidden = False
-        .Columns[7].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
-      Else If $sTable = "tblopvisit" Then
-        .Columns[7].Hidden = True
-      Endif
+      .Columns[7].Hidden = False
+      .Columns[7].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
       If cmbdept.Text = "All" Then
         .Columns[8].Hidden = False
         .Columns[8].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
@@ -661,6 +655,8 @@ Private Sub ResizeGrid()
     If chkshowdepart.Value = True Then
       If $sTable = "tblconsult" Then
         .Columns[7].Text = "Consultant"
+      Else If $sTable = "tblopvisit" Then
+        .Columns[7].Text = "Attendant"
       Endif
       If cmbdept.Text = "All" Then
         .Columns[8].Text = "Department"
@@ -1878,6 +1874,18 @@ Public Sub mnumedview_Click()
   If GridView1.Selection.Count Then
     $rData.MoveTo(GridView1.Selection[0])
     xPath = modCHTMLPatient.ShowNursingDosing($rData["fldencounterval"])
+    modControlSub.OpenHTMLPreview($rData["fldencounterval"], xPath, "ReportSize")
+  Endif
+
+End
+
+Public Sub mnuinfusionview_Click()
+
+  Dim xPath As String
+
+  If GridView1.Selection.Count Then
+    $rData.MoveTo(GridView1.Selection[0])
+    xPath = modCHTMLPatient.ShowInfusionDosing($rData["fldencounterval"])
     modControlSub.OpenHTMLPreview($rData["fldencounterval"], xPath, "ReportSize")
   Endif
 
