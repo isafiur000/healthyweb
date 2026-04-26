@@ -1596,12 +1596,17 @@ Public Function GetReportCurrConsult($encid As String, $Line As String, Optional
     If xstr Then
       xIndLst = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec("select fldid as col from tblconsult where fldencounterval=&1", $encid))
       If xIndLst And If xIndLst.Count Then
+        xx = ""
         For Each xindex In xIndLst
-          xx = GetReportCurrConsultData($encid, xstr, xindex) & gb.NewLine
+          xx = xx & "<p>" & GetReportCurrConsultData($encid, xstr, xindex) & "</p>" & gb.NewLine
         Next
       Endif
+    Else
+      xx = $Line
     Endif
   Endif
+
+  Return xx
 
 End
 
@@ -1654,12 +1659,17 @@ Public Function GetReportCurrOPVisit($encid As String, $Line As String, Optional
     If xstr Then
       xIndLst = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec("select fldid as col from tblopvisit where fldencounterval=&1", $encid))
       If xIndLst And If xIndLst.Count Then
+        xx = ""
         For Each xindex In xIndLst
-          xx = GetReportCurrOPVisitData($encid, xstr, xindex) & gb.NewLine
+          xx = xx & "<p>" & GetReportCurrOPVisitData($encid, xstr, xindex) & "</p>" & gb.NewLine
         Next
       Endif
+    Else
+      xx = $Line
     Endif
   Endif
+
+  Return xx
 
 End
 
@@ -1731,6 +1741,69 @@ Public Function GetReportBirthDetail($encid As String, $Line As String) As Strin
   Endif
 
   Return $Line
+
+End
+
+''used for ANC Form Report
+Public Function GetReportANCReportDetail($encid As String, $Line As String) As String
+
+  Dim xx As String
+  Dim xstr As String
+  Dim cForm As CReportANC
+  Dim xIndLst As Long[]
+  Dim xindex As Long
+
+  xstr = modString.GetSelectedTextBetween($Line, "<ANCReport>", "</ANCReport>")
+  If xstr Then
+    cForm = New CReportANC($encid, "ANC Visit", "Physician Examinations")
+    xx = xstr
+    If (String.InStr(xx, "ANC:RiskFactors") > 0) Then
+      xx = Replace(xx, "{ANC:RiskFactors}", cForm.GetRiskFactors())
+    Endif
+    If (String.InStr(xx, "ANC:Diagnosis") > 0) Then
+      xx = Replace(xx, "{ANC:Diagnosis}", cForm.GetObstetricDiagnosis())
+    Endif
+    If (String.InStr(xx, "ANC:BirthHistory") > 0) Then
+      xx = Replace(xx, "{ANC:BirthHistory}", cForm.GetObsBirthHistory())
+    Endif
+    If (String.InStr(xx, "ANC:PastHistory") > 0) Then
+      xx = Replace(xx, "{ANC:PastHistory}", cForm.GetObsPastHistory())
+    Endif
+    If (String.InStr(xx, "ANC:FamilyHistory") > 0) Then
+      xx = Replace(xx, "{ANC:FamilyHistory}", cForm.GetObsFamilyHistory())
+    Endif
+    If (String.InStr(xx, "ANC:Examination") > 0) Then
+      xx = Replace(xx, "{ANC:Examination}", cForm.GetObsExamination())
+    Endif
+    If (String.InStr(xx, "ANC:Serology") > 0) Then
+      xx = Replace(xx, "{ANC:Serology}", cForm.GetLabGroupingSerology())
+    Endif
+    If (String.InStr(xx, "ANC:Vaccines") > 0) Then
+      xx = Replace(xx, "{ANC:Vaccines}", cForm.GetVaccines())
+    Endif
+    If (String.InStr(xx, "ANC:Hematology") > 0) Then
+      xx = Replace(xx, "{ANC:Hematology}", cForm.GetLabHematology())
+    Endif
+    If (String.InStr(xx, "ANC:UrineTest") > 0) Then
+      xx = Replace(xx, "{ANC:UrineTest}", cForm.GetLabUrine())
+    Endif
+    If (String.InStr(xx, "ANC:Biochemistry") > 0) Then
+      xx = Replace(xx, "{ANC:Biochemistry}", cForm.GetLabBiochemistry())
+    Endif
+    If (String.InStr(xx, "ANC:Ultrasound") > 0) Then
+      xx = Replace(xx, "{ANC:Ultrasound}", cForm.GetRadioUltrasound())
+    Endif
+    If (String.InStr(xx, "ANC:OtherRadiology") > 0) Then
+      xx = Replace(xx, "{ANC:OtherRadiology}", cForm.GetRadioOtherTests())
+    Endif
+    If (String.InStr(xx, "ANC:ANCChart") > 0) Then
+      xx = Replace(xx, "{ANC:ANCChart}", cForm.GetANCChart())
+    Endif
+  Else
+    xx = $Line
+  Endif
+
+  Return xx
 
 End
 
@@ -3326,6 +3399,22 @@ Public Sub GetReportVarCollection(sType As String) As Variant[]
     ListView1.Add(["{Gestation}", "Gestation Age"])
     ListView1.Add(["{ObsPresentation}", "Obs Presentation"])
     ListView1.Add(["{ObsStatus}", "Obs Status"])
+
+  Else If sType = "ANC Param" Then
+    ListView1.Add(["{ANC:RiskFactors}", "ANC Risk Factors"])
+    ListView1.Add(["{ANC:Diagnosis}", "ANC Diagnosis"])
+    ListView1.Add(["{ANC:BirthHistory}", "ANC Birth History"])
+    ListView1.Add(["{ANC:PastHistory}", "ANC Past History"])
+    ListView1.Add(["{ANC:FamilyHistory}", "ANC Family History"])
+    ListView1.Add(["{ANC:Examination}", "ANC First Examination"])
+    ListView1.Add(["{ANC:Serology}", "ANC Serology"])
+    ListView1.Add(["{ANC:Vaccines}", "ANC Vaccines"])
+    ListView1.Add(["{ANC:Hematology}", "ANC Hematology"])
+    ListView1.Add(["{ANC:UrineTest}", "ANC Urine Test"])
+    ListView1.Add(["{ANC:Biochemistry}", "ANC Biochemistry"])
+    ListView1.Add(["{ANC:Ultrasound}", "ANC Ultrasound"])
+    ListView1.Add(["{ANC:OtherRadiology}", "ANC Other Radiology"])
+    ListView1.Add(["{ANC:ANCChart}", "ANC Chart Table"])
 
   Else If sType = "Consultation Param" Then
     ListView1.Add(["{LastConsultDept}", "LastConsultDept"])

@@ -2,6 +2,7 @@
 
 Private $encid As String
 Private $DiscPackage As String
+Private $useCardex As Boolean
 Private $sTatus As String
 
 Private $LedgerAC As String
@@ -17,12 +18,13 @@ Private $aMyFields As String[]
 Private $xNHISCode As String
 Private $HiCappingVar As Collection
 
-Public Sub _new(encid As String, DiscPackage As String, sClass As String)
+Public Sub _new(encid As String, DiscPackage As String, useCardex As Boolean, sClass As String)
 
   Dim accLst As String[]
 
   $encid = encid
   $DiscPackage = DiscPackage
+  $useCardex = useCardex
   WebContainer1.Class = sClass
 
   $xNHISCode = modPatient.GetPatientExtCOdebyEnc($encid)
@@ -94,12 +96,12 @@ Private Sub FillMedicineList()
   Dim sql1 As String
   Dim sql2 As String
 
-  sql1 = "select fldsave_order,fldid,fldroute,flditem,flddose,fldfreq,flddays,fldstatus,flddirection,fldmixing,flddosecount,fldqtydisp,flduserid_order from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldstarttime<=&3 and fldendtime>=&4 and fldroute<>&5 and flditemtype=&6 and fldcurval=&7 and flddose>&8 and fldqtydisp>fldqtyret"                    ''
-  sql2 = "select fldsave_order,fldid,fldroute,flditem,flddose,fldfreq,flddays,fldstatus,flddirection,fldmixing,flddosecount,fldqtydisp,flduserid_order from tblpatdosing where fldencounterval=&1 and fldsave_order=&9 and fldstarttime<=&3 and DATE_ADD(fldstarttime, INTERVAL flddays DAY)>=&4 and fldroute<>&5 and flditemtype=&6 and fldcurval=&7 and flddose>&8 and fldqtydisp>fldqtyret"
+  sql1 = "select fldsave_order,fldid,fldroute,flditem,flddose,fldfreq,flddays,fldstatus,flddirection,fldmixing,flddosecount,fldqtydisp,flduserid_order,flditemno from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldstarttime<=&3 and fldendtime>=&4 and fldroute<>&5 and flditemtype=&6 and fldcurval=&7 and flddose>&8 and fldqtydisp>fldqtyret"                    ''
+  sql2 = "select fldsave_order,fldid,fldroute,flditem,flddose,fldfreq,flddays,fldstatus,flddirection,fldmixing,flddosecount,fldqtydisp,flduserid_order,flditemno from tblpatdosing where fldencounterval=&1 and fldsave_order=&9 and fldstarttime<=&3 and DATE_ADD(fldstarttime, INTERVAL flddays DAY)>=&4 and fldroute<>&5 and flditemtype=&6 and fldcurval=&7 and flddose>&8 and fldqtydisp>fldqtyret"
   $rData1 = modDatabase.$myConn.Exec(sql1 & " UNION ALL " & sql2, $encid, True, Now(), DateAdd(Now(), gb.Hour, -3), "fluid", "Medicines", "Continue", 0, False)
   $aMyFields1 = New String[]
-  modGridView.ReadSmallData(ListBox1, $rData1, $aMyFields1)
-  With ListBox1
+  modGridView.ReadSmallData(GridView2, $rData1, $aMyFields1)
+  With GridView2
     .Columns[0].Width = CStr(20 * modBasic.$AppWidthRatio) & "px"
     .Columns[1].Hidden = True
     .Columns[2].Hidden = True
@@ -113,11 +115,12 @@ Private Sub FillMedicineList()
     .Columns[10].Hidden = True
     .Columns[11].Hidden = True
     .Columns[12].Hidden = True
+    .Columns[13].Hidden = True
   End With
 
 End
 
-Public Sub ListBox1_Data(Row As Integer, Column As Integer, Data As WebTableData)
+Public Sub GridView2_Data(Row As Integer, Column As Integer, Data As WebTableData)
 
   $rData1.MoveTo(Row)
   modGridView.GridViewDecoration(Data, Row)
@@ -144,7 +147,7 @@ Private Function GetMedStatus(sBool As Boolean) As String
 
 End
 
-Public Sub ListBox1_Select()
+Public Sub GridView2_Select()
 
   ShowSelectedDosing()
 
@@ -153,9 +156,10 @@ End
 Private Sub ShowSelectedDosing()
 
   chkuselocal.Value = False
-  If ListBox1.Selection.Count Then
-    $rData1.MoveTo(ListBox1.Selection[0])
+  If GridView2.Selection.Count Then
+    $rData1.MoveTo(GridView2.Selection[0])
     txtid.Value = $rData1["fldid"]
+    txtcardex.Value = $rData1["flditemno"]
     lblmedicine.Text = $rData1["flditem"]
     txtmedname.Text = modMedConstant.GetDrugFromStockID(lblmedicine.Text)
     If $rData1["fldsave_order"] = False Then
@@ -295,7 +299,7 @@ Public Sub btnsave_Click()
 
   If txtid.Value And If txtdose.Value Then
     If chkdisp.Value = True Then
-      modPharmSub.InsertNurDosing(txtid.Value, $encid, txtdose.Value, lblunit.Text, "")
+      modPharmSub.InsertNurDosing($encid, txtid.Value, txtcardex.Value, txtdose.Value, lblunit.Text, "")
       If lblregimen.Tag = "stat" Then
         res = modDatabase.$myConn.Edit("tblpatdosing", "fldid=&1", txtid.Value)
         res["fldcurval"] = "Completed"

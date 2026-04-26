@@ -1,0 +1,637 @@
+' Gambas class file
+
+Private $encid As String
+Private $sExam As String
+Private $sType As String
+Private $PatientNum As String
+
+Private $ObsColumns As String[] = ["Date of Birth", "Gest. Age (wks)", "Complications during preg.", "Mode of delivery", "Complications in 3rd stage", "Puerperium", "Live/SB", "Gender", "Birth Wt. (gram)", "Outcome"]
+Private $ANCColumns As String[] = ["Date of Regd", "Complaints", "Fet. Move.", "Gest. Age", "Uterine Ht./SFH (cm)", "Presentation", "Relation of PP to pelvic brim", "FHS", "Weight (Kg)", "Blood Pressure", "Edema", "Urine Albumin", "Urine Sugar", "Treatment", "Remarks", "Doctor", "PS/PV"]
+
+Private $TestSerology As String[] = ["Date", "Blood Group/Rh", "VDRL/RPR", "HBsAg", "HIV", "HCV", "Others"]
+Private $Vaccines As String[] = ["Date", "Vaccine"]
+Private $TestHemato As String[] = ["Date", "HCT/Hb", "Platelets"]
+Private $TestUrine As String[] = ["Date", "Urine/Microscopy", "Culture/Sensitivity"]
+Private $TestBioChem As String[] = ["Date", "FBS", "RBS", "GCT", "OGTT", "HbA1C", "RFT", "TFT", "LFT", "Uric Acid", "Vit.D", "Vit.B12", "Others"]
+
+Private $RadioUSG As String[] = ["Date", "Gest Age(USG)", "Gest Age(Date)", "Description"]
+Private $RadioEcho As String[] = ["Date", "Fetal Echo", "Description"]
+
+Public Sub _new(encid As String, sExam As String, sType As String)
+
+  $encid = encid
+  $sExam = sExam
+  $sType = sType
+  $PatientNum = modPatient.GetPatientNoByEnc($encid)
+
+End
+
+Public Function GetRiskFactors() As String
+
+  Dim xx As String
+
+  xx = ObsRiskFactors()
+  Return xx
+
+End
+
+Public Function GetObstetricDiagnosis() As String
+
+  Dim xx As String
+
+  xx = modString.GetDualColumnTableCollection(ObstetricDiagnosis(), ["Variable", "Observation"])
+  Return xx
+
+End
+
+Public Function GetObsBirthHistory() As String
+
+  Dim xx As String
+
+  xx = modString.GetExactTableFromVariantKeys($ObsColumns, ObstetricBirthHistory())
+  Return xx
+
+End
+
+Public Function GetObsPastHistory() As String
+
+  Dim xx As String
+
+  xx = modString.GetDualColumnTableCollection(PastObstericHistory(), ["Variable", "Observation"])
+  Return xx
+
+End
+
+Public Function GetObsFamilyHistory() As String
+
+  Dim xx As String
+
+  xx = modString.GetDualColumnTableCollection(ObsFamilyHistory(), ["Variable", "Observation"])
+  Return xx
+
+End
+
+Public Function GetObsExamination() As String
+
+  Dim xx As String
+
+  xx = modString.GetDualColumnTableCollection(ObsExamination(), ["Variable", "Observation"])
+  Return xx
+
+End
+
+Public Function GetLabGroupingSerology() As String
+
+  Dim xx As String
+
+  xx = modString.GetExactTableFromVariantKeys($TestSerology, LabAndRadiologyTabl("Laboratory", "Serology"))
+  Return xx
+
+End
+
+Public Function GetVaccines() As String
+
+  Dim xx As String
+
+  xx = modString.GetExactTableFromVariantKeys($Vaccines, LabAndRadiologyTabl("Vaccine", "Vaccine"))
+  Return xx
+
+End
+
+Public Function GetLabHematology() As String
+
+  Dim xx As String
+
+  xx = modString.GetExactTableFromVariantKeys($TestHemato, LabAndRadiologyTabl("Laboratory", "Hematology"))
+  Return xx
+
+End
+
+Public Function GetLabUrine() As String
+
+  Dim xx As String
+
+  xx = modString.GetExactTableFromVariantKeys($TestUrine, LabAndRadiologyTabl("Laboratory", "Urine Test"))
+  Return xx
+
+End
+
+Public Function GetLabBiochemistry() As String
+
+  Dim xx As String
+
+  xx = modString.GetExactTableFromVariantKeys($TestBioChem, LabAndRadiologyTabl("Laboratory", "Biochemistry"))
+  Return xx
+
+End
+
+Public Function GetRadioUltrasound() As String
+
+  Dim xx As String
+
+  xx = modString.GetExactTableFromVariantKeys($RadioUSG, LabAndRadiologyTabl("Radiology", "Ultrasound"))
+  Return xx
+
+End
+
+Public Function GetRadioOtherTests() As String
+
+  Dim xx As String
+
+  xx = modString.GetExactTableFromVariantKeys($RadioEcho, LabAndRadiologyTabl("Radiology", "Echo"))
+  Return xx
+
+End
+
+Public Function GetANCChart() As String
+
+  Dim xx As String
+
+  xx = modString.GetExactTableFromVariantKeys($ANCColumns, ANCChart())
+  Return xx
+
+End
+
+''---------------------- Procedures ---------------------
+Private Function ObsRiskFactors() As String
+
+  Dim res As Result
+  Dim xdetail As String
+
+  res = modDatabase.$syConn.Exec("select flddetail,fldreportquali from tblexamgeneral where fldencounterval in(select fldencounterval from tblencounter where fldpatientval=&1) and fldinput=&2 and flditem=&3 and fldsave=&4 and flddetail IS NOT NULL", $PatientNum, "History", "Risk Factors", True)
+  If res.Available Then
+    res.MoveLast
+    xdetail = res["flddetail"]
+  Endif
+
+  Return xdetail
+
+End
+
+Private Function ObstetricDiagnosis() As Collection
+
+  Dim xParamLst As String[] = ["EDD (Scan)", "Menstrual Cycle", "Contraception", "Married For", "Quickening"]
+  Dim xparam As String
+  Dim res As Result
+  Dim res1 As Result
+  Dim sColl As Collection
+
+  sColl = New Collection
+  res = modDatabase.$syConn.Exec("select fldgravida,fldparity,fldbortion,fldlive,fldlast,fldexpect,fldgestation,fldpresent,fldstatus,fldpast,flddelref from tblobstetrics where fldpatientval=&1 and fldlast<&2 and fldexpect>&3 ORDER BY fldtime", $PatientNum, Now(), DateAdd(Now(), gb.Month, -3))
+  If res.Available Then
+    res.MoveLast
+    sColl.Add(res["flddelref"], "Reference")
+    If res["fldgravida"] Then
+      sColl.Add(res["fldgravida"], "Gravida")
+    Endif
+    If res["fldparity"] Then
+      sColl.Add(res["fldparity"], "Parity")
+    Endif
+    If res["fldlive"] Then
+      sColl.Add(res["fldlive"], "Living")
+    Endif
+    If res["fldbortion"] Then
+      sColl.Add(res["fldbortion"], "Abortion")
+    Endif
+    If res["fldlast"] Then
+      sColl.Add(res["fldlast"], "LMP")
+    Endif
+    If res["fldexpect"] Then
+      sColl.Add(res["fldexpect"], "EDD")
+    Endif
+  Endif
+
+  For Each xparam In xParamLst
+    res1 = modDatabase.$syConn.Exec("select fldrepquali from tblpatientexam where fldencounterval in(select fldencounterval from tblencounter where fldpatientval=&1) and fldinput=&2 and fldhead=&3 and fldsave=&4 and fldrepquali IS NOT NULL", $PatientNum, "General Parameters", xparam, True)
+    If res1.Available Then
+      res1.MoveLast
+      If xparam = "EDD (Scan)" Then
+        If res1["fldrepquali"] Then
+          sColl.Add(res1["fldrepquali"], "EDD (Scan)")
+        Endif
+      Else If xparam = "Menstrual Cycle" Then
+        If res1["fldrepquali"] Then
+          sColl.Add(res1["fldrepquali"], "Menstrual Cycle")
+        Endif
+      Else If xparam = "Contraception" Then
+        If res1["fldrepquali"] Then
+          sColl.Add(res1["fldrepquali"], "Contraception")
+        Endif
+      Else If xparam = "Married For" Then
+        If res1["fldrepquali"] Then
+          sColl.Add(res1["fldrepquali"], "Married For")
+        Endif
+      Else If xparam = "Quickening" Then
+        If res1["fldrepquali"] Then
+          sColl.Add(res1["fldrepquali"], "Quickening")
+        Endif
+      Endif
+    Endif
+  Next
+
+  Return sColl
+
+End
+
+Private Function ObstetricBirthHistory() As Variant[]
+
+  Dim res As Result
+  Dim xdate As Date
+  Dim xObsVarData As Variant[]
+
+  xdate = DateAdd(Now(), gb.Year, -1)
+  xObsVarData = New Variant[]
+  res = modDatabase.$syConn.Exec("select fldid,flddetail from tblexamgeneral where fldencounterval in(select fldencounterval from tblencounter where fldpatientval=&1) and fldinput=&2 and flditem=&3 and fldtime>&4", $PatientNum, $sType, "Birth History", xdate)
+  If res.Available Then
+    For Each res
+      xObsVarData.Add(JSON.Decode(res["flddetail"]))
+    Next
+  Endif
+
+  Return xObsVarData
+
+End
+
+Private Function PastObstericHistory() As Collection
+
+  Dim res As Result
+  Dim sColl As Collection
+
+  res = modDatabase.$syConn.Exec("select flddetail,fldreportquali from tblexamgeneral where fldencounterval in(select fldencounterval from tblencounter where fldpatientval=&1) and fldinput=&2 and flditem=&3 and fldsave=&4 and flddetail IS NOT NULL", $PatientNum, "History", "Obs Past History", True)
+  If res.Available Then
+    res.MoveLast
+    Try sColl = JSON.Decode(res["flddetail"])
+  Endif
+
+  Return sColl
+
+End
+
+Private Function ObsFamilyHistory() As Collection
+
+  Dim res As Result
+  Dim sColl As Collection
+
+  res = modDatabase.$syConn.Exec("select flddetail,fldreportquali from tblexamgeneral where fldencounterval in(select fldencounterval from tblencounter where fldpatientval=&1) and fldinput=&2 and flditem=&3 and fldsave=&4 and flddetail IS NOT NULL", $PatientNum, "History", "Obs Family History", True)
+  If res.Available Then
+    res.MoveLast
+    Try sColl = JSON.Decode(res["flddetail"])
+  Endif
+
+  Return sColl
+
+End
+
+Private Function ObsExamination() As Collection
+
+  Dim res As Result
+  Dim sColl As Collection
+
+  res = modDatabase.$syConn.Exec("select flddetail,fldreportquali from tblexamgeneral where fldencounterval in(select fldencounterval from tblencounter where fldpatientval=&1) and fldinput=&2 and flditem=&3 and fldsave=&4 and flddetail IS NOT NULL", $PatientNum, "Examination", "First Examination", True)
+  If res.Available Then
+    res.MoveLast
+    sColl = JSON.Decode(res["flddetail"])
+  Endif
+
+  Return sColl
+
+End
+
+Private Function LabAndRadiologyTabl(sCateg As String, xSection As String) As Variant[]
+
+  Dim res As Result
+  Dim sColl As Collection
+  Dim xVarObs As Variant[]
+
+  xVarObs = New Variant[]
+  res = modDatabase.$syConn.Exec("select fldid,flddetail,fldreportquali from tblexamgeneral where fldencounterval in(select fldencounterval from tblencounter where fldpatientval=&1) and fldinput=&2 and flditem=&3 and fldsave=&4 and flddetail IS NOT NULL", $PatientNum, sCateg, xSection, True)
+  If res.Available Then
+    For Each res
+      Try sColl = JSON.Decode(res["flddetail"])
+      If sColl And If sColl.Count Then
+        xVarObs.Add(sColl)
+      Endif
+    Next
+  Endif
+
+  Return xVarObs
+
+End
+
+Private Function ANCChart() As Variant[]
+
+  Dim res As Result
+  Dim res1 As Result
+  Dim xdate As Date
+  Dim sColl As Collection
+  Dim xANCVarData As Variant[]
+
+  xdate = DateAdd(Now(), gb.Year, -1)
+  xANCVarData = New Variant[]
+  res = modDatabase.$syConn.Exec("select distinct(fldencounterval) as fldencounterval from tblpatientexam where fldencounterval in(select fldencounterval from tblencounter where fldpatientval=&1) and fldinput=&2 and fldmethod=&3 and fldtime>&4 ORDER BY fldtime", $PatientNum, $sType, "ANC Chart", xdate)
+  If res.Available Then
+    For Each res
+      sColl = New Collection
+      sColl.Add(modReportVar.GetDateTimeReport(modPatient.GetRecordDate(res["fldencounterval"]), gb.MediumDate), "Date of Regd")
+      res1 = modDatabase.$syConn.Exec("select fldhead,fldrepquali,fldrepquanti from tblpatientexam where fldencounterval=&1 and fldinput=&2 and fldmethod=&3 and fldtime>&4", res["fldencounterval"], $sType, "ANC Chart", xdate)
+      If res1.Available Then
+        For Each res1
+          If res1["fldrepquanti"] Then
+            sColl.Add(res1["fldrepquanti"], res1["fldhead"])
+          Else
+            sColl.Add(res1["fldrepquali"], res1["fldhead"])
+          Endif
+        Next
+        xANCVarData.Add(sColl)
+      Endif
+    Next
+  Endif
+
+  Return xANCVarData
+
+End
+
+''--------------- Custom Report ------------------
+Public Function AddCustomReport(stChapter As String, stObservation As String) As String[]
+
+  Dim asx As New String[0]
+
+  If modBasic.$ShowNullVariable = "Enable" Then
+    With asx
+      If modBasic.$MedRepoBody = "Paragraph" Then
+        .Add("<b>" & stChapter & "</b><br>" & modString.TextToHTML(stObservation))
+      Else
+        .Add(stChapter)
+        .Add(modString.TextToHTML(stObservation))
+      Endif
+    End With
+
+  Else
+    If Len(Trim(stObservation)) Then
+      With asx
+        If modBasic.$MedRepoBody = "Paragraph" Then
+          .Add("<b>" & stChapter & "</b><br>" & modString.TextToHTML(stObservation))
+        Else
+          .Add(stChapter)
+          .Add(modString.TextToHTML(stObservation))
+        Endif
+      End With
+    Endif
+
+  Endif
+
+  Return asx
+
+End
+
+Public Function AddANCRiskFactors(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+
+  Dim stChapter As String
+  Dim stObservation As String
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "ANC Risk Factors"
+  Endif
+  stObservation = GetRiskFactors()
+  asx = AddCustomReport(stChapter, stObservation)
+  Return asx
+
+End
+
+Public Function AddANCDiagnosis(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+
+  Dim stChapter As String
+  Dim stObservation As String
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "ANC Diagnosis"
+  Endif
+  stObservation = GetObstetricDiagnosis()
+  asx = AddCustomReport(stChapter, stObservation)
+  Return asx
+
+End
+
+Public Function AddANCBirthHistory(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+
+  Dim stChapter As String
+  Dim stObservation As String
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "ANC Birth History"
+  Endif
+  stObservation = GetObsBirthHistory()
+  asx = AddCustomReport(stChapter, stObservation)
+  Return asx
+
+End
+
+Public Function AddANCPastHistory(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+
+  Dim stChapter As String
+  Dim stObservation As String
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "ANC Past History"
+  Endif
+  stObservation = GetObsPastHistory()
+  asx = AddCustomReport(stChapter, stObservation)
+  Return asx
+
+End
+
+Public Function AddANCFamilyHistory(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+
+  Dim stChapter As String
+  Dim stObservation As String
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "ANC Family History"
+  Endif
+  stObservation = GetObsFamilyHistory()
+  asx = AddCustomReport(stChapter, stObservation)
+  Return asx
+
+End
+
+Public Function AddANCExamination(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+
+  Dim stChapter As String
+  Dim stObservation As String
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "ANC Examination"
+  Endif
+  stObservation = GetObsExamination()
+  asx = AddCustomReport(stChapter, stObservation)
+  Return asx
+
+End
+
+Public Function AddANCSerology(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+
+  Dim stChapter As String
+  Dim stObservation As String
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Serology Report"
+  Endif
+  stObservation = GetLabGroupingSerology()
+  asx = AddCustomReport(stChapter, stObservation)
+  Return asx
+
+End
+
+Public Function AddANCVaccine(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+
+  Dim stChapter As String
+  Dim stObservation As String
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "ANC Vaccines"
+  Endif
+  stObservation = GetVaccines()
+  asx = AddCustomReport(stChapter, stObservation)
+  Return asx
+
+End
+
+Public Function AddANCHematology(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+
+  Dim stChapter As String
+  Dim stObservation As String
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Hematology Report"
+  Endif
+  stObservation = GetLabHematology()
+  asx = AddCustomReport(stChapter, stObservation)
+  Return asx
+
+End
+
+Public Function AddANCUrineReport(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+
+  Dim stChapter As String
+  Dim stObservation As String
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Urine Report"
+  Endif
+  stObservation = GetLabUrine()
+  asx = AddCustomReport(stChapter, stObservation)
+  Return asx
+
+End
+
+Public Function AddANCBiochemistry(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+
+  Dim stChapter As String
+  Dim stObservation As String
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Biochemistry Report"
+  Endif
+  stObservation = GetLabBiochemistry()
+  asx = AddCustomReport(stChapter, stObservation)
+  Return asx
+
+End
+
+Public Function AddANCUltrasound(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+
+  Dim stChapter As String
+  Dim stObservation As String
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Ultrasound Report"
+  Endif
+  stObservation = GetRadioUltrasound()
+  asx = AddCustomReport(stChapter, stObservation)
+  Return asx
+
+End
+
+Public Function AddANCOtherRadio(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+
+  Dim stChapter As String
+  Dim stObservation As String
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Radiology Report"
+  Endif
+  stObservation = GetRadioOtherTests()
+  asx = AddCustomReport(stChapter, stObservation)
+  Return asx
+
+End
+
+Public Function AddANCChart(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+
+  Dim stChapter As String
+  Dim stObservation As String
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "ANC Chart"
+  Endif
+  stObservation = GetANCChart()
+  asx = AddCustomReport(stChapter, stObservation)
+  Return asx
+
+End

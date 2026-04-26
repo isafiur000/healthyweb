@@ -324,7 +324,7 @@ Public Function GetMaxValueArray(sArry As Float[]) As Float
 
 End
 
-Public Sub GetFullStringExistFromFile(sArray As String[], xSearch As String) As String
+Public Function GetFullStringExistFromFile(sArray As String[], xSearch As String) As String
 
   Dim xx As String
   Dim xval As String
@@ -341,7 +341,7 @@ Public Sub GetFullStringExistFromFile(sArray As String[], xSearch As String) As 
 End
 
 'NOTE: ---------------------------------- CSV Manipulation -----------------------------------------
-Public Sub GetStringArrayFromFile(sPath As String, Optional Sorted As Boolean) As String[]
+Public Function GetStringArrayFromFile(sPath As String, Optional Sorted As Boolean) As String[]
 
   Dim hFile As File
   Dim sLine As String
@@ -856,6 +856,14 @@ Public Function GetFormatTextFontString(sText As String, Optional sFontText As S
 
   If Len(Trim(sText)) Then
     If sFontText Then
+      ' ''-----Desktop
+      ' sFontName = Font[sFontText].Name
+      ' sFontSize = Font[sFontText].Size & "pt"
+      ' sBold = Font[sFontText].Bold
+      ' sItalic = Font[sFontText].Italic
+      ' sUnderline = Font[sFontText].Underline
+      ' sStrikeOut = Font[sFontText].Strikeout
+      ''------- web
       If (String.InStr(sFontText, "bold") > 0) Then
         sBold = True
       Endif
@@ -868,8 +876,6 @@ Public Function GetFormatTextFontString(sText As String, Optional sFontText As S
       If (String.InStr(sFontText, "strikeout") > 0) Then
         sStrikeOut = True
       Endif
-      ' sFontName = Font[sFontText].Name
-      ' sFontSize = Font[sFontText].Size & "pt"
     Else
       sFontName = ""
       sFontSize = ""
@@ -961,6 +967,15 @@ Public Function GetImageForHTML(sFIle As String) As String
   Dim xx As String
 
   xx = "<img class='reportmid_image' src=" & sFIle & ">"
+  Return xx
+
+End
+
+Public Function GetClinChartForHTML(sPath As String) As String
+
+  Dim xx As String
+
+  xx = "<div style='height: 100%; width: auto; object-fit: contain;'><img src=" & sPath & "></div>"
   Return xx
 
 End
@@ -1146,6 +1161,7 @@ Public Function GetConfTextToHTML(sText As String) As String
 
 End
 
+''One column
 Public Function GetHTMLListFormat(sData As String[]) As String
 
   Dim xx As String
@@ -1165,7 +1181,57 @@ Public Function GetHTMLListFormat(sData As String[]) As String
 
 End
 
-Public Sub GetDualHorizontalFormat(xDualVar As Variant[], Optional sTitle As String[]) As String
+Public Function GetUniColumnTableFromList(sList As String[]) As String
+
+  Dim xx As String
+  Dim xval As String
+
+  If sList And If sList.Count Then
+    xx = modRepoTemplete.HTMLTableSyntax()
+    For Each xval In sList
+      xx = xx & "<tr>" & gb.NewLine
+      xx = xx & "<td>" & xval & "</td>" & gb.NewLine
+      xx = xx & "</tr>" & gb.NewLine
+    Next
+    xx = xx & "</table>"
+  Else
+    xx = ""
+  Endif
+  Return xx
+
+End
+
+''Two Columns
+Public Function GetDualColumnTableCollection(sColl As Collection, Optional sTitle As String[]) As String
+
+  Dim xx As String
+  Dim xval As String
+
+  If sColl And If sColl.Count Then
+    xx = modRepoTemplete.HTMLTableSyntax()
+    If sTitle And If sTitle.Count = 2 Then
+      xx = xx & "<tr>" & gb.NewLine
+      xx = xx & "<td width='50%'>" & "<b>" & sTitle[0] & "</td>" & gb.NewLine
+      xx = xx & "<td width='50%'>" & "<b>" & sTitle[1] & "</td>" & gb.NewLine
+      xx = xx & "</tr>" & gb.NewLine
+    Endif
+    For Each xval In sColl
+      xx = xx & "<tr>" & gb.NewLine
+      xx = xx & "<td width='50%'>" & sColl.Key & "</td>" & gb.NewLine
+      xx = xx & "<td width='50%'>" & sColl[sColl.Key] & "</td>" & gb.NewLine
+      xx = xx & "</tr>" & gb.NewLine
+    Next
+    xx = xx & "</table>" & gb.NewLine
+
+  Else
+    xx = ""
+  Endif
+
+  Return xx
+
+End
+
+Public Function GetDualHorizontalFormat(xDualVar As Variant[], Optional sTitle As String[]) As String
 
   Dim xx As String
   Dim Row As Integer
@@ -1195,7 +1261,7 @@ Public Sub GetDualHorizontalFormat(xDualVar As Variant[], Optional sTitle As Str
 
 End
 
-Public Sub GetDualTableFormat(sLeft As String[], sRight As String[], Optional sTitle As String[]) As String
+Public Function GetDualTableFormat(sLeft As String[], sRight As String[], Optional sTitle As String[]) As String
 
   Dim xx As String
   Dim i As Integer
@@ -1227,37 +1293,40 @@ Public Sub GetDualTableFormat(sLeft As String[], sRight As String[], Optional sT
 
 End
 
-Public Function GetTableFormatFromText(sTable As String) As String
+''Multi Columns ''Using Keys
+Public Function GetExactTableFromVariantKeys(sColmList As String[], xFinal As Variant[]) As String
 
-  Dim sTxLine As String[]
   Dim xx As String
-  Dim col As String
+  Dim xRowVal As Collection
   Dim i As Integer
-  Dim xcell As String[]
-  Dim xval As String
+  Dim Row As Integer
+  Dim Column As Integer
 
-  sTxLine = Split(sTable, gb.NewLine)
-  xx = modRepoTemplete.HTMLTableSyntax()
-  xx = xx & "<tr>" & gb.NewLine
-  For Each col In Split(sTxLine[0], ";")
-    xx = xx & "<td class='reportmid_table_h'>" & col & "</td>" & gb.NewLine
-  Next
-  xx = xx & "</tr>" & gb.NewLine
-
-  For i = 1 To sTxLine.Count - 1
+  If xFinal And If xFinal.Count Then
+    xx = modRepoTemplete.HTMLTableSyntax()
     xx = xx & "<tr>" & gb.NewLine
-    xcell = Split(sTxLine[i], ";")
-    For Each xval In xcell
-      xx = xx & "<td>" & xval & "</td>" & gb.NewLine
+    For i = 0 To sColmList.Count - 1
+      xx = xx & "<td class='reportmid_table_h'>" & sColmList[i] & "</td>" & gb.NewLine
     Next
     xx = xx & "</tr>" & gb.NewLine
-  Next
-  xx = xx & "</table>"
 
+    For Row = 0 To xFinal.Count - 1
+      xx = xx & "<tr>" & gb.NewLine
+      xRowVal = xFinal[Row]
+      For Column = 0 To sColmList.Count - 1
+        xx = xx & "<td>" & xRowVal[sColmList[Column]] & "</td>" & gb.NewLine
+      Next
+      xx = xx & "</tr>" & gb.NewLine
+    Next
+    xx = xx & "</table>"
+  Else
+    xx = ""
+  Endif
   Return xx
 
 End
 
+''Using Integers
 Public Function GetRichTableStringFromVariant(sColmList As String[], xFinal As Variant[]) As String
 
   Dim xx As String
@@ -1290,6 +1359,7 @@ Public Function GetRichTableStringFromVariant(sColmList As String[], xFinal As V
 
 End
 
+''Using Integers
 Public Function GetRichTableNoHeadFromVariant(xColCount As Integer, xFinal As Variant[]) As String
 
   Dim xx As String
@@ -1315,26 +1385,7 @@ Public Function GetRichTableNoHeadFromVariant(xColCount As Integer, xFinal As Va
 
 End
 
-Public Function GetUniColumnTableFromList(sList As String[]) As String
-
-  Dim xx As String
-  Dim xval As String
-
-  If sList And If sList.Count Then
-    xx = modRepoTemplete.HTMLTableSyntax()
-    For Each xval In sList
-      xx = xx & "<tr>" & gb.NewLine
-      xx = xx & "<td>" & xval & "</td>" & gb.NewLine
-      xx = xx & "</tr>" & gb.NewLine
-    Next
-    xx = xx & "</table>"
-  Else
-    xx = ""
-  Endif
-  Return xx
-
-End
-
+''Text to Table
 Public Function ConverTableRichTextToGrid(sTable As String) As String[]
 
   Dim aLine As String[]
@@ -1385,6 +1436,37 @@ Public Function ConverTableRichTextToGrid(sTable As String) As String[]
 
   xx.Add(xcol.Join(";"))
   xx.Add(xcol.Join(";") & gb.NewLine & xval.Join(gb.NewLine))
+  Return xx
+
+End
+
+Public Function GetTableFormatFromText(sTable As String) As String
+
+  Dim sTxLine As String[]
+  Dim xx As String
+  Dim col As String
+  Dim i As Integer
+  Dim xcell As String[]
+  Dim xval As String
+
+  sTxLine = Split(sTable, gb.NewLine)
+  xx = modRepoTemplete.HTMLTableSyntax()
+  xx = xx & "<tr>" & gb.NewLine
+  For Each col In Split(sTxLine[0], ";")
+    xx = xx & "<td class='reportmid_table_h'>" & col & "</td>" & gb.NewLine
+  Next
+  xx = xx & "</tr>" & gb.NewLine
+
+  For i = 1 To sTxLine.Count - 1
+    xx = xx & "<tr>" & gb.NewLine
+    xcell = Split(sTxLine[i], ";")
+    For Each xval In xcell
+      xx = xx & "<td>" & xval & "</td>" & gb.NewLine
+    Next
+    xx = xx & "</tr>" & gb.NewLine
+  Next
+  xx = xx & "</table>"
+
   Return xx
 
 End
@@ -1576,9 +1658,7 @@ Public Function GetNowString() As String
 
   Dim xx As String
 
-  xx = Session.Id & GetDateString(Now()) & modBasic.$lbluser
-  xx = Replace(xx, ".", "")
-  xx = Replace(xx, ":", "")
+  xx = GetDateString(Now()) & modBasic.$lbluser
   Return xx
 
 End

@@ -89,52 +89,54 @@ Public Sub btnsave_Click()
 
   Dim xmode As String
 
-  modDatabase.$myConn.Begin
-  If rbadmission.Value = True Then
-    xmode = "Admission"
-    modPatientGeneral.AddPatientParagraph($encid, "Notes", "Doctor Order", "", txtcomment.Text, False)
-  Else If rbfollowup.Value = True Then
-    xmode = "Follow Up"
-  Else If rbreferred.Value = True Then
-    xmode = "Referred"
-  Else If rblama.Value = True Then
-    xmode = "LAMA"
-    modPatientSub.UpdateCurrentStatus($encid, "LAMA(OPD)", "")
-  Else If rbdeath.Value = True Then
-    xmode = "Death"
-    modPatientSub.UpdateCurrentStatus($encid, "Death(OPD)", "")
-  Else If rbimproved.Value = True Then
-    xmode = "Discharged"
-  Else If rbcomplete.Value = True Then
-    xmode = "Completed"
-  Endif
+  If modPathoSub.AllowOPOutcomeDiagno($encid) = True Then
+    modDatabase.$myConn.Begin
+    If rbadmission.Value = True Then
+      xmode = "Admission"
+      modPatientGeneral.AddPatientParagraph($encid, "Notes", "Doctor Order", "", txtcomment.Text, False)
+    Else If rbfollowup.Value = True Then
+      xmode = "Follow Up"
+    Else If rbreferred.Value = True Then
+      xmode = "Referred"
+    Else If rblama.Value = True Then
+      xmode = "LAMA"
+      modPatientSub.UpdateCurrentStatus($encid, "LAMA(OPD)", "")
+    Else If rbdeath.Value = True Then
+      xmode = "Death"
+      modPatientSub.UpdateCurrentStatus($encid, "Death(OPD)", "")
+    Else If rbimproved.Value = True Then
+      xmode = "Discharged"
+    Else If rbcomplete.Value = True Then
+      xmode = "Completed"
+    Endif
 
-  If xmode Then
-    If $sType = "Consultation" Then
-      If rbadmission.Value = True Then
-        modPatientSub.UpdateConsultData($xSerial, $encid, "Done", txtcomment.Text, xmode, cmbrefer.Text)
-        ' modPatientSub.EmergencyAdmission($encid)
-      Else If rbreferred.Value = True Then
-        modPatientSub.UpdateConsultData($xSerial, $encid, "Done", txtcomment.Text, xmode, cmbrefer.Text)
-      Else If rbfollowup.Value = True Then
-        modPatientSub.UpdateConsultData($xSerial, $encid, "Done", txtcomment.Text, xmode, "", dtfollowup.Value)
-      Else
-        modPatientSub.UpdateConsultData($xSerial, $encid, "Done", txtcomment.Text, xmode)                       ''
-      Endif
-    Else If $sType = "OP Visit" Then
-      If rbadmission.Value = True Then
-        modPatientSub.UpdateOPVisitData($xSerial, $encid, "Done", txtcomment.Text, xmode, cmbrefer.Text)
-      Else If rbreferred.Value = True Then
-        modPatientSub.UpdateOPVisitData($xSerial, $encid, "Done", txtcomment.Text, xmode, cmbrefer.Text)
-      Else If rbfollowup.Value = True Then
-        modPatientSub.UpdateOPVisitData($xSerial, $encid, "Done", txtcomment.Text, xmode, "", dtfollowup.Value)
-      Else
-        modPatientSub.UpdateOPVisitData($xSerial, $encid, "Done", txtcomment.Text, xmode)
+    If xmode Then
+      If $sType = "Consultation" Then
+        If rbadmission.Value = True Then
+          modPatientSub.UpdateConsultData($xSerial, $encid, "Done", txtcomment.Text, xmode, cmbrefer.Text)
+          ' modPatientSub.EmergencyAdmission($encid)
+        Else If rbreferred.Value = True Then
+          modPatientSub.UpdateConsultData($xSerial, $encid, "Done", txtcomment.Text, xmode, cmbrefer.Text)
+        Else If rbfollowup.Value = True Then
+          modPatientSub.UpdateConsultData($xSerial, $encid, "Done", txtcomment.Text, xmode, "", dtfollowup.Value)
+        Else
+          modPatientSub.UpdateConsultData($xSerial, $encid, "Done", txtcomment.Text, xmode)                       ''
+        Endif
+      Else If $sType = "OP Visit" Then
+        If rbadmission.Value = True Then
+          modPatientSub.UpdateOPVisitData($xSerial, $encid, "Done", txtcomment.Text, xmode, cmbrefer.Text)
+        Else If rbreferred.Value = True Then
+          modPatientSub.UpdateOPVisitData($xSerial, $encid, "Done", txtcomment.Text, xmode, cmbrefer.Text)
+        Else If rbfollowup.Value = True Then
+          modPatientSub.UpdateOPVisitData($xSerial, $encid, "Done", txtcomment.Text, xmode, "", dtfollowup.Value)
+        Else
+          modPatientSub.UpdateOPVisitData($xSerial, $encid, "Done", txtcomment.Text, xmode)
+        Endif
       Endif
     Endif
+    modDatabase.$myConn.Commit
+    Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information updated", modBasic.$BalloonDelay))
   Endif
-  modDatabase.$myConn.Commit
-  Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information updated", modBasic.$BalloonDelay))
 
 Catch
   modDatabase.$myConn.Rollback
