@@ -239,7 +239,7 @@ Private Sub ShowCurrStockGrid(sRoute As String, sSearch As String)
     End Select
 
   Else
-    $rData = modDatabase.$syConn.Exec("select flditem,flditem,flditem,fldroute from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldcurval=&3 and fldroute=&4 and lower(flditem) like &5 ORDER BY flditem ASC", $encid, False, "Continue", sRoute, sSearch)
+    $rData = modDatabase.$syConn.Exec("select flditem,flditem as xitem,flditem,fldroute as extra from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldcurval=&3 and fldroute=&4 and lower(flditem) like &5 ORDER BY flditem ASC", $encid, False, "Continue", sRoute, sSearch)
   Endif
   $aMyFields = New String[]
   modGridView.ReadSmallData(GridView3, $rData, $aMyFields)
@@ -297,6 +297,7 @@ Public Sub GridView3_Select()
     txtqty.Value = 0
     If modBasic.$ClinFractQuantity = "Enable" Then
       txtbreakitem.Text = $rData["xitem"]
+      txtroute.Text = $rData["extra"]
       SHowBreakPanel($rData["xitem"])
     Endif
   Endif
@@ -345,7 +346,7 @@ Public Sub btnselbreak_Click()
 
   If cmbgroup.Text Then
     If txtqty.Value Then
-      EntryUseOwndata(cmbgroup.Text, txtbreakitem.Text, txtqty.Value)
+      EntryUseOwndata(cmbgroup.Text, txtroute.Text, txtbreakitem.Text, txtqty.Value)
       GridView3.UnselectAll()
       txtdose.Value = 0
       txtqty.Value = 0
@@ -384,7 +385,7 @@ Public Sub btnselect_Click()
           xqty = $rData["fldqty"]
         Endif
         If xqty Then
-          EntryUseOwndata(sType, $rData["xitem"], xqty)
+          EntryUseOwndata(sType, $rData["extra"], $rData["xitem"], xqty)
         Endif
 
       Endif
@@ -396,9 +397,8 @@ Public Sub btnselect_Click()
 
 End
 
-Private Sub EntryUseOwndata(sType As String, sItem As String, sQty As Float)
+Private Sub EntryUseOwndata(sType As String, xroute As String, sItem As String, sQty As Float)
 
-  Dim xroute As String
   Dim xtax As Float
   Dim xdisc As Float
   Dim xdose As Float
@@ -433,7 +433,7 @@ Private Sub EntryUseOwndata(sType As String, sItem As String, sQty As Float)
     itemmode = $sBillMode
     xtax = modNonMedical.ShowTaxValues(sType, sItem)
     xdisc = modNonMedical.DiscPercentForCategoryValue($encid, $DiscPackage, sType, sItem, itemmode)
-    xroute = modMedicine.GetRouteFromItem(sItem, sType)
+    ' xroute = modMedicine.GetRouteFromItem(sItem, sType)
 
     If sType = "Medicines" Then
       xdose = sQty * modMedConstant.GetPackVolValue(sItem) * modMedConstant.GetDrugInitialStrength(sItem)

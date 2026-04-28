@@ -252,6 +252,8 @@ Public Function GetCustomReportValue(sType As String, encid As String, sHead As 
     xval = hForm.AddIndoorMedication(sHead)
   Else If sType = "Nutrition Consumed" Then
     xval = hForm.AddNutritionUsed(sHead)
+  Else If sType = "Vaccines used" Then
+    xval = hForm.AddVaccineUsed(sHead)
   Else If sType = "Delivery Profile" Then
     xval = hForm.AddDeliveryProfile(sHead)
 
@@ -296,6 +298,8 @@ Public Function GetCustomReportValue(sType As String, encid As String, sHead As 
     xval = hForm.AddDepartmentStructured("Departmental Examinations")
   Else If sType = "Discharge Examinations" Then
     xval = hForm.AddDischargeFindings("Discharge Examinations")
+  Else If sType = "Glass Prescription" Then
+    xval = hForm.AddGlassPrescription("Glass Prescription")
 
   Else If sType = "Laboratory Tests" Then
     xval = hForm.AddSelectedTest(modLabTest.PaientAllTestNameArray(encid), xunit)
@@ -308,6 +312,22 @@ Public Function GetCustomReportValue(sType As String, encid As String, sHead As 
   Else If sType Like "Discharge@" & "*" Then
     asx = Split(sType, "@")
     xval = hForm.AddSelectedDischarge(UnQuote(asx[1]))
+
+    'ANC Form
+  Else If sType = "ANC:Risk Factors" Then
+  Else If sType = "ANC:Diagnosis" Then
+  Else If sType = "ANC:Birth History" Then
+  Else If sType = "ANC:Past History" Then
+  Else If sType = "ANC:Family History" Then
+  Else If sType = "ANC:Examination" Then
+  Else If sType = "ANC:Serology" Then
+  Else If sType = "ANC:Vaccines" Then
+  Else If sType = "ANC:Hematology" Then
+  Else If sType = "ANC:UrineTest" Then
+  Else If sType = "ANC:Biochemistry" Then
+  Else If sType = "ANC:Ultrasound" Then
+  Else If sType = "ANC:Other Radiology" Then
+  Else If sType = "ANC:ANC Chart" Then
 
   Else
     xval = modPatReports.AddCustomParam(sType)
@@ -1590,10 +1610,11 @@ Public Function GetReportCurrConsult($encid As String, $Line As String, Optional
   Dim xindex As Long
 
   If VarIndex Then
-    xx = GetReportCurrConsultData($encid, $Line, VarIndex)
+    $Line = GetReportCurrConsultData($encid, $Line, VarIndex)
   Else
     xstr = modString.GetSelectedTextBetween($Line, "<Consultation>", "</Consultation>")
     If xstr Then
+      xx = xstr
       xIndLst = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec("select fldid as col from tblconsult where fldencounterval=&1", $encid))
       If xIndLst And If xIndLst.Count Then
         xx = ""
@@ -1601,12 +1622,12 @@ Public Function GetReportCurrConsult($encid As String, $Line As String, Optional
           xx = xx & "<p>" & GetReportCurrConsultData($encid, xstr, xindex) & "</p>" & gb.NewLine
         Next
       Endif
-    Else
-      xx = $Line
+
+      $Line = Replace($Line, "<Consultation>" & xstr & "</Consultation>", xx)
     Endif
   Endif
 
-  Return xx
+  Return $Line
 
 End
 
@@ -1653,10 +1674,11 @@ Public Function GetReportCurrOPVisit($encid As String, $Line As String, Optional
   Dim xindex As Long
 
   If VarIndex Then
-    xx = GetReportCurrOPVisitData($encid, $Line, VarIndex)
+    $Line = GetReportCurrOPVisitData($encid, $Line, VarIndex)
   Else
     xstr = modString.GetSelectedTextBetween($Line, "<OPVisit>", "</OPVisit>")
     If xstr Then
+      xx = xstr
       xIndLst = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec("select fldid as col from tblopvisit where fldencounterval=&1", $encid))
       If xIndLst And If xIndLst.Count Then
         xx = ""
@@ -1664,12 +1686,12 @@ Public Function GetReportCurrOPVisit($encid As String, $Line As String, Optional
           xx = xx & "<p>" & GetReportCurrOPVisitData($encid, xstr, xindex) & "</p>" & gb.NewLine
         Next
       Endif
-    Else
-      xx = $Line
+
+      $Line = Replace($Line, "<OPVisit>" & xstr & "</OPVisit>", xx)
     Endif
   Endif
 
-  Return xx
+  Return $Line
 
 End
 
@@ -1799,11 +1821,11 @@ Public Function GetReportANCReportDetail($encid As String, $Line As String) As S
     If (String.InStr(xx, "ANC:ANCChart") > 0) Then
       xx = Replace(xx, "{ANC:ANCChart}", cForm.GetANCChart())
     Endif
-  Else
-    xx = $Line
+
+    $Line = Replace($Line, "<ANCReport>" & xstr & "</ANCReport>", xx)
   Endif
 
-  Return xx
+  Return $Line
 
 End
 
@@ -1816,10 +1838,11 @@ Public Function GetReportProcedureDetail($encid As String, $Line As String, Opti
   Dim xindex As Long
 
   If sid Then
-    xx = GetReportProcedureString($encid, $Line, sid)
+    $Line = GetReportProcedureString($encid, $Line, sid)
   Else
     xstr = modString.GetSelectedTextBetween($Line, "<Procedure>", "</Procedure>")
     If xstr Then
+      xx = xstr
       xIndLst = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec("select fldid as col from tblpatgeneral where fldencounterval=&1 and fldinput=&2", $encid, "Procedures"))
       If xIndLst And If xIndLst.Count Then
         xx = ""
@@ -1827,12 +1850,12 @@ Public Function GetReportProcedureDetail($encid As String, $Line As String, Opti
           xx = xx & "<p>" & GetReportProcedureString($encid, xstr, xindex) & "</p>" & gb.NewLine
         Next
       Endif
-    Else
-      xx = $Line
+
+      $Line = Replace($Line, "<Procedure>" & xstr & "</Procedure>", xx)
     Endif
   Endif
 
-  Return xx
+  Return $Line
 
 End
 

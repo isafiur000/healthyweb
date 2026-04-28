@@ -282,8 +282,9 @@ Private Sub GetEncounterValue()
             $dtRegist = modPatient.GetRecordDate(Trim(txtencid.Text))
             txtpatdoa.Text = modReportVar.GetDateTimeReport($dtRegist, gb.GeneralDate)
             txtpatweight.Value = modClinic.GetBodyWeight(Trim(txtencid.Text))
-            btnconsult.Tag = modPatient.GetAttendingConsultant(Trim(txtencid.Text))
-            btnconsult.Text = modGeneral.GetUserFullName(btnconsult.Tag)
+            ' btnconsult.Tag = modPatient.GetAttendingConsultant(Trim(txtencid.Text))
+            ' btnconsult.Text = modGeneral.GetUserFullName(btnconsult.Tag)
+            GetDoctorNames()
             modClinSub.GetPatientHeight(Trim(txtencid.Text), txtpatheight, cmbpatheightunit)
             modAppSupport.RecordPatientActivity("Patient Data", Me.Name, "EncounterID", Trim(txtencid.Text))
             UpdateTriage()
@@ -412,6 +413,34 @@ Public Sub dtdob_Click()
 End
 
 ''------------Hospital related parameters
+Private Sub GetDoctorNames()
+
+  Dim res As Result
+
+  btnconsult.Tag = modPatient.GetAttendingConsultant(Trim(txtencid.Text))
+  If Not btnconsult.Tag Then
+    If txtclinmode.Text = "Consultation" Then
+      res = modDatabase.$myConn.Exec("select flduserid as flduser from tblconsult where fldencounterval=&1 and fldid=&2", Trim(txtencid.Text), txtclinIndex.Value)
+    Else If txtclinmode.Text = "OP Visit" Then
+      res = modDatabase.$myConn.Exec("select fldflaguser as flduser from tblopvisit where fldencounterval=&1 and fldid=&2", Trim(txtencid.Text), txtclinIndex.Value)
+    Endif
+    If res.Available Then
+      If res["flduser"] Then
+        btnconsult.Tag = res["flduser"]
+      Else
+        btnconsult.Tag = ""
+      Endif
+    Else
+      btnconsult.Tag = ""
+    Endif
+  Endif
+
+  If btnconsult.Tag Then
+    btnconsult.Text = modGeneral.GetUserFullName(btnconsult.Tag)
+  Endif
+
+End
+
 Public Sub btnselectuser_Click()
 
   Dim xMedUser As String[]
@@ -428,6 +457,7 @@ Public Sub btnselectuser_Click()
     If btnconsult.Tag Then
       modPatientSub.UpdateAttendingConsultant(Trim(txtencid.Text), btnconsult.Tag)
       Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+      ButtonControl()
     Endif
   Endif
 
@@ -661,10 +691,19 @@ Private Sub ButtonControl()
   Dim xfinal As Boolean
   Dim xval As String
 
-  xfinal = modPatient.EnableClinicForm($sTatus)
-  If xfinal = True Then
-    xx = modPatient.EnableClinicOPDForm(Trim(txtencid.Text))
+  If modBasic.$DoctorOblig = "Enable" And If Not btnconsult.Tag Then
+    xx = False
+    xfinal = False
   Else
+    xfinal = modPatient.EnableClinicForm($sTatus)
+    If xfinal = True Then
+      xx = modPatient.EnableClinicOPDForm(Trim(txtencid.Text))
+    Else
+      xx = False
+    Endif
+  Endif
+
+  If Not txtpatientname.Text Then
     xx = False
   Endif
 
@@ -2654,6 +2693,36 @@ Public Sub mnudiagnorep_Click()
     xPath = modCHTMLPatient.ShowPatientLaboratoryReport(Trim(txtencid.Text), LabUnitForm())
     modControlSub.OpenHTMLPreview(Trim(txtencid.Text), xPath, "ReportSize")
   Endif
+
+End
+
+Public Sub mnucurlab_Click()
+
+  modPatReports.GetArchiveCurrReportEnc("Diagnostic Tests", Trim(txtencid.Text))
+
+End
+
+Public Sub mnucurradio_Click()
+
+  modPatReports.GetArchiveCurrReportEnc("Radio Diagnostics", Trim(txtencid.Text))
+
+End
+
+Public Sub mnucurgeneral_Click()
+
+  modPatReports.GetArchiveCurrReportEnc("General Reports", Trim(txtencid.Text))
+
+End
+
+Public Sub mnucurscan_Click()
+
+  modPatReports.GetArchiveCurrReportEnc("Scanned Images", Trim(txtencid.Text))
+
+End
+
+Public Sub mnucurpast_Click()
+
+  modPatReports.GetArchiveCurrReportEnc("Past Documents", Trim(txtencid.Text))
 
 End
 

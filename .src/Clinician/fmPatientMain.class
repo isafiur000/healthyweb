@@ -18,6 +18,7 @@ Private hSoapPlan As FmSoapPlan
 Private hOwnStockForm As FmWardStock
 Private hNoteClin As FmClinNote
 Private hPtForm As FmClinHistory
+Private hIpCardex As FmIPMedOrder
 
 Private $billModeTest As String
 Private $billModeRadio As String
@@ -181,6 +182,7 @@ Private Sub EnableContainers()
   pnlexamnote.Enabled = True
   pnlintakeout.Enabled = True
   pnlnotes.Enabled = True
+  pnlcardex.Enabled = True
   pnlplanning.Enabled = True
   pnlmedicines.Enabled = True
   pnlowninventory.Enabled = True
@@ -387,6 +389,7 @@ Public Sub btnselectuser_Click()
     If btnconsult.Tag Then
       modPatientSub.UpdateAttendingConsultant(Trim(txtencid.Text), btnconsult.Tag)
       Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+      ButtonControl()
     Endif
   Endif
 
@@ -591,6 +594,7 @@ Private Sub BasicInfoPatient()
     hDigForm = New FmDiagnosticTab(Trim(txtencid.Text), "height-tablet", pnldiagnostic)
     hSoapPlan = New FmSoapPlan(Trim(txtencid.Text), "height-tablet", pnlplanning)
     hNoteClin = New FmClinNote(Trim(txtencid.Text), xnoteList, $sTatus, "height-tablet", pnlnotes)
+    hIpCardex = New FmIPMedOrder(Trim(txtencid.Text), $sTatus, $billModePharmacy, "height-tablet", pnlcardex)
     hOwnStockForm = New FmWardStock(Trim(txtencid.Text), $sTatus, $billModePharmacy, "height-tablet", pnlowninventory)
     pnlhistory.Visible = True
     hPtForm = New FmClinHistory($PatientNum, "PatientID", False, "height-tablet", pnlhistory)
@@ -604,7 +608,12 @@ Private Sub ButtonControl()
   Dim xx As Boolean
   Dim xval As String
 
-  xx = modPatient.EnableClinicForm(txtnow.Text)
+  If modBasic.$DoctorOblig = "Enable" And If Not btnconsult.Tag Then
+    xx = False
+  Else
+    xx = modPatient.EnableClinicForm(txtnow.Text)
+  Endif
+
   If Not txtpatientname.Text Then
     xx = False
   Endif
@@ -631,19 +640,6 @@ Private Sub ButtonControl()
   ' mnuneurology.Enabled = xx
   ''input/output
   pnlintakeout.Enabled = xx
-  ' btnaddinput.Enabled = xx
-  ' btneditinput.Enabled = xx
-  ' btaddoutput.Enabled = xx
-  ' btneditout.Enabled = xx
-  ' grdintake.Enabled = xx
-  ' grdoutput.Enabled = xx
-  ''clinical note
-  ' btnoteadd.Enabled = xx
-  ' btnotedit.Enabled = xx
-  ''set consult
-  btnconsult.Enabled = xx
-  ''planning
-  ' hSoapPlan.Enabled = xx
   ''provisional Diagnosis
   tlbtndelprov.Enabled = xx
   btnprovcustom.Enabled = xx
@@ -782,6 +778,7 @@ Private Sub GetTabStripState(xBool As Boolean)
   pnldiagnosis.Enabled = xBool
   pnlintakeout.Enabled = xBool
   pnlnotes.Enabled = xBool
+  pnlcardex.Enabled = xBool
   pnlplanning.Enabled = xBool
   pnlowninventory.Enabled = xBool
   pnlmedicines.Enabled = xBool
@@ -859,6 +856,7 @@ Private Sub RestrictUserAccess()
   Endif
   If $UserRestrict.Exist("Pharmacy Request") Then
     mnumedicine.Visible = False
+    pnlcardex.Visible = False
   Endif
   If $UserRestrict.Exist("Products Request") Then
     btnBlood.Visible = False
@@ -2278,6 +2276,36 @@ Public Sub mnupresremote_Click()
 End
 
 ''archive
+Public Sub mnucurlab_Click()
+
+  modPatReports.GetArchiveCurrReportEnc("Diagnostic Tests", Trim(txtencid.Text))
+
+End
+
+Public Sub mnucurradio_Click()
+
+  modPatReports.GetArchiveCurrReportEnc("Radio Diagnostics", Trim(txtencid.Text))
+
+End
+
+Public Sub mnucurgeneral_Click()
+
+  modPatReports.GetArchiveCurrReportEnc("General Reports", Trim(txtencid.Text))
+
+End
+
+Public Sub mnucurscan_Click()
+
+  modPatReports.GetArchiveCurrReportEnc("Scanned Images", Trim(txtencid.Text))
+
+End
+
+Public Sub mnucurpast_Click()
+
+  modPatReports.GetArchiveCurrReportEnc("Past Documents", Trim(txtencid.Text))
+
+End
+
 Public Sub mnuarchivlab_Click()
 
   modPatReports.GetArchiveReportResult("Diagnostic Tests", $PatientNum)
