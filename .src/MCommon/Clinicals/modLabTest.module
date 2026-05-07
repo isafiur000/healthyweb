@@ -1573,7 +1573,11 @@ Public Function GetSubSensiTableReportString(sType As String, testid As Long, su
                 If res["fldcolm2"] = "Disk" Then
                   arDisk.Add(res["fldvariable"] & "|" & bsx)
                 Else If res["fldcolm2"] = "MIC" Then
-                  arMIC.Add(res["fldvariable"] & "|" & bsx & "(" & res["fldcolm3"] & ")")
+                  If modBasic.$LabShowMICVal = "Enable" Then
+                    arMIC.Add(res["fldvariable"] & "|" & bsx & "[MIC: " & res["fldcolm3"] & "]")
+                  Else
+                    arMIC.Add(res["fldvariable"] & "|" & bsx)
+                  Endif
                 Else If res["fldcolm2"] = "E-Test" Then
                   arETest.Add(res["fldvariable"] & "|" & bsx)
                 Else If res["fldcolm2"] = "Biology" Then
@@ -1643,7 +1647,15 @@ Public Function GetSubSensiTableReportString(sType As String, testid As Long, su
               xstr.Add(res["fldvariable"])
             Endif
             If res["fldvalue"] Then
-              xstr.Add(res["fldvalue"])
+              If res["fldcolm2"] = "MIC" Then
+                If modBasic.$LabShowMICVal = "Enable" Then
+                  xstr.Add(res["fldvalue"] & "[MIC: " & res["fldcolm3"] & "]")
+                Else
+                  xstr.Add(res["fldvalue"])
+                Endif
+              Else
+                xstr.Add(res["fldvalue"])
+              Endif
             Endif
             xx.Add(xstr.Join(" : "))
           Next
@@ -1651,7 +1663,7 @@ Public Function GetSubSensiTableReportString(sType As String, testid As Long, su
         xval = xx.Join(gb.NewLine)
       Endif
 
-    Else
+    Else  ''Drug Sensitivity
       If sTable = True Then
         aa = New String[]
         bb = New String[]
@@ -2045,6 +2057,25 @@ Public Function GetLabTATHours(labid As Variant, Optional sTable As String) As I
 
 End
 
+Public Function GetLabSubTestListFromID(encid As String, labid As Long, sTypeList As String[]) As String[]
+
+  Dim res As Result
+  Dim i As Integer
+  Dim xList As String[]
+  Dim xxx As String[]
+
+  xList = sTypeList.Copy()
+  For i = 0 To xList.Count - 1
+    xList[i] = "'" & xList[i] & "'"
+  Next
+
+  res = modDatabase.$myConn.Exec("select fldsubtest as col from tblpatlabsubtest where fldencounterval=&1 and fldtestid=&2 and fldtanswertype in(" & xList.Join(",") & ")", encid, labid)
+  xxx = modControlSub.GetDirectFillresult(res)
+
+  Return xxx
+
+End
+
 ''------------------------------------ LAB VALUES ALTERATION -------------------------------------------------
 'NOTE:TWO CON
 Public Function GetLabTestDrugHypo(labid As Long, sTable As String) As String[]
@@ -2266,9 +2297,10 @@ Public Function GetStatLabReport(labid As Long, unt As String, sDiagnosis As Str
 
 End
 
-Public Function LabReportCommentPatient(labid As Long, unt As String, sType As String, Optional sTable As String) As String
+Public Function LabReportCommentPatient(encid As String, labid As Long, unt As String, sType As String, Optional sTable As String) As String
 
   Dim xx As String[]
+  Dim xtestname As String
 
   Dim xrefrange As String
   Dim druglow As String[]
@@ -2278,22 +2310,31 @@ Public Function LabReportCommentPatient(labid As Long, unt As String, sType As S
   Dim xintpret As String
   Dim xsenspec As Float[]
   Dim xTable As String
-  Dim xtestname As String
   Dim xfooter As String
+  Dim xbactLst As String[]
+  Dim xbactr As String
 
   If sTable Then
     xTable = sTable
   Else
     xTable = "tblpatlabtest"
   Endif
+
+  xtestname = GetTestnameFromTestID(labid, xTable)
   If sType = "Qualitative" Then
     xx = New String[]
     ' If modBasic.$CommRefRange = "Yes" Then
-    xrefrange = modFixLab.GetLabQualiTestTextReference(GetTestnameFromTestID(labid, xTable))
+    xrefrange = modFixLab.GetLabQualiTestTextReference(xtestname)
     If xrefrange Then
       xx.Add("Ref Range: " & xrefrange)
     Endif
     ' Endif
+    xbactLst = modLabTest.GetLabSubTestListFromID(encid, labid, ["Drug Sensitivity", "WHO Sensitivity"])
+    If xbactLst And If xbactLst.Count
+      For Each xbactr In xbactLst
+        xx.Add(xbactr & ":" & gb.NewLine & modAllExam.GetESubxamDefaultValue("Test", xtestname, xbactr))
+      Next
+    Endif
 
     If modBasic.$CommSensSpec = "Yes" Then
       xsenspec = GetTestSensiSpecArray(labid, xTable)
@@ -2354,7 +2395,6 @@ Public Function LabReportCommentPatient(labid As Long, unt As String, sType As S
     Endif
 
     If modBasic.$CommFooterInfo = "Yes" Then
-      xtestname = GetTestnameFromTestID(labid, xTable)
       xfooter = modFixLab.GetLabFooterInfo(xtestname)
       If xfooter Then
         xx.Add("COMMENT: " & xfooter)
