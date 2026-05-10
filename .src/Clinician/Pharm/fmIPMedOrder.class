@@ -311,10 +311,12 @@ Public Sub btnmeddays_Click()
     $rData.MoveTo(GridView1.Selection[0])
     If modGeneral.AllowClinicalEdit($rData["flduserid"]) = True Then
       xval = InputValue($rData["flditem"], ("Alter Duration"), $rData["flddays"])
-      If xval Then
+      If xval >= 0 Then
         res = modDatabase.$myConn.Edit("tblinpatdosing", "fldid=&1 and fldencounterval=&2", $rData["fldid"], $encid)
         res["flddays"] = xval
-        res["fldendtime"] = DateAdd(res["fldstarttime"], gb.Hour, CInt(xval * 24))
+        If xval Then
+          res["fldendtime"] = DateAdd(res["fldstarttime"], gb.Hour, CInt(xval * 24))
+        Endif
         res["xyz"] = False
         res.Update
         LoadMedicineGrid()
@@ -674,13 +676,21 @@ Public Sub btndispown_Click()
   Dim itemmode As String
   Dim CPharmFix As CFixRatePharmacy
   Dim xgo As Boolean
+  Dim xallow As Boolean
 
   For Row = 0 To GridView1.Count - 1
     If GridView1.IsSelected(Row) Then
       $rData.MoveTo(Row)
       res = modDatabase.$myConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,fldqtyorder,fldprescriber,fldregno,flddirection,fldadminsite,fldmixing,fldstarttime,fldendtime from tblinpatdosing where fldid=&1 and fldencounterval=&2 and fldcurval=&3 and fldsave=&4", $rData["fldid"], $encid, "Continue", False)                 ''
       If res.Available Then
+        xallow = False
         If res["fldendtime"] >= modDate.StartSqlDate(Now()) Then
+          xallow = True
+        Else If res["flddays"] = 0 Then
+          xallow = True
+        Endif
+
+        If xallow = True Then
 
           itemtype = modNonMedical.GetBillItemCategoryFromCombo(res["fldroute"])
           xgo = False
