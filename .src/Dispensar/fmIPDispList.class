@@ -208,6 +208,8 @@ Public Sub btnaddorder_Click()
   Dim CPharmFix As CFixRatePharmacy
   Dim xgo As Boolean
   Dim xallow As Boolean
+  Dim xflvool As Float
+  Dim xflrate As Float
 
   Dim hForm As CPackageParams
   Dim xBillMode As String
@@ -224,10 +226,20 @@ Public Sub btnaddorder_Click()
 
   For Row = 0 To ListView1.Count - 1
     If ListView1.IsSelected(Row) = True Then
-      res = modDatabase.$myConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,fldqtyorder,fldprescriber,fldregno,flddirection,fldadminsite,fldmixing,fldstarttime,fldendtime from tblinpatdosing where fldencounterval=&1 and flditem=&2 and fldcurval=&3 and fldsave=&4", $encid, $ItemList[Row], "Continue", False)                 ''
+      res = modDatabase.$myConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,fldqtyorder,fldprescriber,fldregno,flddirection,fldadminsite,fldmixing,fldstarttime,fldendtime,fldmixvolume,fldmixrate from tblinpatdosing where fldencounterval=&1 and flditem=&2 and fldcurval=&3 and fldsave=&4", $encid, $ItemList[Row], "Continue", False)                 ''
       If res.Available Then
         For Each res
 
+          If res["fldmixvolume"] Then
+            xflvool = res["fldmixvolume"]
+          Else
+            xflvool = 0
+          Endif
+          If res["fldmixrate"] Then
+            xflrate = res["fldmixrate"]
+          Else
+            xflrate = 0
+          Endif
           xallow = False
           If res["fldendtime"] >= modDate.StartSqlDate(Now()) Then
             xallow = True
@@ -255,7 +267,7 @@ Public Sub btnaddorder_Click()
               itemmode = xBillMode
               xtax = modNonMedical.ShowTaxValues(itemtype, res["flditem"])
               xdisc = modNonMedical.DiscPercentForCategoryValue($encid, cmbnewscheme.Text, itemtype, res["flditem"], itemmode)
-              modPharmSub.InsertDosingMedicine($encid, xBillType, xBillMode, cmbnewscheme.Text, xLedgerAC, res["fldroute"], res["flditem"], res["flddose"], res["fldfreq"], res["flddays"], res["fldqtyorder"], txtstatus.Text, res["fldprescriber"], res["fldregno"], Now(), xtax, xdisc, xfixname, xfixrate, "Request", "IPD", res["flddirection"], res["fldadminsite"], 0, res["fldmixing"], res["fldid"], "Continue")
+              modPharmSub.InsertDosingMedicine($encid, xBillType, xBillMode, cmbnewscheme.Text, xLedgerAC, res["fldroute"], res["flditem"], res["flddose"], res["fldfreq"], res["flddays"], res["fldqtyorder"], txtstatus.Text, res["fldprescriber"], res["fldregno"], Now(), xtax, xdisc, xfixname, xfixrate, "Request", "IPD", res["flddirection"], 0, res["fldid"], "Continue", res["fldadminsite"], res["fldmixing"], xflrate, xflvool)
             Endif
           Endif
 

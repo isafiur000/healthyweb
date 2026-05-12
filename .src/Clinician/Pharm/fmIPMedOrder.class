@@ -64,11 +64,7 @@ Public Sub _new(encid As String, sStatus As String, sPackage As String, sClass A
     $ShowReview = "None"
   Endif
 
-  If modSettings.ShowSettingFromFIle("ClinicForms/ShowInjectionSubRoutes") = "Disable" Then
-    cmbroute.List = modMedicine.AllComboRoute()
-  Else
-    cmbroute.List = modMedicine.InpatientRoute(False)
-  Endif
+  cmbroute.List = modMedicine.ClinicalRoute()
   cmbfreq.List = modMedicine.FrequencyCombo()
 
   $PatientNum = modPatient.GetPatientNoByEnc($encid)
@@ -189,7 +185,7 @@ Private Sub LoadMedicineGrid()
   Dim sFieldLst As String[]
   Dim sql As String
 
-  sFieldLst = ["fldid", "fldroute", "flditem", "flddose", "fldfreq", "flddays", "fldcurval", "fldqtyorder", "fldid", "flduserid", "fldstarttime", "fldid", "flddirection", "fldadminsite", "fldmixing", "flduserid"]
+  sFieldLst = ["fldid", "fldroute", "CONCAT(flditem, '|', COALESCE(fldmixing, ''))", "flddose", "fldfreq", "flddays", "fldcurval", "fldqtyorder", "fldid", "flduserid", "fldstarttime", "fldid", "flddirection", "fldadminsite", "fldmixing", "flduserid", "flditem", "fldmixvolume", "fldmixrate"]
   If cmbstatus.Text = "%" Then
     sql = "select " & sFieldLst.Join(",") & " from tblinpatdosing where fldencounterval=&1 ORDER BY fldstarttime DESC"
   Else
@@ -216,6 +212,9 @@ Private Sub LoadMedicineGrid()
     .Columns[13].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
     .Columns[14].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
     .Columns[15].Hidden = True
+    .Columns[16].Hidden = True
+    .Columns[17].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
+    .Columns[18].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
 
     .Columns[1].Text = "Route"
     .Columns[2].Text = "Medicine"
@@ -230,6 +229,8 @@ Private Sub LoadMedicineGrid()
     .Columns[12].Text = "Direction"
     .Columns[13].Text = "Admin"
     .Columns[14].Text = "Dilution"
+    .Columns[17].Text = "Vol(mL)"
+    .Columns[18].Text = "mL/Hour"
   End With
 
 End
@@ -238,7 +239,9 @@ Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableDat
 
   $rData.MoveTo(Row)
   modGridView.GridViewDecoration(Data, Row)
-  If Column = 9 Then
+  If Column = 2 Then
+    Data.Html = GetInjectionName($rData[$aMyFields[Column]])
+  Else If Column = 9 Then
     Data.Text = modGeneral.GetUserFullName($rData[$aMyFields[Column]])
   Else If Column = 10 Then
     Data.Text = modReportVar.GetDateTimeReport($rData[$aMyFields[Column]], gb.GeneralDate)
@@ -247,6 +250,26 @@ Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableDat
   Else
     Data.Text = $rData[$aMyFields[Column]]
   Endif
+
+End
+
+Private Function GetInjectionName(sItem As String) As String
+
+  Dim asx As String[]
+  Dim xx As String
+
+  asx = Split(sItem, "|")
+  If asx.Count = 2 Then
+    If Trim(asx[1]) Then
+      xx = asx[0] & " <small>[" & asx[1] & "]</small>"
+    Else
+      xx = asx[0]
+    Endif
+  Else
+    xx = asx[0]
+  Endif
+
+  Return xx
 
 End
 
@@ -519,10 +542,10 @@ Private Sub AddNewRegimen(itmList As Long[])
                 Endif
               Endif
               If txprescriber And If txpresno Then
-                modPharmSub.InsertIPMedicineEntry($encid, res["fldroute"], res["fldbrandid"], res["flddose"], res["fldfreq"], res["fldday"], res["fldqty"], txprescriber, txpresno, xstart, "", res["fldusage"], "", "", 0, xcurVal)
+                modPharmSub.InsertIPMedicineEntry($encid, res["fldroute"], res["fldbrandid"], res["flddose"], res["fldfreq"], res["fldday"], res["fldqty"], txprescriber, txpresno, xstart, "", res["fldusage"], 0, xcurVal)
               Endif
             Else
-              modPharmSub.InsertIPMedicineEntry($encid, res["fldroute"], res["fldbrandid"], res["flddose"], res["fldfreq"], res["fldday"], res["fldqty"], "", "", xstart, "", res["fldusage"], "", "", 0, xcurVal)
+              modPharmSub.InsertIPMedicineEntry($encid, res["fldroute"], res["fldbrandid"], res["flddose"], res["fldfreq"], res["fldday"], res["fldqty"], "", "", xstart, "", res["fldusage"], 0, xcurVal)
             Endif
 
           Endif
@@ -578,10 +601,10 @@ Private Sub AddPastRegimens(itmList As Long[])
                 Endif
               Endif
               If txprescriber And If txpresno Then
-                modPharmSub.InsertIPMedicineEntry($encid, res["fldroute"], res["flditem"], res["flddose"], res["fldfreq"], res["flddays"], res["fldqtydisp"], txprescriber, txpresno, DateAdd(Now(), gb.Hour, CInt(txtstart.Value)), "", res["flddirection"], "", "", 0, xcurVal)
+                modPharmSub.InsertIPMedicineEntry($encid, res["fldroute"], res["flditem"], res["flddose"], res["fldfreq"], res["flddays"], res["fldqtydisp"], txprescriber, txpresno, DateAdd(Now(), gb.Hour, CInt(txtstart.Value)), "", res["flddirection"], 0, xcurVal)
               Endif
             Else
-              modPharmSub.InsertIPMedicineEntry($encid, res["fldroute"], res["flditem"], res["flddose"], res["fldfreq"], res["flddays"], res["fldqtydisp"], "", "", DateAdd(Now(), gb.Hour, CInt(txtstart.Value)), "", res["flddirection"], "", "", 0, xcurVal)
+              modPharmSub.InsertIPMedicineEntry($encid, res["fldroute"], res["flditem"], res["flddose"], res["fldfreq"], res["flddays"], res["fldqtydisp"], "", "", DateAdd(Now(), gb.Hour, CInt(txtstart.Value)), "", res["flddirection"], 0, xcurVal)
             Endif
 
           Endif
@@ -643,10 +666,10 @@ Public Sub btngroup_Click()
                   Endif
                 Endif
                 If txprescriber And If txpresno Then
-                  modPharmSub.InsertIPMedicineEntry($encid, res["fldroute"], res["flditem"], xdose, res["fldfreq"], res["fldday"], res["fldqty"], txprescriber, txpresno, DateAdd(Now(), gb.Hour, res["fldstart"]), "", res["fldadvice"], "", "", 0, xcurVal)
+                  modPharmSub.InsertIPMedicineEntry($encid, res["fldroute"], res["flditem"], xdose, res["fldfreq"], res["fldday"], res["fldqty"], txprescriber, txpresno, DateAdd(Now(), gb.Hour, res["fldstart"]), "", res["fldadvice"], 0, xcurVal)
                 Endif
               Else
-                modPharmSub.InsertIPMedicineEntry($encid, res["fldroute"], res["flditem"], xdose, res["fldfreq"], res["fldday"], res["fldqty"], "", "", DateAdd(Now(), gb.Hour, res["fldstart"]), "", res["fldadvice"], "", "", 0, xcurVal)
+                modPharmSub.InsertIPMedicineEntry($encid, res["fldroute"], res["flditem"], xdose, res["fldfreq"], res["fldday"], res["fldqty"], "", "", DateAdd(Now(), gb.Hour, res["fldstart"]), "", res["fldadvice"], 0, xcurVal)
               Endif
             Endif
 
@@ -677,12 +700,25 @@ Public Sub btndispown_Click()
   Dim CPharmFix As CFixRatePharmacy
   Dim xgo As Boolean
   Dim xallow As Boolean
+  Dim xflvool As Float
+  Dim xflrate As Float
 
   For Row = 0 To GridView1.Count - 1
     If GridView1.IsSelected(Row) Then
       $rData.MoveTo(Row)
-      res = modDatabase.$myConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,fldqtyorder,fldprescriber,fldregno,flddirection,fldadminsite,fldmixing,fldstarttime,fldendtime from tblinpatdosing where fldid=&1 and fldencounterval=&2 and fldcurval=&3 and fldsave=&4", $rData["fldid"], $encid, "Continue", False)                 ''
+      res = modDatabase.$myConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,fldqtyorder,fldprescriber,fldregno,flddirection,fldadminsite,fldmixing,fldstarttime,fldendtime,fldmixvolume,fldmixrate from tblinpatdosing where fldid=&1 and fldencounterval=&2 and fldcurval=&3 and fldsave=&4", $rData["fldid"], $encid, "Continue", False)                 ''
       If res.Available Then
+
+        If res["fldmixvolume"] Then
+          xflvool = res["fldmixvolume"]
+        Else
+          xflvool = 0
+        Endif
+        If res["fldmixrate"] Then
+          xflrate = res["fldmixrate"]
+        Else
+          xflrate = 0
+        Endif
         xallow = False
         If res["fldendtime"] >= modDate.StartSqlDate(Now()) Then
           xallow = True
@@ -711,7 +747,7 @@ Public Sub btndispown_Click()
             itemmode = $sBillMode
             xtax = modNonMedical.ShowTaxValues(itemtype, res["flditem"])
             xdisc = modNonMedical.DiscPercentForCategoryValue($encid, cmbdisctype.Text, itemtype, res["flditem"], itemmode)
-            modPharmSub.InsertDosingMedicine($encid, $xBillType, $sBillMode, cmbdisctype.Text, $LedgerAC, res["fldroute"], res["flditem"], res["flddose"], res["fldfreq"], res["flddays"], res["fldqtyorder"], $status, res["fldprescriber"], res["fldregno"], Now(), xtax, xdisc, xfixname, xfixrate, "Request", "IPD", res["flddirection"], res["fldadminsite"], 0, res["fldmixing"], res["fldid"], "Continue")
+            modPharmSub.InsertDosingMedicine($encid, $xBillType, $sBillMode, cmbdisctype.Text, $LedgerAC, res["fldroute"], res["flditem"], res["flddose"], res["fldfreq"], res["flddays"], res["fldqtyorder"], $status, res["fldprescriber"], res["fldregno"], Now(), xtax, xdisc, xfixname, xfixrate, "Request", "IPD", res["flddirection"], 0, res["fldid"], "Continue", res["fldadminsite"], res["fldmixing"], xflrate, xflvool)               ''
             GridView1.Unselect(Row)
           Endif
 
@@ -1096,10 +1132,10 @@ Private Sub EnterIPDosingRecord()
             Endif
           Endif
           If txprescriber And If txpresno Then
-            modPharmSub.InsertIPMedicineEntry($encid, cmbroute.Text, cmbmedicine.Text, txtdose.Value, cmbfreq.Text, txtday.Value, txtqty.Value, txprescriber, txpresno, xstart, "", Trim(txtdirection.Text), "", "", 0, xcurVal)
+            modPharmSub.InsertIPMedicineEntry($encid, cmbroute.Text, cmbmedicine.Text, txtdose.Value, cmbfreq.Text, txtday.Value, txtqty.Value, txprescriber, txpresno, xstart, "", Trim(txtdirection.Text), 0, xcurVal)
           Endif
         Else
-          modPharmSub.InsertIPMedicineEntry($encid, cmbroute.Text, cmbmedicine.Text, txtdose.Value, cmbfreq.Text, txtday.Value, txtqty.Value, txprescriber, txpresno, xstart, "", Trim(txtdirection.Text), "", "", 0, xcurVal)
+          modPharmSub.InsertIPMedicineEntry($encid, cmbroute.Text, cmbmedicine.Text, txtdose.Value, cmbfreq.Text, txtday.Value, txtqty.Value, txprescriber, txpresno, xstart, "", Trim(txtdirection.Text), 0, xcurVal)
         Endif
       Endif
       LoadMedicineGrid()

@@ -1,13 +1,24 @@
 ' Gambas module file
 
 ''inpatient order cardex
-Public Sub InsertIPMedicineEntry(encid As String, xroute As String, xitem As String, xdose As Float, xfreq As String, xday As Float, xqty As Float, xprescriber As String, xregno As String, startTime As Date, sEndTime As Date, sDirection As String, sAdminSite As String, sMixing As String, sDoseCount As Integer, sDefault As String)
+Public Sub InsertIPMedicineEntry(encid As String, xroute As String, xitem As String, xdose As Float, xfreq As String, xday As Float, xqty As Float, xprescriber As String, xregno As String, startTime As Date, sEndTime As Date, sDirection As String, sDoseCount As Integer, sDefault As String, Optional sAdminSite As String, Optional sMixing As String, Optional sInvRate As Float, Optional sDilutionVol As Float)
 
   Dim res As Result
   Dim xcurVal As String
   Dim xendtime As Date
-  Dim xIntVal As String
+  Dim xinfrate As Float
+  Dim xinfvol As Float
 
+  If sInvRate Then
+    xinfrate = sInvRate
+  Else
+    xinfrate = 0
+  Endif
+  If sDilutionVol Then
+    xinfvol = sDilutionVol
+  Else
+    xinfvol = 0
+  Endif
   If sDefault Then
     xcurVal = sDefault
   Else
@@ -32,10 +43,12 @@ Public Sub InsertIPMedicineEntry(encid As String, xroute As String, xitem As Str
   res["fldregno"] = xregno
   res["flddirection"] = sDirection
   res["fldadminsite"] = sAdminSite
-  res["fldmixing"] = sMixing
-  res["fldcurval"] = xcurVal
   res["flddosecount"] = sDoseCount
+  res["fldmixing"] = sMixing
+  res["fldmixvolume"] = xinfvol
+  res["fldmixrate"] = xinfrate
 
+  res["fldcurval"] = xcurVal
   res["flduserid"] = modBasic.$lbluser
   res["fldtime"] = Now()
   res["fldcomp"] = modBasic.$compID
@@ -48,30 +61,31 @@ Public Sub InsertIPMedicineEntry(encid As String, xroute As String, xitem As Str
   res["fldstopcomp"] = ""
   res["fldstopsave"] = False
   res["xyz"] = True
-
-  If MMain.$WebEntry = True Then
-    xIntVal = modString.GetDateString(Now())
-    res["fldid"] = CLong(xIntVal)
-    res["fldrepoid"] = modMisc.GetWebIndexStr(xIntVal)
-    res["fldrepodate"] = Now()
-    res["fldrepomac"] = CGI["REMOTE_ADDR"] & ":" & CGI["REMOTE_PORT"]
-    res["fldhospcode"] = modBasic.$HospCode
-  Endif
   res.Update()
-  'don't catch error
 
 End
 
 ''for medicine only
-Public Sub InsertDosingMedicine(encid As String, sBilType As String, billingMode As String, DiscMode As String, sLedger As String, xroute As String, xitem As String, xdose As Float, xfreq As String, xday As Float, xqty As Float, PatStatus As String, xprescriber As String, xregno As String, xstart As Date, taxper As Float, discper As Float, fixitem As String, fixrate As Float, OrderType As String, DeptID As String, sDirection As String, sAdminSite As String, sDoseCount As Integer, sMixing As String, sParent As Long, sDefault As String)                 ''
+Public Sub InsertDosingMedicine(encid As String, sBilType As String, billingMode As String, DiscMode As String, sLedger As String, xroute As String, xitem As String, xdose As Float, xfreq As String, xday As Float, xqty As Float, PatStatus As String, xprescriber As String, xregno As String, xstart As Date, taxper As Float, discper As Float, fixitem As String, fixrate As Float, OrderType As String, DeptID As String, sDirection As String, sDoseCount As Integer, sParent As Long, sDefault As String, Optional sAdminSite As String, Optional sMixing As String, Optional sInvRate As Float, Optional sDilutionVol As Float)                 ''
 
   Dim res As Result
   Dim order As String
   Dim disptype As String
   Dim xCashCredit As Float
   Dim xcurVal As String
-  Dim xIntVal As String
+  Dim xinfrate As Float
+  Dim xinfvol As Float
 
+  If sInvRate Then
+    xinfrate = sInvRate
+  Else
+    xinfrate = 0
+  Endif
+  If sDilutionVol Then
+    xinfvol = sDilutionVol
+  Else
+    xinfvol = 0
+  Endif
   If sDefault Then
     xcurVal = sDefault
   Else
@@ -106,6 +120,8 @@ Public Sub InsertDosingMedicine(encid As String, sBilType As String, billingMode
   res["fldadminsite"] = sAdminSite
   res["flddosecount"] = sDoseCount
   res["fldmixing"] = sMixing
+  res["fldmixvolume"] = xinfvol
+  res["fldmixrate"] = xinfrate
 
   res["flddispmode"] = disptype  ''Requesting Dept (OPD/IPD/Aseptic/Delivery/Pre-Operative:<val> etc)
   res["fldorder"] = order     ''whether request or useown stock
@@ -146,15 +162,6 @@ Public Sub InsertDosingMedicine(encid As String, sBilType As String, billingMode
   res["fldstatus"] = PatStatus   ''status of patient (admitted or discharged
   res["flduptime"] = ""    ''date of data update
   res["xyz"] = True
-
-  If MMain.$WebEntry = True Then
-    xIntVal = modString.GetDateString(Now())
-    res["fldid"] = CLong(xIntVal)
-    res["fldrepoid"] = modMisc.GetWebIndexStr(xIntVal)
-    res["fldrepodate"] = Now()
-    res["fldrepomac"] = CGI["REMOTE_ADDR"] & ":" & CGI["REMOTE_PORT"]
-    res["fldhospcode"] = modBasic.$HospCode
-  Endif
   res.Update()
   'don't catch error
 
@@ -170,7 +177,6 @@ Public Sub InsertDosingEntry(encid As String, sBilType As String, billingMode As
   Dim xdirct As String
   Dim xCashCredit As Float
   Dim xcurVal As String
-  Dim xIntVal As String
 
   If sDefault Then
     xcurVal = sDefault
@@ -213,6 +219,11 @@ Public Sub InsertDosingEntry(encid As String, sBilType As String, billingMode As
   res["fldregno"] = txtregno
   res["fldlevel"] = "Requested" ''changes to Dispensed (Only used to indicate dispensing when cash billing done before real dispensing)
   res["flddirection"] = xdirct
+  res["fldadminsite"] = ""
+  res["flddosecount"] = 0
+  res["fldmixing"] = ""
+  res["fldmixvolume"] = 0
+  res["fldmixrate"] = 0
 
   res["flddispmode"] = disptype  ''Requesting Dept (OPD/IPD/Aseptic/Delivery/Pre-Operative:<val> etc)
   res["fldorder"] = order     ''whether request or useown stock
@@ -251,15 +262,6 @@ Public Sub InsertDosingEntry(encid As String, sBilType As String, billingMode As
   res["fldstatus"] = PatStatus   ''status of patient (admitted or discharged
   res["flduptime"] = ""    ''date of data update
   res["xyz"] = True
-
-  If MMain.$WebEntry = True Then
-    xIntVal = modString.GetDateString(Now())
-    res["fldid"] = CLong(xIntVal)
-    res["fldrepoid"] = modMisc.GetWebIndexStr(xIntVal)
-    res["fldrepodate"] = Now()
-    res["fldrepomac"] = CGI["REMOTE_ADDR"] & ":" & CGI["REMOTE_PORT"]
-    res["fldhospcode"] = modBasic.$HospCode
-  Endif
   res.Update()
   'don't catch error
 
