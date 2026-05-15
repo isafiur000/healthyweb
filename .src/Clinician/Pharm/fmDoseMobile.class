@@ -15,8 +15,14 @@ Private aDoseLabel As New Object[50]
 Private aInfoButton As New Object[50]
 Private aCountBox As New Object[50]
 Private aSkipBox As New Object[50]
+Private aMedLabel As New Object[50]
+Private aDoseVal As New Object[50]
+Private aFreqVal As New Object[50]
+Private aCardex As New Object[50]
 Private aBlankFrame As New Object[50]
 
+Private $sTatus As String
+Private $useCardex As Boolean
 Private $rData As Result
 Private $sColl As Collection
 ' Private $minTime As Date
@@ -54,7 +60,14 @@ Public Sub btnshow_Click()
       pnlkeyboard.Visible = False
     Endif
     txtname.Text = modPatient.GetPatientNameByEnc(Trim(txtencid.Text))
-    xx = modPatient.EnableClinicForm(modPatient.CurrentAdmissionStatus(Trim(txtencid.Text)))
+    $sTatus = modPatient.CurrentAdmissionStatus(Trim(txtencid.Text))
+    Select $sTatus
+      Case "Admitted", "Discharged", "LAMA", "Death", "Refer", "Absconder"
+        $useCardex = True
+      Case Else
+        $useCardex = False
+    End Select
+    xx = modPatient.EnableClinicForm($sTatus)
     ' $minTime = DateAdd(Now(), gb.Hour, -3)
     ' $maxTime = DateAdd(Now(), gb.Hour, 3)
     LoadControlsWeb()
@@ -113,6 +126,7 @@ Private Sub LoadControlsWeb()
   Dim j As Integer
   Dim xunit As String
   Dim xtime As Date
+  Dim xallow As Boolean
 
   For j = 0 To xrouLst.Count - 1
     xrouLst[j] = "'" & xrouLst[j] & "'"
@@ -120,9 +134,15 @@ Private Sub LoadControlsWeb()
 
   i = 0
   $sColl = New Collection
-  sql1 = "select fldid,fldroute,flditem,flddose,fldfreq,flddays,fldstatus,fldstarttime,fldendtime,flddosecount,flddirection,fldsave_order from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldstarttime<=&3 and fldendtime>=&4 and fldroute NOT IN(" & xrouLst.Join(",") & ") and flditemtype=&5 and fldcurval=&6 and flddose>&7 and fldqtydisp>fldqtyret"
-  sql2 = "select fldid,fldroute,flditem,flddose,fldfreq,flddays,fldstatus,fldstarttime,fldendtime,flddosecount,flddirection,fldsave_order from tblpatdosing where fldencounterval=&1 and fldsave_order=&8 and fldstarttime<=&3 and DATE_ADD(fldstarttime, INTERVAL flddays DAY)>=&4 and fldroute NOT IN(" & xrouLst.Join(",") & ") and flditemtype=&5 and fldcurval=&6 and flddose>&7 and fldqtydisp>fldqtyret"                      ''
-  $rData = modDatabase.$myConn.Exec(sql1 & " UNION " & sql2, Trim(txtencid.Text), True, Now(), DateAdd(Now(), gb.Hour, -3), "Medicines", "Continue", 0, False)
+  If $useCardex = True Then
+    sql1 = "select fldid,fldroute,flditem,flddose,fldfreq,flddays,fldcurval,fldstarttime,fldendtime,flddosecount,flddirection,fldsave,fldid as flditemno from tblinpatdosing where fldencounterval=&1 and fldstarttime<=&2 and fldendtime>=&3 and fldroute NOT IN(" & xrouLst.Join(",") & ") and fldcurval=&4 and flddose>&5 and flddays>&5"
+    sql2 = "select fldid,fldroute,flditem,flddose,fldfreq,flddays,fldcurval,fldstarttime,fldendtime,flddosecount,flddirection,fldsave,fldid as flditemno from tblinpatdosing where fldencounterval=&1 and fldroute NOT IN(" & xrouLst.Join(",") & ") and fldcurval=&4 and flddose>&5 and flddays=&5"                      ''
+    $rData = modDatabase.$myConn.Exec(sql1 & " UNION " & sql2, Trim(txtencid.Text), Now(), DateAdd(Now(), gb.Hour, -3), "Continue", 0)
+  Else
+    sql1 = "select fldid,fldroute,flditem,flddose,fldfreq,flddays,fldstatus,fldstarttime,fldendtime,flddosecount,flddirection,fldsave_order,flditemno from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldstarttime<=&3 and fldendtime>=&4 and fldroute NOT IN(" & xrouLst.Join(",") & ") and flditemtype=&5 and fldcurval=&6 and flddose>&7 and fldqtydisp>fldqtyret"
+    sql2 = "select fldid,fldroute,flditem,flddose,fldfreq,flddays,fldstatus,fldstarttime,fldendtime,flddosecount,flddirection,fldsave_order,flditemno from tblpatdosing where fldencounterval=&1 and fldsave_order=&8 and fldstarttime<=&3 and DATE_ADD(fldstarttime, INTERVAL flddays DAY)>=&4 and fldroute NOT IN(" & xrouLst.Join(",") & ") and flditemtype=&5 and fldcurval=&6 and flddose>&7 and fldqtydisp>fldqtyret"                      ''
+    $rData = modDatabase.$myConn.Exec(sql1 & " UNION " & sql2, Trim(txtencid.Text), True, Now(), DateAdd(Now(), gb.Hour, -3), "Medicines", "Continue", 0, False)
+  Endif
   If $rData.Available Then
     For Each $rData
       If i < 49 Then
@@ -152,14 +172,23 @@ Private Sub LoadControlsWeb()
           aInfoButton[i] = New WebButton(aRightPanel[i]) As "infoButton"
           aCountBox[i] = New WebValueBox(aRightPanel[i])
           aSkipBox[i] = New WebCheckBox(aRightPanel[i])
+          aMedLabel[i] = New WebLabel(aRightPanel[i])
+          aDoseVal[i] = New WebValueBox(aRightPanel[i])
+          aFreqVal[i] = New WebLabel(aRightPanel[i])
+          aCardex[i] = New WebValueBox(aRightPanel[i])
           aBlankFrame[i] = New WebSeparator(Frame1)
 
           With aWebFrame[i]
             .Arrangement = Arrange.Vertical
           End With
 
+          If $useCardex = True Then
+            xallow = GetMedCardex(Trim(txtencid.Text), $rData["flditemno"])
+          Else
+            xallow = $rData["fldsave_order"]
+          Endif
           With aNameLabel[i]
-            If $rData["fldsave_order"] = False Then
+            If xallow = False Then
               .Foreground = Color.Red
             Else
               .Font = "bold"
@@ -218,7 +247,7 @@ Private Sub LoadControlsWeb()
           With aQuantiBox[i]
             .Width = "3em"
             .Height = "2em"
-            .Enabled = $rData["fldsave_order"]
+            .Enabled = xallow
             .Tag = i
           End With
 
@@ -243,6 +272,24 @@ Private Sub LoadControlsWeb()
             .Value = modPharmacy.TotalDoseCount($rData["fldid"], Now())
             .Tag = i
           End With
+
+          With aMedLabel[i]
+            .Text = $rData["flditem"]
+            .Visible = False
+          End With
+          With aDoseVal[i]
+            .Value = $rData["flddose"]
+            .Visible = False
+          End With
+          With aFreqVal[i]
+            .Text = $rData["fldfreq"]
+            .Visible = False
+          End With
+          With aCardex[i]
+            .Value = $rData["flditemno"]
+            .Visible = False
+          End With
+
           With aSkipBox[i]
             .Width = "4em"
             .Height = "2em"
@@ -259,6 +306,28 @@ Private Sub LoadControlsWeb()
       i = i + 1
     Next
   Endif
+
+End
+
+Private Function GetMedCardex(encid As String, sCardex As Long) As Boolean
+
+  Dim xtot As Float
+  Dim xadmn As Float
+  Dim xicon As Boolean
+
+  If sCardex Then
+    xtot = modPharmacy.GetCardexDispensedQTY(encid, sCardex)
+    xadmn = modPharmacy.GetCardexAdministerQTY(encid, sCardex)
+    If xtot > xadmn Then
+      xicon = True
+    Else
+      xicon = False
+    Endif
+  Else
+    xicon = False
+  Endif
+
+  Return xicon
 
 End
 
@@ -289,12 +358,12 @@ Public Sub btnsaveall_Click()
 
             If aTimeLabel[i].Text Then
               If aSkipBox[i].Value Then
-                modPharmSub.InsertNurDosing(Trim(txtencid.Text), aIndexVal[i].Value, 0, 0, aDoseLabel[i].Text, aTimeBox[i].Value)
+                modPharmSub.InsertNurDosingIndoor(Trim(txtencid.Text), aIndexVal[i].Value, aCardex[i].Value, 0, aDoseLabel[i].Text, aMedLabel[i].Text, aDoseVal[i].Value, aFreqVal[i].Text, aTimeBox[i].Value)
               Else
-                modPharmSub.InsertNurDosing(Trim(txtencid.Text), aIndexVal[i].Value, 0, aQuantiBox[i].Value, aDoseLabel[i].Text, aTimeBox[i].Value)
+                modPharmSub.InsertNurDosingIndoor(Trim(txtencid.Text), aIndexVal[i].Value, aCardex[i].Value, aQuantiBox[i].Value, aDoseLabel[i].Text, aMedLabel[i].Text, aDoseVal[i].Value, aFreqVal[i].Text, aTimeBox[i].Value)
               Endif
             Else
-              modPharmSub.InsertNurDosing(Trim(txtencid.Text), aIndexVal[i].Value, 0, aQuantiBox[i].Value, aDoseLabel[i].Text, "")
+              modPharmSub.InsertNurDosingIndoor(Trim(txtencid.Text), aIndexVal[i].Value, aCardex[i].Value, aQuantiBox[i].Value, aDoseLabel[i].Text, aMedLabel[i].Text, aDoseVal[i].Value, aFreqVal[i].Text)
             Endif
             If aRegmLabel[i].Tag = "stat" Then
               res = modDatabase.$myConn.Edit("tblpatdosing", "fldid=&1", aIndexVal[i].Value)

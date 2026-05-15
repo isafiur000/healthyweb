@@ -194,6 +194,16 @@ Private Sub ShowMedicineOrderList(encid As String)
 
 End
 
+Public Sub chkaddall_Click()
+
+  If chkaddall.Value = True Then
+    ListView1.SelectAll()
+  Else If chkaddall.Value = False Then
+    ListView1.UnselectAll()
+  Endif
+
+End
+
 Public Sub btnaddorder_Click()
 
   Dim Row As Integer
@@ -306,7 +316,7 @@ Private Function ExecuteQuery(encid As String) As Result
   Else
     xsql = ""
   Endif
-  res = modDatabase.$myConn.Exec("select fldid,fldtime_order,fldroute,flditem,fldqtydisp,flddose,fldfreq,flddays,fldlabel,flddirection,fldcomp_order,fldencounterval,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit from tblpatdosing where fldencounterval=&1 and fldlevel=&2 and flditemtype like &3 and fldcurval=&4 and fldqtydisp>&5 and fldstatus=&6 and fldsave_order=&7" & xrestr & xsql, encid, "Requested", "%", "Continue", 0, "Admitted", False)
+  res = modDatabase.$myConn.Exec("select fldid,fldtime_order,fldroute,flditem,fldqtydisp,flddose,fldfreq,flddays,fldlabel,flddirection,fldcomp_order,fldencounterval,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit,flditemno from tblpatdosing where fldencounterval=&1 and fldlevel=&2 and flditemtype like &3 and fldcurval=&4 and fldqtydisp>&5 and fldstatus=&6 and fldsave_order=&7" & xrestr & xsql, encid, "Requested", "%", "Continue", 0, "Admitted", False)
 
   Return res
 
@@ -325,6 +335,10 @@ Private Sub FillDispenstable(encid As String)
     .Columns[3].Width = CStr(250 * modBasic.$AppWidthRatio) & "px"
     .Columns[4].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
     If chkregimen.Value = True Then
+      .Columns[5].Hidden = False
+      .Columns[6].Hidden = False
+      .Columns[7].Hidden = False
+      .Columns[8].Hidden = False
       .Columns[5].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
       .Columns[6].Width = CStr(50 * modBasic.$AppWidthRatio) & "px"
       .Columns[7].Width = CStr(50 * modBasic.$AppWidthRatio) & "px"
@@ -350,6 +364,7 @@ Private Sub FillDispenstable(encid As String)
     .Columns[19].Hidden = True
     .Columns[20].Hidden = True
     .Columns[21].Hidden = True
+    .Columns[22].Hidden = True
 
     .Columns[1].Text = "DateTime"
     .Columns[2].Text = "Route"
@@ -518,6 +533,22 @@ Public Sub btnadvice_Click()
 
 End
 
+Public Sub btncalc_Click()
+
+  Dim xtot As Float
+  Dim xadmn As Float
+
+  xtot = 0
+  xadmn = 0
+  If GridView2.Selection.Count Then
+    $rData2.MoveTo(GridView2.Selection[0])
+    xtot = modPharmacy.GetCardexDispensedQTY($encid, $rData2["flditemno"])
+    xadmn = modPharmacy.GetCardexAdministerQTY($encid, $rData2["flditemno"])
+    txtbalance.Value = xtot - xadmn
+  Endif
+
+End
+
 Public Sub chkprintlabel_Click()
 
   modSettings.EnterCheckSetting(chkprintlabel, "DispensingList/PrintLabel")
@@ -530,6 +561,18 @@ Public Sub mnuremove_Click()
     $rData2.MoveTo(GridView2.Selection[0])
     modDatabase.$myConn.Delete("tblpatdosing", "fldid=&1 and fldsave_order=&2", $rData2["fldid"], False)
     FillDispenstable($encid)
+  Endif
+
+End
+
+Public Sub mnusaveout_Click()
+
+  If GridView2.Selection.Count Then
+    If Message.Question(("Bring from OUTSIDE. Are you sure ?"), ("No"), ("Yes")) = 2 Then
+      $rData2.MoveTo(GridView2.Selection[0])
+      modPharmSub.UpdateDispensing($rData2["fldid"], True)
+      FillDispenstable($encid)
+    Endif
   Endif
 
 End
@@ -1044,9 +1087,21 @@ Public Sub btnshowdisp_Click()
 
 End
 
+Public Sub chkalldate_Click()
+
+  If $encid Then
+    ShowDispensedToday($encid)
+  Endif
+
+End
+
 Private Sub ShowDispensedToday(encid As String)
 
-  $rData3 = modDatabase.$myConn.Exec("select fldid,fldtime,fldroute,flditem,fldqtydisp,flddose,fldfreq,flddays,fldlabel,flddirection,fldcomp,fldencounterval,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit from tblpatdosing where fldencounterval=&1 and fldlevel=&2 and flditemtype like &3 and fldcurval=&4 and fldqtydisp>&5 and fldstatus=&6 and fldsave_order=&7 and fldtime>=&8 and fldtime<=&9", encid, "Dispensed", "%", "Continue", 0, "Admitted", True, modDate.StartSqlDate(dtdisp.Value), modDate.EndSqlDate(dtdisp.Value))                     ''
+  If chkalldate.Value = True Then
+    $rData3 = modDatabase.$myConn.Exec("select fldid,fldtime,fldroute,flditem,fldqtydisp,flddose,fldfreq,flddays,fldlabel,flddirection,fldcomp,fldencounterval,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit from tblpatdosing where fldencounterval=&1 and fldlevel=&2 and flditemtype like &3 and fldcurval=&4 and fldqtydisp>&5 and fldstatus=&6 and fldsave_order=&7", encid, "Dispensed", "%", "Continue", 0, "Admitted", True)                     ''
+  Else
+    $rData3 = modDatabase.$myConn.Exec("select fldid,fldtime,fldroute,flditem,fldqtydisp,flddose,fldfreq,flddays,fldlabel,flddirection,fldcomp,fldencounterval,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit from tblpatdosing where fldencounterval=&1 and fldlevel=&2 and flditemtype like &3 and fldcurval=&4 and fldqtydisp>&5 and fldstatus=&6 and fldsave_order=&7 and fldtime>=&8 and fldtime<=&9", encid, "Dispensed", "%", "Continue", 0, "Admitted", True, modDate.StartSqlDate(dtdisp.Value), modDate.EndSqlDate(dtdisp.Value))                     ''
+  Endif
   $aMyFields3 = New String[]
   modGridView.ReadSmallData(GridView3, $rData3, $aMyFields3)
 
@@ -1073,7 +1128,7 @@ Private Sub ShowDispensedToday(encid As String)
     .Columns[12].Hidden = True
 
     .Columns[13].Hidden = True
-    .Columns[14].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
+    .Columns[14].Hidden = True ''Fixed rate
     .Columns[15].Hidden = True
     .Columns[16].Hidden = True
     .Columns[17].Hidden = True
@@ -1093,7 +1148,6 @@ Private Sub ShowDispensedToday(encid As String)
     Endif
     .Columns[9].Text = "Direction"
     .Columns[10].Text = "Location"
-    .Columns[14].Text = "Rate"
     .Columns[18].Text = "Scheme"
   End With
 

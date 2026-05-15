@@ -119,9 +119,10 @@ Private Sub BlankAll()
 
 End
 
-Private Function GetPharmTarget(sRoute As String) As String
+Private Function GetPharmTarget(sRoute As String, Optional sItem As String) As String
 
   Dim xtarg As String
+  Dim xcomp As String
 
   Select sRoute
     Case "msurg"
@@ -133,7 +134,16 @@ Private Function GetPharmTarget(sRoute As String) As String
     Case "extra"
       xtarg = modBasic.$BillTargetExtras
     Case Else
-      xtarg = txtpharmacy.Text
+      If sItem Then
+        xcomp = GetLabelCompMed(sItem)
+        If xcomp Then
+          xtarg = xcomp
+        Else
+          xtarg = modBasic.$BillTargetMedicine
+        Endif
+      Else
+        xtarg = modBasic.$BillTargetMedicine
+      Endif
   End Select
 
   Return xtarg
@@ -3812,16 +3822,18 @@ End
 Private Function GetPharmCategoryArray(sRoute As String, sMode As String) As String[]
 
   Dim xarry As String[]
+  Dim xtarget As String
 
+  xtarget = GetPharmTarget(sRoute)
   If sRoute = "oral" Then
     If sMode = "Brand" Then
       If Not $OralBrandLst.Count Then
-        $OralBrandLst.Insert(modStock.FillMedicinesDispensingArrayList(sRoute, sMode, GetPharmTarget(sRoute), cmbmode.Text))
+        $OralBrandLst.Insert(modStock.FillMedicinesDispensingArrayList(sRoute, sMode, xtarget, cmbmode.Text))
       Endif
       xarry = $OralBrandLst
     Else If sMode = "Generic" Then
       If Not $OralGenricLst.Count Then
-        $OralGenricLst.Insert(modStock.FillMedicinesDispensingArrayList(sRoute, sMode, GetPharmTarget(sRoute), cmbmode.Text))
+        $OralGenricLst.Insert(modStock.FillMedicinesDispensingArrayList(sRoute, sMode, xtarget, cmbmode.Text))
       Endif
       xarry = $OralGenricLst
     Endif
@@ -3829,12 +3841,12 @@ Private Function GetPharmCategoryArray(sRoute As String, sMode As String) As Str
   Else If sRoute = "liquid" Then
     If sMode = "Brand" Then
       If Not $LiqBrandLst.Count Then
-        $LiqBrandLst.Insert(modStock.FillMedicinesDispensingArrayList(sRoute, sMode, GetPharmTarget(sRoute), cmbmode.Text))
+        $LiqBrandLst.Insert(modStock.FillMedicinesDispensingArrayList(sRoute, sMode, xtarget, cmbmode.Text))
       Endif
       xarry = $LiqBrandLst
     Else If sMode = "Generic" Then
       If Not $LiqGenricLst.Count Then
-        $LiqGenricLst.Insert(modStock.FillMedicinesDispensingArrayList(sRoute, sMode, GetPharmTarget(sRoute), cmbmode.Text))
+        $LiqGenricLst.Insert(modStock.FillMedicinesDispensingArrayList(sRoute, sMode, xtarget, cmbmode.Text))
       Endif
       xarry = $LiqGenricLst
     Endif
@@ -3842,30 +3854,30 @@ Private Function GetPharmCategoryArray(sRoute As String, sMode As String) As Str
   Else If sRoute = "injection" Then
     If sMode = "Brand" Then
       If Not $InjBrandLst.Count Then
-        $InjBrandLst.Insert(modStock.FillMedicinesDispensingArrayList(sRoute, sMode, GetPharmTarget(sRoute), cmbmode.Text))
+        $InjBrandLst.Insert(modStock.FillMedicinesDispensingArrayList(sRoute, sMode, xtarget, cmbmode.Text))
       Endif
       xarry = $InjBrandLst
     Else If sMode = "Generic" Then
       If Not $InjGenricLst.Count Then
-        $InjGenricLst.Insert(modStock.FillMedicinesDispensingArrayList(sRoute, sMode, GetPharmTarget(sRoute), cmbmode.Text))
+        $InjGenricLst.Insert(modStock.FillMedicinesDispensingArrayList(sRoute, sMode, xtarget, cmbmode.Text))
       Endif
       xarry = $InjGenricLst
     Endif
 
   Else If sRoute = "msurg" Then
     If Not $MSurgicalLst.Count Then
-      $MSurgicalLst.Insert(modStock.FillMedicinesDispensingArrayList(sRoute, sMode, GetPharmTarget(sRoute), cmbmode.Text))
+      $MSurgicalLst.Insert(modStock.FillMedicinesDispensingArrayList(sRoute, sMode, xtarget, cmbmode.Text))
     Endif
     xarry = $MSurgicalLst
 
   Else If sRoute = "extra" Then
     If Not $ExtraItemLst.Count Then
-      $ExtraItemLst.Insert(modStock.FillMedicinesDispensingArrayList(sRoute, sMode, GetPharmTarget(sRoute), cmbmode.Text))
+      $ExtraItemLst.Insert(modStock.FillMedicinesDispensingArrayList(sRoute, sMode, xtarget, cmbmode.Text))
     Endif
     xarry = $ExtraItemLst
 
   Else
-    xarry = modStock.FillMedicinesDispensingArrayList(sRoute, sMode, GetPharmTarget(sRoute), cmbmode.Text)
+    xarry = modStock.FillMedicinesDispensingArrayList(sRoute, sMode, xtarget, cmbmode.Text)
   Endif
 
   Return xarry
@@ -4055,13 +4067,15 @@ End
 
 Private Sub SHowInventoryStatus()
 
+  Dim xtarget As String
   Dim xcateg As String
   Dim CPharmFix As CFixRatePharmacy
 
-  If GetPharmTarget(cmbroute.Text) Then
-    txtinventory.Value = modStock.TotalQTYbyBrand(cmbmedicine.Text, GetPharmTarget(cmbroute.Text))
+  xtarget = GetPharmTarget(cmbroute.Text, cmbmedicine.Text)
+  If xtarget Then
+    txtinventory.Value = modStock.TotalQTYbyBrand(cmbmedicine.Text, xtarget)
     If cmbroute.Text = "All" Then
-      xcateg = modStock.GetPharmCategoryFromStockName(cmbmedicine.Text, GetPharmTarget(cmbroute.Text))
+      xcateg = modStock.GetPharmCategoryFromStockName(cmbmedicine.Text, xtarget)
     Else
       xcateg = modNonMedical.GetBillItemCategoryFromCombo(cmbroute.Text)
     Endif
@@ -4087,10 +4101,10 @@ Private Sub SHowInventoryStatus()
 
     Else
       txtqtymed.Tag = ""
-      txtitemrate.Value = modStock.GetCurrentSellingPrice(cmbmedicine.Text, GetPharmTarget(cmbroute.Text))
+      txtitemrate.Value = modStock.GetCurrentSellingPrice(cmbmedicine.Text, xtarget)
     Endif
 
-    If modStock.GetCurrentExpiredStockOneComp(cmbmedicine.Text, GetPharmTarget(cmbroute.Text)) = True Then
+    If modStock.GetCurrentExpiredStockOneComp(cmbmedicine.Text, xtarget) = True Then
       txtinventory.Background = Color.Orange
     Endif
   Endif
@@ -4188,14 +4202,16 @@ Public Sub chksavenew_Click()
   Dim xmsg1 As String
   Dim xmsg2 As String
   Dim xroute As String
+  Dim xtarget As String
 
   If Not txtqtymed.Value Then
     txtqtymed.SetFocus
   Else
 
     If txtencid.Text And If cmbroute.Text And If cmbmedicine.Text And If txtqtymed.Value > 0 Then
+      xtarget = GetPharmTarget(cmbroute.Text, cmbmedicine.Text)
       If cmbroute.Text = "All" Then
-        xroute = modStock.GetPharmCategoryFromStockName(cmbmedicine.Text, GetPharmTarget(cmbroute.Text))
+        xroute = modStock.GetPharmCategoryFromStockName(cmbmedicine.Text, xtarget)
       Else
         xroute = modNonMedical.GetBillItemCategoryFromCombo(cmbroute.Text)
       Endif
@@ -4212,7 +4228,7 @@ Public Sub chksavenew_Click()
         Endif
       Endif
 
-      xx = modStock.GetToDispenseStockOneComp(cmbmedicine.Text, GetPharmTarget(cmbroute.Text), txtday.Value)
+      xx = modStock.GetToDispenseStockOneComp(cmbmedicine.Text, xtarget, txtday.Value)
       If txtqtymed.Value > xx Then
         xmsg2 = ("Max Stock available : ") & xx
         Message.Warning(xmsg2, ("OK"))
@@ -4357,7 +4373,7 @@ Private Sub EnterDosingRecord()
       cmbmedicine.Text = ""
     Else
       If cmbroute.Text = "All" Then
-        itemtype = modStock.GetPharmCategoryFromStockName(cmbmedicine.Text, GetPharmTarget(cmbroute.Text))
+        itemtype = modStock.GetPharmCategoryFromStockName(cmbmedicine.Text, GetPharmTarget(cmbroute.Text, cmbmedicine.Text))
       Else
         itemtype = modNonMedical.GetBillItemCategoryFromCombo(cmbroute.Text)
       Endif
@@ -4443,7 +4459,7 @@ Private Sub TotalDispensedAmount()
     If $rData3["fldfixrate"] Then
       xval = $rData3["fldfixrate"] * $rData3["fldqtydisp"]
     Else
-      xval = modStock.GetToDispenseCostOneComp(cmbmode.Text, $rData3["flditem"], GetPharmTarget($rData3["fldroute"]), $rData3["flddays"], $rData3["fldqtydisp"])
+      xval = modStock.GetToDispenseCostOneComp(cmbmode.Text, $rData3["flditem"], GetPharmTarget($rData3["fldroute"], $rData3["flditem"]), $rData3["flddays"], $rData3["fldqtydisp"])
     Endif
 
     subtot = subtot + xval
@@ -4781,7 +4797,7 @@ Public Sub mnucashpharm_Click()
       If res["fldfixrate"] Then
         xval = CFloat(res["fldfixrate"]) * CFloat(res["fldqtydisp"])
       Else
-        xval = modStock.GetToDispenseCostOneComp(cmbmode.Text, res["flditem"], GetPharmTarget(res["fldroute"]), CFloat(res["flddays"]), CFloat(res["fldqtydisp"]))
+        xval = modStock.GetToDispenseCostOneComp(cmbmode.Text, res["flditem"], GetPharmTarget(res["fldroute"], res["flditem"]), CFloat(res["flddays"]), CFloat(res["fldqtydisp"]))
       Endif
 
       If res["fldcashincredit"] Then
@@ -4856,7 +4872,7 @@ Public Sub mnucost_Click()
 
   If GridView3.Selection.Count Then
     $rData3.MoveTo(GridView3.Selection[0])
-    cstamt = modStock.GetToDispenseCostOneComp(cmbmode.Text, $rData3["flditem"], GetPharmTarget($rData3["fldroute"]), $rData3["flddays"], $rData3["qty"])
+    cstamt = modStock.GetToDispenseCostOneComp(cmbmode.Text, $rData3["flditem"], GetPharmTarget($rData3["fldroute"], $rData3["flditem"]), $rData3["flddays"], $rData3["qty"])
     taxper = $rData3["fldtaxper"]
     discper = $rData3["flddiscper"]
 
@@ -5001,6 +5017,7 @@ Private Sub PharmacySave()
   Dim xCshCrd As Float
   Dim xcomp As String
   Dim xfixcode As String
+  Dim xtarget As String
 
   If chkall.Value Then
     xcomp = "%"
@@ -5017,23 +5034,24 @@ Private Sub PharmacySave()
       sql1 = "select fldid,fldtime,fldroute,flditem,flddose,fldfreq,flddays,fldqtydisp,fldlabel,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldqtydisp>&3 and fldbilltype=&4 and fldacledger=&5 and fldcomp_order like &6"                                                   ''
       res1 = modDatabase.$myConn.Exec(sql1, Trim(txtencid.Text), False, 0, hPatient.GetCashCreditMode(), cmbledgerac.Text, xcomp)
       If res1.Available = True Then
-        If GetPharmTarget(res1["fldroute"]) Then
+        xtarget = GetPharmTarget(res1["fldroute"], res1["flditem"])
+        If xtarget Then
 
           For Each res1
             'get stockno, rate and quantity based on expiry check
             If modBasic.$SkipExpiry = "ExpireOnUse" Then
               sql2 = "select fldstockno,fldqty from tblentry where fldstockid=&1 and fldcomp=&2 and fldstatus=&3 and fldexpiry>&4 and fldqty>&5"
-              res2 = modDatabase.$myConn.Exec(sql2, res1["flditem"], GetPharmTarget(res1["fldroute"]), 1, DateAdd(modDate.StartSqlDate(Now()), gb.Day, CInt(res1["flddays"])), 0)
+              res2 = modDatabase.$myConn.Exec(sql2, res1["flditem"], xtarget, 1, DateAdd(modDate.StartSqlDate(Now()), gb.Day, CInt(res1["flddays"])), 0)
             Else If modBasic.$SkipExpiry = "Expired" Then
               sql2 = "select fldstockno,fldqty from tblentry where fldstockid=&1 and fldcomp=&2 and fldstatus=&3 and fldexpiry>&4 and fldqty>&5"
-              res2 = modDatabase.$myConn.Exec(sql2, res1["flditem"], GetPharmTarget(res1["fldroute"]), 1, modDate.StartSqlDate(Now()), 0)
+              res2 = modDatabase.$myConn.Exec(sql2, res1["flditem"], xtarget, 1, modDate.StartSqlDate(Now()), 0)
             Else
               If modBasic.$BillExpiredEntry = "Enable" Then
                 sql2 = "select fldstockno,fldqty from tblentry where fldstockid=&1 and fldcomp=&2 and fldstatus=&3 and fldqty>&4"
-                res2 = modDatabase.$myConn.Exec(sql2, res1["flditem"], GetPharmTarget(res1["fldroute"]), 1, 0)
+                res2 = modDatabase.$myConn.Exec(sql2, res1["flditem"], xtarget, 1, 0)
               Else
                 sql2 = "select fldstockno,fldqty from tblentry where fldstockid=&1 and fldcomp=&2 and fldstatus=&3 and fldexpiry>&4 and fldqty>&5"
-                res2 = modDatabase.$myConn.Exec(sql2, res1["flditem"], GetPharmTarget(res1["fldroute"]), 1, modDate.StartSqlDate(Now()), 0)
+                res2 = modDatabase.$myConn.Exec(sql2, res1["flditem"], xtarget, 1, modDate.StartSqlDate(Now()), 0)
               Endif
             Endif
             If res2.Available Then
@@ -5059,7 +5077,7 @@ Private Sub PharmacySave()
               If res1["fldfixrate"] Then
                 xrate = res1["fldfixrate"]
               Else
-                xrate = modStock.GetCurrentSellingPrice(res1["flditem"], GetPharmTarget(res1["fldroute"]))
+                xrate = modStock.GetCurrentSellingPrice(res1["flditem"], xtarget)
               Endif
               xallow = modNonMedical.AllowPharmProceedPreBill(Trim(txtencid.Text), res1["flddisctype"], res1["fldqtydisp"], xrate, res1["flddiscper"], res1["fldbilltype"], xCshCrd, res1["fldroute"], res1["flditem"])
               If xallow = True Then
@@ -5087,12 +5105,12 @@ Private Sub PharmacySave()
 
                     If qtynew <= res2["fldqty"] Then
                       modBillings.InsertBlankBillItemNewApp(Trim(txtencid.Text), res1["fldbilltype"], res1["fldbillingmode"], res1["flddisctype"], res1["fldacledger"], res1["flditemtype"], res2["fldstockno"], xitem, xrate, qtynew, tax, disc, xCshCrd, "Done", res1["fldid"], True, False)
-                      modStockSub.AddToExistEntry(res2["fldstockno"], (0 - qtynew), GetPharmTarget(res1["fldroute"]))
+                      modStockSub.AddToExistEntry(res2["fldstockno"], (0 - qtynew), xtarget)
                       qtynew = 0
                       Break
                     Else If qtynew > res2["fldqty"] Then
                       modBillings.InsertBlankBillItemNewApp(Trim(txtencid.Text), res1["fldbilltype"], res1["fldbillingmode"], res1["flddisctype"], res1["fldacledger"], res1["flditemtype"], res2["fldstockno"], xitem, xrate, res2["fldqty"], tax, disc, xCshCrd, "Done", res1["fldid"], True, False)
-                      modStockSub.AddToExistEntry(res2["fldstockno"], (0 - res2["fldqty"]), GetPharmTarget(res1["fldroute"]))
+                      modStockSub.AddToExistEntry(res2["fldstockno"], (0 - res2["fldqty"]), xtarget)
                       qtynew = qtynew - res2["fldqty"]
                       If xRow = res2.Count - 1 Then
                         Break
