@@ -1,6 +1,25 @@
 ' Gambas module file
 
 ''--------------------- tblinpatdosing -----------------------
+Public Function GetStockIDFromCardex(cardexid As Long) As String
+
+  Dim res As Result
+  Dim xx As String
+
+  res = modDatabase.$myConn.Exec("select flditem from tblinpatdosing where fldid=&1", cardexid)
+  If res.Available Then
+    If res["flditem"] Then
+      xx = res["flditem"]
+    Else
+      xx = ""
+    Endif
+  Else
+    xx = ""
+  Endif
+  Return xx
+
+End
+
 Public Function GetInpatPrescriber(encid As String, xIndex As Long) As String
 
   Dim res As Result
@@ -702,6 +721,7 @@ End
 ' '
 ' ' End
 
+''----------------------------- for opd --------------------
 Public Function TotalDoseCount(dosid As Long, Optional sDate As Date) As Integer
 
   Dim xx As Integer
@@ -752,6 +772,58 @@ Public Function TotalDoseAmount(dosid As Long, Optional sDate As Date) As Intege
 
 End
 
+''------------------ for cardex -----------------------
+Public Function TotalDoseCountCardex(cardexid As Long, Optional sDate As Date) As Integer
+
+  Dim xx As Integer
+  Dim res As Result
+
+  If sDate Then
+    res = modDatabase.$myConn.Exec("select COUNT(fldid) as cnt from tblnurdosing where fldcardex=&1 and fldvalue>&2 and fldtime<=&3 and fldtime>=&4", cardexid, 0, modDate.EndSqlDate(sDate), modDate.StartSqlDate(sDate))
+  Else
+    res = modDatabase.$myConn.Exec("select COUNT(fldid) as cnt from tblnurdosing where fldcardex=&1 and fldvalue>&2", cardexid, 0)
+  Endif
+  If res.Available Then
+    If res["cnt"] Then
+      xx = res["cnt"]
+    Else
+      xx = 0
+    Endif
+  Else
+    xx = 0
+  Endif
+
+  Return xx
+
+End
+
+Public Function TotalDoseAmountCardex(cardexid As Long, Optional sDate As Date) As Integer
+
+  Dim xx As Float
+  Dim res As Result
+  Dim xstrn As Float
+
+  xstrn = modMedConstant.GetDrugInitialStrength(modPharmacy.GetStockIDFromCardex(cardexid))
+  If sDate Then
+    res = modDatabase.$myConn.Exec("select SUM(fldvalue) as fldvalue from tblnurdosing where fldcardex=&1 and fldtime<=&2 and fldtime>=&3", cardexid, modDate.EndSqlDate(sDate), modDate.StartSqlDate(sDate))
+  Else
+    res = modDatabase.$myConn.Exec("select SUM(fldvalue) as fldvalue from tblnurdosing where fldcardex=&1", cardexid)
+  Endif
+  If res.Available Then
+    If res["fldvalue"] Then
+      xx = Round(res["fldvalue"] * xstrn, -3)
+    Else
+      xx = 0
+    Endif
+  Else
+    xx = 0
+  Endif
+
+  Return xx
+
+End
+
+''---------------------- Other ---------------------
 Public Function GetProhibitedMedicineList(sUser As String) As String[]
 
   Dim res As Result

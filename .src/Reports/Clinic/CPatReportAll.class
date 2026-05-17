@@ -1,12 +1,29 @@
 ' Gambas class file
 
-Private encid As String
+Private $encList As String[]
+Private $encid As String
 Private $status As String
 
-Public Sub _new(xencid As String)
+Private $RegDateColl As Collection
 
-  encid = xencid
-  $status = modPatient.CurrentAdmissionStatus(encid)
+Public Sub _new(encList As String[])
+
+  $encList = encList
+
+  $encid = $encList[0]
+  $status = modPatient.CurrentAdmissionStatus($encid)
+  GetRegistDates()
+
+End
+
+Private Sub GetRegistDates()
+
+  Dim encid As String
+
+  $RegDateColl = New Collection
+  For Each encid In $encList
+    $RegDateColl.Add(modPatient.GetRecordDate(encid), encid)
+  Next
 
 End
 
@@ -15,8 +32,14 @@ Private Sub AddPatReportColl(sChapter As String, sObservation As String)
   Select $status
     Case "Recorded", "Registered", "Admitted"
     Case Else
-      modPatReportAll.$patReportColl.Add(sObservation, encid & "|" & sChapter)
+      modPatReportAll.$patReportColl.Add(sObservation, $encid & "|" & sChapter)
   End Select
+
+End
+
+Private Sub AddPatReportCollEnc(xencid As String, sChapter As String, sObservation As String)
+
+  modPatReportAll.$patReportColl.Add(sObservation, xencid & "|" & sChapter)
 
 End
 
@@ -52,7 +75,7 @@ Private Function AddCustomReport(stChapter As String, stObservation As String) A
 
 End
 
-''=============================== Public ============================================================
+''=============================== one encounter ============================================================
 ''--------------- Attached: General -----------------------
 Public Function AddCourseOfTreatment(Optional sTitle As String) As String[]
 
@@ -67,10 +90,10 @@ Public Function AddCourseOfTreatment(Optional sTitle As String) As String[]
     stChapter = "Course of Treatment"
   Endif
 
-  If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
-    stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+  If modPatReportAll.$patReportColl.Exist($encid & "|" & stChapter) Then
+    stObservation = modPatReportAll.$patReportColl[$encid & "|" & stChapter]
   Else
-    stObservation = modString.GetHTMLListFormat(modClinicReport.GetCourseOfTreatment(encid))
+    stObservation = modString.GetHTMLListFormat(modClinicReport.GetCourseOfTreatment($encid))
     AddPatReportColl(stChapter, stObservation)
   Endif
 
@@ -92,10 +115,10 @@ Public Function AddBedTransition(Optional sTitle As String) As String[]
     stChapter = "Bed Transitions"
   Endif
 
-  If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
-    stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+  If modPatReportAll.$patReportColl.Exist($encid & "|" & stChapter) Then
+    stObservation = modPatReportAll.$patReportColl[$encid & "|" & stChapter]
   Else
-    stObservation = modString.GetHTMLListFormat(modPatPatho.GetPatientTransition(encid))
+    stObservation = modString.GetHTMLListFormat(modPatPatho.GetPatientTransition($encid))
     AddPatReportColl(stChapter, stObservation)
   Endif
 
@@ -117,10 +140,10 @@ Public Function AddChiefComplaints(Optional sTitle As String) As String[]
     stChapter = "Chief Complaints"
   Endif
 
-  If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
-    stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+  If modPatReportAll.$patReportColl.Exist($encid & "|" & stChapter) Then
+    stObservation = modPatReportAll.$patReportColl[$encid & "|" & stChapter]
   Else
-    stObservation = modString.GetHTMLListFormat(modClinicReport.GetPatientChiefComplaintsReport(encid, True))
+    stObservation = modString.GetHTMLListFormat(modClinicReport.GetPatientChiefComplaintsReport($encid, True))
     AddPatReportColl(stChapter, stObservation)
   Endif
 
@@ -142,10 +165,10 @@ Public Function AddPatDemographics(Optional sTitle As String) As String[]
     stChapter = "Demographics"
   Endif
 
-  If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
-    stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+  If modPatReportAll.$patReportColl.Exist($encid & "|" & stChapter) Then
+    stObservation = modPatReportAll.$patReportColl[$encid & "|" & stChapter]
   Else
-    stObservation = modString.GetHTMLListFormat(modClinicReport.GetPatientDemographicReport(encid, True))
+    stObservation = modString.GetHTMLListFormat(modClinicReport.GetPatientDemographicReport($encid, True))
     AddPatReportColl(stChapter, stObservation)
   Endif
 
@@ -167,10 +190,10 @@ Public Function AddCauseofAdmission(Optional sTitle As String) As String[]
     stChapter = "Cause of Admission"
   Endif
 
-  If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
-    stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+  If modPatReportAll.$patReportColl.Exist($encid & "|" & stChapter) Then
+    stObservation = modPatReportAll.$patReportColl[$encid & "|" & stChapter]
   Else
-    stObservation = modPatReports.GetPatientHistoryReport(encid, "Cause of Admission")
+    stObservation = modPatReports.GetPatientHistoryReport($encid, "Cause of Admission")
     AddPatReportColl(stChapter, stObservation)
   Endif
 
@@ -192,10 +215,10 @@ Public Function AddHistoryAllTypes(Optional sTitle As String) As String[]
     stChapter = "History"
   Endif
 
-  If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
-    stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+  If modPatReportAll.$patReportColl.Exist($encid & "|" & stChapter) Then
+    stObservation = modPatReportAll.$patReportColl[$encid & "|" & stChapter]
   Else
-    stObservation = modString.GetHTMLListFormat(modClinicReport.GetPatientHistoryAllTypes(encid))
+    stObservation = modString.GetHTMLListFormat(modClinicReport.GetPatientHistoryAllTypes($encid))
     AddPatReportColl(stChapter, stObservation)
   Endif
 
@@ -217,10 +240,10 @@ Public Function AddConsultationAll(Optional sTitle As String) As String[]
     stChapter = "Consultations"
   Endif
 
-  If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
-    stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+  If modPatReportAll.$patReportColl.Exist($encid & "|" & stChapter) Then
+    stObservation = modPatReportAll.$patReportColl[$encid & "|" & stChapter]
   Else
-    stObservation = modString.GetHTMLListFormat(modPatient.GetPatientCOnsultList(encid))
+    stObservation = modString.GetHTMLListFormat(modPatient.GetPatientCOnsultList($encid))
     AddPatReportColl(stChapter, stObservation)
   Endif
 
@@ -242,10 +265,10 @@ Public Function AddProvisionalDiagnosis(Optional sTitle As String) As String[]
     stChapter = "Provisional Diagnosis"
   Endif
 
-  If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
-    stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+  If modPatReportAll.$patReportColl.Exist($encid & "|" & stChapter) Then
+    stObservation = modPatReportAll.$patReportColl[$encid & "|" & stChapter]
   Else
-    stObservation = modString.GetHTMLListFormat(modPatient.PatientFindingList(encid, "Provisional Diagnosis"))
+    stObservation = modString.GetHTMLListFormat(modPatient.PatientFindingList($encid, "Provisional Diagnosis"))
     AddPatReportColl(stChapter, stObservation)
   Endif
 
@@ -267,10 +290,10 @@ Public Function AddFinalDiagnosis(Optional sTitle As String) As String[]
     stChapter = "Final Diagnosis"
   Endif
 
-  If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
-    stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+  If modPatReportAll.$patReportColl.Exist($encid & "|" & stChapter) Then
+    stObservation = modPatReportAll.$patReportColl[$encid & "|" & stChapter]
   Else
-    stObservation = modString.GetHTMLListFormat(modPatient.PatientFindingList(encid, "Final Diagnosis"))
+    stObservation = modString.GetHTMLListFormat(modPatient.PatientFindingList($encid, "Final Diagnosis"))
     AddPatReportColl(stChapter, stObservation)
   Endif
 
@@ -292,10 +315,10 @@ Public Function AddDrugAllergy(Optional sTitle As String) As String[]
     stChapter = "Drug Allergy"
   Endif
 
-  If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
-    stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+  If modPatReportAll.$patReportColl.Exist($encid & "|" & stChapter) Then
+    stObservation = modPatReportAll.$patReportColl[$encid & "|" & stChapter]
   Else
-    stObservation = modString.GetHTMLListFormat(modPatient.PatientFindingList(encid, "Allergic Drugs"))
+    stObservation = modString.GetHTMLListFormat(modPatient.PatientFindingList($encid, "Allergic Drugs"))
     AddPatReportColl(stChapter, stObservation)
   Endif
 
@@ -317,10 +340,10 @@ Public Function AddTreatmentAdvised(Optional sTitle As String) As String[]
     stChapter = "Treatment Advised"
   Endif
 
-  If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
-    stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+  If modPatReportAll.$patReportColl.Exist($encid & "|" & stChapter) Then
+    stObservation = modPatReportAll.$patReportColl[$encid & "|" & stChapter]
   Else
-    stObservation = modClinicReport.GetRequestMedString(encid, "Medicines", True)
+    stObservation = modClinicReport.GetRequestMedString($encid, "Medicines", True)
     AddPatReportColl(stChapter, stObservation)
   Endif
 
@@ -342,10 +365,10 @@ Public Function AddUnavailableMeds(Optional sTitle As String) As String[]
     stChapter = "Unavailable Medicines"
   Endif
 
-  If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
-    stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+  If modPatReportAll.$patReportColl.Exist($encid & "|" & stChapter) Then
+    stObservation = modPatReportAll.$patReportColl[$encid & "|" & stChapter]
   Else
-    stObservation = modClinicReport.NonAvailableMedString(encid, "Medicines", True)
+    stObservation = modClinicReport.NonAvailableMedString($encid, "Medicines", True)
     AddPatReportColl(stChapter, stObservation)
   Endif
 
@@ -367,10 +390,10 @@ Public Function AddOutpatientAdvice(Optional sTitle As String) As String[]
     stChapter = "Outpatient Advice"
   Endif
 
-  If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
-    stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+  If modPatReportAll.$patReportColl.Exist($encid & "|" & stChapter) Then
+    stObservation = modPatReportAll.$patReportColl[$encid & "|" & stChapter]
   Else
-    stObservation = modPatReports.GetPatientNotesAllTypes(encid, "Outpatient Notes").Join(gb.NewLine)
+    stObservation = modPatReports.GetPatientNotesAllTypes($encid, "Outpatient Notes").Join(gb.NewLine)
     AddPatReportColl(stChapter, stObservation)
   Endif
 
@@ -392,10 +415,10 @@ Public Function AddOrderForNewVisit(Optional sTitle As String) As String[]
     stChapter = "Orders for New Visit"
   Endif
 
-  If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
-    stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+  If modPatReportAll.$patReportColl.Exist($encid & "|" & stChapter) Then
+    stObservation = modPatReportAll.$patReportColl[$encid & "|" & stChapter]
   Else
-    stObservation = modPatReports.GetPastBillingOrders(encid)
+    stObservation = modPatReports.GetPastBillingOrders($encid)
     AddPatReportColl(stChapter, stObservation)
   Endif
 
@@ -417,10 +440,10 @@ Public Function AddPlannedProcedures(Optional sTitle As String) As String[]
     stChapter = "Planned Procedures"
   Endif
 
-  If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
-    stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+  If modPatReportAll.$patReportColl.Exist($encid & "|" & stChapter) Then
+    stObservation = modPatReportAll.$patReportColl[$encid & "|" & stChapter]
   Else
-    stObservation = modString.GetHTMLListFormat(modPatReports.GetPatProcedureList(encid, "Procedures", "Planned"))
+    stObservation = modString.GetHTMLListFormat(modPatReports.GetPatProcedureList($encid, "Procedures", "Planned"))
     AddPatReportColl(stChapter, stObservation)
   Endif
 
@@ -447,15 +470,15 @@ Public Function AddExaminationsAll(Optional sTitle As String) As String[]
     stChapter = "Clinical Findings"
   Endif
 
-  If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
-    stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+  If modPatReportAll.$patReportColl.Exist($encid & "|" & stChapter) Then
+    stObservation = modPatReportAll.$patReportColl[$encid & "|" & stChapter]
   Else
     xexams = New String[]
     categList = ["ABC Examinations", "Essential Examinations", "Physician Examinations", "Nursing Examinations", "Discharge Examinations"]
     For Each xcateg In categList
-      xlist = modPatReports.PaientSelExamNameArray(encid, xcateg)
+      xlist = modPatReports.PaientSelExamNameArray($encid, xcateg)
       If xlist And If xlist.Count Then
-        xexams.Add(xcateg & gb.NewLine & modClinicReport.GetExaminationHTMLProfile(encid, xlist))
+        xexams.Add(xcateg & gb.NewLine & modClinicReport.GetExaminationHTMLProfile($encid, xlist))
       Endif
     Next
     stObservation = modString.GetHTMLListFormat(xexams)
@@ -486,19 +509,19 @@ Public Function AddStructuredExamAll(Optional sTitle As String) As String[]
     stChapter = "Structured Finding"
   Endif
 
-  If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
-    stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+  If modPatReportAll.$patReportColl.Exist($encid & "|" & stChapter) Then
+    stObservation = modPatReportAll.$patReportColl[$encid & "|" & stChapter]
   Else
     xexams = New String[]
-    xphys = modClinicReport.GetRecommendedExam(encid, "Physician Examinations")
+    xphys = modClinicReport.GetRecommendedExam($encid, "Physician Examinations")
     If Len(Trim(xphys)) Then
       xexams.Add(xphys & gb.NewLine)
     Endif
-    xdepat = modClinicReport.GetRecommendedExam(encid, "Departmental")
+    xdepat = modClinicReport.GetRecommendedExam($encid, "Departmental")
     If Len(Trim(xdepat)) Then
       xexams.Add(xdepat & gb.NewLine)
     Endif
-    xdigno = modClinicReport.GetRecommendedExam(encid, "Diagnostic Examinations")
+    xdigno = modClinicReport.GetRecommendedExam($encid, "Diagnostic Examinations")
     If Len(Trim(xdigno)) Then
       xexams.Add(xdigno & gb.NewLine)
     Endif
@@ -530,10 +553,10 @@ Public Function AddMajorProcedures(Optional sTitle As String) As String[]
     stChapter = "Major Procedures"
   Endif
 
-  If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
-    stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+  If modPatReportAll.$patReportColl.Exist($encid & "|" & stChapter) Then
+    stObservation = modPatReportAll.$patReportColl[$encid & "|" & stChapter]
   Else
-    stObservation = modPatSurgery.PatSelectProcedureString(encid, "Procedures", "Done")
+    stObservation = modPatSurgery.PatSelectProcedureString($encid, "Procedures", "Done")
     AddPatReportColl(stChapter, stObservation)
   Endif
 
@@ -555,10 +578,10 @@ Public Function AddMinorProcedures(Optional sTitle As String) As String[]
     stChapter = "Minor Procedures"
   Endif
 
-  If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
-    stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+  If modPatReportAll.$patReportColl.Exist($encid & "|" & stChapter) Then
+    stObservation = modPatReportAll.$patReportColl[$encid & "|" & stChapter]
   Else
-    stObservation = modString.GetHTMLListFormat(modPatReports.GetPatProcedureList(encid, "Minor Procedures", "Done"))
+    stObservation = modString.GetHTMLListFormat(modPatReports.GetPatProcedureList($encid, "Minor Procedures", "Done"))
     AddPatReportColl(stChapter, stObservation)
   Endif
 
@@ -580,10 +603,10 @@ Public Function AddEquipmentsUsed(Optional sTitle As String) As String[]
     stChapter = "Equipments Used"
   Endif
 
-  If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
-    stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+  If modPatReportAll.$patReportColl.Exist($encid & "|" & stChapter) Then
+    stObservation = modPatReportAll.$patReportColl[$encid & "|" & stChapter]
   Else
-    stObservation = modString.GetHTMLListFormat(modPatPatho.GetPatientEquipmentUse(encid))
+    stObservation = modString.GetHTMLListFormat(modPatPatho.GetPatientEquipmentUse($encid))
     AddPatReportColl(stChapter, stObservation)
   Endif
 
@@ -605,10 +628,10 @@ Public Function AddEventProfile(Optional sTitle As String) As String[]
     stChapter = "Event Timings"
   Endif
 
-  If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
-    stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+  If modPatReportAll.$patReportColl.Exist($encid & "|" & stChapter) Then
+    stObservation = modPatReportAll.$patReportColl[$encid & "|" & stChapter]
   Else
-    stObservation = modString.GetHTMLListFormat(modPatPatho.GetPatientEventProfile(encid, "Events"))
+    stObservation = modString.GetHTMLListFormat(modPatPatho.GetPatientEventProfile($encid, "Events"))
     AddPatReportColl(stChapter, stObservation)
   Endif
 
@@ -630,10 +653,10 @@ Public Function AddDevicesUsed(Optional sTitle As String) As String[]
     stChapter = "Devices Used"
   Endif
 
-  If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
-    stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+  If modPatReportAll.$patReportColl.Exist($encid & "|" & stChapter) Then
+    stObservation = modPatReportAll.$patReportColl[$encid & "|" & stChapter]
   Else
-    stObservation = modString.GetHTMLListFormat(modPatPatho.GetPatientEventProfile(encid, "Devices"))
+    stObservation = modString.GetHTMLListFormat(modPatPatho.GetPatientEventProfile($encid, "Devices"))
     AddPatReportColl(stChapter, stObservation)
   Endif
 
@@ -655,10 +678,10 @@ Public Function AddMedicationUsed(Optional sTitle As String) As String[]
     stChapter = "Medication Used"
   Endif
 
-  If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
-    stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+  If modPatReportAll.$patReportColl.Exist($encid & "|" & stChapter) Then
+    stObservation = modPatReportAll.$patReportColl[$encid & "|" & stChapter]
   Else
-    stObservation = modPharmacy.NurDosingString(encid)
+    stObservation = modPharmacy.NurDosingString($encid)
     AddPatReportColl(stChapter, stObservation)
   Endif
 
@@ -680,10 +703,10 @@ Public Function AddInfusionUsed(Optional sTitle As String) As String[]
     stChapter = "Infusion Used"
   Endif
 
-  If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
-    stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+  If modPatReportAll.$patReportColl.Exist($encid & "|" & stChapter) Then
+    stObservation = modPatReportAll.$patReportColl[$encid & "|" & stChapter]
   Else
-    stObservation = modPharmacy.NurInfusionString(encid)
+    stObservation = modPharmacy.NurInfusionString($encid)
     AddPatReportColl(stChapter, stObservation)
   Endif
 
@@ -705,10 +728,10 @@ Public Function AddVaccinesUsed(Optional sTitle As String) As String[]
     stChapter = "Vaccines used"
   Endif
 
-  If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
-    stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+  If modPatReportAll.$patReportColl.Exist($encid & "|" & stChapter) Then
+    stObservation = modPatReportAll.$patReportColl[$encid & "|" & stChapter]
   Else
-    stObservation = modPharmacy.GetVaccineUsed(encid, False, False)
+    stObservation = modPharmacy.GetVaccineUsed($encid, False, False)
     AddPatReportColl(stChapter, stObservation)
   Endif
 
@@ -730,10 +753,10 @@ Public Function AddNutritionUsed(Optional sTitle As String) As String[]
     stChapter = "Nutrition Consumed"
   Endif
 
-  If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
-    stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+  If modPatReportAll.$patReportColl.Exist($encid & "|" & stChapter) Then
+    stObservation = modPatReportAll.$patReportColl[$encid & "|" & stChapter]
   Else
-    ''stObservation = modPharmacy.NurDosingString(encid)
+    ''stObservation = modPharmacy.NurDosingString($encid)
     ' AddPatReportColl(stChapter, stObservation)
   Endif
 
@@ -756,10 +779,10 @@ Public Function AddInpatientNotes(Optional sTitle As String) As String[]
     stChapter = "Inpatient Notes"
   Endif
 
-  If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
-    stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+  If modPatReportAll.$patReportColl.Exist($encid & "|" & stChapter) Then
+    stObservation = modPatReportAll.$patReportColl[$encid & "|" & stChapter]
   Else
-    stObservation = modString.GetHTMLListFormat(modPatReports.GetPatientNotesAllTypes(encid, "Inpatient Notes"))
+    stObservation = modString.GetHTMLListFormat(modPatReports.GetPatientNotesAllTypes($encid, "Inpatient Notes"))
     AddPatReportColl(stChapter, stObservation)
   Endif
 
@@ -781,10 +804,10 @@ Public Function AddTherapeuticPlanning(Optional sTitle As String) As String[]
     stChapter = "Medical Planning"
   Endif
 
-  If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
-    stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+  If modPatReportAll.$patReportColl.Exist($encid & "|" & stChapter) Then
+    stObservation = modPatReportAll.$patReportColl[$encid & "|" & stChapter]
   Else
-    stObservation = modString.GetHTMLListFormat(modPatReports.GetPatientPlanningReport(encid))
+    stObservation = modString.GetHTMLListFormat(modPatReports.GetPatientPlanningReport($encid))
     AddPatReportColl(stChapter, stObservation)
   Endif
 
@@ -806,10 +829,10 @@ Public Function AddIPMonitoring(Optional sTitle As String) As String[]
     stChapter = "IP Monitoring"
   Endif
 
-  If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
-    stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+  If modPatReportAll.$patReportColl.Exist($encid & "|" & stChapter) Then
+    stObservation = modPatReportAll.$patReportColl[$encid & "|" & stChapter]
   Else
-    stObservation = modString.GetHTMLListFormat(modPatReports.GetPatientMonitorReport(encid))
+    stObservation = modString.GetHTMLListFormat(modPatReports.GetPatientMonitorReport($encid))
     AddPatReportColl(stChapter, stObservation)
   Endif
 
@@ -831,10 +854,10 @@ Public Function AddDischargeNotes(Optional sTitle As String) As String[]
     stChapter = "Discharge Notes"
   Endif
 
-  If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
-    stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+  If modPatReportAll.$patReportColl.Exist($encid & "|" & stChapter) Then
+    stObservation = modPatReportAll.$patReportColl[$encid & "|" & stChapter]
   Else
-    stObservation = modString.GetHTMLListFormat(modPatReports.GetPatientNotesAllTypes(encid, "Discharge Notes"))
+    stObservation = modString.GetHTMLListFormat(modPatReports.GetPatientNotesAllTypes($encid, "Discharge Notes"))
     AddPatReportColl(stChapter, stObservation)
   Endif
 
@@ -856,10 +879,10 @@ Public Function AddDeliveryProfile(Optional sTitle As String) As String[]
     stChapter = "Delivery Profile"
   Endif
 
-  If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
-    stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+  If modPatReportAll.$patReportColl.Exist($encid & "|" & stChapter) Then
+    stObservation = modPatReportAll.$patReportColl[$encid & "|" & stChapter]
   Else
-    stObservation = modString.GetHTMLListFormat(modPatReports.DeliveryReportbyMother(encid))
+    stObservation = modString.GetHTMLListFormat(modPatReports.DeliveryReportbyMother($encid))
     AddPatReportColl(stChapter, stObservation)
   Endif
 
@@ -881,10 +904,10 @@ Public Function AddDischargeMedication(Optional sTitle As String) As String[]
     stChapter = "Discharge Medication"
   Endif
 
-  If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
-    stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+  If modPatReportAll.$patReportColl.Exist($encid & "|" & stChapter) Then
+    stObservation = modPatReportAll.$patReportColl[$encid & "|" & stChapter]
   Else
-    stObservation = modClinicReport.DischargeMedString(encid)
+    stObservation = modClinicReport.DischargeMedString($encid)
     AddPatReportColl(stChapter, stObservation)
   Endif
 
@@ -907,10 +930,10 @@ Public Function AddLaboratoryTests(strUnit As String, Optional sTitle As String)
     stChapter = "Laboratory Tests"
   Endif
 
-  If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
-    stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+  If modPatReportAll.$patReportColl.Exist($encid & "|" & stChapter) Then
+    stObservation = modPatReportAll.$patReportColl[$encid & "|" & stChapter]
   Else
-    stObservation = modPatReports.GetlaboratoryHTMLProfile(encid, modLabTest.PaientAllTestNameArray(encid), strUnit)
+    stObservation = modPatReports.GetlaboratoryHTMLProfile($encid, modLabTest.PaientAllTestNameArray($encid), strUnit)
     AddPatReportColl(stChapter, stObservation)
   Endif
 
@@ -932,10 +955,10 @@ Public Function AddCompleteLaboratory(strUnit As String, Optional sTitle As Stri
     stChapter = "Laboratory Reports"
   Endif
 
-  If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
-    stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+  If modPatReportAll.$patReportColl.Exist($encid & "|" & stChapter) Then
+    stObservation = modPatReportAll.$patReportColl[$encid & "|" & stChapter]
   Else
-    stObservation = modPatReports.GetCompleteLabTestByEnc(encid, strUnit)
+    stObservation = modPatReports.GetCompleteLabTestByEnc($encid, strUnit)
     AddPatReportColl(stChapter, stObservation)
   Endif
 
@@ -957,10 +980,10 @@ Public Function AddRadioFindings(Optional sTitle As String) As String[]
     stChapter = "Radiological Findings"
   Endif
 
-  If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
-    stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+  If modPatReportAll.$patReportColl.Exist($encid & "|" & stChapter) Then
+    stObservation = modPatReportAll.$patReportColl[$encid & "|" & stChapter]
   Else
-    stObservation = modPatReports.GetRadiologyHTMLProfile(encid, modRadioTest.PaientAllRadioNameArray(encid))
+    stObservation = modPatReports.GetRadiologyHTMLProfile($encid, modRadioTest.PaientAllRadioNameArray($encid))
     AddPatReportColl(stChapter, stObservation)
   Endif
 
@@ -982,10 +1005,10 @@ Public Function AddCompleteRadiology(Optional sTitle As String) As String[]
     stChapter = "Radiological Reports"
   Endif
 
-  If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
-    stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+  If modPatReportAll.$patReportColl.Exist($encid & "|" & stChapter) Then
+    stObservation = modPatReportAll.$patReportColl[$encid & "|" & stChapter]
   Else
-    stObservation = modPatReports.GetCompleteRadioTestByEnc(encid)
+    stObservation = modPatReports.GetCompleteRadioTestByEnc($encid)
     AddPatReportColl(stChapter, stObservation)
   Endif
 
@@ -1009,7 +1032,7 @@ Public Function AddVisualAcuity(Optional sTitle As String) As String[]
   Else
     stChapter = "Visual Acuity"
   Endif
-  stObservation = modPatReports.GetFormattedExaminationReport(encid, sExamList)
+  stObservation = modPatReports.GetFormattedExaminationReport($encid, sExamList)
   asx = AddCustomReport(stChapter, stObservation)
   Return asx
 
@@ -1028,7 +1051,7 @@ Public Function AddPresentGlass(Optional sTitle As String) As String[]
   Else
     stChapter = "Present Glass"
   Endif
-  stObservation = modPatReports.GetFormattedExaminationReport(encid, sExamList)
+  stObservation = modPatReports.GetFormattedExaminationReport($encid, sExamList)
   asx = AddCustomReport(stChapter, stObservation)
   Return asx
 
@@ -1047,7 +1070,7 @@ Public Function AddRetinoscopy(Optional sTitle As String) As String[]
   Else
     stChapter = "Retinoscopy"
   Endif
-  stObservation = modPatReports.GetFormattedExaminationReport(encid, sExamList)
+  stObservation = modPatReports.GetFormattedExaminationReport($encid, sExamList)
   asx = AddCustomReport(stChapter, stObservation)
   Return asx
 
@@ -1066,7 +1089,7 @@ Public Function AddSubjectiveRefraction(Optional sTitle As String) As String[]
   Else
     stChapter = "Subjective Refraction"
   Endif
-  stObservation = modPatReports.GetFormattedExaminationReport(encid, sExamList)
+  stObservation = modPatReports.GetFormattedExaminationReport($encid, sExamList)
   asx = AddCustomReport(stChapter, stObservation)
   Return asx
 
@@ -1086,14 +1109,1291 @@ Public Function AddGlassPrescription(Optional sTitle As String) As String[]
     stChapter = "Glass Prescription"
   Endif
 
-  If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
-    stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+  If modPatReportAll.$patReportColl.Exist($encid & "|" & stChapter) Then
+    stObservation = modPatReportAll.$patReportColl[$encid & "|" & stChapter]
   Else
-    stObservation = modPatReports.GetFormattedExaminationReport(encid, sExamList)
+    stObservation = modPatReports.GetFormattedExaminationReport($encid, sExamList)
     AddPatReportColl(stChapter, stObservation)
   Endif
 
   asx = AddCustomReport(stChapter, stObservation)
+  Return asx
+
+End
+
+''=============================== MULTIPLE encounter ============================================================
+Private Function GetTextPara(sObsList As String[]) As String
+
+  Dim xobs As String
+  Dim xresult As String
+  Dim asx As String[]
+
+  xresult = ""
+  For Each xobs In sObsList
+    asx = Split(xobs, "|")
+    If Trim(asx[1]) Then
+      xresult = xresult & "<p><b>" & asx[0] & " (" & modReportVar.GetDateTimeReport($RegDateColl[asx[0]], gb.MediumDate) & ")" & "</b><br>" & modString.TextToHTML(asx[1]) & "</p>" & gb.NewLine
+    Endif
+  Next
+
+  Return xresult
+
+End
+
+''--------------- Attached: General -----------------------
+Public Function MultiAddCourseOfTreatment(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+  Dim stChapter As String
+  Dim stObservation As String
+  Dim observList As String[]
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Course of Treatment"
+  Endif
+
+  observList = New String[]
+  For Each encid In $encList
+    If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
+      stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+    Else
+      stObservation = modString.GetHTMLListFormat(modClinicReport.GetCourseOfTreatment(encid))
+      AddPatReportCollEnc(encid, stChapter, stObservation)
+    Endif
+    observList.Add(encid & "|" & stObservation)
+  Next
+
+  asx = AddCustomReport(stChapter, GetTextPara(observList))
+  Return asx
+
+End
+
+Public Function MultiAddBedTransition(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+  Dim stChapter As String
+  Dim stObservation As String
+  Dim observList As String[]
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Bed Transitions"
+  Endif
+
+  observList = New String[]
+  For Each encid In $encList
+    If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
+      stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+    Else
+      stObservation = modString.GetHTMLListFormat(modPatPatho.GetPatientTransition(encid))
+      AddPatReportCollEnc(encid, stChapter, stObservation)
+    Endif
+    observList.Add(encid & "|" & stObservation)
+  Next
+
+  asx = AddCustomReport(stChapter, GetTextPara(observList))
+  Return asx
+
+End
+
+Public Function MultiAddChiefComplaints(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+  Dim stChapter As String
+  Dim stObservation As String
+  Dim observList As String[]
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Chief Complaints"
+  Endif
+
+  observList = New String[]
+  For Each encid In $encList
+    If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
+      stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+    Else
+      stObservation = modString.GetHTMLListFormat(modClinicReport.GetPatientChiefComplaintsReport(encid, True))
+      AddPatReportCollEnc(encid, stChapter, stObservation)
+    Endif
+    observList.Add(encid & "|" & stObservation)
+  Next
+
+  asx = AddCustomReport(stChapter, GetTextPara(observList))
+  Return asx
+
+End
+
+Public Function MultiAddPatDemographics(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+  Dim stChapter As String
+  Dim stObservation As String
+  Dim observList As String[]
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Demographics"
+  Endif
+
+  observList = New String[]
+  For Each encid In $encList
+    If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
+      stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+    Else
+      stObservation = modString.GetHTMLListFormat(modClinicReport.GetPatientDemographicReport(encid, True))
+      AddPatReportCollEnc(encid, stChapter, stObservation)
+    Endif
+    observList.Add(encid & "|" & stObservation)
+  Next
+
+  asx = AddCustomReport(stChapter, GetTextPara(observList))
+  Return asx
+
+End
+
+Public Function MultiAddCauseofAdmission(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+  Dim stChapter As String
+  Dim stObservation As String
+  Dim observList As String[]
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Cause of Admission"
+  Endif
+
+  observList = New String[]
+  For Each encid In $encList
+    If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
+      stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+    Else
+      stObservation = modPatReports.GetPatientHistoryReport(encid, "Cause of Admission")
+      AddPatReportCollEnc(encid, stChapter, stObservation)
+    Endif
+    observList.Add(encid & "|" & stObservation)
+  Next
+
+  asx = AddCustomReport(stChapter, GetTextPara(observList))
+  Return asx
+
+End
+
+Public Function MultiAddHistoryAllTypes(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+  Dim stChapter As String
+  Dim stObservation As String
+  Dim observList As String[]
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "History"
+  Endif
+
+  observList = New String[]
+  For Each encid In $encList
+    If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
+      stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+    Else
+      stObservation = modString.GetHTMLListFormat(modClinicReport.GetPatientHistoryAllTypes(encid))
+      AddPatReportCollEnc(encid, stChapter, stObservation)
+    Endif
+    observList.Add(encid & "|" & stObservation)
+  Next
+
+  asx = AddCustomReport(stChapter, GetTextPara(observList))
+  Return asx
+
+End
+
+Public Function MultiAddConsultationAll(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+  Dim stChapter As String
+  Dim stObservation As String
+  Dim observList As String[]
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Consultations"
+  Endif
+
+  observList = New String[]
+  For Each encid In $encList
+    If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
+      stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+    Else
+      stObservation = modString.GetHTMLListFormat(modPatient.GetPatientCOnsultList(encid))
+      AddPatReportCollEnc(encid, stChapter, stObservation)
+    Endif
+    observList.Add(encid & "|" & stObservation)
+  Next
+
+  asx = AddCustomReport(stChapter, GetTextPara(observList))
+  Return asx
+
+End
+
+Public Function MultiAddProvisionalDiagnosis(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+  Dim stChapter As String
+  Dim stObservation As String
+  Dim observList As String[]
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Provisional Diagnosis"
+  Endif
+
+  observList = New String[]
+  For Each encid In $encList
+    If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
+      stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+    Else
+      stObservation = modString.GetHTMLListFormat(modPatient.PatientFindingList(encid, "Provisional Diagnosis"))
+      AddPatReportCollEnc(encid, stChapter, stObservation)
+    Endif
+    observList.Add(encid & "|" & stObservation)
+  Next
+
+  asx = AddCustomReport(stChapter, GetTextPara(observList))
+  Return asx
+
+End
+
+Public Function MultiAddFinalDiagnosis(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+  Dim stChapter As String
+  Dim stObservation As String
+  Dim observList As String[]
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Final Diagnosis"
+  Endif
+
+  observList = New String[]
+  For Each encid In $encList
+    If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
+      stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+    Else
+      stObservation = modString.GetHTMLListFormat(modPatient.PatientFindingList(encid, "Final Diagnosis"))
+      AddPatReportCollEnc(encid, stChapter, stObservation)
+    Endif
+    observList.Add(encid & "|" & stObservation)
+  Next
+
+  asx = AddCustomReport(stChapter, GetTextPara(observList))
+  Return asx
+
+End
+
+Public Function MultiAddDrugAllergy(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+  Dim stChapter As String
+  Dim stObservation As String
+  Dim observList As String[]
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Drug Allergy"
+  Endif
+
+  observList = New String[]
+  For Each encid In $encList
+    If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
+      stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+    Else
+      stObservation = modString.GetHTMLListFormat(modPatient.PatientFindingList(encid, "Allergic Drugs"))
+      AddPatReportCollEnc(encid, stChapter, stObservation)
+    Endif
+    observList.Add(encid & "|" & stObservation)
+  Next
+
+  asx = AddCustomReport(stChapter, GetTextPara(observList))
+  Return asx
+
+End
+
+Public Function MultiAddTreatmentAdvised(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+  Dim stChapter As String
+  Dim stObservation As String
+  Dim observList As String[]
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Treatment Advised"
+  Endif
+
+  observList = New String[]
+  For Each encid In $encList
+    If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
+      stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+    Else
+      stObservation = modClinicReport.GetRequestMedString(encid, "Medicines", True)
+      AddPatReportCollEnc(encid, stChapter, stObservation)
+    Endif
+    observList.Add(encid & "|" & stObservation)
+  Next
+
+  asx = AddCustomReport(stChapter, GetTextPara(observList))
+  Return asx
+
+End
+
+Public Function MultiAddUnavailableMeds(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+  Dim stChapter As String
+  Dim stObservation As String
+  Dim observList As String[]
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Unavailable Medicines"
+  Endif
+
+  observList = New String[]
+  For Each encid In $encList
+    If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
+      stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+    Else
+      stObservation = modClinicReport.NonAvailableMedString(encid, "Medicines", True)
+      AddPatReportCollEnc(encid, stChapter, stObservation)
+    Endif
+    observList.Add(encid & "|" & stObservation)
+  Next
+
+  asx = AddCustomReport(stChapter, GetTextPara(observList))
+  Return asx
+
+End
+
+Public Function MultiAddOutpatientAdvice(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+  Dim stChapter As String
+  Dim stObservation As String
+  Dim observList As String[]
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Outpatient Advice"
+  Endif
+
+  observList = New String[]
+  For Each encid In $encList
+    If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
+      stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+    Else
+      stObservation = modPatReports.GetPatientNotesAllTypes(encid, "Outpatient Notes").Join(gb.NewLine)
+      AddPatReportCollEnc(encid, stChapter, stObservation)
+    Endif
+    observList.Add(encid & "|" & stObservation)
+  Next
+
+  asx = AddCustomReport(stChapter, GetTextPara(observList))
+  Return asx
+
+End
+
+Public Function MultiAddOrderForNewVisit(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+  Dim stChapter As String
+  Dim stObservation As String
+  Dim observList As String[]
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Orders for New Visit"
+  Endif
+
+  observList = New String[]
+  For Each encid In $encList
+    If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
+      stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+    Else
+      stObservation = modPatReports.GetPastBillingOrders(encid)
+      AddPatReportCollEnc(encid, stChapter, stObservation)
+    Endif
+    observList.Add(encid & "|" & stObservation)
+  Next
+
+  asx = AddCustomReport(stChapter, GetTextPara(observList))
+  Return asx
+
+End
+
+Public Function MultiAddPlannedProcedures(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+  Dim stChapter As String
+  Dim stObservation As String
+  Dim observList As String[]
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Planned Procedures"
+  Endif
+
+  observList = New String[]
+  For Each encid In $encList
+    If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
+      stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+    Else
+      stObservation = modString.GetHTMLListFormat(modPatReports.GetPatProcedureList(encid, "Procedures", "Planned"))
+      AddPatReportCollEnc(encid, stChapter, stObservation)
+    Endif
+    observList.Add(encid & "|" & stObservation)
+  Next
+
+  asx = AddCustomReport(stChapter, GetTextPara(observList))
+  Return asx
+
+End
+
+''------------------ Attached: Lab/Radio/Exam
+Public Function MultiAddExaminationsAll(Optional sTitle As String) As String[]
+
+  Dim encid As String
+  Dim asx As New String[0]
+  Dim categList As String[]
+  Dim xcateg As String
+  Dim xlist As String[]
+  Dim xexams As String[]
+
+  Dim stChapter As String
+  Dim stObservation As String
+  Dim observList As String[]
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Clinical Findings"
+  Endif
+
+  observList = New String[]
+  For Each encid In $encList
+    If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
+      stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+    Else
+      xexams = New String[]
+      categList = ["ABC Examinations", "Essential Examinations", "Physician Examinations", "Nursing Examinations", "Discharge Examinations"]
+      For Each xcateg In categList
+        xlist = modPatReports.PaientSelExamNameArray(encid, xcateg)
+        If xlist And If xlist.Count Then
+          xexams.Add(xcateg & gb.NewLine & modClinicReport.GetExaminationHTMLProfile(encid, xlist))
+        Endif
+      Next
+      stObservation = modString.GetHTMLListFormat(xexams)
+      AddPatReportCollEnc(encid, stChapter, stObservation)
+    Endif
+    observList.Add(encid & "|" & stObservation)
+  Next
+
+  asx = AddCustomReport(stChapter, GetTextPara(observList))
+  Return asx
+
+End
+
+Public Function MultiAddStructuredExamAll(Optional sTitle As String) As String[]
+
+  Dim encid As String
+  Dim asx As New String[0]
+  Dim xexams As String[]
+
+  Dim xphys As String
+  Dim xdepat As String
+  Dim xdigno As String
+
+  Dim stChapter As String
+  Dim stObservation As String
+  Dim observList As String[]
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Structured Finding"
+  Endif
+
+  observList = New String[]
+  For Each encid In $encList
+    If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
+      stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+    Else
+      xexams = New String[]
+      xphys = modClinicReport.GetRecommendedExam(encid, "Physician Examinations")
+      If Len(Trim(xphys)) Then
+        xexams.Add(xphys & gb.NewLine)
+      Endif
+      xdepat = modClinicReport.GetRecommendedExam(encid, "Departmental")
+      If Len(Trim(xdepat)) Then
+        xexams.Add(xdepat & gb.NewLine)
+      Endif
+      xdigno = modClinicReport.GetRecommendedExam(encid, "Diagnostic Examinations")
+      If Len(Trim(xdigno)) Then
+        xexams.Add(xdigno & gb.NewLine)
+      Endif
+      If xexams.Count Then
+        stObservation = xexams.Join("<br>")
+      Else
+        stObservation = ""
+      Endif
+      AddPatReportCollEnc(encid, stChapter, stObservation)
+    Endif
+    observList.Add(encid & "|" & stObservation)
+  Next
+
+  asx = AddCustomReport(stChapter, GetTextPara(observList))
+  Return asx
+
+End
+
+''---------------------- Attached: Services ------------------------------
+Public Function MultiAddMajorProcedures(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+  Dim stChapter As String
+  Dim stObservation As String
+  Dim observList As String[]
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Major Procedures"
+  Endif
+
+  observList = New String[]
+  For Each encid In $encList
+    If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
+      stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+    Else
+      stObservation = modPatSurgery.PatSelectProcedureString(encid, "Procedures", "Done")
+      AddPatReportCollEnc(encid, stChapter, stObservation)
+    Endif
+    observList.Add(encid & "|" & stObservation)
+  Next
+
+  asx = AddCustomReport(stChapter, GetTextPara(observList))
+  Return asx
+
+End
+
+Public Function MultiAddMinorProcedures(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+  Dim stChapter As String
+  Dim stObservation As String
+  Dim observList As String[]
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Minor Procedures"
+  Endif
+
+  observList = New String[]
+  For Each encid In $encList
+    If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
+      stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+    Else
+      stObservation = modString.GetHTMLListFormat(modPatReports.GetPatProcedureList(encid, "Minor Procedures", "Done"))
+      AddPatReportCollEnc(encid, stChapter, stObservation)
+    Endif
+    observList.Add(encid & "|" & stObservation)
+  Next
+
+  asx = AddCustomReport(stChapter, GetTextPara(observList))
+  Return asx
+
+End
+
+Public Function MultiAddEquipmentsUsed(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+  Dim stChapter As String
+  Dim stObservation As String
+  Dim observList As String[]
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Equipments Used"
+  Endif
+
+  observList = New String[]
+  For Each encid In $encList
+    If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
+      stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+    Else
+      stObservation = modString.GetHTMLListFormat(modPatPatho.GetPatientEquipmentUse(encid))
+      AddPatReportCollEnc(encid, stChapter, stObservation)
+    Endif
+    observList.Add(encid & "|" & stObservation)
+  Next
+
+  asx = AddCustomReport(stChapter, GetTextPara(observList))
+  Return asx
+
+End
+
+Public Function MultiAddEventProfile(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+  Dim stChapter As String
+  Dim stObservation As String
+  Dim observList As String[]
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Event Timings"
+  Endif
+
+  observList = New String[]
+  For Each encid In $encList
+    If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
+      stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+    Else
+      stObservation = modString.GetHTMLListFormat(modPatPatho.GetPatientEventProfile(encid, "Events"))
+      AddPatReportCollEnc(encid, stChapter, stObservation)
+    Endif
+    observList.Add(encid & "|" & stObservation)
+  Next
+
+  asx = AddCustomReport(stChapter, GetTextPara(observList))
+  Return asx
+
+End
+
+Public Function MultiAddDevicesUsed(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+  Dim stChapter As String
+  Dim stObservation As String
+  Dim observList As String[]
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Devices Used"
+  Endif
+
+  observList = New String[]
+  For Each encid In $encList
+    If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
+      stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+    Else
+      stObservation = modString.GetHTMLListFormat(modPatPatho.GetPatientEventProfile(encid, "Devices"))
+      AddPatReportCollEnc(encid, stChapter, stObservation)
+    Endif
+    observList.Add(encid & "|" & stObservation)
+  Next
+
+  asx = AddCustomReport(stChapter, GetTextPara(observList))
+  Return asx
+
+End
+
+Public Function MultiAddMedicationUsed(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+  Dim stChapter As String
+  Dim stObservation As String
+  Dim observList As String[]
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Medication Used"
+  Endif
+
+  observList = New String[]
+  For Each encid In $encList
+    If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
+      stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+    Else
+      stObservation = modPharmacy.NurDosingString(encid)
+      AddPatReportCollEnc(encid, stChapter, stObservation)
+    Endif
+    observList.Add(encid & "|" & stObservation)
+  Next
+
+  asx = AddCustomReport(stChapter, GetTextPara(observList))
+  Return asx
+
+End
+
+Public Function MultiAddInfusionUsed(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+  Dim stChapter As String
+  Dim stObservation As String
+  Dim observList As String[]
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Infusion Used"
+  Endif
+
+  observList = New String[]
+  For Each encid In $encList
+    If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
+      stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+    Else
+      stObservation = modPharmacy.NurInfusionString(encid)
+      AddPatReportCollEnc(encid, stChapter, stObservation)
+    Endif
+    observList.Add(encid & "|" & stObservation)
+  Next
+
+  asx = AddCustomReport(stChapter, GetTextPara(observList))
+  Return asx
+
+End
+
+Public Function MultiAddVaccinesUsed(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+  Dim stChapter As String
+  Dim stObservation As String
+  Dim observList As String[]
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Vaccines used"
+  Endif
+
+  observList = New String[]
+  For Each encid In $encList
+    If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
+      stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+    Else
+      stObservation = modPharmacy.GetVaccineUsed(encid, False, False)
+      AddPatReportCollEnc(encid, stChapter, stObservation)
+    Endif
+    observList.Add(encid & "|" & stObservation)
+  Next
+
+  asx = AddCustomReport(stChapter, GetTextPara(observList))
+  Return asx
+
+End
+
+Public Function MultiAddNutritionUsed(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+  Dim stChapter As String
+  Dim stObservation As String
+  Dim observList As String[]
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Nutrition Consumed"
+  Endif
+
+  observList = New String[]
+  For Each encid In $encList
+    If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
+      stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+    Else
+      ''stObservation = modPharmacy.NurDosingString(encid)
+      ' AddPatReportCollEnc(encid, stChapter, stObservation)
+    Endif
+    observList.Add(encid & "|" & stObservation)
+  Next
+
+  asx = AddCustomReport(stChapter, GetTextPara(observList))
+  Return asx
+
+End
+
+''-------------------------- Attached: Inpatient -------------------
+Public Function MultiAddInpatientNotes(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+  Dim stChapter As String
+  Dim stObservation As String
+  Dim observList As String[]
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Inpatient Notes"
+  Endif
+
+  observList = New String[]
+  For Each encid In $encList
+    If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
+      stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+    Else
+      stObservation = modString.GetHTMLListFormat(modPatReports.GetPatientNotesAllTypes(encid, "Inpatient Notes"))
+      AddPatReportCollEnc(encid, stChapter, stObservation)
+    Endif
+    observList.Add(encid & "|" & stObservation)
+  Next
+
+  asx = AddCustomReport(stChapter, GetTextPara(observList))
+  Return asx
+
+End
+
+Public Function MultiAddTherapeuticPlanning(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+  Dim stChapter As String
+  Dim stObservation As String
+  Dim observList As String[]
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Medical Planning"
+  Endif
+
+  observList = New String[]
+  For Each encid In $encList
+    If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
+      stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+    Else
+      stObservation = modString.GetHTMLListFormat(modPatReports.GetPatientPlanningReport(encid))
+      AddPatReportCollEnc(encid, stChapter, stObservation)
+    Endif
+    observList.Add(encid & "|" & stObservation)
+  Next
+
+  asx = AddCustomReport(stChapter, GetTextPara(observList))
+  Return asx
+
+End
+
+Public Function MultiAddIPMonitoring(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+  Dim stChapter As String
+  Dim stObservation As String
+  Dim observList As String[]
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "IP Monitoring"
+  Endif
+
+  observList = New String[]
+  For Each encid In $encList
+    If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
+      stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+    Else
+      stObservation = modString.GetHTMLListFormat(modPatReports.GetPatientMonitorReport(encid))
+      AddPatReportCollEnc(encid, stChapter, stObservation)
+    Endif
+    observList.Add(encid & "|" & stObservation)
+  Next
+
+  asx = AddCustomReport(stChapter, GetTextPara(observList))
+  Return asx
+
+End
+
+Public Function MultiAddDischargeNotes(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+  Dim stChapter As String
+  Dim stObservation As String
+  Dim observList As String[]
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Discharge Notes"
+  Endif
+
+  observList = New String[]
+  For Each encid In $encList
+    If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
+      stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+    Else
+      stObservation = modString.GetHTMLListFormat(modPatReports.GetPatientNotesAllTypes(encid, "Discharge Notes"))
+      AddPatReportCollEnc(encid, stChapter, stObservation)
+    Endif
+    observList.Add(encid & "|" & stObservation)
+  Next
+
+  asx = AddCustomReport(stChapter, GetTextPara(observList))
+  Return asx
+
+End
+
+Public Function MultiAddDeliveryProfile(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+  Dim stChapter As String
+  Dim stObservation As String
+  Dim observList As String[]
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Delivery Profile"
+  Endif
+
+  observList = New String[]
+  For Each encid In $encList
+    If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
+      stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+    Else
+      stObservation = modString.GetHTMLListFormat(modPatReports.DeliveryReportbyMother(encid))
+      AddPatReportCollEnc(encid, stChapter, stObservation)
+    Endif
+    observList.Add(encid & "|" & stObservation)
+  Next
+
+  asx = AddCustomReport(stChapter, GetTextPara(observList))
+  Return asx
+
+End
+
+Public Function MultiAddDischargeMedication(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+  Dim stChapter As String
+  Dim stObservation As String
+  Dim observList As String[]
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Discharge Medication"
+  Endif
+
+  observList = New String[]
+  For Each encid In $encList
+    If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
+      stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+    Else
+      stObservation = modClinicReport.DischargeMedString(encid)
+      AddPatReportCollEnc(encid, stChapter, stObservation)
+    Endif
+    observList.Add(encid & "|" & stObservation)
+  Next
+
+  asx = AddCustomReport(stChapter, GetTextPara(observList))
+  Return asx
+
+End
+
+''----------
+Public Function MultiAddLaboratoryTests(strUnit As String, Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+  Dim stChapter As String
+  Dim stObservation As String
+  Dim observList As String[]
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Laboratory Tests"
+  Endif
+
+  observList = New String[]
+  For Each encid In $encList
+    If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
+      stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+    Else
+      stObservation = modPatReports.GetlaboratoryHTMLProfile(encid, modLabTest.PaientAllTestNameArray(encid), strUnit)
+      AddPatReportCollEnc(encid, stChapter, stObservation)
+    Endif
+    observList.Add(encid & "|" & stObservation)
+  Next
+
+  asx = AddCustomReport(stChapter, GetTextPara(observList))
+  Return asx
+
+End
+
+Public Function MultiAddCompleteLaboratory(strUnit As String, Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+  Dim stChapter As String
+  Dim stObservation As String
+  Dim observList As String[]
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Laboratory Reports"
+  Endif
+
+  observList = New String[]
+  For Each encid In $encList
+    If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
+      stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+    Else
+      stObservation = modPatReports.GetCompleteLabTestByEnc(encid, strUnit)
+      AddPatReportCollEnc(encid, stChapter, stObservation)
+    Endif
+    observList.Add(encid & "|" & stObservation)
+  Next
+
+  asx = AddCustomReport(stChapter, GetTextPara(observList))
+  Return asx
+
+End
+
+Public Function MultiAddRadioFindings(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+  Dim stChapter As String
+  Dim stObservation As String
+  Dim observList As String[]
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Radiological Findings"
+  Endif
+
+  observList = New String[]
+  For Each encid In $encList
+    If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
+      stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+    Else
+      stObservation = modPatReports.GetRadiologyHTMLProfile(encid, modRadioTest.PaientAllRadioNameArray(encid))
+      AddPatReportCollEnc(encid, stChapter, stObservation)
+    Endif
+    observList.Add(encid & "|" & stObservation)
+  Next
+
+  asx = AddCustomReport(stChapter, GetTextPara(observList))
+  Return asx
+
+End
+
+Public Function MultiAddCompleteRadiology(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+  Dim stChapter As String
+  Dim stObservation As String
+  Dim observList As String[]
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Radiological Reports"
+  Endif
+
+  observList = New String[]
+  For Each encid In $encList
+    If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
+      stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+    Else
+      stObservation = modPatReports.GetCompleteRadioTestByEnc(encid)
+      AddPatReportCollEnc(encid, stChapter, stObservation)
+    Endif
+    observList.Add(encid & "|" & stObservation)
+  Next
+
+  asx = AddCustomReport(stChapter, GetTextPara(observList))
+  Return asx
+
+End
+
+''Glass
+
+Public Function MultiAddVisualAcuity(Optional sTitle As String) As String[]
+
+  Dim sExamList As String[] = ["Visual Acuity", "Stereopsis", "Miscellaneous Visual Acuity"]
+  Dim asx As New String[0]
+  Dim encid As String
+  Dim stChapter As String
+  Dim stObservation As String
+  Dim observList As String[]
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Visual Acuity"
+  Endif
+
+  observList = New String[]
+  For Each encid In $encList
+    stObservation = modPatReports.GetFormattedExaminationReport(encid, sExamList)
+    observList.Add(encid & "|" & stObservation)
+  Next
+
+  asx = AddCustomReport(stChapter, GetTextPara(observList))
+  Return asx
+
+End
+
+Public Function MultiAddPresentGlass(Optional sTitle As String) As String[]
+
+  Dim sExamList As String[] = ["Present Glass", "Present Glass Lens Type", "Present Glass Remarks"]
+  Dim asx As New String[0]
+  Dim encid As String
+  Dim stChapter As String
+  Dim stObservation As String
+  Dim observList As String[]
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Present Glass"
+  Endif
+
+  observList = New String[]
+  For Each encid In $encList
+    stObservation = modPatReports.GetFormattedExaminationReport(encid, sExamList)
+    observList.Add(encid & "|" & stObservation)
+  Next
+
+  asx = AddCustomReport(stChapter, GetTextPara(observList))
+  Return asx
+
+End
+
+Public Function MultiAddRetinoscopy(Optional sTitle As String) As String[]
+
+  Dim sExamList As String[] = ["Retinoscopy"]
+  Dim asx As New String[0]
+  Dim encid As String
+  Dim stChapter As String
+  Dim stObservation As String
+  Dim observList As String[]
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Retinoscopy"
+  Endif
+
+  observList = New String[]
+  For Each encid In $encList
+    stObservation = modPatReports.GetFormattedExaminationReport(encid, sExamList)
+    observList.Add(encid & "|" & stObservation)
+  Next
+
+  asx = AddCustomReport(stChapter, GetTextPara(observList))
+  Return asx
+
+End
+
+Public Function MultiAddSubjectiveRefraction(Optional sTitle As String) As String[]
+
+  Dim sExamList As String[] = ["Subjective Refraction"]
+  Dim asx As New String[0]
+  Dim encid As String
+  Dim stChapter As String
+  Dim stObservation As String
+  Dim observList As String[]
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Subjective Refraction"
+  Endif
+
+  observList = New String[]
+  For Each encid In $encList
+    stObservation = modPatReports.GetFormattedExaminationReport(encid, sExamList)
+    observList.Add(encid & "|" & stObservation)
+  Next
+
+  asx = AddCustomReport(stChapter, GetTextPara(observList))
+  Return asx
+
+End
+
+Public Function MultiAddGlassPrescription(Optional sTitle As String) As String[]
+
+  Dim sExamList As String[] = ["Prescribed Glass", "Prescribed Glass Source", "Prescribed Glass Remarks"]
+  Dim asx As New String[0]
+  Dim encid As String
+  Dim stChapter As String
+  Dim stObservation As String
+  Dim observList As String[]
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Glass Prescription"
+  Endif
+
+  observList = New String[]
+  For Each encid In $encList
+    If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
+      stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+    Else
+      stObservation = modPatReports.GetFormattedExaminationReport(encid, sExamList)
+      AddPatReportCollEnc(encid, stChapter, stObservation)
+    Endif
+    observList.Add(encid & "|" & stObservation)
+  Next
+
+  asx = AddCustomReport(stChapter, GetTextPara(observList))
   Return asx
 
 End

@@ -32,7 +32,7 @@ Public Function ShowAllCompleteReport(encid As String, strUnit As String) As Str
   $BillingReport.UserData.Add("REPORT", "Report")
   $BillingReport.UserData.Add("COMPLETE REPORT", "PARAM1")
 
-  hForm = New CPatReportAll(encid)
+  hForm = New CPatReportAll([encid])
   $BillingReport.AddSection("General", True)
   $BillingReport.Add(hForm.AddCourseOfTreatment())
   $BillingReport.Add(hForm.AddPatDemographics())
@@ -105,7 +105,7 @@ Public Function ShowCompleteReport(encid As String, xList As String[], strUnit A
   $BillingReport.UserData.Add("REPORT", "Report")
   $BillingReport.UserData.Add("SELECTED PARAMETERS", "PARAM1")
 
-  hForm = New CPatReportAll(encid)
+  hForm = New CPatReportAll([encid])
   If xList.Exist("Course of Treatment") Then
     $BillingReport.Add(hForm.AddCourseOfTreatment())
   Endif
@@ -304,14 +304,17 @@ Public Function ShowCompleteReport(encid As String, xList As String[], strUnit A
 
 End
 
-Public Function ShowAllEncounterReport(encounter As String, xList As String[], strUnit As String) As String
+Public Function ShowAllEncounterReport(encounter As String, xList As String[], strUnit As String, HTMLOnly As Boolean, Optional encounList As String[]) As String
 
   Dim $BillingReport As CReportHTML
   Dim hForm As CPatReportAll
-  Dim encid As String
   Dim encList As String[]
-  Dim xitem As String
   Dim xstate As String
+
+  Dim xAncList As String[]
+  Dim xanc As String
+  Dim xancbool As Boolean
+  Dim hAnForm As CReportANC
 
   If modBasic.$MedRepoBody = "Paragraph" Then
     $BillingReport = New CReportHTML([("Description")], "PatientReport", encounter)
@@ -321,146 +324,197 @@ Public Function ShowAllEncounterReport(encounter As String, xList As String[], s
   $BillingReport.UserData.Add("REPORT", "Report")
   $BillingReport.UserData.Add("ALL ENCOUNTERS REPORT", "PARAM1")
 
-  encList = modPatient.GetEncListFromEncSetting(encounter)
-  For Each encid In encList
-    hForm = New CPatReportAll(encid)
-    $BillingReport.AddSection(encid & " (" & modReportVar.GetDateTimeReport(modPatient.GetRecordDate(encid), gb.MediumDate) & ")", True)
+  If encounList Then
+    encList = encounList
+  Else
+    encList = modPatient.GetEncListFromEncSetting(encounter)
+  Endif
+  hForm = New CPatReportAll(encList)
+  If xList.Exist("Course of Treatment") Then
+    $BillingReport.Add(hForm.MultiAddCourseOfTreatment())
+  Endif
+  If xList.Exist("Demographics") Then
+    $BillingReport.Add(hForm.MultiAddPatDemographics())
+  Endif
+  If xList.Exist("Bed Transitions") Then
+    $BillingReport.Add(hForm.MultiAddBedTransition())
+  Endif
+  If xList.Exist("Cause of Admission") Then
+    $BillingReport.Add(hForm.MultiAddCauseofAdmission())
+  Endif
+  If xList.Exist("Chief Complaints") Then
+    $BillingReport.Add(hForm.MultiAddChiefComplaints())
+  Endif
+  If xList.Exist("History") Then
+    $BillingReport.Add(hForm.MultiAddHistoryAllTypes())
+  Endif
+  If xList.Exist("Consultations") Then
+    $BillingReport.Add(hForm.MultiAddConsultationAll())
+  Endif
+  If xList.Exist("Drug Allergy") Then
+    $BillingReport.Add(hForm.MultiAddDrugAllergy())
+  Endif
+  If xList.Exist("Provisional Diagnosis") Then
+    $BillingReport.Add(hForm.MultiAddProvisionalDiagnosis())
+  Endif
+  If xList.Exist("Final Diagnosis") Then
+    $BillingReport.Add(hForm.MultiAddFinalDiagnosis())
+  Endif
+  If xList.Exist("Treatment Advised") Then
+    $BillingReport.Add(hForm.MultiAddTreatmentAdvised())
+  Endif
 
-    xstate = modPatient.CurrentAdmissionStatus(encid)
-    For Each xitem In xList
+  If xList.Exist("Outpatient Advice") Then
+    $BillingReport.Add(hForm.MultiAddOutpatientAdvice())
+  Endif
+  If xList.Exist("Orders for New Visit") Then
+    $BillingReport.Add(hForm.MultiAddOrderForNewVisit())
+  Endif
+  If xList.Exist("Planned Procedures") Then
+    $BillingReport.Add(hForm.MultiAddPlannedProcedures())
+  Endif
+  If xList.Exist("Unavailable Medicines") Then
+    $BillingReport.Add(hForm.MultiAddUnavailableMeds())
+  Endif
 
-      If xitem = "Course of Treatment" Then
-        $BillingReport.Add(hForm.AddCourseOfTreatment())
-      Endif
-      If xitem = "Demographics" Then
-        $BillingReport.Add(hForm.AddPatDemographics())
-      Endif
-      If xitem = "Bed Transitions" Then
-        $BillingReport.Add(hForm.AddBedTransition())
-      Endif
-      If xitem = "Cause of Admission" Then
-        $BillingReport.Add(hForm.AddCauseofAdmission())
-      Endif
-      If xitem = "Chief Complaints" Then
-        $BillingReport.Add(hForm.AddChiefComplaints())
-      Endif
-      If xitem = "History" Then
-        $BillingReport.Add(hForm.AddHistoryAllTypes())
-      Endif
-      If xitem = "Consultations" Then
-        $BillingReport.Add(hForm.AddConsultationAll())
-      Endif
-      If xitem = "Drug Allergy" Then
-        $BillingReport.Add(hForm.AddDrugAllergy())
-      Endif
-      If xitem = "Provisional Diagnosis" Then
-        $BillingReport.Add(hForm.AddProvisionalDiagnosis())
-      Endif
-      If xitem = "Final Diagnosis" Then
-        $BillingReport.Add(hForm.AddFinalDiagnosis())
-      Endif
-      If xitem = "Treatment Advised" Then
-        $BillingReport.Add(hForm.AddTreatmentAdvised())
-      Endif
+  If xList.Exist("Clinical Finding") Then
+    $BillingReport.Add(hForm.MultiAddExaminationsAll())
+  Endif
+  If xList.Exist("Structured Finding") Then
+    $BillingReport.Add(hForm.MultiAddStructuredExamAll())
+  Endif
+  If xList.Exist("Laboratory Tests") Then
+    $BillingReport.Add(hForm.MultiAddLaboratoryTests(strUnit))
+  Endif
+  If xList.Exist("Radiological Findings") Then
+    $BillingReport.Add(hForm.MultiAddRadioFindings())
+  Endif
 
-      If xitem = "Outpatient Advice" Then
-        $BillingReport.Add(hForm.AddOutpatientAdvice())
-      Endif
-      If xitem = "Orders for New Visit" Then
-        $BillingReport.Add(hForm.AddOrderForNewVisit())
-      Endif
-      If xitem = "Planned Procedures" Then
-        $BillingReport.Add(hForm.AddPlannedProcedures())
-      Endif
-      If xitem = "Unavailable Medicines" Then
-        $BillingReport.Add(hForm.AddUnavailableMeds())
-      Endif
+  If xList.Exist("Major Procedures") Then
+    $BillingReport.Add(hForm.MultiAddMajorProcedures())
+  Endif
+  If xList.Exist("Minor Procedures") Then
+    $BillingReport.Add(hForm.MultiAddMinorProcedures())
+  Endif
+  If xList.Exist("Equipments Used") Then
+    $BillingReport.Add(hForm.MultiAddEquipmentsUsed())
+  Endif
+  If xList.Exist("Event Timings") Then
+    $BillingReport.Add(hForm.MultiAddEventProfile())
+  Endif
+  If xList.Exist("Devices Used") Then
+    $BillingReport.Add(hForm.MultiAddDevicesUsed())
+  Endif
 
-      If xitem = "Clinical Finding" Then
-        $BillingReport.Add(hForm.AddExaminationsAll())
-      Endif
-      If xList.Exist("Structured Finding") Then
-        $BillingReport.Add(hForm.AddStructuredExamAll())
-      Endif
-      If xitem = "Laboratory Tests" Then
-        $BillingReport.Add(hForm.AddLaboratoryTests(strUnit))
-      Endif
-      If xitem = "Radiological Findings" Then
-        $BillingReport.Add(hForm.AddRadioFindings())
-      Endif
+  If xList.Exist("Medication Used") Then
+    $BillingReport.Add(hForm.MultiAddMedicationUsed())
+  Endif
+  If xList.Exist("Infusion Used") Then
+    $BillingReport.Add(hForm.MultiAddInfusionUsed())
+  Endif
+  If xList.Exist("Vaccines used") Then
+    $BillingReport.Add(hForm.MultiAddVaccinesUsed())
+  Endif
+  If xList.Exist("Nutrition Consumed") Then
+    $BillingReport.Add(hForm.MultiAddNutritionUsed())
+  Endif
 
-      If xitem = "Major Procedures" Then
-        $BillingReport.Add(hForm.AddMajorProcedures())
-      Endif
-      If xitem = "Minor Procedures" Then
-        $BillingReport.Add(hForm.AddMinorProcedures())
-      Endif
-      If xitem = "Equipments Used" Then
-        $BillingReport.Add(hForm.AddEquipmentsUsed())
-      Endif
-      If xitem = "Event Timings" Then
-        $BillingReport.Add(hForm.AddEventProfile())
-      Endif
-      If xitem = "Devices Used" Then
-        $BillingReport.Add(hForm.AddDevicesUsed())
-      Endif
+  If xList.Exist("Delivery Profile") Then
+    $BillingReport.Add(hForm.MultiAddDeliveryProfile())
+  Endif
 
-      If xitem = "Medication Used" Then
-        $BillingReport.Add(hForm.AddMedicationUsed())
-      Endif
-      If xitem = "Infusion Used" Then
-        $BillingReport.Add(hForm.AddInfusionUsed())
-      Endif
-      If xitem = "Vaccines used" Then
-        $BillingReport.Add(hForm.AddVaccinesUsed())
-      Endif
-      If xitem = "Nutrition Consumed" Then
-        $BillingReport.Add(hForm.AddNutritionUsed())
-      Endif
+  If xList.Exist("Inpatient Notes") Then
+    $BillingReport.Add(hForm.MultiAddInpatientNotes())
+  Endif
+  If xList.Exist("Medical Planning") Then
+    $BillingReport.Add(hForm.MultiAddTherapeuticPlanning())
+  Endif
+  If xList.Exist("IP Monitoring") Then
+    $BillingReport.Add(hForm.MultiAddIPMonitoring())
+  Endif
 
-      If xitem = "Delivery Profile" Then
-        $BillingReport.Add(hForm.AddDeliveryProfile())
-      Endif
+  If xList.Exist("Discharge Notes") Then
+    $BillingReport.Add(hForm.MultiAddDischargeNotes())
+  Endif
+  If xList.Exist("Discharge Medication") Then
+    $BillingReport.Add(hForm.MultiAddDischargeMedication())
+  Endif
 
-      If xitem = "Inpatient Notes" Then
-        $BillingReport.Add(hForm.AddInpatientNotes())
-      Endif
-      If xitem = "Medical Planning" Then
-        $BillingReport.Add(hForm.AddTherapeuticPlanning())
-      Endif
-      If xitem = "IP Monitoring" Then
-        $BillingReport.Add(hForm.AddIPMonitoring())
-      Endif
+  If xList.Exist("Visual Acuity") Then
+    $BillingReport.Add(hForm.MultiAddVisualAcuity())
+  Endif
+  If xList.Exist("Present Glass") Then
+    $BillingReport.Add(hForm.MultiAddPresentGlass())
+  Endif
+  If xList.Exist("Retinoscopy") Then
+    $BillingReport.Add(hForm.MultiAddRetinoscopy())
+  Endif
+  If xList.Exist("Subjective Refraction") Then
+    $BillingReport.Add(hForm.MultiAddSubjectiveRefraction())
+  Endif
+  If xList.Exist("Glass Prescription") Then
+    $BillingReport.Add(hForm.MultiAddGlassPrescription())
+  Endif
 
-      If xstate = "Discharged" Then
-        If xitem = "Discharge Notes" Then
-          $BillingReport.Add(hForm.AddDischargeNotes())
-        Endif
-        If xitem = "Discharge Medication" Then
-          $BillingReport.Add(hForm.AddDischargeMedication())
-        Endif
-      Endif
-
-      If xitem = "Visual Acuity" Then
-        $BillingReport.Add(hForm.AddVisualAcuity())
-      Endif
-      If xitem = "Present Glass" Then
-        $BillingReport.Add(hForm.AddPresentGlass())
-      Endif
-      If xitem = "Retinoscopy" Then
-        $BillingReport.Add(hForm.AddRetinoscopy())
-      Endif
-      If xitem = "Subjective Refraction" Then
-        $BillingReport.Add(hForm.AddSubjectiveRefraction())
-      Endif
-      If xitem = "Glass Prescription" Then
-        $BillingReport.Add(hForm.AddGlassPrescription())
-      Endif
-
-    Next
+  xancbool = False
+  xAncList = modMedicine.GetANCVariables()
+  For Each xanc In xAncList
+    If xList.Exist(xanc) = True Then
+      xancbool = True
+    Endif
   Next
 
-  Return $BillingReport.NewHTMLPath()
+  If xancbool = True Then
+    hAnForm = New CReportANC(encounter, "ANC Visit", "Physician Examinations")
+    If xList.Exist("ANC:Risk Factors") Then
+      $BillingReport.Add(hAnForm.AddANCRiskFactors())
+    Endif
+    If xList.Exist("ANC:Diagnosis") Then
+      $BillingReport.Add(hAnForm.AddANCDiagnosis())
+    Endif
+    If xList.Exist("ANC:Birth History") Then
+      $BillingReport.Add(hAnForm.AddANCBirthHistory())
+    Endif
+    If xList.Exist("ANC:Past History") Then
+      $BillingReport.Add(hAnForm.AddANCPastHistory())
+    Endif
+    If xList.Exist("ANC:Family History") Then
+      $BillingReport.Add(hAnForm.AddANCFamilyHistory())
+    Endif
+    If xList.Exist("ANC:Examination") Then
+      $BillingReport.Add(hAnForm.AddANCExamination())
+    Endif
+    If xList.Exist("ANC:Serology") Then
+      $BillingReport.Add(hAnForm.AddANCSerology())
+    Endif
+    If xList.Exist("ANC:Vaccines") Then
+      $BillingReport.Add(hAnForm.AddANCVaccine())
+    Endif
+    If xList.Exist("ANC:Hematology") Then
+      $BillingReport.Add(hAnForm.AddANCHematology())
+    Endif
+    If xList.Exist("ANC:UrineTest") Then
+      $BillingReport.Add(hAnForm.AddANCUrineReport())
+    Endif
+    If xList.Exist("ANC:Biochemistry") Then
+      $BillingReport.Add(hAnForm.AddANCBiochemistry())
+    Endif
+    If xList.Exist("ANC:Ultrasound") Then
+      $BillingReport.Add(hAnForm.AddANCUltrasound())
+    Endif
+    If xList.Exist("ANC:Other Radiology") Then
+      $BillingReport.Add(hAnForm.AddANCOtherRadio())
+    Endif
+    If xList.Exist("ANC:ANC Chart") Then
+      $BillingReport.Add(hAnForm.AddANCChart())
+    Endif
+  Endif
+
+  If HTMLOnly And If HTMLOnly = True Then
+    Return $BillingReport.NewHTMLString()
+  Else
+    Return $BillingReport.NewHTMLPath()
+  Endif
 
 End
 
@@ -537,7 +591,7 @@ Public Function GetOPDSummaryReportAllComp(encid As String) As String
     $BillingReport.UserData.Add("REPORT", "Report")
     $BillingReport.UserData.Add("OPD VISITS", "PARAM1")
 
-    hForm = New CPatReportAll(encid)
+    hForm = New CPatReportAll([encid])
     $BillingReport.Add(hForm.AddConsultationAll())
     $BillingReport.Add(hForm.AddHistoryAllTypes())
 

@@ -378,11 +378,17 @@ Private Sub FillGridView(dosno As Long)
     .Columns[7].Text = "Medicator"
   End With
 
-  txtcounttoday.Value = modPharmacy.TotalDoseCount(dosno, Now())
-  txtdosetoday.Value = modPharmacy.TotalDoseAmount(dosno, Now())
-
-  txtcountsum.Value = modPharmacy.TotalDoseCount(dosno)
-  txtdosesum.Value = modPharmacy.TotalDoseAmount(dosno)
+  If $useCardex = True Then
+    txtcounttoday.Value = modPharmacy.TotalDoseCountCardex(dosno, Now())
+    txtdosetoday.Value = modPharmacy.TotalDoseAmountCardex(dosno, Now())
+    txtcountsum.Value = modPharmacy.TotalDoseCountCardex(dosno)
+    txtdosesum.Value = modPharmacy.TotalDoseAmountCardex(dosno)
+  Else
+    txtcounttoday.Value = modPharmacy.TotalDoseCount(dosno, Now())
+    txtdosetoday.Value = modPharmacy.TotalDoseAmount(dosno, Now())
+    txtcountsum.Value = modPharmacy.TotalDoseCount(dosno)
+    txtdosesum.Value = modPharmacy.TotalDoseAmount(dosno)
+  Endif
 
 End
 
@@ -546,12 +552,113 @@ Private Sub SaveOwnDispensing(sID As Long)
 
 End
 
+Private Sub SaveCardexDispensing(sCardex As Long, xHash As String)
+
+  Dim sql1 As String
+  Dim res1 As Result
+  Dim hForm As CPharmOwn
+  Dim xIndex As Long
+
+  sql1 = "select fldid,fldtime,fldroute,flditem,flddose,fldfreq,flddays,fldqtydisp,fldlabel,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit from tblpatdosing where flditemno=&1 and fldencounterval=&2 and fldextrarow=&3 and fldsave_order=&4"                                                   ''
+  res1 = modDatabase.$myConn.Exec(sql1, sCardex, $encid, xHash, False)
+  If res1.Available = True Then
+    If res1.Count = 1 Then
+      xIndex = res1["fldid"]
+      hForm = New CPharmOwn($encid, $sBillMode, res1)
+      If $sClaimState = "Consultation" Or If $sClaimState = "Patient Ward" Then
+        GetHImedicineCappingVar()
+      Endif
+      hForm.SetCappingLimit($HiCappingVar)
+      hForm.DispenseItem("Continue")
+      If hForm.GetOutcome() = False Then
+        modDatabase.$myConn.Delete("tblpatdosing", "fldid=&1 and fldencounterval=&2 and fldsave_order=&3", xIndex, $encid, False)
+      Endif
+    Endif
+  Endif
+
+End
+
 Public Sub btnreceive_Click()
 
+  Dim xhash As String
+
   If chkuselocal.Value = True Then
-    SaveOwnDispensing(txtid.Value)
-    chkuselocal.Value = False
-    FillMedicineList()
+    If txttransqty.Value Then
+      If $useCardex = True Then
+        xhash = modString.GetNowString()
+        CreateMedicineOrder(txtcardex.Value, xhash)
+        SaveCardexDispensing(txtcardex.Value, xhash)
+      Else
+        SaveOwnDispensing(txtid.Value)
+      Endif
+      chkuselocal.Value = False
+      FillMedicineList()
+    Endif
+  Endif
+
+End
+
+Private Function CreateMedicineOrder(sCardex As Long, xHash As String) As Long
+
+  Dim Row As Integer
+  Dim res As Result
+  Dim xflvool As Float
+  Dim xflrate As Float
+
+  Dim xtax As Float
+  Dim xdisc As Float
+  Dim itemtype As String
+  Dim xfixrate As Float
+  Dim xfixname As String
+  Dim itemmode As String
+  Dim CPharmFix As CFixRatePharmacy
+  Dim xgo As Boolean
+  Dim xallow As Boolean
+
+  res = modDatabase.$myConn.Exec("select fldid,fldroute,flditem,flddose,fldfreq,flddays,fldqtyorder,fldprescriber,fldregno,flddirection,fldadminsite,fldmixing,fldstarttime,fldendtime,fldmixvolume,fldmixrate from tblinpatdosing where fldid=&1 and fldencounterval=&2 and fldcurval=&3 and fldsave=&4", sCardex, $encid, "Continue", False)                 ''
+  If res.Available Then
+    If res["fldmixvolume"] Then
+      xflvool = res["fldmixvolume"]
+    Else
+      xflvool = 0
+    Endif
+    If res["fldmixrate"] Then
+      xflrate = res["fldmixrate"]
+    Else
+      xflrate = 0
+    Endif
+    xallow = False
+    If res["fldendtime"] >= modDate.StartSqlDate(Now()) Then
+      xallow = True
+    Else If res["flddays"] = 0 Then
+      xallow = True
+    Endif
+
+    If xallow = True Then
+
+      itemtype = modNonMedical.GetBillItemCategoryFromCombo(res["fldroute"])
+      xgo = False
+      If modBasic.$BillPharmFixedModes.Exist($sBillMode) = True Then
+        CPharmFix = New CFixRatePharmacy(itemtype, res["flditem"], $sBillMode)
+        xfixrate = CPharmFix.GetFixRate()
+        xfixname = CPharmFix.GetFixItem()
+        If xfixname Then
+          xgo = True
+        Else
+          xgo = False
+        Endif
+      Else
+        xgo = True
+      Endif
+
+      If xgo = True Then
+        itemmode = $sBillMode
+        xtax = modNonMedical.ShowTaxValues(itemtype, res["flditem"])
+        xdisc = modNonMedical.DiscPercentForCategoryValue($encid, cmbdisctype.Text, itemtype, res["flditem"], itemmode)
+        modPharmSub.InsertDosingMedicine($encid, $xBillType, $sBillMode, cmbdisctype.Text, $LedgerAC, res["fldroute"], res["flditem"], res["flddose"], res["fldfreq"], res["flddays"], txttransqty.Value, $status, res["fldprescriber"], res["fldregno"], Now(), xtax, xdisc, xfixname, xfixrate, "Request", "IPD", res["flddirection"], 0, res["fldid"], "Continue", res["fldadminsite"], res["fldmixing"], xflrate, xflvool, xHash)              ''
+      Endif
+
+    Endif
   Endif
 
 End
