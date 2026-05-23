@@ -29,6 +29,9 @@ Private $HideErr As Boolean
 Private $HideDos As Boolean
 ' Private $HiCappingVar As Collection
 
+Private $rDatax As Result
+Private $gridVar As Variant[]
+
 Public Sub _new(encid As String, sStatus As String, sPackage As String, sClass As String)
 
   Dim accLst As String[]
@@ -78,8 +81,29 @@ Public Sub _new(encid As String, sStatus As String, sPackage As String, sClass A
 
   txtstart.Value = 0
   rbgeneric.Value = True
+  rbroutine.Value = True
   ShowBasicParamStatus()
   LoadMedicineGrid()
+
+End
+
+Public Sub WebTabPanel1_Click()
+
+  If WebTabPanel1.Index = 0 Then
+    LoadMedicineGrid()
+  Else If WebTabPanel1.Index = 1 Then
+    ShowMedicines()
+  Endif
+
+End
+
+Public Sub SetEntryOrder(sBool As Boolean)
+
+  btnnewdose.Enabled = sBool
+  btncpoe.Enabled = sBool
+  btnrepeat.Enabled = sBool
+  btngroup.Enabled = sBool
+  btndispown.Enabled = sBool
 
 End
 
@@ -230,7 +254,7 @@ Private Sub LoadMedicineGrid()
     .Columns[13].Text = "Admin"
     .Columns[14].Text = "Dilution"
     .Columns[17].Text = "Vol(mL)"
-    .Columns[18].Text = "mL/Hour"
+    .Columns[18].Text = "Rate"
   End With
 
 End
@@ -276,8 +300,6 @@ End
 Public Sub txtmeddose_Click()
 
   Dim xval As Float
-  Dim yval As String
-  Dim Column As Integer
   Dim res As Result
 
   If GridView1.Selection.Count Then
@@ -302,9 +324,7 @@ End
 
 Public Sub btnmedfreq_Click()
 
-  Dim xval As Float
   Dim yval As String
-  Dim Column As Integer
   Dim res As Result
 
   If GridView1.Selection.Count Then
@@ -326,8 +346,6 @@ End
 Public Sub btnmeddays_Click()
 
   Dim xval As Float
-  Dim yval As String
-  Dim Column As Integer
   Dim res As Result
 
   If GridView1.Selection.Count Then
@@ -352,8 +370,6 @@ End
 Public Sub btnmedqty_Click()
 
   Dim xval As Float
-  Dim yval As String
-  Dim Column As Integer
   Dim res As Result
 
   If GridView1.Selection.Count Then
@@ -372,9 +388,7 @@ End
 
 Public Sub btnadvice_Click()
 
-  Dim xval As Float
   Dim yval As String
-  Dim Column As Integer
   Dim res As Result
 
   If GridView1.Selection.Count Then
@@ -395,9 +409,7 @@ End
 
 Public Sub btnadmin_Click()
 
-  Dim xval As Float
   Dim yval As String
-  Dim Column As Integer
   Dim res As Result
 
   If GridView1.Selection.Count Then
@@ -416,9 +428,7 @@ End
 
 Public Sub mnumixture_Click()
 
-  Dim xval As Float
   Dim yval As String
-  Dim Column As Integer
   Dim res As Result
 
   If GridView1.Selection.Count Then
@@ -437,9 +447,7 @@ End
 
 Public Sub mnucontinue_Click()
 
-  Dim xval As Float
   Dim yval As String
-  Dim Column As Integer
   Dim res As Result
 
   If GridView1.Selection.Count Then
@@ -1149,6 +1157,147 @@ Private Sub EnterIPDosingRecord()
 
 End
 
-Public Sub pnldosing_Render()
+''========================= Dosing Table =======================
+Public Sub SetDosingOrder(sBool As Boolean)
+
+  btndosingroutine.Enabled = sBool
+
+End
+
+Public Sub RefreshTable()
+
+  ShowMedicines()
+
+End
+
+Public Sub btndosingroutine_Click()
+
+  Dim hForm As FmDoseMobile
+
+  If $encid Then
+    hForm = New FmDoseMobile($encid)
+    hForm.ShowModal
+    ShowMedicines()
+  Endif
+
+End
+
+Public Sub rbroutine_Click()
+
+  ShowMedicines()
+
+End
+
+Public Sub rbprn_Click()
+
+  ShowMedicines()
+
+End
+
+Public Sub chkall_Click()
+
+  ShowMedicines()
+
+End
+
+Private Sub ShowMedicines()
+
+  Dim res As Result
+  Dim sql As String
+  Dim sql1 As String
+
+  Dim xfir As Date
+  Dim dtList As Date[]
+  Dim Column As Integer
+  Dim sColl As Collection
+  Dim xcount As Integer
+  Dim xVar As Variant[]
+
+  If chkall.Value = False Then
+    If rbroutine.Value = True Then
+      sql = "select fldid,fldstarttime,fldroute,flditem,flddose,fldfreq,flddays,fldcurval,flddirection from tblinpatdosing where fldencounterval=&1 and fldstarttime<=&2 and fldendtime>=&3 and fldroute<>&4 and flddays>&5 and fldcurval=&6 and fldfreq<>&7 and fldfreq<>&8"
+      sql1 = "select fldid,fldstarttime,fldroute,flditem,flddose,fldfreq,flddays,fldcurval,flddirection from tblinpatdosing where fldencounterval=&1 and fldroute<>&4 and flddays=&5 and fldcurval=&6 and fldfreq<>&7 and fldfreq<>&8"
+    Else If rbprn.Value = True Then
+      sql = "select fldid,fldstarttime,fldroute,flditem,flddose,fldfreq,flddays,fldcurval,flddirection from tblinpatdosing where fldencounterval=&1 and fldstarttime<=&2 and fldendtime>=&3 and fldroute<>&4 and flddays>&5 and fldcurval=&6 and (fldfreq=&7 or fldfreq=&8)"
+      sql1 = "select fldid,fldstarttime,fldroute,flditem,flddose,fldfreq,flddays,fldcurval,flddirection from tblinpatdosing where fldencounterval=&1 and fldroute<>&4 and flddays=&5 and fldcurval=&6 and (fldfreq=&7 or fldfreq=&8)"
+    Endif
+    res = modDatabase.$myConn.Exec(sql & " UNION " & sql1 & " ORDER BY fldstarttime", $encid, Now(), DateAdd(Now(), gb.Hour, -3), "fluid", 0, "Continue", "stat", "PRN")
+
+  Else If chkall.Value = True Then
+    If rbroutine.Value = True Then
+      sql = "select fldid,fldstarttime,fldroute,flditem,flddose,fldfreq,flddays,fldcurval,flddirection from tblinpatdosing where fldencounterval=&1 and fldroute<>&2 and fldfreq<>&3 and fldfreq<>&4 ORDER BY fldstarttime"
+    Else If rbprn.Value = True Then
+      sql = "select fldid,fldstarttime,fldroute,flditem,flddose,fldfreq,flddays,fldcurval,flddirection from tblinpatdosing where fldencounterval=&1 and fldroute<>&2 and (fldfreq=&3 or fldfreq=&4) ORDER BY fldstarttime"
+    Endif
+    res = modDatabase.$myConn.Exec(sql, $encid, "fluid", "stat", "PRN")
+
+  Endif
+  $rDatax = res
+
+  dtList = New Date[]
+  If res.Available Then
+    res.MoveFirst
+    xfir = modDate.StartSqlDate(res["fldstarttime"])
+    For Each res
+      If xfir > res["fldstarttime"] Then
+        xfir = res["fldstarttime"]
+      Endif
+    Next
+    dtList = modDate.GetDateArrayBetween(xfir, Now())
+  Endif
+
+  xVar = New Variant[]
+  GridView2.Count = res.Count
+  GridView2.Columns.Count = 6 + dtList.Count
+  For Each res
+    sColl = New Collection
+
+    sColl.Add(res["fldid"], CStr(0))
+    sColl.Add(modReportVar.GetDateTimeReport(res["fldstarttime"], gb.GeneralDate), CStr(1))
+    sColl.Add(res["fldroute"], CStr(2))
+    sColl.Add(res["flditem"], CStr(3))
+    sColl.Add(modMedConstant.GetMedicineRegimenInFormat(res["fldroute"], res["flditem"], res["flddose"], res["fldfreq"], res["flddays"]), CStr(4))
+
+    For Column = 0 To dtList.Count - 1
+      xcount = 0
+      xcount = modPharmacy.TotalDoseCountCardex(res["fldid"], dtList[Column])
+      If xcount Then
+        sColl.Add(xcount, CStr(5 + Column))
+      Else
+        sColl.Add("", CStr(5 + Column))
+      Endif
+    Next
+    sColl.Add(res["flddirection"], CStr(5 + dtList.Count))
+    xVar.Add(sColl)
+  Next
+
+  $gridVar = xVar
+  With GridView2
+    .Columns[0].Hidden = False
+    .Columns[1].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+    .Columns[2].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
+    .Columns[3].Width = CStr(375 * modBasic.$AppWidthRatio) & "px"
+    .Columns[4].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+
+    .Columns[1].Text = "StartDate"
+    .Columns[2].Text = "Route"
+    .Columns[3].Text = "Medicine"
+    .Columns[4].Text = "Regimen"
+
+    For Column = 0 To dtList.Count - 1
+      .Columns[5 + Column].Width = CStr(50 * modBasic.$AppWidthRatio) & "px"
+      .Columns[5 + Column].Text = modReportVar.GetDateTimeReport(dtList[Column], gb.ShortDate)
+    Next
+    .Columns[5 + dtList.Count].Width = CStr(200 * modBasic.$AppWidthRatio) & "px"
+    .Columns[5 + dtList.Count].Text = "Direction"
+
+  End With
+
+End
+
+Public Sub GridView2_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  modGridView.GridViewDecoration(Data, Row)
+  Data.Text = $gridVar[Row][CStr(Column)]
 
 End

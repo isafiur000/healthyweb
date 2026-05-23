@@ -96,11 +96,6 @@ Public Sub _new(encid As String)
   SetHtmlTextOption(txtmoninout)
   SetHtmlTextOption(txtmonplan)
 
-  If MMain.$CustomFormat = "CLAPS" Then
-    WebContainer4.Visible = False
-    WebContainer5.Visible = False
-  Endif
-
   If txtencid.Text Then
     GetEncounterValue()
   Endif
@@ -212,7 +207,7 @@ Private Sub GetEncounterValue()
         If xallow = True And If yallow = True Then
           txtpatientname.Text = modPatient.GetPatientNameByEnc(Trim(txtencid.Text))
           If txtpatientname.Text Then
-            WebContainer4.Enabled = True
+            EnableContainers()
             txtgender.Text = modPatient.GetPatientSex(Trim(txtencid.Text))
             txtpatientaddress.Text = modPatient.GetPatientAddressByEnc(Trim(txtencid.Text))
             dtdob.Tag = modPatient.GetPatientBirthDay(Trim(txtencid.Text))
@@ -425,7 +420,7 @@ Private Sub BasicInfoPatient()
     modRepository.$RepoDataStatus = False
     modAppSupport.RecordPatientActivity("Patient Data", Me.Name, "EncounterID", Trim(txtencid.Text))
     GetDefaultBillingmodes()
-    ButtonControl()
+
     $dateReg = modPatient.GetRecordDate(Trim(txtencid.Text))
     If modBasic.$ClinPastDiagnosis Then
       Select modBasic.$ClinPastDiagnosis
@@ -440,18 +435,13 @@ Private Sub BasicInfoPatient()
     ShowEssentialExamRange()
     ShowEssentialExam()
 
-    If MMain.$CustomFormat = "CLAPS" Then
-    Else
-      pnlhistory.Visible = True
-    Endif
-
     $sDate = Now()
     lbldtmonitor.Text = modPatient.GetDayDiffAdmission(Trim(txtencid.Text), $sDate)
     ShowMonitoring()
 
     hInOutForm = New FmIntakeOut(Trim(txtencid.Text), "height-tablet", pnlintakeout)
-    hViewVital = New FmVitalView(Trim(txtencid.Text), pnlabexams)
-    hinputVital = New FmVitalInput(Trim(txtencid.Text), pnlvitalinput)
+    hViewVital = New FmVitalView(Trim(txtencid.Text), "height-tablet", pnlabexams)
+    hinputVital = New FmVitalInput(Trim(txtencid.Text), "height-tablet", pnlvitalinput)
     hOwnStockForm = New FmWardStock(Trim(txtencid.Text), $sTatus, $billModePharmacy, "height-tablet", pnlowninventory)
     hPtForm = New FmClinHistory($PatientNum, "PatientID", False, "height-tablet", pnlhistory)
     Select $sTatus
@@ -461,6 +451,7 @@ Private Sub BasicInfoPatient()
         hDoseCount = New FmDosecount(Trim(txtencid.Text), $billModePharmacy, False, "height-tablet", pnldosecount)
     End Select
 
+    ButtonControl()
     modPatientSub.PopUpPatientForm(Trim(txtencid.Text), Me.Tag)
     If modSettings.ShowSettingFromFIle("OPDForm/Complaints") = "General" Then
       TabPanel2.Index = 1
@@ -496,12 +487,37 @@ Private Sub GetDefaultBillingmodes()
 
 End
 
+Private Sub EnableContainers()
+
+  If MMain.$CustomFormat = "CLAPS" Then
+    pnlcomplaint.Visible = False
+    pnlprogress.Visible = False
+  Else
+    pnlcomplaint.Enabled = True
+    pnlprogress.Enabled = True
+  Endif
+
+  pnlabexams.Visible = True
+  pnlvitalinput.Visible = True
+  pnldosecount.Visible = True
+  pnlowninventory.Visible = True
+  pnlintakeout.Visible = True
+  pnlhistory.Visible = True
+
+End
+
 Private Sub ButtonControl()
 
   Dim xx As Boolean
   Dim xval As String
 
   xx = modPatient.EnableClinicForm($sTatus)
+
+  hOwnStockForm.SetEntryControls(xx)
+  hInOutForm.SetEntryControls(xx)
+  hDoseCount.SetEntryControls(xx)
+  hinputVital.SetEntryControls(xx)
+
   ''complaints
   btnsympadd.Enabled = xx
   btnaddsymplist.Enabled = xx
@@ -565,16 +581,11 @@ Private Sub ButtonControl()
   mnuivinfusion.Enabled = xx
   ''gen service
   mnugenservice.Enabled = xx
-  ''input/output
-  pnlintakeout.Enabled = xx
 
   ''menu
   mnurequests.Enabled = xx
   mnuentry.Enabled = xx
   mnucustform.Enabled = xx
-  pnlvitalinput.Enabled = xx
-  pnlowninventory.Enabled = xx
-  pnldosecount.Enabled = xx
 
   xval = modBasic.$LockDiagnosisList
   If xval = "No" Then
