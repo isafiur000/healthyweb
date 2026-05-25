@@ -500,23 +500,34 @@ Public Function UniProcedureExamination(encid As String, itemid As Long, sType A
 End
 
 '---------------- team
-Public Function GetUserAllUniProcedure(encid As String, itemid As Long) As String
+Public Function GetUserAllUniProcedure(encid As String, itemid As Long, Optional sFormat As String) As String
 
   Dim xx As String
   Dim res As Result
   Dim xFinal As Variant[]
   Dim sColl As Collection
+  Dim aList As String[]
 
   xFinal = New Variant[]
+  aList = New String[]
   res = modDatabase.$syConn.Exec("select fldusertype,fldvalue from tblpatgenshare where fldencounterval=&1 and fldcategory=&2 and flditemid in(select fldgroupid from tblpatgeneral where fldid=&3)", encid, "Procedures", itemid)
   If res.Available Then
-    For Each res
-      sColl = New Collection
-      sColl.Add(res["fldusertype"], CStr(0))
-      sColl.Add(modGeneral.GetUserFullName(res["fldvalue"]), CStr(1))
-      xFinal.Add(sColl)
-    Next
-    xx = modString.GetRichTableNoHeadFromVariant(2, xFinal)
+    If sFormat = "Plain" Then
+      For Each res
+        aList.Add(res["fldusertype"] & " : " & modGeneral.GetUserFullName(res["fldvalue"]))
+      Next
+      xx = aList.Join(gb.NewLine)
+
+    Else
+      For Each res
+        sColl = New Collection
+        sColl.Add(res["fldusertype"], CStr(0))
+        sColl.Add(modGeneral.GetUserFullName(res["fldvalue"]), CStr(1))
+        xFinal.Add(sColl)
+      Next
+      xx = modString.GetRichTableNoHeadFromVariant(2, xFinal)
+
+    Endif
   Endif
 
   Return xx

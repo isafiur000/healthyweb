@@ -1,0 +1,84 @@
+' Gambas class file
+
+Private $encid As String
+Private $xReceipt As String
+Private $sDepoAmt As Float
+
+Private $PatStatus As String
+Private $billno As String
+Private $InvDone As Boolean
+
+Public Sub _new(encid As String, sReceipt As String, sAmt As Float)
+
+  $encid = encid
+  $xReceipt = sReceipt
+  $sDepoAmt = sAmt
+  $PatStatus = modPatient.CurrentAdmissionStatus($encid)
+
+  $InvDone = GetCommandDeposit($encid, $sDepoAmt)
+
+End
+
+Public Function GetInvoiceDone() As Boolean
+
+  Return $InvDone
+
+End
+
+Public Function GetReceiptNo() As String
+
+  If $InvDone = True Then
+    Return $billno
+  Endif
+
+End
+
+Private Function GetCommandDeposit(encid As String, sAmt As Float) As Boolean
+
+  Dim txttitle As String
+  Dim idLock As Boolean
+  Dim billed As Boolean
+
+  billed = False
+  txttitle = "DEPOSIT RECEIPT"
+  idLock = modBillLock.LockTableForID("Invoice")
+  If idLock = True Then
+    modDatabase.$myConn.Begin
+    $billno = modBillLock.ReceiptSaleValue("Cash Deposit")
+    If $billno Then
+      modBillings.InsertDepositDetail(modDatabase.$myConn, encid, $billno, "Cash", sAmt, $xReceipt, "Cash Deposit", GetPatStatusCode())     ''
+      modDatabase.$myConn.Commit
+      billed = True
+    Else
+      modDatabase.$myConn.Rollback
+    Endif
+    modBillLock.ReleaseLockTable("Invoice")
+  Endif
+
+  Return billed
+
+Catch
+  modDatabase.$myConn.Rollback
+  If idLock = True Then
+    modBillLock.ReleaseLockTable("Invoice")
+  Endif
+  modHelpVariable.CreateErrorReport()
+
+End
+
+Private Function GetPatStatusCode() As Integer
+
+  Dim xcode As Integer
+
+  Select $PatStatus
+    Case "Discharged", "LAMA", "Death", "Refer", "Absconder"
+      xcode = 3
+    Case "Admitted"
+      xcode = 2
+    Case Else
+      xcode = 1
+  End Select
+
+  Return xcode
+
+End

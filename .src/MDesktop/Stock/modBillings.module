@@ -1484,3 +1484,31 @@ Public Function CheckLastSalesItemDate(xitem As String, xPatientNum As String, x
   Return xdate
 
 End
+
+Public Sub SetAdvancedReceipt(encid As String, sComp As String)
+
+  Dim xbillNo As String
+  Dim sql As String
+  Dim res As Result
+  Dim res1 As Result
+
+  sql = "select fldid from tblpatbilling where fldencounterval=&1 and fldsave=&2 and fldprint=&3 and fldordcomp like &4 and fldstatus=&5 and flditemqty>&6 and fldretqty=&6 and fldbillno IS NULL and fldextracol IS NULL"                         ''
+  res = modDatabase.$myConn.Exec(sql, encid, False, False, sComp, "Punched", 0)
+  If res.Available Then
+    modDatabase.$myConn.Begin
+    xbillNo = modBillLock.AdvanceReceiptString("Advance Receipt")
+    If xbillNo Then
+      For Each res
+        res1 = modDatabase.$myConn.Edit("tblpatbilling", "fldid=&1", res["fldid"])
+        res1["fldextracol"] = xbillNo
+        res1.Update
+      Next
+    Endif
+    modDatabase.$myConn.Commit
+  Endif
+
+Catch
+  modDatabase.$myConn.Rollback
+  modHelpVariable.CreateErrorReport()
+
+End
