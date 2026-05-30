@@ -7,11 +7,12 @@ Private $givenAmt As Float
 
 Private $xSQL As String
 Private $PatStatus As String
+Private $xSelIdLst As String[]
 Private $InvList As String[]
 Private $InvDone As Boolean
 
-Private $Deposit As Float
-Private $CreditPast As Float
+' Private $Deposit As Float
+' Private $CreditPast As Float
 Private $Discount As Float
 Private $TaxTot As Float
 Private $DueAmt As Float
@@ -26,6 +27,9 @@ Private $ACLedger As String
 Private $invoiceType As String
 Private $billingMode As String
 Private $ACReference As String
+Private $ClaimState As String
+Private $PatientNum As String
+Private $xNHISCode As String
 
 Private $InvoiceNo As String
 Private $InvoiceTitle As String
@@ -46,10 +50,10 @@ Public Sub _new(encid As String, sAdvRecep As String, xScheme As String, xgivenA
   $InvDone = False
   $RecvTotal = 0
   $billtype = "CashBilling"
-  ShowChargecData()
+  $xSelIdLst = ShowChargecData()
 
   If $givenAmt >= $RecevAmt Then
-    $InvDone = SaveBillingENtry($invoiceType, $ACReference, $ACLedger)
+    $InvDone = SaveBillingENtry($invoiceType, $ACReference, $ACLedger, $xSelIdLst)
   Endif
 
 End
@@ -88,10 +92,15 @@ Private Sub GetBillingParams()
   $ACLedger = hForm.GetLedgerAC()
   $invoiceType = hForm.GetBillType()
   $ACReference = hForm.GetClaimCode()
+  $ClaimState = hForm.GetClaimState()
+  If $ClaimState = "Consultation" Or If $ClaimState = "Patient Ward" Then
+    $PatientNum = modPatient.GetPatientNoByEnc($encid)
+    $xNHISCode = modPatient.GetPatientExtCOdebyEnc($encid)
+  Endif
 
 End
 
-Private Sub ShowChargecData()
+Private Function ShowChargecData() As String[]
 
   Dim res As Result
   Dim due As Float
@@ -100,7 +109,15 @@ Private Sub ShowChargecData()
   Dim xdue As Float
   Dim xdisc As Float
   Dim xtax As Float
+
   Dim ycomp As String
+  Dim xFieldLst As String[]
+  Dim xallow As Boolean
+  Dim indxLst As String[]
+
+  Dim xdate As Date
+  Dim xcapday As Integer
+  Dim xgo As Boolean
 
   If $LockToComp = True Then
     ycomp = modBasic.$compID
@@ -109,42 +126,43 @@ Private Sub ShowChargecData()
   Endif
 
   'previous deposit
-  $Deposit = modNonMedical.GetPatientDeposit(modDatabase.$myConn, $encid)
-  $CreditPast = modNonMedical.GetTotalCreditInvoice(modDatabase.$myConn, $encid)
-  $CashInCredit = 0
+  ' $Deposit = modNonMedical.GetPatientDeposit(modDatabase.$myConn, $encid)
+  ' $CreditPast = modNonMedical.GetTotalCreditInvoice(modDatabase.$myConn, $encid)
+
+  xFieldLst = ["fldid", "flditemtype", "flditemno", "flditemname", "flditemrate", "flditemqty", "flddiscamt", "fldditemamt", "fldparent", "fldencounterval", "flddisctype", "fldacledger", "fldbilltype", "fldcashincredit", "fldtaxper", "flddiscper"]
+  indxLst = New String[]
 
   'total charge
-
   If modBasic.$BillReceiptCategory Then
     If modBasic.$BillLockIPPrintInvoice = "Yes" And If $PatStatus = "Admitted" And If $invoiceType = "Credit" Then
-      res = modDatabase.$myConn.Exec("select flditemrate,flditemqty,fldtaxper,flddiscper,fldcashincredit from tblpatbilling where fldid=&1" & $xSQL, 0)
+      res = modDatabase.$myConn.Exec("select " & xFieldLst.Join(",") & " from tblpatbilling where fldid=&1", 0)
     Else If modBasic.$BillLockIPPrintInvoice = "Credit" And If $PatStatus = "Admitted" And If $invoiceType = "Credit" Then
-      res = modDatabase.$myConn.Exec("select flditemrate,flditemqty,fldtaxper,flddiscper,fldcashincredit from tblpatbilling where fldid=&1" & $xSQL, 0)
+      res = modDatabase.$myConn.Exec("select " & xFieldLst.Join(",") & " from tblpatbilling where fldid=&1", 0)
     Else If modBasic.$BillLockIPPrintInvoice = "RefOnly" And If $PatStatus = "Admitted" And If $invoiceType = "Credit" And If $ACReference Then
-      res = modDatabase.$myConn.Exec("select flditemrate,flditemqty,fldtaxper,flddiscper,fldcashincredit from tblpatbilling where fldid=&1" & $xSQL, 0)
+      res = modDatabase.$myConn.Exec("select " & xFieldLst.Join(",") & " from tblpatbilling where fldid=&1", 0)
     Else If modBasic.$BillLockIPPrintInvoice = "Both" And If $PatStatus = "Admitted" Then
-      res = modDatabase.$myConn.Exec("select flditemrate,flditemqty,fldtaxper,flddiscper,fldcashincredit from tblpatbilling where fldid=&1" & $xSQL, 0)
+      res = modDatabase.$myConn.Exec("select " & xFieldLst.Join(",") & " from tblpatbilling where fldid=&1", 0)
     Else
       If modBasic.$BillSeparateReturn = "No" Then
-        res = modDatabase.$myConn.Exec("select flditemrate,flditemqty,fldtaxper,flddiscper,fldcashincredit from tblpatbilling where fldencounterval=&1 and fldprint=&2 and fldsave=&3 and fldordcomp like &4 and fldbilltype=&5 and flditemtype NOT LIKE &6 and fldacledger=&7 and flddisctype in(select fldtype from tbldiscount where fldinvoice=&8)" & $xSQL, $encid, False, False, ycomp, $invoiceType, modBasic.$BillReceiptCategory, $ACLedger, "Enable")
+        res = modDatabase.$myConn.Exec("select " & xFieldLst.Join(",") & " from tblpatbilling where fldencounterval=&1 and fldprint=&2 and fldsave=&3 and fldordcomp like &4 and fldbilltype=&5 and flditemtype NOT LIKE &6 and fldacledger=&7 and flddisctype in(select fldtype from tbldiscount where fldinvoice=&8)" & $xSQL, $encid, False, False, ycomp, $invoiceType, modBasic.$BillReceiptCategory, $ACLedger, "Enable")
       Else
-        res = modDatabase.$myConn.Exec("select flditemrate,flditemqty,fldtaxper,flddiscper,fldcashincredit from tblpatbilling where fldencounterval=&1 and fldprint=&2 and fldsave=&3 and fldordcomp like &4 and fldbilltype=&5 and flditemtype NOT LIKE &6 and flditemqty>&7 and fldacledger=&8 and flddisctype in(select fldtype from tbldiscount where fldinvoice=&9)" & $xSQL, $encid, False, False, ycomp, $invoiceType, modBasic.$BillReceiptCategory, 0, $ACLedger, "Enable")
+        res = modDatabase.$myConn.Exec("select " & xFieldLst.Join(",") & " from tblpatbilling where fldencounterval=&1 and fldprint=&2 and fldsave=&3 and fldordcomp like &4 and fldbilltype=&5 and flditemtype NOT LIKE &6 and flditemqty>&7 and fldacledger=&8 and flddisctype in(select fldtype from tbldiscount where fldinvoice=&9)" & $xSQL, $encid, False, False, ycomp, $invoiceType, modBasic.$BillReceiptCategory, 0, $ACLedger, "Enable")
       Endif
     Endif
   Else
     If modBasic.$BillLockIPPrintInvoice = "Yes" And If $PatStatus = "Admitted" And If $invoiceType = "Credit" Then
-      res = modDatabase.$myConn.Exec("select flditemrate,flditemqty,fldtaxper,flddiscper,fldcashincredit from tblpatbilling where fldid=&1" & $xSQL, 0)
+      res = modDatabase.$myConn.Exec("select " & xFieldLst.Join(",") & " from tblpatbilling where fldid=&1", 0)
     Else If modBasic.$BillLockIPPrintInvoice = "Credit" And If $PatStatus = "Admitted" And If $invoiceType = "Credit" Then
-      res = modDatabase.$myConn.Exec("select flditemrate,flditemqty,fldtaxper,flddiscper,fldcashincredit from tblpatbilling where fldid=&1" & $xSQL, 0)
+      res = modDatabase.$myConn.Exec("select " & xFieldLst.Join(",") & " from tblpatbilling where fldid=&1", 0)
     Else If modBasic.$BillLockIPPrintInvoice = "RefOnly" And If $PatStatus = "Admitted" And If $invoiceType = "Credit" And If $ACReference Then
-      res = modDatabase.$myConn.Exec("select flditemrate,flditemqty,fldtaxper,flddiscper,fldcashincredit from tblpatbilling where fldid=&1" & $xSQL, 0)
+      res = modDatabase.$myConn.Exec("select " & xFieldLst.Join(",") & " from tblpatbilling where fldid=&1", 0)
     Else If modBasic.$BillLockIPPrintInvoice = "Both" And If $PatStatus = "Admitted" Then
-      res = modDatabase.$myConn.Exec("select flditemrate,flditemqty,fldtaxper,flddiscper,fldcashincredit from tblpatbilling where fldid=&1" & $xSQL, 0)
+      res = modDatabase.$myConn.Exec("select " & xFieldLst.Join(",") & " from tblpatbilling where fldid=&1", 0)
     Else
       If modBasic.$BillSeparateReturn = "No" Then
-        res = modDatabase.$myConn.Exec("select flditemrate,flditemqty,fldtaxper,flddiscper,fldcashincredit from tblpatbilling where fldencounterval=&1 and fldprint=&2 and fldsave=&3 and fldordcomp like &4 and fldbilltype=&5 and fldacledger=&6 and flddisctype in(select fldtype from tbldiscount where fldinvoice=&7)" & $xSQL, $encid, False, False, ycomp, $invoiceType, $ACLedger, "Enable")
+        res = modDatabase.$myConn.Exec("select " & xFieldLst.Join(",") & " from tblpatbilling where fldencounterval=&1 and fldprint=&2 and fldsave=&3 and fldordcomp like &4 and fldbilltype=&5 and fldacledger=&6 and flddisctype in(select fldtype from tbldiscount where fldinvoice=&7)" & $xSQL, $encid, False, False, ycomp, $invoiceType, $ACLedger, "Enable")
       Else
-        res = modDatabase.$myConn.Exec("select flditemrate,flditemqty,fldtaxper,flddiscper,fldcashincredit from tblpatbilling where fldencounterval=&1 and fldprint=&2 and fldsave=&3 and fldordcomp like &4 and fldbilltype=&5 and flditemqty>&6 and fldacledger=&7 and flddisctype in(select fldtype from tbldiscount where fldinvoice=&8)" & $xSQL, $encid, False, False, ycomp, $invoiceType, 0, $ACLedger, "Enable")
+        res = modDatabase.$myConn.Exec("select " & xFieldLst.Join(",") & " from tblpatbilling where fldencounterval=&1 and fldprint=&2 and fldsave=&3 and fldordcomp like &4 and fldbilltype=&5 and flditemqty>&6 and fldacledger=&7 and flddisctype in(select fldtype from tbldiscount where fldinvoice=&8)" & $xSQL, $encid, False, False, ycomp, $invoiceType, 0, $ACLedger, "Enable")
       Endif
     Endif
   Endif
@@ -152,28 +170,48 @@ Private Sub ShowChargecData()
   due = 0
   disc = 0
   tax = 0
+  $CashInCredit = 0
 
   If res.Available Then
     For Each res
-      xdue = 0
-      xdisc = 0
-      xtax = 0
 
-      xdue = res["flditemrate"] * res["flditemqty"]
-      xdisc = xdue * res["flddiscper"] / 100
-      xtax = (xdue - xdisc) * res["fldtaxper"] / 100
+      xallow = modNonMedical.AllowProceedBilling($encid, res["flddisctype"], res["flddiscamt"], res["fldditemamt"], res["fldbilltype"], res["fldcashincredit"], res["flditemtype"], res["flditemname"], res["flditemqty"])
+      If xallow = True Then
 
-      If $billtype = "InvoiceClearance" Or If $billtype = "ReceiptClearance" Then
-        $CashInCredit = 0
-      Else
-        If res["fldcashincredit"] Then
-          $CashInCredit = $CashInCredit + (res["fldcashincredit"] / 100) * (xdue + xtax - xdisc)
+        xgo = True
+        If $ClaimState = "Consultation" Or If $ClaimState = "Patient Ward" Then
+          xdate = modBillings.CheckLastSalesItemDate(res["flditemname"], $PatientNum, $xNHISCode, res["flddisctype"])
+          If xdate Then
+            xcapday = modNonMedical.GetCappingDayFromItemName(res["flditemname"])
+            If xcapday Then
+              If DateDiff(xdate, Now(), gb.Day) <= xcapday Then
+                xgo = False
+              Endif
+            Endif
+          Endif
+        Endif
+        If xgo = True Then
+
+          xdue = 0
+          xdisc = 0
+          xtax = 0
+
+          xdue = res["flditemrate"] * res["flditemqty"]
+          xdisc = xdue * res["flddiscper"] / 100
+          xtax = (xdue - xdisc) * res["fldtaxper"] / 100
+
+          If res["fldcashincredit"] Then
+            $CashInCredit = $CashInCredit + (res["fldcashincredit"] / 100) * (xdue + xtax - xdisc)
+          Endif
+
+          due = due + xdue
+          disc = disc + xdisc
+          tax = tax + xtax
+
+          indxLst.Add(CStr(res["fldid"]))
         Endif
       Endif
 
-      due = due + xdue
-      disc = disc + xdisc
-      tax = tax + xtax
     Next
   Endif
 
@@ -195,10 +233,12 @@ Private Sub ShowChargecData()
     $RecevAmt = $TotalAmt
   Endif
 
+  Return indxLst
+
 End
 
 ''================== billing =============================
-Private Function SaveBillingENtry(cmod As String, scheq As String, sbank As String) As Boolean
+Private Function SaveBillingENtry(cmod As String, scheq As String, sbank As String, xIdList As String[]) As Boolean
 
   Dim idLock As Boolean
   Dim billed As Boolean
@@ -207,6 +247,9 @@ Private Function SaveBillingENtry(cmod As String, scheq As String, sbank As Stri
 
   Dim res As Result
   Dim ycomp As String
+  Dim ysql As String
+
+  ysql = " and fldid in(" & xIdList.Join(",") & ")"
 
   If $LockToComp = True Then
     ycomp = modBasic.$compID
@@ -222,34 +265,34 @@ Private Function SaveBillingENtry(cmod As String, scheq As String, sbank As Stri
     ''only not matching with DisabledCategory
     If modBasic.$BillReceiptCategory Then
       If modBasic.$BillLockIPPrintInvoice = "Yes" And If $PatStatus = "Admitted" And If $invoiceType = "Credit" Then
-        res = modDatabase.$myConn.Exec("select flditemrate,flditemqty,fldtaxper,flddiscper from tblpatbilling where fldid=&1" & $xSQL, 0)
+        res = modDatabase.$myConn.Exec("select flditemrate,flditemqty,fldtaxper,flddiscper from tblpatbilling where fldid=&1", 0)
       Else If modBasic.$BillLockIPPrintInvoice = "Credit" And If $PatStatus = "Admitted" And If $invoiceType = "Credit" Then
-        res = modDatabase.$myConn.Exec("select flditemrate,flditemqty,fldtaxper,flddiscper from tblpatbilling where fldid=&1" & $xSQL, 0)
+        res = modDatabase.$myConn.Exec("select flditemrate,flditemqty,fldtaxper,flddiscper from tblpatbilling where fldid=&1", 0)
       Else If modBasic.$BillLockIPPrintInvoice = "RefOnly" And If $PatStatus = "Admitted" And If $invoiceType = "Credit" And If $ACReference Then
-        res = modDatabase.$myConn.Exec("select flditemrate,flditemqty,fldtaxper,flddiscper from tblpatbilling where fldid=&1" & $xSQL, 0)
+        res = modDatabase.$myConn.Exec("select flditemrate,flditemqty,fldtaxper,flddiscper from tblpatbilling where fldid=&1", 0)
       Else If modBasic.$BillLockIPPrintInvoice = "Both" And If $PatStatus = "Admitted" Then
-        res = modDatabase.$myConn.Exec("select flditemrate,flditemqty,fldtaxper,flddiscper from tblpatbilling where fldid=&1" & $xSQL, 0)
+        res = modDatabase.$myConn.Exec("select flditemrate,flditemqty,fldtaxper,flddiscper from tblpatbilling where fldid=&1", 0)
       Else
         If modBasic.$BillSeparateReturn = "No" Then
-          res = modDatabase.$myConn.Exec("select fldid from tblpatbilling where fldencounterval=&1 and fldprint=&2 and fldsave=&3 and fldordcomp like &4 and fldbilltype=&5 and flditemtype NOT LIKE &6 and fldacledger=&7 and flddisctype in(select fldtype from tbldiscount where fldinvoice=&8)" & $xSQL, $encid, False, False, ycomp, $invoiceType, modBasic.$BillReceiptCategory, $ACLedger, "Enable")
+          res = modDatabase.$myConn.Exec("select fldid from tblpatbilling where fldencounterval=&1 and fldprint=&2 and fldsave=&3 and fldordcomp like &4 and fldbilltype=&5 and flditemtype NOT LIKE &6 and fldacledger=&7 and flddisctype in(select fldtype from tbldiscount where fldinvoice=&8)" & $xSQL & ysql, $encid, False, False, ycomp, $invoiceType, modBasic.$BillReceiptCategory, $ACLedger, "Enable")
         Else
-          res = modDatabase.$myConn.Exec("select fldid from tblpatbilling where fldencounterval=&1 and fldprint=&2 and fldsave=&3 and fldordcomp like &4 and fldbilltype=&5 and flditemtype NOT LIKE &6 and flditemqty>&7 and fldacledger=&8 and flddisctype in(select fldtype from tbldiscount where fldinvoice=&9)" & $xSQL, $encid, False, False, ycomp, $invoiceType, modBasic.$BillReceiptCategory, 0, $ACLedger, "Enable")
+          res = modDatabase.$myConn.Exec("select fldid from tblpatbilling where fldencounterval=&1 and fldprint=&2 and fldsave=&3 and fldordcomp like &4 and fldbilltype=&5 and flditemtype NOT LIKE &6 and flditemqty>&7 and fldacledger=&8 and flddisctype in(select fldtype from tbldiscount where fldinvoice=&9)" & $xSQL & ysql, $encid, False, False, ycomp, $invoiceType, modBasic.$BillReceiptCategory, 0, $ACLedger, "Enable")
         Endif
       Endif
     Else
       If modBasic.$BillLockIPPrintInvoice = "Yes" And If $PatStatus = "Admitted" And If $invoiceType = "Credit" Then
-        res = modDatabase.$myConn.Exec("select flditemrate,flditemqty,fldtaxper,flddiscper from tblpatbilling where fldid=&1" & $xSQL, 0)
+        res = modDatabase.$myConn.Exec("select flditemrate,flditemqty,fldtaxper,flddiscper from tblpatbilling where fldid=&1", 0)
       Else If modBasic.$BillLockIPPrintInvoice = "Credit" And If $PatStatus = "Admitted" And If $invoiceType = "Credit" Then
-        res = modDatabase.$myConn.Exec("select flditemrate,flditemqty,fldtaxper,flddiscper from tblpatbilling where fldid=&1" & $xSQL, 0)
+        res = modDatabase.$myConn.Exec("select flditemrate,flditemqty,fldtaxper,flddiscper from tblpatbilling where fldid=&1", 0)
       Else If modBasic.$BillLockIPPrintInvoice = "RefOnly" And If $PatStatus = "Admitted" And If $invoiceType = "Credit" And If $ACReference Then
-        res = modDatabase.$myConn.Exec("select flditemrate,flditemqty,fldtaxper,flddiscper from tblpatbilling where fldid=&1" & $xSQL, 0)
+        res = modDatabase.$myConn.Exec("select flditemrate,flditemqty,fldtaxper,flddiscper from tblpatbilling where fldid=&1", 0)
       Else If modBasic.$BillLockIPPrintInvoice = "Both" And If $PatStatus = "Admitted" Then
-        res = modDatabase.$myConn.Exec("select flditemrate,flditemqty,fldtaxper,flddiscper from tblpatbilling where fldid=&1" & $xSQL, 0)
+        res = modDatabase.$myConn.Exec("select flditemrate,flditemqty,fldtaxper,flddiscper from tblpatbilling where fldid=&1", 0)
       Else
         If modBasic.$BillSeparateReturn = "No" Then
-          res = modDatabase.$myConn.Exec("select fldid from tblpatbilling where fldencounterval=&1 and fldprint=&2 and fldsave=&3 and fldordcomp like &4 and fldbilltype=&5 and fldacledger=&6 and flddisctype in(select fldtype from tbldiscount where fldinvoice=&7)" & $xSQL, $encid, False, False, ycomp, $invoiceType, $ACLedger, "Enable")
+          res = modDatabase.$myConn.Exec("select fldid from tblpatbilling where fldencounterval=&1 and fldprint=&2 and fldsave=&3 and fldordcomp like &4 and fldbilltype=&5 and fldacledger=&6 and flddisctype in(select fldtype from tbldiscount where fldinvoice=&7)" & $xSQL & ysql, $encid, False, False, ycomp, $invoiceType, $ACLedger, "Enable")
         Else
-          res = modDatabase.$myConn.Exec("select fldid from tblpatbilling where fldencounterval=&1 and fldprint=&2 and fldsave=&3 and fldordcomp like &4 and fldbilltype=&5 and flditemqty>&6 and fldacledger=&7 and flddisctype in(select fldtype from tbldiscount where fldinvoice=&8)" & $xSQL, $encid, False, False, ycomp, $invoiceType, 0, $ACLedger, "Enable")
+          res = modDatabase.$myConn.Exec("select fldid from tblpatbilling where fldencounterval=&1 and fldprint=&2 and fldsave=&3 and fldordcomp like &4 and fldbilltype=&5 and flditemqty>&6 and fldacledger=&7 and flddisctype in(select fldtype from tbldiscount where fldinvoice=&8)" & $xSQL & ysql, $encid, False, False, ycomp, $invoiceType, 0, $ACLedger, "Enable")
         Endif
       Endif
     Endif

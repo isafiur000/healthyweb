@@ -3569,6 +3569,25 @@ Public Function GeCreditUsedCurYear(patno As String, DiscType As String, xStartD
 
 End
 
+Public Function GetItemSupportCredit(encid As String) As Float
+
+  Dim res As Result
+  Dim xtot As Float
+
+  res = modDatabase.$myConn.Exec("select SUM(t2.flditemcost+t2.fldminlimit) as xtotal from tblpatbilling as t1 inner join tblservicecost as t2 on t1.flditemname=t2.flditemname where t1.fldencounterval=&1 and t1.fldsave=&2 and t1.fldbilltype=&3 and t1.fldclaimstate IS NULL and t2.fldminlimit>&4", encid, True, "Credit", 0)
+  If res.Available Then
+    If res["xtotal"] Then
+      xtot = res["xtotal"]
+    Else
+      xtot = 0
+    Endif
+  Else
+    xtot = 0
+  Endif
+  Return xtot
+
+End
+
 Public Function AllowProceedBilling(encid As String, DiscType As String, DiscAmt As Float, TotAmt As Float, billType As String, xcshCrd As Float, xItemType As String, xItemName As String, xQty As Integer) As Boolean
 
   Dim xx As Boolean
@@ -3582,6 +3601,9 @@ Public Function AllowProceedBilling(encid As String, DiscType As String, DiscAmt
   Dim xusedQty As Float
   Dim xmaxQty As Float
   Dim xmsg As String[]
+
+  Dim fixdLimit As Float
+  Dim suppLimit As Float
 
   xmsg = New String[]
   resx = modDatabase.$myConn.Exec("select fldbilltype,fldbillingmode,fldamount,fldcredit,fldreference,fldlimit,fldyear,fldqtylimit,fldqtylab,fldqtyradio,fldqtyproc,fldqtyequip,fldqtyservice,fldqtyother,fldqtymedicine,fldqtysurgical,fldqtyextra from tbldiscount where fldtype=&1", DiscType)
@@ -3646,7 +3668,7 @@ Public Function AllowProceedBilling(encid As String, DiscType As String, DiscAmt
                 xx = True
               Else
                 xx = False
-                xmsg.Add("Discount Limit exceeded")
+                xmsg.Add("Discount Limit exceeded. Available AMT is " & CStr(xremamt))
               Endif
             Else
               xx = True
@@ -3657,14 +3679,21 @@ Public Function AllowProceedBilling(encid As String, DiscType As String, DiscAmt
               billType = resx["fldbilltype"]
             Endif
             If billType And If billType = "Credit" Then
-              xcharity = ShowCreditLimitEnc(encid)
+              fixdLimit = ShowCreditLimitEnc(encid)
+              suppLimit = GetItemSupportCredit(encid)
+              If suppLimit > 0 Then
+                xcharity = Min(fixdLimit, suppLimit)
+              Else
+                xcharity = fixdLimit
+              Endif
+              ' xcharity = ShowCreditLimitEnc(encid)
               If xcharity Then
                 xremamt = xcharity - TotalSavedCreditExpensebyPatient(modDatabase.$myConn, encid)
                 If xremamt > TotAmt * (1 - xcshCrd / 100) Then
                   xx = True
                 Else
                   xx = False
-                  xmsg.Add("Credit Limit exceeded")
+                  xmsg.Add("Credit Limit exceeded. Available AMT is " & CStr(xremamt))
                 Endif
               Else
                 xx = True
@@ -3706,7 +3735,7 @@ Public Function AllowProceedBilling(encid As String, DiscType As String, DiscAmt
                     xx = True
                   Else
                     xx = False
-                    xmsg.Add("Credit Limit exceeded")
+                    xmsg.Add("Credit Limit exceeded. Available AMT is " & CStr(xremamt))
                   Endif
                 Else
                   xx = False

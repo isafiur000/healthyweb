@@ -48,11 +48,13 @@ Public Sub _new(costcategory As String)
     $type = "Procedures"
     lbldept.Text = "Type"
     cmbcomp.List = ["Major", "Intermediate", "Minor", "Plaster", "Extra"]
+    txtminlimit.Visible = True
   Else If $costcategory = "General Services Cost" Then
     Me.Title = ("General Services Rates")
     $type = "General Services"
     lbldept.Text = "Rate For"
     cmbcomp.List = ["Unit", "Minute", "Hour", "Day"]
+    txtminlimit.Visible = True
   Else If $costcategory = "Equipment Cost" Then
     Me.Title = ("Equipment Rates")
     $type = "Equipment"
@@ -131,6 +133,7 @@ Private Sub CLearBoxAll()
   txtanesthshare.Value = 0
   txtothershare.Value = 0
   chkexplain.Value = False
+  txtminlimit.Value = 0
 
 End
 
@@ -139,7 +142,7 @@ Private Sub SHowDataSelect(sItem As String)
 
   Dim res As Result
 
-  res = modDatabase.$myConn.Exec("select flditemcost,fldtarget,fldgroup,fldcode,fldstatus,fldbillitem,fldreport,flditemunit,fldtaxcode,fldeditrate,fldeditdisc,fldpayable,fldpatentry,flditemcode,fldwaitday,fldhospitalshare,fldinstrumshare,flddepartshare,fldanesthshare,fldothershare,fldgetcomment from tblservicecost where flditemtype=&1 and flditemname=&2", $type, sItem)
+  res = modDatabase.$myConn.Exec("select flditemcost,fldtarget,fldgroup,fldcode,fldstatus,fldbillitem,fldreport,flditemunit,fldtaxcode,fldeditrate,fldeditdisc,fldpayable,fldpatentry,flditemcode,fldwaitday,fldhospitalshare,fldinstrumshare,flddepartshare,fldanesthshare,fldothershare,fldgetcomment,fldminlimit from tblservicecost where flditemtype=&1 and flditemname=&2", $type, sItem)
   If res.Available Then
     txtname.Text = sItem
     txtabbv.Text = res["flditemcode"]
@@ -207,6 +210,12 @@ Private Sub SHowDataSelect(sItem As String)
       txtothershare.Value = res["fldothershare"]
     Else
       txtothershare.Value = 0
+    Endif
+
+    If res["fldminlimit"] Then
+      txtminlimit.Value = res["fldminlimit"]
+    Else
+      txtminlimit.Value = 0
     Endif
 
   Endif
@@ -419,6 +428,7 @@ Public Sub btnBrOK_Click()
       res["flddepartshare"] = txtdepartshare.Value
       res["fldanesthshare"] = txtanesthshare.Value
       res["fldothershare"] = txtothershare.Value
+      res["fldminlimit"] = txtminlimit.Value
 
       res["flduserid"] = modBasic.$lbluser
       res["fldtime"] = Now()
@@ -471,6 +481,7 @@ Public Sub btnedit_Click()
           res["flddepartshare"] = txtdepartshare.Value
           res["fldanesthshare"] = txtanesthshare.Value
           res["fldothershare"] = txtothershare.Value
+          res["fldminlimit"] = txtminlimit.Value
 
           res["flduserid"] = modBasic.$lbluser
           res["fldtime"] = Now()
@@ -596,6 +607,9 @@ Public Sub btnimport_Click()
             If Trim(xcoll["fldtaxcode"]) Then
               res["fldtaxcode"] = Trim(xcoll["fldtaxcode"])
             Endif
+            If Trim(xcoll["fldminlimit"]) Then
+              res["fldminlimit"] = CFloat(xcoll["fldminlimit"])
+            Endif
 
             res["fldeditrate"] = False
             res["fldeditdisc"] = False
@@ -661,6 +675,9 @@ Public Sub btnimport_Click()
             Endif
             If Trim(xcoll["fldtaxcode"]) Then
               res["fldtaxcode"] = Trim(xcoll["fldtaxcode"])
+            Endif
+            If Trim(xcoll["fldminlimit"]) Then
+              res["fldminlimit"] = CFloat(xcoll["fldminlimit"])
             Endif
 
             res["fldeditrate"] = False
