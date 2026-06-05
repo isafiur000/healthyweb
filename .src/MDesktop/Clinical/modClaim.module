@@ -79,6 +79,91 @@ Private Sub GetClaimStatus(encid As String) As String
 
 End
 
+Public Sub SaveRemoteHiClaimCode(xClaim As String, xRemote As String)
+
+  Dim res As Result
+
+  res = modDatabase.$myConn.Edit("tblclaimcode", "fldclaimid=&1 and fldclaimcode IS NULL", xClaim)
+  If res.Available Then
+    res["fldclaimcode"] = xRemote
+    res.Update
+  Endif
+
+End
+
+Public Sub SaveClaimCappingLim(xClaim As String, xVar As String)
+
+  Dim res As Result
+
+  res = modDatabase.$myConn.Edit("tblclaimcode", "fldclaimid=&1", xClaim)
+  If res.Available Then
+    res["fldoutput"] = xVar
+    res.Update
+  Endif
+
+End
+
+Public Function GetClaimCappingLimit(encid As String, xClaim As String) As Collection
+
+  Dim res As Result
+  Dim res1 As Result
+  Dim xval As String
+  Dim xColl As Collection
+
+  res = modDatabase.$myConn.Exec("select fldoutput from tblclaimcode where fldencounterval=&1 and fldclaimid=&2", encid, xClaim)
+  If res.Available Then
+    If res["fldoutput"] Then
+      xval = res["fldoutput"]
+    Else
+      xval = ""
+    Endif
+  Else
+    xval = ""
+  Endif
+
+  If Not xval Then
+    res1 = modDatabase.$myConn.Exec("select fldoutput from tblclaimcode where fldencounterval=&1 and fldoutput IS NOT NULL ORDER BY fldtime", encid)
+    If res1.Available Then
+      res1.MoveFirst
+      If res1["fldoutput"] Then
+        xval = res1["fldoutput"]
+      Else
+        xval = ""
+      Endif
+    Else
+      xval = ""
+    Endif
+  Endif
+
+  If xval Then
+    xColl = JSON.Decode(xval)
+  Else
+    xColl = New Collection
+  Endif
+
+  Return xColl
+
+End
+
+Private Function GetRemoteClaimCode(xClaim As String) As String
+
+  Dim res As Result
+  Dim xx As String
+
+  res = modDatabase.$myConn.Exec("select fldclaimcode from tblclaimcode where fldclaimid=&1", xClaim)
+  If res.Available Then
+    If res["fldclaimcode"] Then
+      xx = res["fldclaimcode"]
+    Else
+      xx = ""
+    Endif
+  Else
+    xx = ""
+  Endif
+  Return xx
+
+End
+
 Public Function GetNewClaimCode(encid As String, Optional xType As String) As String
 
   Dim res As Result
@@ -92,12 +177,13 @@ Public Function GetNewClaimCode(encid As String, Optional xType As String) As St
     xnhis = modNonMedical.GetPatientNHSIbyEncounter(encid)
   Endif
   If xnhis Then
-    res2 = modDatabase.$myConn.Limit(2).Exec("select fldclaimid from tblclaimcode where fldencounterval IS NULL")
-    If res2.Available Then
-      res2.MoveFirst
-      aclaim = res2["fldclaimid"]
-      res = modDatabase.$myConn.Edit("tblclaimcode", "fldclaimid=&1 and fldencounterval IS NULL", aclaim)
-      If res.Available Then
+    If modBasic.$RegistCreateHIClaim = "Enable" Then
+      modDatabase.$myConn.Begin
+      aclaim = "HIB-" & modBillLock.CurrentHIClaim() & modBasic.$HospCode
+      If aclaim Then
+        res = modDatabase.$myConn.Create("tblclaimcode")
+        res["fldclaimid"] = aclaim
+        res["fldclaimcode"] = ""
         res["fldencounterval"] = encid
         res["fldptcode"] = xnhis
         If xType Then
@@ -109,9 +195,34 @@ Public Function GetNewClaimCode(encid As String, Optional xType As String) As St
         res["xyz"] = False
         res.Update
         xclaim = aclaim
+        modDatabase.$myConn.Commit
+      Else
+        modDatabase.$myConn.Rollback
       Endif
+
     Else
-      Message.Warning(("No Claim Code available. Please contact your administrator"), ("OK"))
+      res2 = modDatabase.$myConn.Limit(2).Exec("select fldclaimid from tblclaimcode where fldencounterval IS NULL")
+      If res2.Available Then
+        res2.MoveFirst
+        aclaim = res2["fldclaimid"]
+        res = modDatabase.$myConn.Edit("tblclaimcode", "fldclaimid=&1 and fldencounterval IS NULL", aclaim)
+        If res.Available Then
+          res["fldencounterval"] = encid
+          res["fldptcode"] = xnhis
+          If xType Then
+            res["fldclaimtype"] = xType
+          Endif
+          res["fldstatus"] = GetClaimStatus(encid)
+          res["fldtime"] = Now()
+          res["flduserid"] = modBasic.$lbluser
+          res["xyz"] = False
+          res.Update
+          xclaim = aclaim
+        Endif
+      Else
+        Message.Warning(("No Claim Code available. Please contact your administrator"), ("OK"))
+      Endif
+
     Endif
   Else
     Message.Warning("NHIS number is missing", ("OK"))

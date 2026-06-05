@@ -5,6 +5,7 @@ Private $PatientNum As String
 Private $xNHISCode As String
 Private $sTatus As String
 Private $Dept As String
+Private $HiCappingVar As Collection
 
 Private $rData As Result
 Private $aMyFields As String[]
@@ -44,6 +45,11 @@ Private $ClaimReferProcedure As String
 Private $ClaimReferOthers As String
 Private $ClaimReferPharm As String
 
+Private $ClaimCodeService As String
+Private $ClaimCodeProcedure As String
+Private $ClaimCodeOthers As String
+Private $ClaimCodePharm As String
+
 Private $phmLedger As String
 Private $phmBillType As String
 
@@ -78,39 +84,9 @@ Public Sub _new(encid As String, packService As String, packProced As String, pa
     Case Else
       $Dept = "OPD"
   End Select
+  $HiCappingVar = New Collection
 
-  ''Service
-  cmbdiscservice.List = modBasic.$BillDiscountCash
-  If cmbdiscservice.List.Count = 0 Then
-    cmbdiscservice.Add($discModeService)
-  Endif
-  cmbdiscservice.Text = $discModeService
-  ShowServiceParam(cmbdiscservice.Text)
-
-  ''Procedures
-  cmbdiscprocedure.List = modBasic.$BillDiscountCash
-  If cmbdiscprocedure.List.Count = 0 Then
-    cmbdiscprocedure.Add($discModeProcedure)
-  Endif
-  cmbdiscprocedure.Text = $discModeProcedure
-  ShowProcedureParam(cmbdiscprocedure.Text)
-
-  ''Others
-  cmbdiscother.List = modBasic.$BillDiscountCash
-  If cmbdiscother.List.Count = 0 Then
-    cmbdiscother.Add($discModeOthers)
-  Endif
-  cmbdiscother.Text = $discModeOthers
-  ShowOthersParam(cmbdiscother.Text)
-
-  ''Surgicals
-  cmbdiscpharmacy.List = modBasic.$BillDiscountCash
-  If cmbdiscpharmacy.List.Count = 0 Then
-    cmbdiscpharmacy.Add($discModePharmacy)
-  Endif
-  cmbdiscpharmacy.Text = $discModePharmacy
-  ShowPharmacyParam(cmbdiscpharmacy.Text)
-
+  SetPackageLoad()
   btnrefer.Tag = modBillings.GetReferralUserSetting("Service", $encid)
   If btnrefer.Tag Then
     btnrefer.Text = modGeneral.GetUserFullName(btnrefer.Tag)
@@ -134,6 +110,63 @@ Public Sub _new(encid As String, packService As String, packProced As String, pa
     btnaddone.Enabled = False
     btnaddgrp.Enabled = False
   Endif
+
+End
+
+Private Sub SetPackageLoad()
+
+  Dim servLst As String[]
+  Dim procLst As String[]
+  Dim othrLst As String[]
+  Dim phrmLst As String[]
+
+  ''Service
+  servLst = modBasic.$BillDiscountCash
+  If servLst.Count = 0 Then
+    servLst.Add($discModeService)
+  Endif
+  cmbdiscservice.List = servLst
+  cmbdiscservice.Text = $discModeService
+  If modNonMedical.GetAutoBillingLock($encid, $discModeService) = True Then
+    btnservice.Visible = False
+  Endif
+  ShowServiceParam(cmbdiscservice.Text)
+
+  ''Procedures
+  procLst = modBasic.$BillDiscountCash
+  If procLst.Count = 0 Then
+    procLst.Add($discModeProcedure)
+  Endif
+  cmbdiscprocedure.List = procLst
+  cmbdiscprocedure.Text = $discModeProcedure
+  If modNonMedical.GetAutoBillingLock($encid, $discModeProcedure) = True Then
+    btnprocedure.Visible = False
+  Endif
+  ShowProcedureParam(cmbdiscprocedure.Text)
+
+  ''Others
+  othrLst = modBasic.$BillDiscountCash
+  If othrLst.Count = 0 Then
+    othrLst.Add($discModeOthers)
+  Endif
+  cmbdiscother.List = othrLst
+  cmbdiscother.Text = $discModeOthers
+  If modNonMedical.GetAutoBillingLock($encid, $discModeOthers) = True Then
+    btnothers.Visible = False
+  Endif
+  ShowOthersParam(cmbdiscother.Text)
+
+  ''Surgicals
+  phrmLst = modBasic.$BillDiscountCash
+  If phrmLst.Count = 0 Then
+    phrmLst.Add($discModePharmacy)
+  Endif
+  cmbdiscpharmacy.List = phrmLst
+  cmbdiscpharmacy.Text = $discModePharmacy
+  If modNonMedical.GetAutoBillingLock($encid, $discModePharmacy) = True Then
+    btnpharmacy.Visible = False
+  Endif
+  ShowPharmacyParam(cmbdiscpharmacy.Text)
 
 End
 
@@ -191,6 +224,7 @@ Private Sub ShowServiceParam(sPack As String)
 
   hForm = New CPackageParams($encid, sPack)
   $ratePlanService = hForm.GetBillingMode()
+  $ClaimCodeService = hForm.GetClaimCode()
   $ClaimStateService = hForm.GetClaimState()
   $ClaimReferService = hForm.GetReferenceType()
 
@@ -212,6 +246,7 @@ Private Sub ShowProcedureParam(sPack As String)
 
   hForm = New CPackageParams($encid, sPack)
   $ratePlanProcedure = hForm.GetBillingMode()
+  $ClaimCodeProcedure = hForm.GetClaimCode()
   $ClaimStateProcedure = hForm.GetClaimState()
   $ClaimReferProcedure = hForm.GetReferenceType()
 
@@ -233,6 +268,7 @@ Private Sub ShowOthersParam(sPack As String)
 
   hForm = New CPackageParams($encid, sPack)
   $ratePlanOthers = hForm.GetBillingMode()
+  $ClaimCodeOthers = hForm.GetClaimCode()
   $ClaimStateOthers = hForm.GetClaimState()
   $ClaimReferOthers = hForm.GetReferenceType()
 
@@ -254,6 +290,7 @@ Private Sub ShowPharmacyParam(sPack As String)
 
   hForm = New CPackageParams($encid, sPack)
   $ratePlanPharm = hForm.GetBillingMode()
+  $ClaimCodePharm = hForm.GetClaimCode()
   $ClaimStatePharm = hForm.GetClaimState()
   $ClaimReferPharm = hForm.GetReferenceType()
   $phmLedger = hForm.GetLedgerAC()
@@ -265,6 +302,26 @@ Public Sub btnpharmacy_Click()
 
   If cmbdiscpharmacy.Text Then
     ShowPharmacyParam(cmbdiscpharmacy.Text)
+  Endif
+
+End
+
+Private Sub GetHImedicineCappingVar(xPackage As String, xClaimCode As String)
+
+  If xPackage = modBasic.$HIPackage Or If xPackage = modBasic.$HIPackageER Then
+    If modBasic.$IMISValidateURL Then
+
+      If modClaim.GetChronicClaimStatus($encid) = True Then
+        If $HiCappingVar.Count Then
+          $HiCappingVar.Clear()
+        Endif
+      Else
+        If Not $HiCappingVar.Count Then
+          $HiCappingVar = modClaim.GetClaimCappingLimit($encid, xClaimCode)
+        Endif
+      Endif
+
+    Endif
   Endif
 
 End
@@ -509,7 +566,11 @@ Public Sub GridView3_Select()
     Else If xform = "Others" Then
       xpackg = cmbdiscother.Text
     Endif
-    xdate = modBillings.CheckLastSalesItemDate($GridVar[GridView3.Selection[0]][CStr(0)], $PatientNum, $xNHISCode, xpackg)
+    If modBasic.$SalesHistoryAlert = "Patient Code" Then
+      xdate = modBillings.CheckLastServiceSalesItemHIDate(modNonMedical.GetServiceItemHIAbbv($GridVar[GridView3.Selection[0]][CStr(0)]), $PatientNum, $xNHISCode, xpackg)
+    Else
+      xdate = modBillings.CheckLastSalesItemDate($GridVar[GridView3.Selection[0]][CStr(0)], $PatientNum, $xNHISCode, xpackg)
+    Endif
     If xdate Then
       txtlastsaledate.Text = modReportVar.GetDateTimeReport(xdate, gb.MediumDate)
       If DateDiff(xdate, Now(), gb.Month) <= 3 Then
@@ -726,7 +787,11 @@ Private Sub SavePartialEntry(res As Result, xstate As String, Optional advReceip
 
   xgo = True
   If xstate = "Consultation" Or If xstate = "Patient Ward" Then
-    xdate = modBillings.CheckLastSalesItemDate(res["flditemname"], $PatientNum, $xNHISCode, res["flddisctype"])
+    If modBasic.$SalesHistoryAlert = "Patient Code" Then
+      xdate = modBillings.CheckLastServiceSalesItemHIDate(modNonMedical.GetServiceItemHIAbbv(res["flditemname"]), $PatientNum, $xNHISCode, res["flddisctype"])
+    Else
+      xdate = modBillings.CheckLastSalesItemDate(res["flditemname"], $PatientNum, $xNHISCode, res["flddisctype"])
+    Endif
     If xdate Then
       xcapday = modNonMedical.GetCappingDayFromItemName(res["flditemname"])
       If xcapday Then

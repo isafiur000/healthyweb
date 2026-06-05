@@ -1,13 +1,15 @@
 ' Gambas class file
 
+Private $sType As String
 Private $sValue As String[]
 Private $rData As Result
 Private $aMyFields As String[]
 
-Public Sub Run() As String[]
+Public Sub Run(sType As String) As String[]
 
+  $sType = sType
   modGeneralMain.GetOpenModalForm(Me)
-  ListBox1.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldcategory) as fldcategory from tblsyndromes where fldcomp=&1 or fldcomp=&2", modBasic.$compID, "%"))                          ''
+  ListBox1.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldcategory) as fldcategory from tblsyndromes where (fldcomp=&1 or fldcomp=&2) and (fldpatient=&3 or fldpatient=&4)", modBasic.$compID, "%", "Any", $sType))                          ''
   If Me.ShowModal() Then Return $sValue
 
 End
@@ -39,9 +41,9 @@ Private Sub FillSyndroGrid(sType As String)
   Endif
 
   If txtsearch.Text Then
-    $rData = modDatabase.$myConn.Exec("select fldsyndrome,fldsymcode from tblsyndromes where fldcategory=&1 and (fldcomp=&2 or fldcomp=&3) and lower(fldsyndrome) like &4", sType, modBasic.$compID, "%", sSearch)
+    $rData = modDatabase.$myConn.Exec("select fldsyndrome,fldsymcode from tblsyndromes where fldcategory=&1 and (fldcomp=&2 or fldcomp=&3) and (fldpatient=&4 or fldpatient=&5) and lower(fldsyndrome) like &6", sType, modBasic.$compID, "%", "Any", $sType, sSearch)
   Else
-    $rData = modDatabase.$myConn.Exec("select fldsyndrome,fldsymcode from tblsyndromes where fldcategory=&1 and (fldcomp=&2 or fldcomp=&3)", sType, modBasic.$compID, "%")
+    $rData = modDatabase.$myConn.Exec("select fldsyndrome,fldsymcode from tblsyndromes where fldcategory=&1 and (fldcomp=&2 or fldcomp=&3) and (fldpatient=&4 or fldpatient=&5)", sType, modBasic.$compID, "%", "Any", $sType)
   Endif
   $aMyFields = New String[]
   modGridView.ReadSmallData(GridView1, $rData, $aMyFields)

@@ -5,9 +5,12 @@ Private $BillMode As String
 Private $sPackage As String
 Private $sClaimState As String
 Private $sClaimRefno As String
+Private $ClaimCode As String
+
 Private $xFinClear As Boolean
 Private $PatientNum As String
 Private $xNHISCode As String
+Private $HiCappingVar As Collection
 
 Private $rData4 As Result
 Private $aMyFields4 As String[]
@@ -31,6 +34,9 @@ Public Sub _new(encid As String, DiscType As String)
   Endif
   cmbdisctype.List = accLst
   cmbdisctype.Text = $sPackage
+  If modNonMedical.GetAutoBillingLock($encid, $sPackage) = True Then
+    btnscheme.Visible = False
+  Endif
 
   txtpatientname.Text = modPatient.GetPatientNameByEnc($encid)
   $PatientNum = modPatient.GetPatientNoByEnc($encid)
@@ -84,10 +90,32 @@ Private Sub ShowBillingParam(sPack As String)
 
   Dim hForm As CPackageParams
 
+  $HiCappingVar = New Collection
   hForm = New CPackageParams($encid, sPack)
   $BillMode = hForm.GetBillingMode()
-  $sClaimState = hForm.GetClaimState()
   $sClaimRefno = hForm.GetReferenceType()
+  $ClaimCode = hForm.GetClaimCode()
+  $sClaimState = hForm.GetClaimState()
+
+End
+
+Private Sub GetHImedicineCappingVar()
+
+  If cmbdisctype.Text = modBasic.$HIPackage Or If cmbdisctype.Text = modBasic.$HIPackageER Then
+    If modBasic.$IMISValidateURL Then
+
+      If modClaim.GetChronicClaimStatus($encid) = True Then
+        If $HiCappingVar.Count Then
+          $HiCappingVar.Clear()
+        Endif
+      Else
+        If Not $HiCappingVar.Count Then
+          $HiCappingVar = modClaim.GetClaimCappingLimit($encid, $ClaimCode)
+        Endif
+      Endif
+
+    Endif
+  Endif
 
 End
 
@@ -206,7 +234,11 @@ Public Sub cmbprocedure_Select()
   Dim xdate As Date
 
   If cmbprocedure.Text Then
-    xdate = modBillings.CheckLastSalesItemDate(cmbprocedure.Text, $PatientNum, $xNHISCode, cmbdisctype.Text)
+    If modBasic.$SalesHistoryAlert = "Patient Code" Then
+      xdate = modBillings.CheckLastServiceSalesItemHIDate(modNonMedical.GetServiceItemHIAbbv(cmbprocedure.Text), $PatientNum, $xNHISCode, cmbdisctype.Text)
+    Else
+      xdate = modBillings.CheckLastSalesItemDate(cmbprocedure.Text, $PatientNum, $xNHISCode, cmbdisctype.Text)
+    Endif
     If xdate Then
       txtlastsaledate.Text = modReportVar.GetDateTimeReport(xdate, gb.MediumDate)
       If DateDiff(xdate, Now(), gb.Month) <= 3 Then
@@ -370,20 +402,39 @@ Private Sub SavePartialEntry(res As Result, Optional advReceipt As String)
   Dim xdate As Date
   Dim xcapday As Integer
   Dim xgo As Boolean
+  Dim xfixcode As String
+  Dim ygo As Boolean
+
+  ygo = True
+  xfixcode = modNonMedical.GetServiceItemHIAbbv(res["flditemname"])
+  If $sClaimState = "Consultation" Or If $sClaimState = "Patient Ward" Then
+    If GetHICapGo(xfixcode, res["flditemname"], res["flditemqty"], res["flddisctype"]) = True Then
+      ygo = True
+    Else
+      ygo = False
+    Endif
+  Endif
 
   xgo = True
-  If $sClaimState = "Consultation" Or If $sClaimState = "Patient Ward" Then
-    xdate = modBillings.CheckLastSalesItemDate(res["flditemname"], $PatientNum, $xNHISCode, res["flddisctype"])
+  xcapday = modNonMedical.GetCappingDayFromItemName(res["flditemname"])
+  If xcapday Then
+    If $sClaimState = "Consultation" Or If $sClaimState = "Patient Ward" Then
+      If modBasic.$SalesHistoryAlert = "Patient Code" Then
+        xdate = modBillings.CheckLastServiceSalesItemHIDate(xfixcode, $PatientNum, $xNHISCode, res["flddisctype"])
+      Else
+        xdate = modBillings.CheckLastSalesItemDate(res["flditemname"], $PatientNum, $xNHISCode, res["flddisctype"])
+      Endif
+    Else
+      xdate = modBillings.CheckLastSalesItemDate(res["flditemname"], $PatientNum, $xNHISCode, res["flddisctype"])
+    Endif
     If xdate Then
-      xcapday = modNonMedical.GetCappingDayFromItemName(res["flditemname"])
-      If xcapday Then
-        If DateDiff(xdate, Now(), gb.Day) <= xcapday Then
-          xgo = False
-        Endif
+      If DateDiff(xdate, Now(), gb.Day) <= xcapday Then
+        xgo = False
       Endif
     Endif
   Endif
-  If xgo = True Then
+
+  If xgo = True And If ygo = True Then
     res["fldstatus"] = "Done"
     If advReceipt Then
       res["fldextracol"] = advReceipt
@@ -395,6 +446,31 @@ Private Sub SavePartialEntry(res As Result, Optional advReceipt As String)
     res["xyz"] = False
     res.Update()
   Endif
+
+End
+
+Private Function GetHICapGo(sFixCode As String, sFixItem As String, sQty As Float, sDiscType As String) As Boolean
+
+  Dim xgo As Boolean
+  Dim xmax As Float
+
+  xgo = True
+  If sFixCode Then
+    If $HiCappingVar.Exist(sFixCode) Then
+
+      If Not $HiCappingVar[sFixCode] Then
+        xgo = False
+      Else
+        xmax = $HiCappingVar[sFixCode] - modNonMedical.GetPatientItemSavedSalesPackage($encid, sFixItem, sDiscType)
+        If xmax < sQty Then
+          xgo = False
+        Endif
+      Endif
+
+    Endif
+  Endif
+
+  Return xgo
 
 End
 

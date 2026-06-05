@@ -35,6 +35,8 @@ Private $LedgerAC As String
 Private $xBillType As String
 Private $sBillMode As String
 Private $sClaimState As String
+Private $ClaimCode As String
+
 Private $LabelType As String
 Private xYear As Integer
 
@@ -69,6 +71,9 @@ Public Sub _new(encid As String, sStatus As String, DiscPackage As String)
   Endif
   cmbdisctype.List = accLst
   cmbdisctype.Text = $DiscPackage
+  If modNonMedical.GetAutoBillingLock($encid, $DiscPackage) = True Then
+    cmbdisctype.Enabled = False
+  Endif
   If modBasic.$ClinInjectionRoute = "Disable" Then
     cmbroute.List = modMedicine.InpatientSubRoute(False)
   Else
@@ -284,6 +289,7 @@ Private Sub ShowBillingParam(sDisctype As String)
   $sBillMode = hForm.GetBillingMode()
   $LedgerAC = hForm.GetLedgerAC()
   $xBillType = hForm.GetBillType()
+  $ClaimCode = hForm.GetClaimCode()
   $sClaimState = hForm.GetClaimState()
 
 End
@@ -304,6 +310,11 @@ Private Sub GetHImedicineCappingVar()
           hForm = New CimisAPICap($xNHISCode)
           $HiCappingVar = hForm.GetMedicineLimits()
         Endif
+
+        If Not $HiCappingVar.Count Then
+          $HiCappingVar = modClaim.GetClaimCappingLimit($encid, $ClaimCode)
+        Endif
+
       Endif
 
     Endif

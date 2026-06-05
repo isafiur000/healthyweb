@@ -524,6 +524,95 @@ End
 
 Public Sub btngridclaim_Click()
 
+  If GridView2.Count Then
+    If rbsales.Value = True Then
+      GetSalesClaim()
+    Else If rbretn.Value = True Then
+      GetReturnClaim()
+    Endif
+  Endif
+
+End
+
+Private Function GetHICategory(sCateg As String) As String
+
+  Dim xx As String
+
+  Select sCateg
+    Case "Diagnostic Tests", "Radio Diagnostics", "General Services", "Procedures", "Equipment", "Other Items"
+      xx = "service"
+    Case "Medicines", "Surgicals", "Extra Items"
+      xx = "item"
+  End Select
+
+  Return xx
+
+End
+
+Private Sub GetReturnClaim()
+
+  Dim xSNo As String[]
+  Dim xIndexLst As String[]
+  Dim asx As String[]
+  Dim aIndex As String
+
+  Dim Row As Integer
+  Dim xcateg As String
+  Dim hForm As CimisAPIReturn
+  Dim xout As String
+  Dim xcoll As Collection
+  Dim res As Result
+  Dim xclaim As String
+
+  xSNo = New String[]
+  xIndexLst = New String[]
+  If txtgridclaim.Text Then
+    If GridView2.Selection.Count Then
+      $rData1.MoveTo(GridView2.Selection[0])
+      xcateg = GetHICategory($rData1["flditemtype"])
+      If xcateg Then
+        For Row = 0 To GridView2.Count - 1
+          $rData1.MoveTo(Row)
+          If GetHICategory($rData1["flditemtype"]) = xcateg Then
+            xSNo.Add(modClaimAPI.GetBillingItemAbbvName($rData1["flditemcode"]))
+
+            asx = Split($rData1["fldid"], ",")
+            xIndexLst.Insert(asx)
+          Endif
+        Next
+
+        If modBasic.$RegistCreateHIClaim = "Enable" Then
+          xclaim = modClaim.GetRemoteClaimCode(txtgridclaim.Text)
+          If Not xclaim Then
+            xclaim = txtgridclaim.Text
+          Endif
+        Else
+          xclaim = txtgridclaim.Text
+        Endif
+        hForm = New CimisAPIReturn(txtgridencid.Text, xclaim, xcateg, xSNo)
+        xout = hForm.GetAPIOutput()
+
+        Try xcoll = JSON.Decode(xout)
+        If xcoll["message"] Then
+          For Each aIndex In xIndexLst
+            res = modDatabase.$myConn.Edit($tblpatbilling, "fldid=&1", CLong(aIndex))
+            res["fldclaimstate"] = xcoll["deduction"]
+            res["fldclaimid"] = xcoll["message"]
+            res.Update
+          Next
+          SHowCreditGrid()
+        Else
+          Message.Warning(xout, ("OK"))
+        Endif
+
+      Endif
+    Endif
+  Endif
+
+End
+
+Private Sub GetSalesClaim()
+
   Dim hForm As CimisAPIClaim
   Dim xSNo As Variant[]
   Dim sColl As Collection

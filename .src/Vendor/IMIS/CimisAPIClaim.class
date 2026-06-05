@@ -462,6 +462,31 @@ Public Function UploadClaim() As String
   Shell acmd To xpatout
   modBasic.DebugAPIString("Response: " & xpatout)
 
+  If modBasic.$RegistCreateHIClaim = "Enable" Then
+    RecordRemoteClaim(xpatout)
+  Endif
+
   Return xpatout
+
+End
+
+Private Sub RecordRemoteClaim(xOutPut As String)
+
+  Dim sColl As Collection
+  Dim xvar As Variant[]
+  Dim xColl As Collection
+  Dim xremote As String
+
+  sColl = JSON.Decode(xOutPut)
+  xvar = sColl["identifier"]
+  For Each xColl In xvar
+    If xColl["type"]["coding"][0]["code"] = "MR" Then
+      xremote = xColl["value"]
+      Break
+    Endif
+  Next
+  If xremote Then
+    modClaim.SaveRemoteHiClaimCode($ClaimCode, xremote)
+  Endif
 
 End

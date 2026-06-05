@@ -9,6 +9,7 @@ Private $LedgerAC As String
 Private $xBillType As String
 Private $sBillMode As String
 Private $sClaimState As String
+Private $ClaimCode As String
 
 Private $rData1 As Result
 Private $aMyFields1 As String[]
@@ -35,6 +36,9 @@ Public Sub _new(encid As String, DiscPackage As String, useCardex As Boolean, sC
   Endif
   cmbdisctype.List = accLst
   cmbdisctype.Text = $DiscPackage
+  If modNonMedical.GetAutoBillingLock($encid, $DiscPackage) = True Then
+    cmbdisctype.Enabled = False
+  Endif
   ShowBillingParam($DiscPackage)
   FillMedicineList()
   ' ListBox1.SetFocus
@@ -67,6 +71,7 @@ Private Sub ShowBillingParam(sDisctype As String)
   $sBillMode = hForm.GetBillingMode()
   $LedgerAC = hForm.GetLedgerAC()
   $xBillType = hForm.GetBillType()
+  $ClaimCode = hForm.GetClaimCode()
   $sClaimState = hForm.GetClaimState()
 
 End
@@ -87,6 +92,11 @@ Private Sub GetHImedicineCappingVar()
           hForm = New CimisAPICap($xNHISCode)
           $HiCappingVar = hForm.GetMedicineLimits()
         Endif
+
+        If Not $HiCappingVar.Count Then
+          $HiCappingVar = modClaim.GetClaimCappingLimit($encid, $ClaimCode)
+        Endif
+
       Endif
 
     Endif

@@ -475,7 +475,7 @@ Private Sub BasicInfoPatient()
             If txtreference.Text Then
               txtreference.Tag = modClaim.GetHIClaimState(txtreference.Text)
               If txtreference.Tag = "Consultation" Or If txtreference.Tag = "Patient Ward" Then
-                GetHImedicineCappingVar()
+                GetHImedicineCappingVar(True)
               Endif
             Endif
           Else If resx["fldreference"] = "Accident SSF" Then
@@ -680,7 +680,7 @@ Private Sub LoadDiscCreditVal()
             If txtreference.Text Then
               txtreference.Tag = modClaim.GetHIClaimState(txtreference.Text)
               If txtreference.Tag = "Consultation" Or If txtreference.Tag = "Patient Ward" Then
-                GetHImedicineCappingVar()
+                GetHImedicineCappingVar(True)
               Endif
             Endif
           Else If resx["fldreference"] = "Accident SSF" Then
@@ -3661,7 +3661,7 @@ Public Sub btnaddicd_Click()
             modPatientGeneral.AddPatientFindings("Provisional Diagnosis", Trim(txtencid.Text), txtsearch.Text, txtcode.Text, txtcodeold.Text)
           Endif
           If txtreference.Tag = "Consultation" Or If txtreference.Tag = "Patient Ward" Then
-            GetHImedicineCappingVar()
+            GetHImedicineCappingVar(False)
           Endif
           Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
         Endif
@@ -3916,7 +3916,7 @@ Private Sub AutoClaimIMIS(sPackage As String, TypeList As String[])
 
 End
 
-Private Sub GetHImedicineCappingVar()
+Private Sub GetHImedicineCappingVar(xSave As Boolean)
 
   Dim hForm As CimisAPICap
 
@@ -3932,7 +3932,17 @@ Private Sub GetHImedicineCappingVar()
           hForm = New CimisAPICap($xNHISCode)
           $HiCappingVar = hForm.GetMedicineLimits()
           $HiCapAPIView = hForm.GetCapValidationItems()
+          If $HiCappingVar And If $HiCappingVar.Count Then
+            If xSave = True Then
+              modClaim.SaveClaimCappingLim(txtreference.Text, JSON.Encode($HiCappingVar))
+            Endif
+          Endif
         Endif
+
+        If Not $HiCappingVar.Count Then
+          $HiCappingVar = modClaim.GetClaimCappingLimit(Trim(txtencid.Text), txtreference.Text)
+        Endif
+
       Endif
 
     Endif

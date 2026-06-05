@@ -1103,6 +1103,34 @@ Public Function GetAllowPayableEdit(strItem As String) As Boolean
 
 End
 
+Public Function GetBillingSupportAmt(sItem As String) As Float
+
+  Dim res As Result
+  Dim xx As Float
+
+  If modTableCache.$ServiceDataVar.Exist(sItem) Then
+    xx = modTableCache.$ServiceDataVar[sItem]["fldminlimit"]
+    If Not xx Then
+      xx = 0
+    Endif
+
+  Else
+    res = modDatabase.$myConn.Exec("select fldminlimit from tblservicecost where flditemname=&1", sItem)
+    If res.Available = True Then
+      If res["fldminlimit"] Then
+        xx = res["fldminlimit"]
+      Else
+        xx = 0
+      Endif
+    Else
+      xx = 0
+    Endif
+  Endif
+
+  Return xx
+
+End
+
 ''------------ tbldiscount caching
 Public Function ShowCreditVAlues(sPackage As String) As Float
 
@@ -1871,49 +1899,66 @@ End
 'NOTE: ---------------------------- data from tblservicecost ----------------------------------------
 Public Function GetBillItemHIAbbv(strItem As String, sCateg As String) As String
 
-  Dim res As Result
-  Dim res1 As Result
   Dim xx As String
 
   Select sCateg
     Case "Medicines", "Surgicals", "Extra Items"
-      res = modDatabase.$myConn.Exec("select flddrugcode from tblstockrate where flditemname=&1 and flddrugcode IS NOT NULL", strItem)
-      If res.Available Then
-        res.MoveFirst
-        If res["flddrugcode"] Then
-          xx = res["flddrugcode"]
-        Else
-          xx = ""
-        Endif
-      Else
-        res1 = modDatabase.$myConn.Exec("select flddrugcode from tblstockrate where fldstockid=&1 and flddrugcode IS NOT NULL", strItem)
-        If res1.Available Then
-          res1.MoveFirst
-          If res1["flddrugcode"] Then
-            xx = res1["flddrugcode"]
-          Else
-            xx = ""
-          Endif
-        Else
-          xx = ""
-        Endif
-      Endif
-
+      xx = GetPharmaItemHIAbbv(strItem)
     Case Else
-      res = modDatabase.$myConn.Exec("select flditemcode from tblservicecost where flditemname=&1", strItem)
-      If res.Available = True Then
-        res.MoveFirst
-        If res["flditemcode"] Then
-          xx = res["flditemcode"]
-        Else
-          xx = ""
-        Endif
+      xx = GetServiceItemHIAbbv(strItem)
+  End Select
+
+  Return xx
+
+End
+
+Public Function GetServiceItemHIAbbv(strItem As String) As String
+
+  Dim res As Result
+  Dim xx As String
+
+  res = modDatabase.$myConn.Exec("select flditemcode from tblservicecost where flditemname=&1", strItem)
+  If res.Available = True Then
+    res.MoveFirst
+    If res["flditemcode"] Then
+      xx = res["flditemcode"]
+    Else
+      xx = ""
+    Endif
+  Else
+    xx = ""
+  Endif
+  Return xx
+
+End
+
+Public Function GetPharmaItemHIAbbv(strItem As String) As String
+
+  Dim res As Result
+  Dim res1 As Result
+  Dim xx As String
+
+  res = modDatabase.$myConn.Exec("select flddrugcode from tblstockrate where flditemname=&1 and flddrugcode IS NOT NULL", strItem)
+  If res.Available Then
+    res.MoveFirst
+    If res["flddrugcode"] Then
+      xx = res["flddrugcode"]
+    Else
+      xx = ""
+    Endif
+  Else
+    res1 = modDatabase.$myConn.Exec("select flddrugcode from tblstockrate where fldstockid=&1 and flddrugcode IS NOT NULL", strItem)
+    If res1.Available Then
+      res1.MoveFirst
+      If res1["flddrugcode"] Then
+        xx = res1["flddrugcode"]
       Else
         xx = ""
       Endif
-
-  End Select
-
+    Else
+      xx = ""
+    Endif
+  Endif
   Return xx
 
 End
@@ -2417,12 +2462,15 @@ Public Function GetPatientItemAllSalesPackage(encid As String, sItem As String, 
 
 End
 
+''Used for HI and other capping (based on Ledger Account)
 Public Function GetPatientItemSavedSalesPackage(encid As String, sItem As String, sPackage As String) As Float
 
   Dim res As Result
   Dim xval As Float
+  Dim xLedger As String
 
-  res = modDatabase.$myConn.Exec("select sum(flditemqty) as flditemqty from tblpatbilling where fldencounterval=&1 and flditemname=&2 and fldsave=&3 and fldprint=&4 and flddisctype like &4", encid, sItem, True, False, sPackage)
+  xLedger = modNonMedical.GetLedgerFromDiscount(sPackage)
+  res = modDatabase.$myConn.Exec("select sum(flditemqty) as flditemqty from tblpatbilling where fldencounterval=&1 and flditemname=&2 and fldsave=&3 and fldprint=&4 and fldacledger like &5", encid, sItem, True, False, xLedger)
   If res.Available Then
     If res["flditemqty"] Then
       xval = res["flditemqty"]
@@ -2747,6 +2795,51 @@ Public Function GetScheduledBillingScheme(compid As String) As String
   Next
 
   Return bilmode
+
+End
+
+'''Get Setting from Scheme Lock (only for inpatients)
+Public Function GetAutoBillingLock(encid As String, sPackage As String) As Boolean
+
+  Dim xforce As String
+  Dim asx As String[]
+  Dim xdept As String
+  Dim xlock As Boolean
+
+  xlock = False
+
+  xforce = modNonMedical.GetForcedPackage(sPackage)
+  If xforce = "Enable" Then
+    xlock = True
+
+  Else If xforce = "Custom" Then
+    xdept = modPatient.GetPatientCurrDepartment(encid)
+    asx = modControlSub.GetDirectFillresultNoNull(modDatabase.$myConn.Exec("select flddepart as col from tblforcediscount where flddisctype=&1", sPackage))
+    If asx.Exist(xdept) = True Then
+      xlock = True
+    Endif
+
+  Else If xforce Like "Within:" & "*" Then
+    asx = Split(xforce, ":")
+    If asx.Count = 2 Then
+      xdept = modPatient.GetPatientCurrDepartment(encid)
+      If xdept = asx[1] Then
+        xlock = True
+      Endif
+    Endif
+
+  Else If xforce Like "Except:" & "*" Then
+    asx = Split(xforce, ":")
+    If asx.Count = 2 Then
+      xdept = modPatient.GetPatientCurrDepartment(encid)
+      If xdept <> asx[1] Then
+        xlock = True
+      Endif
+    Endif
+
+  Endif
+
+  Return xlock
 
 End
 
@@ -3680,11 +3773,15 @@ Public Function AllowProceedBilling(encid As String, DiscType As String, DiscAmt
             Endif
             If billType And If billType = "Credit" Then
               fixdLimit = ShowCreditLimitEnc(encid)
-              suppLimit = GetItemSupportCredit(encid)
-              If suppLimit > 0 Then
-                xcharity = Min(fixdLimit, suppLimit)
-              Else
+              If GetBillingSupportAmt(xItemName) > 0 Then
                 xcharity = fixdLimit
+              Else
+                suppLimit = GetItemSupportCredit(encid)
+                If suppLimit > 0 Then
+                  xcharity = Min(fixdLimit, suppLimit)
+                Else
+                  xcharity = fixdLimit
+                Endif
               Endif
               ' xcharity = ShowCreditLimitEnc(encid)
               If xcharity Then

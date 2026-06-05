@@ -287,7 +287,7 @@ Public Sub btnshow_Click()
                 If txtreference.Text Then
                   txtreference.Tag = modClaim.GetHIClaimState(txtreference.Text)
                   If txtreference.Tag = "Consultation" Or If txtreference.Tag = "Patient Ward" Then
-                    GetHImedicineCappingVar()
+                    GetHImedicineCappingVar(True)
                   Endif
                 Endif
               Else If resx["fldreference"] = "Accident SSF" Then
@@ -499,7 +499,7 @@ Private Sub ShowBillingParam(sPack As String)
             If txtreference.Text Then
               txtreference.Tag = modClaim.GetHIClaimState(txtreference.Text)
               If txtreference.Tag = "Consultation" Or If txtreference.Tag = "Patient Ward" Then
-                GetHImedicineCappingVar()
+                GetHImedicineCappingVar(True)
               Endif
             Endif
           Else If resx["fldreference"] = "Accident SSF" Then
@@ -1280,7 +1280,11 @@ Private Sub ControlServiceName()
         Endif
         txtax.Value = modNonMedical.ShowTaxValues(xtype, cmbitem.Text)
 
-        xdate = modBillings.CheckLastSalesItemDate(cmbitem.Text, $PatientNum, $xNHISCode, cmbdisctype.Text)
+        If modBasic.$SalesHistoryAlert = "Patient Code" Then
+          xdate = modBillings.CheckLastServiceSalesItemHIDate(modNonMedical.GetServiceItemHIAbbv(cmbitem.Text), $PatientNum, $xNHISCode, cmbdisctype.Text)
+        Else
+          xdate = modBillings.CheckLastSalesItemDate(cmbitem.Text, $PatientNum, $xNHISCode, cmbdisctype.Text)
+        Endif
         If xdate Then
           txtlastsaledate.Text = modReportVar.GetDateTimeReport(xdate, gb.MediumDate)
           If DateDiff(xdate, Now(), gb.Month) <= 3 Then
@@ -3068,11 +3072,12 @@ Private Sub SaveGridData()
   Dim xcomp As String
   Dim xerr As String
   Dim xallow As Boolean
-  ' Dim xfixcode As String
+  Dim xfixcode As String
 
   Dim xdate As Date
   Dim xcapday As Integer
   Dim xgo As Boolean
+  Dim ygo As Boolean
 
   If chkall.Value Then
     xcomp = "%"
@@ -3091,24 +3096,39 @@ Private Sub SaveGridData()
     For Each res
       xallow = modNonMedical.AllowProceedBilling(Trim(txtencid.Text), res["flddisctype"], res["flddiscamt"], res["fldditemamt"], res["fldbilltype"], res["fldcashincredit"], res["flditemtype"], res["flditemname"], res["flditemqty"])
       If xallow = True Then
-        ' xfixcode = modNonMedical.GetBillItemHIAbbv(res["flditemname"], res["flditemtype"])
-        ' If GetHICapGo(xfixcode, res["flditemname"], res["flditemqty"], res["flddisctype"]) = True Then
-        '   If xfixcode And If $HiCappingVar.Exist(xfixcode) Then
-        '     $HiCappingVar[xfixcode] = $HiCappingVar[xfixcode] - res["fldqtydisp"]
-        '   Endif
+
         xgo = True
+        xfixcode = modNonMedical.GetBillItemHIAbbv(res["flditemname"], res["flditemtype"])
         If txtreference.Tag = "Consultation" Or If txtreference.Tag = "Patient Ward" Then
-          xdate = modBillings.CheckLastSalesItemDate(res["flditemname"], $PatientNum, $xNHISCode, res["flddisctype"])
+          If GetHICapGo(xfixcode, res["flditemname"], res["flditemqty"], res["flddisctype"]) = True Then
+            If xfixcode And If $HiCappingVar.Exist(xfixcode) Then
+              $HiCappingVar[xfixcode] = $HiCappingVar[xfixcode] - res["flditemqty"]
+            Endif
+          Else
+            xgo = False
+          Endif
+        Endif
+
+        ygo = True
+        xcapday = modNonMedical.GetCappingDayFromItemName(res["flditemname"])
+        If xcapday Then
+          If txtreference.Tag = "Consultation" Or If txtreference.Tag = "Patient Ward" Then
+            If modBasic.$SalesHistoryAlert = "Patient Code" Then
+              xdate = modBillings.CheckLastServiceSalesItemHIDate(xfixcode, $PatientNum, $xNHISCode, res["flddisctype"])
+            Else
+              xdate = modBillings.CheckLastSalesItemDate(res["flditemname"], $PatientNum, $xNHISCode, res["flddisctype"])
+            Endif
+          Else
+            xdate = modBillings.CheckLastSalesItemDate(res["flditemname"], $PatientNum, $xNHISCode, res["flddisctype"])
+          Endif
           If xdate Then
-            xcapday = modNonMedical.GetCappingDayFromItemName(res["flditemname"])
-            If xcapday Then
-              If DateDiff(xdate, Now(), gb.Day) <= xcapday Then
-                xgo = False
-              Endif
+            If DateDiff(xdate, Now(), gb.Day) <= xcapday Then
+              ygo = False
             Endif
           Endif
         Endif
-        If xgo = True Then
+
+        If xgo = True And If ygo = True Then
 
           If res["flditemqty"] < 0 Then
             If modBasic.$BillSeparateReturn = "No" Then
@@ -5288,7 +5308,7 @@ Public Sub btnaddicd_Click()
             modPatientGeneral.AddPatientFindings("Provisional Diagnosis", Trim(txtencid.Text), txtsearch.Text, txtcode.Text, txtcodeold.Text)
           Endif
           If txtreference.Tag = "Consultation" Or If txtreference.Tag = "Patient Ward" Then
-            GetHImedicineCappingVar()
+            GetHImedicineCappingVar(False)
           Endif
           Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
         Endif
@@ -5329,7 +5349,7 @@ Public Sub btnaddicdold_Click()
       Next
       SHowDiagnosis()
       If txtreference.Tag = "Consultation" Or If txtreference.Tag = "Patient Ward" Then
-        GetHImedicineCappingVar()
+        GetHImedicineCappingVar(False)
       Endif
       Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
       cmbtype.SetFocus
@@ -5615,7 +5635,7 @@ Private Sub AutoClaimIMIS(sPackage As String, TypeList As String[])
 
 End
 
-Private Sub GetHImedicineCappingVar()
+Private Sub GetHImedicineCappingVar(xSave As Boolean)
 
   Dim hForm As CimisAPICap
 
@@ -5631,7 +5651,17 @@ Private Sub GetHImedicineCappingVar()
           hForm = New CimisAPICap($xNHISCode)
           $HiCappingVar = hForm.GetMedicineLimits()
           $HiCapAPIView = hForm.GetCapValidationItems()
+          If $HiCappingVar And If $HiCappingVar.Count Then
+            If xSave = True Then
+              modClaim.SaveClaimCappingLim(txtreference.Text, JSON.Encode($HiCappingVar))
+            Endif
+          Endif
         Endif
+
+        If Not $HiCappingVar.Count Then
+          $HiCappingVar = modClaim.GetClaimCappingLimit(Trim(txtencid.Text), txtreference.Text)
+        Endif
+
       Endif
 
     Endif

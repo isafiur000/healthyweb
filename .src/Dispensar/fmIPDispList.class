@@ -126,6 +126,7 @@ End
 Public Sub GridView1_Select()
 
   Dim xscheme As String
+  Dim accLst As String[]
 
   cmbnewscheme.Clear()
   txtbalance.Value = 0
@@ -135,12 +136,16 @@ Public Sub GridView1_Select()
     $encid = $rData1[$aMyFields1[3]]
     GetPatientProfile($encid)
 
-    cmbnewscheme.List = modBasic.$BillDiscountCash
+    accLst = modBasic.$BillDiscountCash
     xscheme = modPatient.ShowDiscountCategEnc($rData1[$aMyFields1[3]])
-    If cmbnewscheme.List.Count = 0 Then
-      cmbnewscheme.Add(xscheme)
+    If accLst.Count = 0 Then
+      accLst.Add(xscheme)
     Endif
+    cmbnewscheme.List = accLst
     cmbnewscheme.Text = xscheme
+    If modNonMedical.GetAutoBillingLock($encid, xscheme) = True Then
+      cmbnewscheme.Enabled = False
+    Endif
 
     FillDispenstable($encid)
     ShowDispensedToday($encid)
@@ -917,6 +922,7 @@ End
 Private Sub GetHImedicineCappingVar(encid As String, sPackage As String, xNHSI As String)
 
   Dim hForm As CimisAPICap
+  Dim xclaim As String
 
   If sPackage = modBasic.$HIPackage Or If sPackage = modBasic.$HIPackageER Then
     If modBasic.$IMISValidateURL Then
@@ -931,6 +937,14 @@ Private Sub GetHImedicineCappingVar(encid As String, sPackage As String, xNHSI A
           $HiCappingVar = hForm.GetMedicineLimits()
           $HiCapAPIView = hForm.GetCapValidationItems()
         Endif
+
+        If Not $HiCappingVar.Count Then
+          xclaim = modClaim.GetClaimCidePatient(encid, modNonMedical.GetLastCLaimType(encid))
+          If xclaim Then
+            $HiCappingVar = modClaim.GetClaimCappingLimit(encid, xclaim)
+          Endif
+        Endif
+
       Endif
 
     Endif
@@ -973,36 +987,18 @@ End
 
 Public Sub btnlist_Click()
 
-  GenerateList()
+  Dim res As Result
+  Dim hForm As FRequest
 
-End
-
-Private Sub GenerateList()
-
-  Dim $BillingReport As CReportHTML
-  Dim asx As New String[0]
-  Dim xtitle As String
-  Dim Row As Integer
-
-  xtitle = "Encounter"
-  $BillingReport = New CReportHTML([("SNo"), ("Location"), xtitle, ("Patient Name"), ("Medicines")], "", "")
-  $BillingReport.UserData.Add("Location: " & cmbdepart.Text, "PARAM1")
-  $BillingReport.UserData.Add(modReportVar.GetDateTimeReport(Now(), gb.GeneralDate), "PARAM2")
-
-  For Row = 0 To GridView1.Count - 1
-    $rData1.MoveTo(Row)
-    With asx
-      .Add(CStr(Row + 1))
-      .Add(modPatient.GetPatientLocation($rData1[$FieldList[0]]))
-      .Add($rData1[$FieldList[1]])
-      .Add(modPatient.GetPatientNameByEnc($rData1[$FieldList[2]]))
-      .Add(modString.TextToHTML(GetMedicineListEncid($rData1[$FieldList[3]]).Join(gb.NewLine)))
-    End With
-    $BillingReport.Add(asx)
-    asx.Clear()
-  Next
-
-  modControlSub.OpenHTMLPreview("", $BillingReport.NewHTMLPath(), "ReportSize")
+  If chkalldate.Value = True Then
+    res = modDatabase.$myConn.Exec("select fldid,fldstarttime,fldroute,flditem,flddose,fldfreq,flddays,fldqtydisp,flduserid,fldtime from tblpatoutdosing where fldencounterval=&1", $encid)
+  Else
+    res = modDatabase.$myConn.Exec("select fldid,fldstarttime,fldroute,flditem,flddose,fldfreq,flddays,fldqtydisp,flduserid,fldtime from tblpatoutdosing where fldencounterval=&1 and fldtime>=&2 and fldtime<=&3", $encid, modDate.StartSqlDate(dtdisp.Value), modDate.EndSqlDate(dtdisp.Value))
+  Endif
+  If res.Available Then
+    hForm = New FRequest(res, "Unavailable Medicines", "Pharmacy:Unavailable", True)
+    hForm.ShowModal
+  Endif
 
 End
 

@@ -12,6 +12,7 @@ Private $xBillType As String
 Private $sBillMode As String
 Private $sClaimState As String
 Private $sClaimRefno As String
+Private $ClaimCode As String
 
 Private $rData As Result
 Private $aMyFields As String[]
@@ -49,6 +50,9 @@ Public Sub _new(encid As String, sStatus As String, DiscPackage As String, sClas
   Endif
   cmbdisctype.List = accLst
   cmbdisctype.Text = $DiscPackage
+  If modNonMedical.GetAutoBillingLock($encid, $DiscPackage) = True Then
+    cmbdisctype.Enabled = False
+  Endif
   ShowBillingParam($DiscPackage)
   rbroute.Value = True
   rbroute_Click()
@@ -103,8 +107,9 @@ Private Sub ShowBillingParam(sDisctype As String)
   $sBillMode = hForm.GetBillingMode()
   $LedgerAC = hForm.GetLedgerAC()
   $xBillType = hForm.GetBillType()
-  $sClaimState = hForm.GetClaimState()
   $sClaimRefno = hForm.GetReferenceType()
+  $ClaimCode = hForm.GetClaimCode()
+  $sClaimState = hForm.GetClaimState()
 
 End
 
@@ -124,6 +129,11 @@ Private Sub GetHImedicineCappingVar()
           hForm = New CimisAPICap($xNHISCode)
           $HiCappingVar = hForm.GetMedicineLimits()
         Endif
+
+        If Not $HiCappingVar.Count Then
+          $HiCappingVar = modClaim.GetClaimCappingLimit($encid, $ClaimCode)
+        Endif
+
       Endif
 
     Endif

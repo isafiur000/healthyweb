@@ -28,6 +28,9 @@ Public Sub _new(encid As String, DiscType As String)
   Endif
   cmbdisctype.List = accLst
   cmbdisctype.Text = $sPackage
+  If modNonMedical.GetAutoBillingLock($encid, $sPackage) = True Then
+    btnscheme.Visible = False
+  Endif
   $PatientNum = modPatient.GetPatientNoByEnc($encid)
   $xNHISCode = modPatient.GetPatientExtCOdebyEnc($encid)
   $BillMode = modNonMedical.GetDiscBindBillMode($sPackage)
@@ -222,7 +225,11 @@ Public Sub ListView1_Select()
   Dim xdate As Date
 
   If chkall.Value = False And If ListView1.Selection.Count = 1 Then
-    xdate = modBillings.CheckLastSalesItemDate(ListView1.List[ListView1.Index], $PatientNum, $xNHISCode, cmbdisctype.Text)
+    If modBasic.$SalesHistoryAlert = "Patient Code" Then
+      xdate = modBillings.CheckLastServiceSalesItemHIDate(modNonMedical.GetServiceItemHIAbbv(ListView1.List[ListView1.Index]), $PatientNum, $xNHISCode, cmbdisctype.Text)
+    Else
+      xdate = modBillings.CheckLastSalesItemDate(ListView1.List[ListView1.Index], $PatientNum, $xNHISCode, cmbdisctype.Text)
+    Endif
     If xdate Then
       txtlastsaledate.Text = modReportVar.GetDateTimeReport(xdate, gb.MediumDate)
       If DateDiff(xdate, Now(), gb.Month) <= 3 Then
