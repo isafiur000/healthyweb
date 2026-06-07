@@ -58,11 +58,11 @@ Public Sub _new()
   ''--------------------- Cashier -------------
   cmbtype.List = ["All", "Test", "Service", "Procedure", "Equipment", "Radio", "Others", "Package", "Group"]
   cmbmode.List = modBasic.$BillBillingMode
-  If modBasic.$BillAlterPackage = "Yes" Then
-    cmbdisctype.List = modBasic.$BillDiscountAll
-  Else
-    cmbdisctype.List = modBasic.$BillDiscountCash
-  Endif
+  ' If modBasic.$BillAlterPackage = "Yes" Then
+  '   cmbdisctype.List = modBasic.$BillDiscountAll
+  ' Else
+  '   cmbdisctype.List = modBasic.$BillDiscountCash
+  ' Endif
   modBillings.SetCashBillingTaxDiscountText(txtax, txtdisc)
   modSettings.ShowCheckBox(chkall, "BillingOption/AllLocations")
   $ShowAutoPay = modSettings.ShowSettingFromFIle("BillingSettings/AutoDisplayPayable")
@@ -251,17 +251,18 @@ Public Sub btnshow_Click()
 
         $xNHISCode = modPatient.GetPatientExtCOdebyEnc(Trim(txtencid.Text))
         $DiscPackage = modNonMedical.DefaultBillingScheme(Trim(txtencid.Text), modBasic.$compID)
-        If Not cmbdisctype.List.Exist($DiscPackage) Then
-          cmbdisctype.Add($DiscPackage)
-        Endif
-        cmbdisctype.Text = $DiscPackage
-        If modBasic.$BillAlterPackage = "Yes" Then
-          cmbdisctype.Enabled = True
-        Else If modBasic.$BillAlterPackage = "Partial" Then
-          cmbdisctype.Enabled = True
-        Else
-          cmbdisctype.Enabled = False
-        Endif
+        ServicePackComboBox()
+        ' If Not cmbdisctype.List.Exist($DiscPackage) Then
+        '   cmbdisctype.Add($DiscPackage)
+        ' Endif
+        ' cmbdisctype.Text = $DiscPackage
+        ' If modBasic.$BillAlterPackage = "Yes" Then
+        '   cmbdisctype.Enabled = True
+        ' Else If modBasic.$BillAlterPackage = "Partial" Then
+        '   cmbdisctype.Enabled = True
+        ' Else
+        '   cmbdisctype.Enabled = False
+        ' Endif
         xlock = False
         resx = modDatabase.$myConn.Exec("select fldmode,fldbillingmode,fldacledger,fldbilltype,fldreference,fldlimit,fldlockstate from tbldiscount where fldtype=&1", $DiscPackage)
         If resx.Available Then
@@ -780,12 +781,62 @@ Public Sub TabStrip1_Click()
 
   If txtpatientname.Text Then
     If TabStrip1.Index = 0 Then
+      ServicePackComboBox()
       LoadNewGridView()
     Else If TabStrip1.Index = 1 Then
+      PharmacyPackCombo()
       LoadPharmGridView()
     Else If TabStrip1.Index = 2 Then
       LoadSavedGridView()
     Endif
+  Endif
+
+End
+
+Private Sub ServicePackComboBox()
+
+  Dim xList As String[]
+
+  If modBasic.$BillAlterServPackage = "Yes" Then
+    xList = modBasic.$BillDiscountAll
+  Else
+    xList = modBasic.$BillDiscountCash
+  Endif
+  If Not xList.Exist($DiscPackage) Then
+    xList.Add($DiscPackage)
+  Endif
+  cmbdisctype.List = xList
+  cmbdisctype.Text = $DiscPackage
+  If modBasic.$BillAlterServPackage = "Yes" Then
+    cmbdisctype.Enabled = True
+  Else If modBasic.$BillAlterServPackage = "Partial" Then
+    cmbdisctype.Enabled = True
+  Else
+    cmbdisctype.Enabled = False
+  Endif
+
+End
+
+Private Sub PharmacyPackCombo()
+
+  Dim xList As String[]
+
+  If modBasic.$BillAlterPharmPackage = "Yes" Then
+    xList = modBasic.$BillDiscountAll
+  Else
+    xList = modBasic.$BillDiscountCash
+  Endif
+  If Not xList.Exist($DiscPackage) Then
+    xList.Add($DiscPackage)
+  Endif
+  cmbdisctype.List = xList
+  cmbdisctype.Text = $DiscPackage
+  If modBasic.$BillAlterPharmPackage = "Yes" Then
+    cmbdisctype.Enabled = True
+  Else If modBasic.$BillAlterPharmPackage = "Partial" Then
+    cmbdisctype.Enabled = True
+  Else
+    cmbdisctype.Enabled = False
   Endif
 
 End
@@ -2220,10 +2271,10 @@ Public Sub mnueditnewpack_Click()
 
   If GridView1.Selection.Count Then
     $rData.MoveTo(GridView1.Selection[0])
-    If modBasic.$BillAlterPackage = "Yes" Or If modBasic.$BillAlterPackage = "Partial" Then
-      If modBasic.$BillAlterPackage = "Yes" Then
+    If modBasic.$BillAlterServPackage = "Yes" Or If modBasic.$BillAlterServPackage = "Partial" Then
+      If modBasic.$BillAlterServPackage = "Yes" Then
         pckList = modBasic.$BillDiscountAll
-      Else If modBasic.$BillAlterPackage = "Partial" Then
+      Else If modBasic.$BillAlterServPackage = "Partial" Then
         pckList = modBasic.$BillDiscountCash
       Endif
       xpack = InputCombo("Select Package", Trim(txtencid.Text), pckList, $rData["flddisctype"], True)
@@ -2262,10 +2313,10 @@ Public Sub mnupackageall_Click()
   Dim xpack As String
   Dim pckList As String[]
 
-  If modBasic.$BillAlterPackage = "Yes" Or If modBasic.$BillAlterPackage = "Partial" Then
-    If modBasic.$BillAlterPackage = "Yes" Then
+  If modBasic.$BillAlterServPackage = "Yes" Or If modBasic.$BillAlterServPackage = "Partial" Then
+    If modBasic.$BillAlterServPackage = "Yes" Then
       pckList = modBasic.$BillDiscountAll
-    Else If modBasic.$BillAlterPackage = "Partial" Then
+    Else If modBasic.$BillAlterServPackage = "Partial" Then
       pckList = modBasic.$BillDiscountCash
     Endif
     xpack = InputCombo("Select Package", Trim(txtencid.Text), pckList, "", True)
@@ -4734,10 +4785,10 @@ Public Sub mnupackphmall_Click()
   Dim xpack As String
   Dim pckList As String[]
 
-  If modBasic.$BillAlterPackage = "Yes" Or If modBasic.$BillAlterPackage = "Partial" Then
-    If modBasic.$BillAlterPackage = "Yes" Then
+  If modBasic.$BillAlterPharmPackage = "Yes" Or If modBasic.$BillAlterPharmPackage = "Partial" Then
+    If modBasic.$BillAlterPharmPackage = "Yes" Then
       pckList = modBasic.$BillDiscountAll
-    Else If modBasic.$BillAlterPackage = "Partial" Then
+    Else If modBasic.$BillAlterPharmPackage = "Partial" Then
       pckList = modBasic.$BillDiscountCash
     Endif
     xpack = InputCombo("Select Package", Trim(txtencid.Text), pckList, "", True)
