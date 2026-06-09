@@ -106,18 +106,10 @@ Private Sub GetICDNamesIMIS(sEncid As String)
     cVar = New Variant[]
 
     dColl = New Collection
-    If modBasic.$RegistNewClaimEnc = "Disable" Then
-      If modBasic.$IMISICDForm = "ICD10" Then
-        dColl.Add("R69", "code")
-      Else
-        dColl.Add("MG48", "code")
-      Endif
+    If modBasic.$IMISICDForm = "ICD10" Then
+      dColl.Add("", "code")
     Else
-      If modBasic.$IMISICDForm = "ICD10" Then
-        dColl.Add("", "code")
-      Else
-        dColl.Add("", "code")
-      Endif
+      dColl.Add("", "code")
     Endif
     cVar.Add(dColl)
     cColl.Add(cVar, "coding")
@@ -319,14 +311,16 @@ Public Function UploadClaim() As String
   Dim xdoc As String
   Dim nmcLst As String[]
   Dim xnmc As String
+  Dim xnewclaim As String
 
   Dim sComVar As Variant[]
   Dim sComColl As Collection
   Dim iComColl As Collection
 
-  res = modDatabase.$myConn.Exec("select fldstatus,fldtime,fldclaimtype from tblclaimcode where fldclaimid=&1", $ClaimCode)
+  res = modDatabase.$myConn.Exec("select fldstatus,fldtime,fldclaimtype,fldclaimcode from tblclaimcode where fldclaimid=&1", $ClaimCode)
   If res.Available Then
     If res["fldclaimtype"] Then
+      xnewclaim = res["fldclaimcode"]
       xTypeVar = New Variant[]
       varColl = New Collection
       varColl.Add("http://hl7.org/fhir/StructureDefinition/Product", "url")
@@ -401,7 +395,11 @@ Public Function UploadClaim() As String
 
   lColl.Add(oColl, "type")
   lColl.Add("usual", "use")
-  lColl.Add($ClaimCode, "value")
+  If modBasic.$RegistCreateHIClaim = "Enable" Then
+    lColl.Add(xnewclaim, "value")
+  Else
+    lColl.Add($ClaimCode, "value")
+  Endif
 
   lVar.Add(lColl)
 
@@ -434,24 +432,21 @@ Public Function UploadClaim() As String
     xVar.Add(sComVar, "information")
   Endif
 
-  If modBasic.$RegistNewClaimEnc = "Disable" Then
+  If $xnmcNo.Count Then
+    docLst = modString.GetDistinctStringArray($xnmcNo)
+    nmcLst = New String[]
+    For Each xdoc In docLst
+      xnmc = modGeneral.GetPrescriberCodeFromName(xdoc)
+      If xnmc Then
+        nmcLst.Add(xnmc)
+      Endif
+    Next
+    xVar.Add(nmcLst.Join(","), "nmc")
   Else
-    If $xnmcNo.Count Then
-      docLst = modString.GetDistinctStringArray($xnmcNo)
-      nmcLst = New String[]
-      For Each xdoc In docLst
-        xnmc = modGeneral.GetPrescriberCodeFromName(xdoc)
-        If xnmc Then
-          nmcLst.Add(xnmc)
-        Endif
-      Next
-      xVar.Add(nmcLst.Join(","), "nmc")
-    Else
-      xVar.Add("", "nmc")
-    Endif
-
-    xVar.Add(xcare, "careType")
+    xVar.Add("", "nmc")
   Endif
+
+  xVar.Add(xcare, "careType")
 
   If modBasic.$IMISCACert = "Disable" Then
     acmd = "curl -k -u " & $xAuthString & " -H " & Quote(xcont) & " -H " & Quote($HeadString) & " -d '" & JSON.Encode(xVar) & "' -X POST " & xurl
@@ -486,6 +481,7 @@ Private Sub RecordRemoteClaim(xOutPut As String)
     Endif
   Next
   If xremote Then
+    modBasic.DebugAPIString("Claim Code is : " & xremote)
     modClaim.SaveRemoteHiClaimCode($ClaimCode, xremote)
   Endif
 

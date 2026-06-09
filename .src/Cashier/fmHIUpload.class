@@ -24,11 +24,7 @@ Public Sub _new()
   If cmbaccount.Count Then
     cmbaccount.Index = 0
   Endif
-  If modBasic.$RegistNewClaimEnc = "Disable" Then
-    cmbnodiagno.List = ["Disable", "Enable"]
-  Else
-    cmbnodiagno.Enabled = False
-  Endif
+
   $ClinicianLst = GetClinicianList()
   dtfir.Value = Now()
   dtlast.Value = Now()
@@ -152,7 +148,7 @@ End
 
 Private Sub FillGridView()
 
-  Dim xList As String[] = ["fldchequeno", "fldbankname", "fldencounterval", "fldencounterval", "fldencounterval", "fldchequeno", "fldbilltype", "fldchequeno", "fldchequeno", "fldchequeno", "fldchequeno"]
+  Dim xList As String[] = ["fldchequeno", "fldbankname", "fldencounterval", "fldencounterval", "fldencounterval", "fldchequeno", "fldbilltype", "fldchequeno", "fldchequeno", "fldchequeno", "fldchequeno", "fldchequeno"]
   Dim sql1 As String
   Dim sql2 As String
   Dim encid As String
@@ -172,21 +168,11 @@ Private Sub FillGridView()
   Endif
 
   If cmbstate.Text = "Pending" Then
-    If modBasic.$RegistNewClaimEnc = "Disable" Then
-      xsear = " and fldbillno not in(select fldbillno from tblbillupload)"
-      xsear1 = " and fldbillno not in(select fldbillno from tblbillupload)"
-    Else
-      xsear = " and fldbillno in(select fldbillno from " & $tblpatbilling & " where fldclaimstate IS NULL)"
-      xsear1 = " and fldbillno in(select fldbillno from tblpatbilling where fldclaimstate IS NULL)"
-    Endif
+    xsear = " and fldbillno in(select fldbillno from " & $tblpatbilling & " where fldclaimstate IS NULL)"
+    xsear1 = " and fldbillno in(select fldbillno from tblpatbilling where fldclaimstate IS NULL)"
   Else If cmbstate.Text = "Completed" Then
-    If modBasic.$RegistNewClaimEnc = "Disable" Then
-      xsear = " and fldbillno in(select fldbillno from tblbillupload)"
-      xsear1 = " and fldbillno in(select fldbillno from tblbillupload)"
-    Else
-      xsear = " and fldbillno in(select fldbillno from " & $tblpatbilling & " where fldclaimstate IS NOT NULL)"
-      xsear1 = " and fldbillno in(select fldbillno from tblpatbilling where fldclaimstate IS NOT NULL)"
-    Endif
+    xsear = " and fldbillno in(select fldbillno from " & $tblpatbilling & " where fldclaimstate IS NOT NULL)"
+    xsear1 = " and fldbillno in(select fldbillno from tblpatbilling where fldclaimstate IS NOT NULL)"
   Else
     xsear = ""
     xsear1 = ""
@@ -245,6 +231,7 @@ Private Sub FillGridView()
     Endif
     .Columns[9].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
     .Columns[10].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
+    .Columns[11].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
 
     .Columns[0].Text = "Reference"
     .Columns[1].Text = "Account"
@@ -256,6 +243,7 @@ Private Sub FillGridView()
     .Columns[8].Text = "Receipt"
     .Columns[9].Text = "Origin"
     .Columns[10].Text = "NHIS"
+    .Columns[11].Text = "ClaimCode"
   End With
 
 End
@@ -286,6 +274,8 @@ Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableDat
     Data.Text = modReportVar.GetDateTimeReport(modClaim.GetHIClaimTime($rData[$aMyFields[Column]]), gb.GeneralDate)
   Else If Column = 10 Then
     Data.Text = modNonMedical.GetPatientNHSIbyCode($rData[$aMyFields[Column]], modDatabase.$myConn)
+  Else If Column = 11 Then
+    Data.Text = modClaim.GetRemoteClaimCode($rData[$aMyFields[Column]])
   Else
     Data.Text = $rData[$aMyFields[Column]]
   Endif
@@ -327,7 +317,6 @@ Public Sub GridView1_Select()
     Endif
     txtgridclaim.Text = $rData["fldchequeno"]
     txtaccount.Text = $rData["fldbankname"]
-    cmbnodiagno.Text = ""
     txtcomment.Text = ""
     If modClaim.GetHIClaimState($rData["fldchequeno"]) = "Patient Ward" Then
       xstate = modPatient.CurrentAdmissionStatus($rData["fldencounterval"])
@@ -624,16 +613,11 @@ Private Sub GetSalesClaim()
   Dim aCode As String
   Dim xgo As Boolean
 
-  If cmbnodiagno.Text = "Enable" Then
-    NoDiagno = True
+  NoDiagno = False
+  If txtsearch.Text Then
     xgo = True
   Else
-    NoDiagno = False
-    If txtsearch.Text Then
-      xgo = True
-    Else
-      xgo = False
-    Endif
+    xgo = False
   Endif
 
   If txtgridnhsi.Text And If xgo = True Then

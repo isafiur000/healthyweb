@@ -5,11 +5,7 @@ Public Function GetCurrentClaimCodeVIew(encid As String, xstatus As String) As S
 
   Dim xclaim As String
 
-  If modBasic.$RegistNewClaimEnc = "Disable" Then
-    xclaim = ShowOnlyClaimOld(encid, xstatus)
-  Else
-    xclaim = ShowOnlyClaimNew(encid, xstatus)
-  Endif
+  xclaim = ShowOnlyClaimNew(encid, xstatus)
 
   Return xclaim
 
@@ -21,8 +17,20 @@ Public Function GetCurrentClaimCodePrint(encid As String) As String
   Dim xstatus As String
 
   xstatus = GetClaimStatus(encid)
-  If modBasic.$RegistNewClaimEnc = "Disable" Then
-    xclaim = ShowOnlyClaimOld(encid, xstatus)
+  xclaim = ShowOnlyClaimNew(encid, xstatus)
+
+  Return xclaim
+
+End
+
+Public Function GetCurrentClaimCodeReport(encid As String) As String
+
+  Dim xclaim As String
+  Dim xstatus As String
+
+  xstatus = GetClaimStatus(encid)
+  If modBasic.$RegistCreateHIClaim = "Enable" Then
+    xclaim = ShowOnlyClaimReport(encid, xstatus)
   Else
     xclaim = ShowOnlyClaimNew(encid, xstatus)
   Endif
@@ -37,14 +45,10 @@ Public Function GetClaimCidePatient(encid As String, claimType As String) As Str
   Dim xstatus As String
 
   xstatus = GetClaimStatus(encid)
-  If modBasic.$RegistNewClaimEnc = "Disable" Then
-    xclaim = ShowCreateClaimOld(encid, xstatus)
+  If claimType Then
+    xclaim = ShowCreateClaimNew(encid, xstatus, claimType)
   Else
-    If claimType Then
-      xclaim = ShowCreateClaimNew(encid, xstatus, claimType)
-    Else
-      xclaim = ShowCreateClaimNew(encid, xstatus)
-    Endif
+    xclaim = ShowCreateClaimNew(encid, xstatus)
   Endif
 
   Return xclaim
@@ -145,7 +149,7 @@ Public Function GetClaimCappingLimit(encid As String, xClaim As String) As Colle
 
 End
 
-Private Function GetRemoteClaimCode(xClaim As String) As String
+Public Function GetRemoteClaimCode(xClaim As String) As String
 
   Dim res As Result
   Dim xx As String
@@ -412,6 +416,91 @@ Public Sub UpdateCLaimToIPD(xnhis As String, aclaim As String)
 End
 
 ''================================== Daily Format ==============================
+Private Sub ShowOnlyClaimReport(encid As String, xstatus As String) As String
+
+  Dim dfirdate As Date
+  Dim dlstdate As Date
+  Dim res1 As Result
+  Dim res2 As Result
+  Dim xclaim As String
+  Dim xpatno As String
+
+  If xstatus = "Consultation" Then
+    xpatno = modPatient.GetPatientNoByEnc(encid)
+    dfirdate = modDate.StartSqlDate(Now())
+    dlstdate = moddate.EndSqlDate(Now())
+    res1 = modDatabase.$myConn.Exec("select t1.fldclaimid as fldclaimid,t1.fldclaimcode as fldclaimcode from tblclaimcode as t1 inner join tblencounter as t2 ON t1.fldencounterval=t2.fldencounterval where t2.fldpatientval=&1 and t1.fldtime>=&2 and t1.fldtime<=&3 and t1.fldstatus=&4 and t1.fldclaimid IS NOT NULL ORDER BY t1.fldtime", xpatno, dfirdate, dlstdate, "Consultation")
+    If res1.Available Then
+      res1.MoveLast
+      If res1["fldclaimcode"] Then
+        xclaim = res1["fldclaimcode"]
+      Else
+        If res1["fldclaimid"] Then
+          xclaim = res1["fldclaimid"]
+        Else
+          xclaim = ""
+        Endif
+      Endif
+    Else
+      res2 = modDatabase.$myConn.Exec("select fldclaimid,fldclaimcode from tblclaimcode where fldencounterval=&1 and fldtime>=&2 and fldtime<=&3 and fldstatus=&4 and fldclaimid IS NOT NULL", encid, dfirdate, dlstdate, "Consultation")
+      If res2.Available Then
+        res2.MoveLast
+        If res2["fldclaimcode"] Then
+          xclaim = res2["fldclaimcode"]
+        Else
+          If res2["fldclaimid"] Then
+            xclaim = res2["fldclaimid"]
+          Else
+            xclaim = ""
+          Endif
+        Endif
+      Else
+        xclaim = ""
+      Endif
+    Endif  ''end of consultation
+
+  Else If xstatus = "Emergency" Then
+    dfirdate = moddate.StartSqlDate(DateAdd(Now(), gb.Hour, -72))
+    dlstdate = moddate.EndSqlDate(Now())
+    res1 = modDatabase.$myConn.Exec("select fldclaimid,fldclaimcode from tblclaimcode where fldencounterval=&1 and fldtime>=&2 and fldtime<=&3 and fldstatus=&4 and fldclaimid IS NOT NULL ORDER BY fldtime", encid, dfirdate, dlstdate, xstatus)
+    If res1.Available Then
+      res1.MoveLast
+      If res1["fldclaimcode"] Then
+        xclaim = res1["fldclaimcode"]
+      Else
+        If res1["fldclaimid"] Then
+          xclaim = res1["fldclaimid"]
+        Else
+          xclaim = ""
+        Endif
+      Endif
+    Else
+      xclaim = ""
+    Endif
+
+  Else
+    res1 = modDatabase.$myConn.Exec("select fldclaimid,fldclaimcode from tblclaimcode where fldencounterval=&1 and fldstatus=&2", encid, "Patient Ward")
+    If res1.Available Then
+      res1.MoveLast
+      If res1["fldclaimcode"] Then
+        xclaim = res1["fldclaimcode"]
+      Else
+        If res1["fldclaimid"] Then
+          xclaim = res1["fldclaimid"]
+        Else
+          xclaim = ""
+        Endif
+      Endif
+    Else
+      xclaim = ""
+    Endif
+
+  Endif
+
+  Return xclaim
+
+End
+
 Private Sub ShowOnlyClaimNew(encid As String, xstatus As String) As String
 
   Dim dfirdate As Date
@@ -532,160 +621,6 @@ Private Sub ShowCreateClaimNew(encid As String, xstatus As String, Optional sTyp
     Else
       xclaim = GetNewClaimCode(encid, xType)
     Endif
-  Endif
-
-  Return xclaim
-
-End
-
-''================================== Old Format ==============================
-Private Sub ShowOnlyClaimOld(encid As String, xstatus As String) As String
-
-  Dim dfirdate As Date
-  Dim dlstdate As Date
-  Dim res1 As Result
-  Dim res2 As Result
-  Dim xclaim As String
-  Dim xpatno As String
-  Dim res As Result
-
-  If xstatus = "Consultation" Then
-    xpatno = modPatient.GetPatientNoByEnc(encid)
-    dfirdate = modDate.StartSqlDate(Now())
-    dlstdate = moddate.EndSqlDate(Now())
-    res1 = modDatabase.$myConn.Exec("select t1.fldclaimid as fldclaimid from tblclaimcode as t1 inner join tblencounter as t2 ON t1.fldencounterval=t2.fldencounterval where t2.fldpatientval=&1 and t1.fldtime>=&2 and t1.fldtime<=&3 and t1.fldstatus=&4 and t1.fldclaimid IS NOT NULL ORDER BY t1.fldtime", xpatno, dfirdate, dlstdate, "Consultation")
-    If res1.Available Then
-      res1.MoveLast
-      If res1["fldclaimid"] Then
-        xclaim = res1["fldclaimid"]
-      Else
-        xclaim = ""
-      Endif
-    Else
-      dfirdate = moddate.StartSqlDate(DateAdd(Date(), gb.Day, -6))
-      dlstdate = moddate.EndSqlDate(Now())
-      res = modDatabase.$myConn.Exec("select t1.fldclaimid as fldclaimid from tblclaimcode as t1 inner join tblencounter as t2 ON t1.fldencounterval=t2.fldencounterval where t2.fldpatientval=&1 and t2.fldfollow=&2 and t1.fldtime>=&3 and t1.fldtime<=&4 and t1.fldstatus=&5 and t1.fldclaimid IS NOT NULL ORDER BY t1.fldtime", xpatno, "Follow-up", dfirdate, dlstdate, "Consultation")
-      If res.Available Then
-        res.MoveLast
-        If res["fldclaimid"] Then
-          xclaim = res["fldclaimid"]
-        Else
-          xclaim = ""
-        Endif
-      Else
-        res2 = modDatabase.$myConn.Exec("select fldclaimid from tblclaimcode where fldencounterval=&1 and fldtime>=&2 and fldtime<=&3 and fldstatus=&4 and fldclaimid IS NOT NULL", encid, dfirdate, dlstdate, "Consultation")
-        If res2.Available Then
-          res2.MoveLast
-          If res2["fldclaimid"] Then
-            xclaim = res2["fldclaimid"]
-          Else
-            xclaim = ""
-          Endif
-        Else
-          xclaim = ""
-        Endif
-      Endif
-    Endif  ''end of consultation
-
-  Else If xstatus = "Emergency" Then
-    xpatno = modPatient.GetPatientNoByEnc(encid)
-    dfirdate = moddate.StartSqlDate(DateAdd(Now(), gb.Hour, -72))
-    dlstdate = moddate.EndSqlDate(Now())
-    res1 = modDatabase.$myConn.Exec("select t1.fldclaimid as fldclaimid from tblclaimcode as t1 inner join tblencounter as t2 ON t1.fldencounterval=t2.fldencounterval where t2.fldpatientval=&1 and t1.fldtime>=&2 and t1.fldtime<=&3 and t1.fldstatus=&4 and t1.fldclaimid IS NOT NULL ORDER BY t1.fldtime", xpatno, dfirdate, dlstdate, xstatus)
-    If res1.Available Then
-      res1.MoveLast
-      If res1["fldclaimid"] Then
-        xclaim = res1["fldclaimid"]
-      Else
-        xclaim = ""
-      Endif
-    Else
-      xclaim = ""
-    Endif
-
-  Else
-    res1 = modDatabase.$myConn.Exec("select fldclaimid from tblclaimcode where fldencounterval=&1 and fldstatus=&2", encid, "Patient Ward")
-    If res1.Available Then
-      res1.MoveLast
-      If res1["fldclaimid"] Then
-        xclaim = res1["fldclaimid"]
-      Else
-        xclaim = ""
-      Endif
-    Else
-      xclaim = ""
-    Endif
-
-  Endif
-
-  Return xclaim
-
-End
-
-Private Sub ShowCreateClaimOld(encid As String, xstatus As String) As String
-
-  Dim dfirdate As Date
-  Dim dlstdate As Date
-  Dim res1 As Result
-  Dim res2 As Result
-  Dim res As Result
-  Dim xclaim As String
-  Dim xpatno As String
-  Dim resx As Result
-
-  If xstatus = "Consultation" Then
-    xpatno = modPatient.GetPatientNoByEnc(encid)
-    dfirdate = moddate.StartSqlDate(DateAdd(Date(), gb.Day, -6))
-    dlstdate = moddate.EndSqlDate(Now())
-    res2 = modDatabase.$myConn.Exec("select fldclaimid from tblclaimcode where fldencounterval=&1 and fldtime>=&2 and fldtime<=&3 and fldstatus=&4 and fldclaimid IS NOT NULL", encid, dfirdate, dlstdate, "Consultation")
-    If res2.Available Then
-      res2.MoveLast
-      xclaim = res2["fldclaimid"]
-    Else
-      res = modDatabase.$myConn.Exec("select t1.fldclaimid as fldclaimid from tblclaimcode as t1 inner join tblencounter as t2 ON t1.fldencounterval=t2.fldencounterval where t2.fldpatientval=&1 and t2.fldfollow=&2 and t1.fldtime>=&3 and t1.fldtime<=&4 and t1.fldstatus=&5 and t1.fldclaimid IS NOT NULL ORDER BY t1.fldtime", xpatno, "Follow-up", dfirdate, dlstdate, "Consultation")
-      If res.Available Then
-        res.MoveLast
-        xclaim = res["fldclaimid"]
-      Else
-        dfirdate = modDate.StartSqlDate(Now())
-        dlstdate = moddate.EndSqlDate(Now())
-        res1 = modDatabase.$myConn.Exec("select t1.fldclaimid as fldclaimid from tblclaimcode as t1 inner join tblencounter as t2 ON t1.fldencounterval=t2.fldencounterval where t2.fldpatientval=&1 and t1.fldtime>=&2 and t1.fldtime<=&3 and t1.fldstatus=&4 and t1.fldclaimid IS NOT NULL ORDER BY t1.fldtime", xpatno, dfirdate, dlstdate, "Consultation")
-        If res1.Available Then
-          res1.MoveLast
-          xclaim = res1["fldclaimid"]
-        Else
-          resx = modDatabase.$myConn.Exec("select fldclaimid from tblclaimcode where fldencounterval=&1", encid)
-          If Not resx.Available Then
-            xclaim = GetNewClaimCode(encid)
-          Endif
-        Endif
-      Endif
-    Endif
-
-  Else If xstatus = "Emergency" Then
-    xpatno = modPatient.GetPatientNoByEnc(encid)
-    dfirdate = moddate.StartSqlDate(DateAdd(Now(), gb.Hour, -72))
-    dlstdate = moddate.EndSqlDate(Now())
-    res1 = modDatabase.$myConn.Exec("select t1.fldclaimid as fldclaimid from tblclaimcode as t1 inner join tblencounter as t2 ON t1.fldencounterval=t2.fldencounterval where t2.fldpatientval=&1 and t1.fldtime>=&2 and t1.fldtime<=&3 and t1.fldstatus=&4 and t1.fldclaimid IS NOT NULL ORDER BY t1.fldtime", xpatno, dfirdate, dlstdate, xstatus)
-    If res1.Available Then
-      res1.MoveLast
-      xclaim = res1["fldclaimid"]
-    Else
-      resx = modDatabase.$myConn.Exec("select fldclaimid from tblclaimcode where fldencounterval=&1", encid)
-      If Not resx.Available Then
-        xclaim = GetNewClaimCode(encid)
-      Endif
-    Endif
-
-  Else
-    res1 = modDatabase.$myConn.Exec("select fldclaimid from tblclaimcode where fldencounterval=&1 and fldstatus=&2", encid, "Patient Ward")
-    If res1.Available Then
-      res1.MoveLast
-      xclaim = res1["fldclaimid"]
-    Else
-      xclaim = GetNewClaimCode(encid)
-    Endif
-
   Endif
 
   Return xclaim
