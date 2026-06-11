@@ -162,9 +162,13 @@ Private Sub FillGridView()
     encid = "%"
   Endif
   If txtreference.Text Then
-    xrefno = Trim(txtreference.Text)
+    If modBasic.$RegistCreateHIClaim = "Disable" Then
+      xrefno = db.Subst(" and fldclaimid like &1", Trim(txtreference.Text))
+    Else
+      xrefno = db.Subst(" and fldclaimcode like &1", Trim(txtreference.Text))
+    Endif
   Else
-    xrefno = "%"
+    xrefno = ""
   Endif
 
   If cmbstate.Text = "Pending" Then
@@ -180,34 +184,34 @@ Private Sub FillGridView()
 
   If chkexitdate.Value = True And If cmblocat.Text = "Patient Ward" Then
     If cmbsource.Text = "Invoice" Then
-      sql1 = "select " & xList.Join(",") & " from " & $tblpatbilldetail & " where fldbankname like &1 and fldencounterval like &2 and fldbilltype like &3" & xsear & " and fldencounterval in(select fldencounterval from tblencounter where flddod>=&4 and flddod<=&5) and fldchequeno in(select fldclaimid from tblclaimcode where fldstatus like &6) and fldchequeno like &7 GROUP BY fldchequeno"
-      sql2 = "select " & xList.Join(",") & " from tblpatbilldetail where fldbankname like &1 and fldencounterval like &2 and fldbilltype like &3" & xsear1 & " and fldencounterval in(select fldencounterval from tblencounter where flddod>=&4 and flddod<=&5) and fldchequeno in(select fldclaimid from tblclaimcode where fldstatus like &6) and fldchequeno like &7 GROUP BY fldchequeno"
+      sql1 = "select " & xList.Join(",") & " from " & $tblpatbilldetail & " where fldbankname like &1 and fldencounterval like &2 and fldbilltype like &3" & xsear & " and fldencounterval in(select fldencounterval from tblencounter where flddod>=&4 and flddod<=&5) and fldchequeno in(select fldclaimid from tblclaimcode where fldstatus like &6" & xrefno & ") GROUP BY fldchequeno"
+      sql2 = "select " & xList.Join(",") & " from tblpatbilldetail where fldbankname like &1 and fldencounterval like &2 and fldbilltype like &3" & xsear1 & " and fldencounterval in(select fldencounterval from tblencounter where flddod>=&4 and flddod<=&5) and fldchequeno in(select fldclaimid from tblclaimcode where fldstatus like &6" & xrefno & ") GROUP BY fldchequeno"
     Else If cmbsource.Text = "Receipt" Then
-      sql1 = "select " & xList.Join(",") & " from " & $tbltempbilldetail & " where fldbankname like &1 and fldencounterval like &2 and fldbilltype like &3" & xsear & " and fldencounterval in(select fldencounterval from tblencounter where flddod>=&4 and flddod<=&5) and fldchequeno in(select fldclaimid from tblclaimcode where fldstatus like &6) and fldchequeno like &7 GROUP BY fldchequeno"
-      sql2 = "select " & xList.Join(",") & " from tbltempbilldetail where fldbankname like &1 and fldencounterval like &2 and fldbilltype like &3" & xsear1 & " and fldencounterval in(select fldencounterval from tblencounter where flddod>=&4 and flddod<=&5) and fldchequeno in(select fldclaimid from tblclaimcode where fldstatus like &6) and fldchequeno like &7 GROUP BY fldchequeno"
+      sql1 = "select " & xList.Join(",") & " from " & $tbltempbilldetail & " where fldbankname like &1 and fldencounterval like &2 and fldbilltype like &3" & xsear & " and fldencounterval in(select fldencounterval from tblencounter where flddod>=&4 and flddod<=&5) and fldchequeno in(select fldclaimid from tblclaimcode where fldstatus like &6" & xrefno & ") GROUP BY fldchequeno"
+      sql2 = "select " & xList.Join(",") & " from tbltempbilldetail where fldbankname like &1 and fldencounterval like &2 and fldbilltype like &3" & xsear1 & " and fldencounterval in(select fldencounterval from tblencounter where flddod>=&4 and flddod<=&5) and fldchequeno in(select fldclaimid from tblclaimcode where fldstatus like &6" & xrefno & ") GROUP BY fldchequeno"
     Else
-      sql1 = "select " & xList.Join(",") & " from " & $tblpatbilldetail & " where fldbankname like &1 and fldencounterval like &2 and fldbilltype like &3" & xsear & " and fldencounterval in(select fldencounterval from tblencounter where flddod>=&4 and flddod<=&5) and fldchequeno in(select fldclaimid from tblclaimcode where fldstatus like &6) and fldchequeno like &7 GROUP BY fldchequeno UNION select " & xList.Join(",") & " from " & $tbltempbilldetail & " where fldbankname like &1 and fldencounterval like &2 and fldbilltype like &3" & xsear & " and fldencounterval in(select fldencounterval from tblencounter where flddod>=&4 and flddod<=&5) and fldchequeno in(select fldclaimid from tblclaimcode where fldstatus like &6) and fldchequeno like &7 GROUP BY fldchequeno"
-      sql2 = "select " & xList.Join(",") & " from tblpatbilldetail where fldbankname like &1 and fldencounterval like &2 and fldbilltype like &3" & xsear1 & " and fldencounterval in(select fldencounterval from tblencounter where flddod>=&4 and flddod<=&5) and fldchequeno in(select fldclaimid from tblclaimcode where fldstatus like &6) and fldchequeno like &7 GROUP BY fldchequeno UNION select " & xList.Join(",") & " from tbltempbilldetail where fldbankname like &1 and fldencounterval like &2 and fldbilltype like &3" & xsear1 & " and fldencounterval in(select fldencounterval from tblencounter where flddod>=&4 and flddod<=&5) and fldchequeno in(select fldclaimid from tblclaimcode where fldstatus like &6) and fldchequeno like &7 GROUP BY fldchequeno"
+      sql1 = "select " & xList.Join(",") & " from " & $tblpatbilldetail & " where fldbankname like &1 and fldencounterval like &2 and fldbilltype like &3" & xsear & " and fldencounterval in(select fldencounterval from tblencounter where flddod>=&4 and flddod<=&5) and fldchequeno in(select fldclaimid from tblclaimcode where fldstatus like &6" & xrefno & ") GROUP BY fldchequeno UNION select " & xList.Join(",") & " from " & $tbltempbilldetail & " where fldbankname like &1 and fldencounterval like &2 and fldbilltype like &3" & xsear & " and fldencounterval in(select fldencounterval from tblencounter where flddod>=&4 and flddod<=&5) and fldchequeno in(select fldclaimid from tblclaimcode where fldstatus like &6" & xrefno & ") GROUP BY fldchequeno"
+      sql2 = "select " & xList.Join(",") & " from tblpatbilldetail where fldbankname like &1 and fldencounterval like &2 and fldbilltype like &3" & xsear1 & " and fldencounterval in(select fldencounterval from tblencounter where flddod>=&4 and flddod<=&5) and fldchequeno in(select fldclaimid from tblclaimcode where fldstatus like &6" & xrefno & ") GROUP BY fldchequeno UNION select " & xList.Join(",") & " from tbltempbilldetail where fldbankname like &1 and fldencounterval like &2 and fldbilltype like &3" & xsear1 & " and fldencounterval in(select fldencounterval from tblencounter where flddod>=&4 and flddod<=&5) and fldchequeno in(select fldclaimid from tblclaimcode where fldstatus like &6" & xrefno & ") GROUP BY fldchequeno"
     Endif
 
   Else
     If cmbsource.Text = "Invoice" Then
-      sql1 = "select " & xList.Join(",") & " from " & $tblpatbilldetail & " where fldbankname like &1 and fldencounterval like &2 and fldbilltype like &3" & xsear & " and fldchequeno in(select fldclaimid from tblclaimcode where fldtime>=&4 and fldtime<=&5 and fldstatus like &6) and fldchequeno like &7 GROUP BY fldchequeno"
-      sql2 = "select " & xList.Join(",") & " from tblpatbilldetail where fldbankname like &1 and fldencounterval like &2 and fldbilltype like &3" & xsear1 & " and fldchequeno in(select fldclaimid from tblclaimcode where fldtime>=&4 and fldtime<=&5 and fldstatus like &6) and fldchequeno like &7 GROUP BY fldchequeno"
+      sql1 = "select " & xList.Join(",") & " from " & $tblpatbilldetail & " where fldbankname like &1 and fldencounterval like &2 and fldbilltype like &3" & xsear & " and fldchequeno in(select fldclaimid from tblclaimcode where fldtime>=&4 and fldtime<=&5 and fldstatus like &6" & xrefno & ") GROUP BY fldchequeno"
+      sql2 = "select " & xList.Join(",") & " from tblpatbilldetail where fldbankname like &1 and fldencounterval like &2 and fldbilltype like &3" & xsear1 & " and fldchequeno in(select fldclaimid from tblclaimcode where fldtime>=&4 and fldtime<=&5 and fldstatus like &6" & xrefno & ") GROUP BY fldchequeno"
     Else If cmbsource.Text = "Receipt" Then
-      sql1 = "select " & xList.Join(",") & " from " & $tbltempbilldetail & " where fldbankname like &1 and fldencounterval like &2 and fldbilltype like &3" & xsear & " and fldchequeno in(select fldclaimid from tblclaimcode where fldtime>=&4 and fldtime<=&5 and fldstatus like &6) and fldchequeno like &7 GROUP BY fldchequeno"
-      sql2 = "select " & xList.Join(",") & " from tbltempbilldetail where fldbankname like &1 and fldencounterval like &2 and fldbilltype like &3" & xsear1 & " and fldchequeno in(select fldclaimid from tblclaimcode where fldtime>=&4 and fldtime<=&5 and fldstatus like &6) and fldchequeno like &7 GROUP BY fldchequeno"
+      sql1 = "select " & xList.Join(",") & " from " & $tbltempbilldetail & " where fldbankname like &1 and fldencounterval like &2 and fldbilltype like &3" & xsear & " and fldchequeno in(select fldclaimid from tblclaimcode where fldtime>=&4 and fldtime<=&5 and fldstatus like &6" & xrefno & ") GROUP BY fldchequeno"
+      sql2 = "select " & xList.Join(",") & " from tbltempbilldetail where fldbankname like &1 and fldencounterval like &2 and fldbilltype like &3" & xsear1 & " and fldchequeno in(select fldclaimid from tblclaimcode where fldtime>=&4 and fldtime<=&5 and fldstatus like &6" & xrefno & ") GROUP BY fldchequeno"
     Else
-      sql1 = "select " & xList.Join(",") & " from " & $tblpatbilldetail & " where fldbankname like &1 and fldencounterval like &2 and fldbilltype like &3" & xsear & " and fldchequeno in(select fldclaimid from tblclaimcode where fldtime>=&4 and fldtime<=&5 and fldstatus like &6) and fldchequeno like &7 GROUP BY fldchequeno UNION select " & xList.Join(",") & " from " & $tbltempbilldetail & " where fldbankname like &1 and fldencounterval like &2 and fldbilltype like &3" & xsear & " and fldchequeno in(select fldclaimid from tblclaimcode where fldtime>=&4 and fldtime<=&5 and fldstatus like &6) and fldchequeno like &7 GROUP BY fldchequeno"
-      sql2 = "select " & xList.Join(",") & " from tblpatbilldetail where fldbankname like &1 and fldencounterval like &2 and fldbilltype like &3" & xsear1 & " and fldchequeno in(select fldclaimid from tblclaimcode where fldtime>=&4 and fldtime<=&5 and fldstatus like &6) and fldchequeno like &7 GROUP BY fldchequeno UNION select " & xList.Join(",") & " from tbltempbilldetail where fldbankname like &1 and fldencounterval like &2 and fldbilltype like &3" & xsear1 & " and fldchequeno in(select fldclaimid from tblclaimcode where fldtime>=&4 and fldtime<=&5 and fldstatus like &6) and fldchequeno like &7 GROUP BY fldchequeno"
+      sql1 = "select " & xList.Join(",") & " from " & $tblpatbilldetail & " where fldbankname like &1 and fldencounterval like &2 and fldbilltype like &3" & xsear & " and fldchequeno in(select fldclaimid from tblclaimcode where fldtime>=&4 and fldtime<=&5 and fldstatus like &6" & xrefno & ") GROUP BY fldchequeno UNION select " & xList.Join(",") & " from " & $tbltempbilldetail & " where fldbankname like &1 and fldencounterval like &2 and fldbilltype like &3" & xsear & " and fldchequeno in(select fldclaimid from tblclaimcode where fldtime>=&4 and fldtime<=&5 and fldstatus like &6" & xrefno & ") GROUP BY fldchequeno"
+      sql2 = "select " & xList.Join(",") & " from tblpatbilldetail where fldbankname like &1 and fldencounterval like &2 and fldbilltype like &3" & xsear1 & " and fldchequeno in(select fldclaimid from tblclaimcode where fldtime>=&4 and fldtime<=&5 and fldstatus like &6" & xrefno & ") GROUP BY fldchequeno UNION select " & xList.Join(",") & " from tbltempbilldetail where fldbankname like &1 and fldencounterval like &2 and fldbilltype like &3" & xsear1 & " and fldchequeno in(select fldclaimid from tblclaimcode where fldtime>=&4 and fldtime<=&5 and fldstatus like &6" & xrefno & ") GROUP BY fldchequeno"
     Endif
 
   Endif
 
   If cmbfiscal.Text = "Current" Then
-    $rData = modDatabase.$myConn.Exec(sql1, cmbaccount.Text, encid, "Credit", modDate.StartSqlDate(dtfir.value), modDate.EndSqlDate(dtlast.value), cmblocat.Text, xrefno)                  ''
+    $rData = modDatabase.$myConn.Exec(sql1, cmbaccount.Text, encid, "Credit", modDate.StartSqlDate(dtfir.value), modDate.EndSqlDate(dtlast.value), cmblocat.Text)                  ''
   Else
-    $rData = modDatabase.$myConn.Exec(sql1 & " UNION ALL " & sql2, cmbaccount.Text, encid, "Credit", modDate.StartSqlDate(dtfir.value), modDate.EndSqlDate(dtlast.value), cmblocat.Text, xrefno)                  ''
+    $rData = modDatabase.$myConn.Exec(sql1 & " UNION ALL " & sql2, cmbaccount.Text, encid, "Credit", modDate.StartSqlDate(dtfir.value), modDate.EndSqlDate(dtlast.value), cmblocat.Text)                  ''
   Endif
   $aMyFields = New String[]
   modGridView.ReadSmallData(GridView1, $rData, $aMyFields)
@@ -318,6 +322,12 @@ Public Sub GridView1_Select()
     txtgridclaim.Text = $rData["fldchequeno"]
     txtaccount.Text = $rData["fldbankname"]
     txtcomment.Text = ""
+    If txtgridclaim.Text Like "HIB-" & "*" Then
+      modBasic.$RegistCreateHIClaim = modClaim.$claimFormat
+    Else
+      modBasic.$RegistCreateHIClaim = "Disable"
+    Endif
+    txtformat.Text = modBasic.$RegistCreateHIClaim
     If modClaim.GetHIClaimState($rData["fldchequeno"]) = "Patient Ward" Then
       xstate = modPatient.CurrentAdmissionStatus($rData["fldencounterval"])
       If xstate = "Admitted" Then
@@ -331,6 +341,7 @@ Public Sub GridView1_Select()
       btnupload.Enabled = True
       btngridclaim.Enabled = True
     Endif
+
     SHowDiagnosis()
     SHowCreditGrid()
   Endif
@@ -378,8 +389,10 @@ Public Sub btnupload_Click()
 
   If GridView1.Selection.Count Then
     $rData.MoveTo(GridView1.Selection[0])
-    hForm = New FmHIReports($rData["fldencounterval"], $rData["fldchequeno"], $rData["fldbankname"], cmbfiscal.Text)
-    hForm.ShowModal
+    If txtgridencid.Text And If txtgridnhsi.Text And If txtgridclaim.Text Then
+      hForm = New FmHIReports($rData["fldencounterval"], $rData["fldchequeno"], $rData["fldbankname"], cmbfiscal.Text)
+      hForm.ShowModal
+    Endif
   Endif
 
 End
@@ -514,10 +527,12 @@ End
 Public Sub btngridclaim_Click()
 
   If GridView2.Count Then
-    If rbsales.Value = True Then
-      GetSalesClaim()
-    Else If rbretn.Value = True Then
-      GetReturnClaim()
+    If txtgridencid.Text And If txtgridnhsi.Text And If txtgridclaim.Text Then
+      If rbsales.Value = True Then
+        GetSalesClaim()
+      Else If rbretn.Value = True Then
+        GetReturnClaim()
+      Endif
     Endif
   Endif
 
@@ -570,13 +585,13 @@ Private Sub GetReturnClaim()
           Endif
         Next
 
-        If modBasic.$RegistCreateHIClaim = "Enable" Then
+        If modBasic.$RegistCreateHIClaim = "Disable" Then
+          xclaim = txtgridclaim.Text
+        Else
           xclaim = modClaim.GetRemoteClaimCode(txtgridclaim.Text)
           If Not xclaim Then
             xclaim = txtgridclaim.Text
           Endif
-        Else
-          xclaim = txtgridclaim.Text
         Endif
         hForm = New CimisAPIReturn(txtgridencid.Text, xclaim, xcateg, xSNo)
         xout = hForm.GetAPIOutput()
@@ -874,5 +889,13 @@ Public Sub btnupdatediagno_Click()
       Message.Warning(xout, "OK")
     Endif
   Endif
+
+End
+
+Public Sub chkoldformat_Click()
+
+  txtgridencid.Text = ""
+  txtgridnhsi.Text = ""
+  txtgridclaim.Text = ""
 
 End

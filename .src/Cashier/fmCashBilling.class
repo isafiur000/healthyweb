@@ -1407,7 +1407,7 @@ Public Sub chksave_Click()
         txtotal.Value = Round(txtrate.Value * txtqty.Value * (1 - txtdisc.Value / 100) * (1 + txtax.Value / 100), -2)
       Endif
 
-      If AllowServiceInput() = True Then
+      If AllowServiceInput(hPatient.GetCashCreditMode()) = True Then
         If AllowLockCheckPunching() = True Then
           If CheckDepositBilling(txtotal.Value + txttotnew.Value + txttotsaved.Value) = True Then
             AddEntryToBill()
@@ -1427,12 +1427,12 @@ Public Sub chksave_Click()
 
 End
 
-Private Function AllowServiceInput() As Boolean
+Private Function AllowServiceInput(xbilltype As String) As Boolean
 
   Dim xallow As Boolean
 
   xallow = True
-  If hPatient.GetCashCreditMode() = "Cash" Then
+  If xbilltype = "Cash" Then
     Select modBasic.$BillServiceNoEntry
       Case "Cash", "Both"
         xallow = False
@@ -1450,12 +1450,12 @@ Private Function AllowServiceInput() As Boolean
 
 End
 
-Private Function AllowPharmInput() As Boolean
+Private Function AllowPharmInput(xbilltype As String) As Boolean
 
   Dim xallow As Boolean
 
   xallow = True
-  If hPatient.GetCashCreditMode() = "Cash" Then
+  If xbilltype = "Cash" Then
     Select modBasic.$BillPharmNoEntry
       Case "Cash", "Both"
         xallow = False
@@ -4307,7 +4307,7 @@ Public Sub chksavenew_Click()
       Else
         If txtencid.Text And If cmbroute.Text And If cmbmedicine.Text And If txtqtymed.Value Then
 
-          If AllowPharmInput() = True Then
+          If AllowPharmInput(hPatient.GetCashCreditMode()) = True Then
             If AllowLockCheckPunching() = True Then
               EnterDosingRecord()
               If $DefaultPharmType Then
@@ -5498,30 +5498,30 @@ Private Sub AutoClaimProcedure(sType As String[])
   ' Dim hForm2 As FmUploadReport
 
   AutoClaimIMIS(cmbdisctype.Text, sType)
-  If modBasic.$RegistCreateHIClaim = "Enable" Then
-    sClaim = modClaim.GetRemoteClaimCode(txtreference.Text)
-  Else
+  If modBasic.$RegistCreateHIClaim = "Disable" Then
     sClaim = txtreference.Text
+  Else
+    sClaim = modClaim.GetRemoteClaimCode(txtreference.Text)
   Endif
   If sClaim Then
     If modBasic.$ClaimAutoDocs = "Enable" Then
-      AutoUploadClaimDocs(cmbdisctype.Text, sClaim, sType)
+      AutoUploadClaimDocs(cmbdisctype.Text, txtreference.Text, sType, sClaim)
     Else If modBasic.$ClaimAutoDocs = "AutoScan" Then
-      AutoUploadClaimDocs(cmbdisctype.Text, sClaim, sType)
+      AutoUploadClaimDocs(cmbdisctype.Text, txtreference.Text, sType, sClaim)
       If hPatient.$StickerMode = True Then
       Else
         hForm = New FmScanForm(Trim(txtencid.Text), "Scanned Images", cmbdisctype.Text & "|" & sClaim)
         hForm.ShowModal
       Endif
     Else If modBasic.$ClaimAutoDocs = "AutoDocs" Then
-      AutoUploadClaimDocs(cmbdisctype.Text, sClaim, sType)
+      AutoUploadClaimDocs(cmbdisctype.Text, txtreference.Text, sType, sClaim)
       If hPatient.$StickerMode = True Then
       Else
         ' hForm1 = New FmCreateReport(Trim(txtencid.Text), cmbdisctype.Text & "|" & sClaim)
         ' hForm1.ShowModal
       Endif
     Else If modBasic.$ClaimAutoDocs = "AddDocs" Then
-      AutoUploadClaimDocs(cmbdisctype.Text, sClaim, sType)
+      AutoUploadClaimDocs(cmbdisctype.Text, txtreference.Text, sType, sClaim)
       If hPatient.$StickerMode = True Then
       Else
         ' hForm2 = New FmUploadReport(Trim(txtencid.Text), cmbdisctype.Text & "|" & sClaim)
@@ -5555,7 +5555,7 @@ Private Sub UploadHIClaimAuto()
 
 End
 
-Private Sub AutoUploadClaimDocs(sPackage As String, sClaim As String, TypeLst As String[])
+Private Sub AutoUploadClaimDocs(sPackage As String, sClaim As String, TypeLst As String[], xRemote As String)
 
   Dim sType As String
   Dim xacc As String
@@ -5583,7 +5583,7 @@ Private Sub AutoUploadClaimDocs(sPackage As String, sClaim As String, TypeLst As
       xFilePath = modClaimAPI.GetHIInvoiceReceiptData(sInvList)
       Wait
       If Exist(xFilePath) Then
-        aOutPath = modClaimAPI.UploadImagesFilesClaimServerHI(sClaim, xFilePath)
+        aOutPath = modClaimAPI.UploadImagesFilesClaimServerHI(xRemote, xFilePath)
         If aOutPath = xFilePath Then
           For Each xinvoice In sInvList
             modAccount.InsertClaimInvoice(xinvoice)

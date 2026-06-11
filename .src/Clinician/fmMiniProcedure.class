@@ -3,9 +3,6 @@
 Private $encid As String
 Private $BillMode As String
 Private $sPackage As String
-Private $sClaimState As String
-Private $sClaimRefno As String
-Private $ClaimCode As String
 
 Private $xFinClear As Boolean
 Private $PatientNum As String
@@ -93,27 +90,20 @@ Private Sub ShowBillingParam(sPack As String)
   $HiCappingVar = New Collection
   hForm = New CPackageParams($encid, sPack)
   $BillMode = hForm.GetBillingMode()
-  $sClaimRefno = hForm.GetReferenceType()
-  $ClaimCode = hForm.GetClaimCode()
-  $sClaimState = hForm.GetClaimState()
 
 End
 
-Private Sub GetHImedicineCappingVar()
+Private Sub GetHImedicineCappingVar(xClaimCode As String)
 
-  If cmbdisctype.Text = modBasic.$HIPackage Or If cmbdisctype.Text = modBasic.$HIPackageER Then
-    If modBasic.$IMISValidateURL Then
-
-      If modClaim.GetChronicClaimStatus($encid) = True Then
-        If $HiCappingVar.Count Then
-          $HiCappingVar.Clear()
-        Endif
-      Else
-        If Not $HiCappingVar.Count Then
-          $HiCappingVar = modClaim.GetClaimCappingLimit($encid, $ClaimCode)
-        Endif
+  If modBasic.$IMISValidateURL Then
+    If modClaim.GetChronicClaimStatus($encid) = True Then
+      If $HiCappingVar.Count Then
+        $HiCappingVar.Clear()
       Endif
-
+    Else
+      If Not $HiCappingVar.Count Then
+        $HiCappingVar = modClaim.GetClaimCappingLimit($encid, xClaimCode)
+      Endif
     Endif
   Endif
 
@@ -283,7 +273,7 @@ Public Sub Unpaidtable()
 
   Dim sql As String
 
-  sql = "select fldid,fldordtime,flditemname,fldstatus,fldid,fldreason from tblpatbilling where fldencounterval=&1 and flditemtype=&2 and fldsave=&3 and (fldstatus=&4 or fldstatus=&5) and (fldtarget=&6 or fldtarget=&7 or fldtarget=&8) and (flditemqty-fldretqty)>&9"
+  sql = "select fldid,fldordtime,flditemname,fldstatus,fldid,fldreason,flddisctype from tblpatbilling where fldencounterval=&1 and flditemtype=&2 and fldsave=&3 and (fldstatus=&4 or fldstatus=&5) and (fldtarget=&6 or fldtarget=&7 or fldtarget=&8) and (flditemqty-fldretqty)>&9"
   $rData4 = modDatabase.$myConn.Exec(sql, $encid, "Procedures", False, "Punched", "Planned", "Minor", "Extra", "Plaster", 0)
   $aMyFields4 = New String[]
   modGridView.ReadSmallData(GridView4, $rData4, $aMyFields4)
@@ -295,10 +285,12 @@ Public Sub Unpaidtable()
     .Columns[3].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
     .Columns[4].Hidden = True
     .Columns[5].Hidden = True
+    .Columns[6].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
 
     .Columns[1].Text = "DateTime"
     .Columns[2].Text = "Procedure"
     .Columns[3].Text = "Status"
+    .Columns[6].Text = "Scheme"
   End With
 
 End
@@ -350,6 +342,19 @@ Public Sub btnsave_Click()
 
   Dim res As Result
   Dim xadv As String
+  Dim hForm As CBillReference
+
+  Dim CForm As CBillReference
+  Dim xrefrn As String
+  Dim xstate As String
+
+  For Each $rData4
+    If $rData4["flddisctype"] = modBasic.$HIPackage Or If $rData4["flddisctype"] = modBasic.$HIPackageER Then
+      hForm = New CBillReference($encid, "Claim Code")
+      GetHImedicineCappingVar(hForm.GetClaimCode())
+      Break
+    Endif
+  Next
 
   res = modDatabase.$myConn.Edit("tblpatbilling", "fldencounterval=&1 and flditemtype=&2 and fldsave=&3 and fldstatus=&4 and fldordcomp=&5 and (fldtarget=&6 or fldtarget=&7 or fldtarget=&8)", $encid, "Procedures", False, "Punched", modBasic.$compID, "Minor", "Extra", "Plaster")                 ''
   If res.Available Then
@@ -360,32 +365,39 @@ Public Sub btnsave_Click()
     Endif
 
     For Each res
+      xrefrn = modNonMedical.GetFixedReferenceScheme(res["flddisctype"])
+      If xrefrn = "Claim Code" Then
+        CForm = New CBillReference($encid, xrefrn)
+        xstate = CForm.GetClaimState()
+      Else
+        xstate = ""
+      Endif
 
       If modBasic.$AutoBillProcedure = "Standard" Then
         If modNonMedical.AllowPreCheckDeposit($encid, "Procedure", res["flditemname"], res["fldditemamt"], res["fldbilltype"]) = True Then
-          SavePartialEntry(res, xadv)
+          SavePartialEntry(res, xstate, xadv)
         Endif
       Else If modBasic.$AutoBillProcedure = "RefOnly" Then
-        If $sClaimRefno Then
+        If xrefrn Then
           If modNonMedical.AllowPreCheckDeposit($encid, "Procedure", res["flditemname"], res["fldditemamt"], res["fldbilltype"]) = True Then
-            SavePartialEntry(res, xadv)
+            SavePartialEntry(res, xstate, xadv)
           Endif
         Else
           If modNonMedical.AllowPreEntryWithDeposit($encid, "Procedure", res["flditemname"], res["fldditemamt"], res["fldbilltype"]) = True Then
-            SavePartialEntry(res, xadv)
+            SavePartialEntry(res, xstate, xadv)
           Endif
         Endif
       Else If modBasic.$AutoBillProcedure = "Full" Then
         If modNonMedical.AllowPreEntryWithDeposit($encid, "Procedure", res["flditemname"], res["fldditemamt"], res["fldbilltype"]) = True Then
-          SavePartialEntry(res, xadv)
+          SavePartialEntry(res, xstate, xadv)
         Endif
       Else
         If modBasic.$AutoBillSaveZero = "Yes" And If res["flditemrate"] = 0 Then
-          SavePartialEntry(res, xadv)
+          SavePartialEntry(res, xstate, xadv)
         Else If modBasic.$AutoBillSaveZero = "Yes" And If res["flddiscper"] = 100 Then
-          SavePartialEntry(res, xadv)
+          SavePartialEntry(res, xstate, xadv)
         Else If modBasic.$AutoBillSaveFullCredit = "Yes" And If res["fldbilltype"] = "Credit" And If res["fldcashincredit"] = 0 Then
-          SavePartialEntry(res, xadv)
+          SavePartialEntry(res, xstate, xadv)
         Endif
       Endif
 
@@ -397,7 +409,7 @@ Public Sub btnsave_Click()
 
 End
 
-Private Sub SavePartialEntry(res As Result, Optional advReceipt As String)
+Private Sub SavePartialEntry(res As Result, xstate As String, Optional advReceipt As String)
 
   Dim xdate As Date
   Dim xcapday As Integer
@@ -407,7 +419,7 @@ Private Sub SavePartialEntry(res As Result, Optional advReceipt As String)
 
   ygo = True
   xfixcode = modNonMedical.GetServiceItemHIAbbv(res["flditemname"])
-  If $sClaimState = "Consultation" Or If $sClaimState = "Patient Ward" Then
+  If xstate = "Consultation" Or If xstate = "Patient Ward" Then
     If GetHICapGo(xfixcode, res["flditemname"], res["flditemqty"], res["flddisctype"]) = True Then
       ygo = True
     Else
@@ -418,7 +430,7 @@ Private Sub SavePartialEntry(res As Result, Optional advReceipt As String)
   xgo = True
   xcapday = modNonMedical.GetCappingDayFromItemName(res["flditemname"])
   If xcapday Then
-    If $sClaimState = "Consultation" Or If $sClaimState = "Patient Ward" Then
+    If xstate = "Consultation" Or If xstate = "Patient Ward" Then
       If modBasic.$SalesHistoryAlert = "Patient Code" Then
         xdate = modBillings.CheckLastServiceSalesItemHIDate(xfixcode, $PatientNum, $xNHISCode, res["flddisctype"])
       Else

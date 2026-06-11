@@ -1,5 +1,7 @@
 ' Gambas module file
 
+Public $claimFormat As String
+
 ''----------------------- Claim COde -----------------------
 Public Function GetCurrentClaimCodeVIew(encid As String, xstatus As String) As String
 
@@ -29,10 +31,10 @@ Public Function GetCurrentClaimCodeReport(encid As String) As String
   Dim xstatus As String
 
   xstatus = GetClaimStatus(encid)
-  If modBasic.$RegistCreateHIClaim = "Enable" Then
-    xclaim = ShowOnlyClaimReport(encid, xstatus)
-  Else
+  If modBasic.$RegistCreateHIClaim = "Disable" Then
     xclaim = ShowOnlyClaimNew(encid, xstatus)
+  Else
+    xclaim = ShowOnlyClaimReport(encid, xstatus)
   Endif
 
   Return xclaim
@@ -126,7 +128,7 @@ Public Function GetClaimCappingLimit(encid As String, xClaim As String) As Colle
   Endif
 
   If Not xval Then
-    res1 = modDatabase.$myConn.Exec("select fldoutput from tblclaimcode where fldencounterval=&1 and fldoutput IS NOT NULL ORDER BY fldtime", encid)
+    res1 = modDatabase.$myConn.Exec("select fldoutput from tblclaimcode where fldencounterval=&1 and fldoutput IS NOT NULL ORDER BY fldtime DESC", encid)
     If res1.Available Then
       res1.MoveFirst
       If res1["fldoutput"] Then
@@ -181,30 +183,7 @@ Public Function GetNewClaimCode(encid As String, Optional xType As String) As St
     xnhis = modNonMedical.GetPatientNHSIbyEncounter(encid)
   Endif
   If xnhis Then
-    If modBasic.$RegistCreateHIClaim = "Enable" Then
-      modDatabase.$myConn.Begin
-      aclaim = "HIB-" & modBillLock.CurrentHIClaim() & modBasic.$HospCode
-      If aclaim Then
-        res = modDatabase.$myConn.Create("tblclaimcode")
-        res["fldclaimid"] = aclaim
-        res["fldclaimcode"] = ""
-        res["fldencounterval"] = encid
-        res["fldptcode"] = xnhis
-        If xType Then
-          res["fldclaimtype"] = xType
-        Endif
-        res["fldstatus"] = GetClaimStatus(encid)
-        res["fldtime"] = Now()
-        res["flduserid"] = modBasic.$lbluser
-        res["xyz"] = False
-        res.Update
-        xclaim = aclaim
-        modDatabase.$myConn.Commit
-      Else
-        modDatabase.$myConn.Rollback
-      Endif
-
-    Else
+    If modBasic.$RegistCreateHIClaim = "Disable" Then
       res2 = modDatabase.$myConn.Limit(2).Exec("select fldclaimid from tblclaimcode where fldencounterval IS NULL")
       If res2.Available Then
         res2.MoveFirst
@@ -225,6 +204,29 @@ Public Function GetNewClaimCode(encid As String, Optional xType As String) As St
         Endif
       Else
         Message.Warning(("No Claim Code available. Please contact your administrator"), ("OK"))
+      Endif
+
+    Else
+      modDatabase.$myConn.Begin
+      aclaim = "HIB-" & modBillLock.CurrentHIClaim() & modBasic.$HospCode
+      If aclaim Then
+        res = modDatabase.$myConn.Create("tblclaimcode")
+        res["fldclaimid"] = aclaim
+        res["fldclaimcode"] = ""
+        res["fldencounterval"] = encid
+        res["fldptcode"] = xnhis
+        If xType Then
+          res["fldclaimtype"] = xType
+        Endif
+        res["fldstatus"] = GetClaimStatus(encid)
+        res["fldtime"] = Now()
+        res["flduserid"] = modBasic.$lbluser
+        res["xyz"] = False
+        res.Update
+        xclaim = aclaim
+        modDatabase.$myConn.Commit
+      Else
+        modDatabase.$myConn.Rollback
       Endif
 
     Endif

@@ -14,6 +14,7 @@ Private $PatUUID As String
 Private $DiagnoVar As Variant[]
 Private $ItemVar As Variant[]
 Private $ItemTot As Float
+Private $xnewclaim As String
 
 Private Sub SetAuthentication()
 
@@ -311,7 +312,6 @@ Public Function UploadClaim() As String
   Dim xdoc As String
   Dim nmcLst As String[]
   Dim xnmc As String
-  Dim xnewclaim As String
 
   Dim sComVar As Variant[]
   Dim sComColl As Collection
@@ -320,7 +320,7 @@ Public Function UploadClaim() As String
   res = modDatabase.$myConn.Exec("select fldstatus,fldtime,fldclaimtype,fldclaimcode from tblclaimcode where fldclaimid=&1", $ClaimCode)
   If res.Available Then
     If res["fldclaimtype"] Then
-      xnewclaim = res["fldclaimcode"]
+      $xnewclaim = res["fldclaimcode"]
       xTypeVar = New Variant[]
       varColl = New Collection
       varColl.Add("http://hl7.org/fhir/StructureDefinition/Product", "url")
@@ -395,10 +395,10 @@ Public Function UploadClaim() As String
 
   lColl.Add(oColl, "type")
   lColl.Add("usual", "use")
-  If modBasic.$RegistCreateHIClaim = "Enable" Then
-    lColl.Add(xnewclaim, "value")
-  Else
+  If modBasic.$RegistCreateHIClaim = "Disable" Then
     lColl.Add($ClaimCode, "value")
+  Else
+    lColl.Add($xnewclaim, "value")
   Endif
 
   lVar.Add(lColl)
@@ -457,8 +457,11 @@ Public Function UploadClaim() As String
   Shell acmd To xpatout
   modBasic.DebugAPIString("Response: " & xpatout)
 
-  If modBasic.$RegistCreateHIClaim = "Enable" Then
-    RecordRemoteClaim(xpatout)
+  If modBasic.$RegistCreateHIClaim = "Disable" Then
+  Else
+    If Not $xnewclaim Then
+      RecordRemoteClaim(xpatout)
+    Endif
   Endif
 
   Return xpatout
@@ -474,15 +477,17 @@ Private Sub RecordRemoteClaim(xOutPut As String)
 
   sColl = JSON.Decode(xOutPut)
   xvar = sColl["identifier"]
-  For Each xColl In xvar
-    If xColl["type"]["coding"][0]["code"] = "MR" Then
-      xremote = xColl["value"]
-      Break
+  If xvar And If xvar.Count Then
+    For Each xColl In xvar
+      If xColl["type"]["coding"][0]["code"] = "MR" Then
+        xremote = xColl["value"]
+        Break
+      Endif
+    Next
+    If xremote Then
+      modBasic.DebugAPIString("Claim Code is : " & xremote)
+      modClaim.SaveRemoteHiClaimCode($ClaimCode, xremote)
     Endif
-  Next
-  If xremote Then
-    modBasic.DebugAPIString("Claim Code is : " & xremote)
-    modClaim.SaveRemoteHiClaimCode($ClaimCode, xremote)
   Endif
 
 End
