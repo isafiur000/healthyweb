@@ -10,6 +10,7 @@ Private $ColCount As Integer
 Private $newColumn As String[]
 Private $RepoStr As String
 Private $MapColl As Collection
+Private $sPath As String
 
 Public Sub _new()
 
@@ -1445,5 +1446,39 @@ Public Sub mnugetdicom_Click()
     hForm = New FmTestImage("DICOM", $rData["fldencounterval"], $rData[modDataRepo.SerialField()], $rData["fldtestid"], "Radiology", "")
     hForm.ShowModal
   Endif
+
+End
+
+Public Sub mnuopenview_Click()
+
+  If $sPath Then
+    Me.Exec("window.open('" & $sPath & "'); ")
+  Endif
+
+End
+
+Public Sub mnuviewpacs_Click()
+
+  Dim res As Result
+  Dim xserver As String
+
+  If GridView1.Selection.Count Then
+    $rData.MoveTo(GridView1.Selection[0])
+    res = modDatabase.$myConn.Exec("select fldpacstudy,fldpacseries,fldpacsform,fldpacsnode from tblpatradiotest where fldid=&1 and fldencounterval=&2", $rData["fldid"], $rData["fldencounterval"])
+    If res.Available Then
+      If res["fldpacseries"] Then
+        xserver = modPACS.GetPacsNodeFromHost(res["fldpacsnode"])
+        If xserver Then
+          modPACS.GetPacsSetting(xserver)
+          $sPath = modPACS.DicomSeriesWebView(res["fldpacsform"], $rData["fldencounterval"], res["fldpacstudy"], res["fldpacseries"])
+          mnuopenview_Click()
+        Endif
+      Endif
+    Endif
+  Endif
+
+End
+
+Public Sub mnudeskview_Click()
 
 End

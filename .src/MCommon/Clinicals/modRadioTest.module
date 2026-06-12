@@ -549,6 +549,9 @@ Public Function GetRadioValuePosition(encid As String, sExam As String, sType As
   Dim xx As String[]
   Dim xcaption As String
 
+  Dim xserver As String
+  Dim xLink As String
+
   xx = New String[]
   xcaption = modFixRadio.GetRadiotestCaption(sExam)
   If modBasic.$SuperUser = False And If xcaption = "$Encryption" Then
@@ -558,9 +561,9 @@ Public Function GetRadioValuePosition(encid As String, sExam As String, sType As
   Else
 
     If MMain.$WebEntry = True Then ''remoteoptimized
-      sql = "select fldrepoid,fldtime_report,flduserid_report from tblpatradiotest where fldencounterval=&1 and fldtestid=&2 and (fldstatus=&3 or fldstatus=&4) and flvisible=&5"
+      sql = "select fldrepoid,fldtime_report,flduserid_report,fldpacstudy,fldpacseries,fldpacsform,fldpacsnode from tblpatradiotest where fldencounterval=&1 and fldtestid=&2 and (fldstatus=&3 or fldstatus=&4) and flvisible=&5"
     Else
-      sql = "select fldid,fldtime_report,flduserid_report from tblpatradiotest where fldencounterval=&1 and fldtestid=&2 and (fldstatus=&3 or fldstatus=&4) and flvisible=&5"
+      sql = "select fldid,fldtime_report,flduserid_report,fldpacstudy,fldpacseries,fldpacsform,fldpacsnode from tblpatradiotest where fldencounterval=&1 and fldtestid=&2 and (fldstatus=&3 or fldstatus=&4) and flvisible=&5"
     Endif
     res = modDatabase.$syConn.Exec(sql, encid, sExam, "Reported", "Verified", "Visible")
     If res.Available Then
@@ -573,7 +576,18 @@ Public Function GetRadioValuePosition(encid As String, sExam As String, sType As
       If MMain.$WebEntry = True Then ''remoteoptimized
         xx.Add(modRadioTest.GetRadiobTestValueSubString(res["fldrepoid"], True))
       Else
-        xx.Add(modRadioTest.GetRadiobTestValueSubString(res["fldid"], True))
+        If res["fldpacseries"] Then
+          xserver = modPACS.GetPacsNodeFromHost(res["fldpacsnode"])
+          If xserver Then
+            modPACS.GetPacsSetting(xserver)
+            xLink = modPACS.DicomSeriesWebView(res["fldpacsform"], encid, res["fldpacstudy"], res["fldpacseries"])
+          Endif
+        Endif
+        If xLink Then
+          xx.Add(modRadioTest.GetRadiobTestValueSubString(res["fldid"], True) & "<br>" & "<a href='" & xLink & "' target='_blank'>Click</a>")
+        Else
+          xx.Add(modRadioTest.GetRadiobTestValueSubString(res["fldid"], True))
+        Endif
       Endif
       xx.Add(res["flduserid_report"])
     Else
@@ -1205,5 +1219,28 @@ Public Function GetCurrRadioValueSysConst(encid As String, xSysConst As String, 
   Endif
 
   Return xx
+
+End
+
+Public Function GetPatientDicomStudies(encid As String) As Variant[]
+
+  Dim xVar As Variant[]
+  Dim res As Result
+  Dim xColl As Collection
+
+  xVar = New Variant[]
+  res = modDatabase.$myConn.Exec("select fldpacstudy,fldpacseries,fldpacsform,fldpacsnode from tblpatradiotest where fldencounterval=&1 and fldpacstudy like &2", encid, "%")
+  If res.Available Then
+    For Each res
+      xColl = New Collection
+      xColl.Add(res["fldpacstudy"], "Study")
+      xColl.Add(res["fldpacseries"], "Series")
+      xColl.Add(res["fldpacsform"], "Format")
+      xColl.Add(res["fldpacsnode"], "Host")
+      xVar.Add(xColl)
+    Next
+  Endif
+
+  Return xVar
 
 End

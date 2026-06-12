@@ -1161,7 +1161,10 @@ Public Function ShowPatRadioReportbyEncID(encid As String) As String
   Dim xtabval As String
   Dim xcaption As String
 
-  $BillingReport = New CReportHTML([("Date"), ("Examination"), ("Observation"), ("Reference")], "PatientReport", encid)
+  Dim xserver As String
+  Dim xLink As String
+
+  $BillingReport = New CReportHTML([("Date"), ("Examination"), ("Observation"), ("Reference"), ("Link")], "PatientReport", encid)
   $BillingReport.UserData.Add("EncounterID", "Report")
   $BillingReport.UserData.Add(encid, "PARAM1")
 
@@ -1169,7 +1172,7 @@ Public Function ShowPatRadioReportbyEncID(encid As String) As String
   If res1.Available Then
     For Each res1
       $BillingReport.AddSection(res1["fldcategory"], True)
-      res2 = modDatabase.$syConn.Exec("select fldid,fldtest_type,fldtestid,fldtime_report,fldabnormal,fldstatus,fldmethod,fldsampletype,fldcomment from tblpatradiotest where fldsave_report=&1 and fldencounterval=&2 and flvisible=&3 and fldtestid in(select fldexamid from tblradio where fldcategory=&4) ORDER BY fldtime_report DESC", True, encid, "Visible", res1["fldcategory"])
+      res2 = modDatabase.$syConn.Exec("select fldid,fldtest_type,fldtestid,fldtime_report,fldabnormal,fldstatus,fldmethod,fldsampletype,fldcomment,fldpacstudy,fldpacseries,fldpacsform,fldpacsnode from tblpatradiotest where fldsave_report=&1 and fldencounterval=&2 and flvisible=&3 and fldtestid in(select fldexamid from tblradio where fldcategory=&4) ORDER BY fldtime_report DESC", True, encid, "Visible", res1["fldcategory"])
       For Each res2
         xcaption = modFixRadio.GetRadiotestCaption(res2["fldtestid"])
         With asx
@@ -1205,6 +1208,18 @@ Public Function ShowPatRadioReportbyEncID(encid As String) As String
               .Add(modRadioTest.GetRadioTestLimitSrting(res2["fldid"], encid))
             Endif
           Endif
+
+          If res2["fldpacseries"] Then
+            xserver = modPACS.GetPacsNodeFromHost(res2["fldpacsnode"])
+            If xserver Then
+              modPACS.GetPacsSetting(xserver)
+              xLink = modPACS.DicomSeriesWebView(res2["fldpacsform"], encid, res2["fldpacstudy"], res2["fldpacseries"])
+              .Add("<a href='" & xLink & "' target='_blank'>Click</a>")
+            Endif
+          Else
+            .Add("")
+          Endif
+
         End With
         $BillingReport.Add(asx)
         asx.Clear()

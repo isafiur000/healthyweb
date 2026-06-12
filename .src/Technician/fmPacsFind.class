@@ -17,6 +17,7 @@ Private $aList As Variant[]
 Private $xcoll As Collection
 
 Private xGridData As Variant[]
+Private xMarkedVar As Variant[]
 
 Public Sub _new(encid As String, sType As String, ShowSub As Boolean)
 
@@ -36,6 +37,7 @@ Public Sub _new(encid As String, sType As String, ShowSub As Boolean)
     xList.Add("REPO")
   Endif
   cmbserver.List = xList
+  xMarkedVar = modRadioTest.GetPatientDicomStudies($encNo)
 
 End
 
@@ -145,6 +147,26 @@ Public Sub mnuweasis_Click()
 
 End
 
+Private Sub GetMarkedOrthancList(sHost As String) As String[]
+
+  Dim sColl As Collection
+  Dim xList As String[]
+
+  xList = New String[]
+  For Each sColl In xMarkedVar
+    If sColl["Host"] = sHost Then
+      If sColl["Format"] = "Orthanc" Then
+        xList.Add(sColl["Study"])
+      Else
+        xList.Add(modPACS.GetOrthancString($encNo & "|" & sColl["Study"]))
+      Endif
+    Endif
+  Next
+
+  Return xList
+
+End
+
 ''=============================== First Grid ============================
 Private Function GetStudyData() As Variant[]
 
@@ -155,8 +177,10 @@ Private Function GetStudyData() As Variant[]
   Dim xVar As Variant[]
   Dim aColl As Collection
   Dim encid As String
+  Dim xMarkList As String[]
 
   xVar = New Variant[]
+  xMarkList = GetMarkedOrthancList(modPACS.$sHost)
   If $sFind = "Orthanc" Then
     For Each encid In $encList
       xcoll = modPACS.GetOrthancValueJSON("patients", modPACS.GetOrthancString(encid))
@@ -166,7 +190,11 @@ Private Function GetStudyData() As Variant[]
           aColl = New Collection
           aColl.Add("", CStr(0))
           aColl.Add(xcoll["MainDicomTags"]["PatientID"], CStr(1))
-          aColl.Add("", CStr(2))
+          If xMarkList.Exist(aList[Row]) = True Then
+            aColl.Add("icons/coll4.png", CStr(2))
+          Else
+            aColl.Add("", CStr(2))
+          Endif
           aColl.Add(xcoll["MainDicomTags"]["PatientName"], CStr(3))
           aColl.Add(xcoll["MainDicomTags"]["PatientSex"], CStr(4))
           aColl.Add("", CStr(5))
@@ -184,7 +212,11 @@ Private Function GetStudyData() As Variant[]
           aColl = New Collection
           aColl.Add(aList[Row]["00080020"]["Value"][0], CStr(0))
           aColl.Add(aList[Row]["00100020"]["Value"][0], CStr(1))
-          aColl.Add("", CStr(2))
+          If xMarkList.Exist(modPACS.GetOrthancString($encNo & "|" & aList[Row]["0020000D"]["Value"][0])) = True Then
+            aColl.Add("icons/coll4.png", CStr(2))
+          Else
+            aColl.Add("", CStr(2))
+          Endif
           aColl.Add(aList[Row]["00100010"]["Value"][0]["Alphabetic"], CStr(3))
           aColl.Add(aList[Row]["00100040"]["Value"][0], CStr(4))
           aColl.Add("", CStr(5))
@@ -202,7 +234,11 @@ Private Function GetStudyData() As Variant[]
           aColl = New Collection
           aColl.Add(aList[Row]["StudyDate"], CStr(0))
           aColl.Add(aList[Row]["PatientID"], CStr(1))
-          aColl.Add("", CStr(2))
+          If xMarkList.Exist(modPACS.GetOrthancString($encNo & "|" & aList[Row]["StudyInstanceUID"])) = True Then
+            aColl.Add("icons/coll4.png", CStr(2))
+          Else
+            aColl.Add("", CStr(2))
+          Endif
           aColl.Add(aList[Row]["PatientName"], CStr(3))
           aColl.Add(aList[Row]["PatientSex"], CStr(4))
           aColl.Add("", CStr(5))
@@ -241,7 +277,12 @@ End
 Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableData)
 
   modGridView.GridViewDecoration(Data, Row)
-  Data.Text = xGridData[Row][CStr(Column)]
+  If Column = 2 Then
+    Data.Html = modString.GetImageForHTMLGrid(modMisc.GetWebIconPath(xGridData[Row][CStr(Column)]), "100%", "100%")
+    Data.Text = ""
+  Else
+    Data.Text = xGridData[Row][CStr(Column)]
+  Endif
 
 End
 
@@ -250,7 +291,7 @@ Private Sub ResizeFirstGrid()
   With GridView1
     .Columns[0].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
     .Columns[1].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
-    .Columns[2].Hidden = True
+    .Columns[2].Width = CStr(25 * modBasic.$AppWidthRatio) & "px"
     .Columns[3].Width = CStr(200 * modBasic.$AppWidthRatio) & "px"
     .Columns[4].Width = CStr(50 * modBasic.$AppWidthRatio) & "px"
     .Columns[5].Hidden = True

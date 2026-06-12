@@ -1522,10 +1522,14 @@ Public Function GetCompleteRadioTestByEnc(encid As String) As String
   Dim xcateg As String
   Dim colCount As Integer
 
+  Dim xserver As String
+  Dim xLink As String
+
   xx = modRepoTemplete.HTMLTableSyntax()
   xx = xx & "<tr>" & gb.NewLine
   xx = xx & "<td class='reportmid_table_h'>" & "Variable" & "</td>" & gb.NewLine
   xx = xx & "<td class='reportmid_table_h'>" & "Observation" & "</td>" & gb.NewLine
+  xx = xx & "<td class='reportmid_table_h'>" & "Link" & "</td>" & gb.NewLine
   If modBasic.$SHowDayDiagnosticReport = "User" Then
     xx = xx & "<td class='reportmid_table_h'>" & "User" & "</td>" & gb.NewLine
   Else If modBasic.$SHowDayDiagnosticReport = "Date+User" Then
@@ -1538,20 +1542,20 @@ Public Function GetCompleteRadioTestByEnc(encid As String) As String
   xx = xx & "</tr>" & gb.NewLine
 
   If modBasic.$SHowDayDiagnosticReport = "Date+User" Then
-    colCount = 4
+    colCount = 5
   Else If modBasic.$SHowDayDiagnosticReport = "None" Then
-    colCount = 2
-  Else
     colCount = 3
+  Else
+    colCount = 4
   Endif
 
   categLst = modMedicine.GetPathoCategoryList("Radio")
   categLst.Add("Uncategorised")
   For Each xcateg In categLst
     If xcateg = "Uncategorised" Then
-      res = modDatabase.$syConn.Exec("select fldid,fldtime_report,fldreportquanti,fldreportquali,fldtest_type,fldtestid,flduserid_report from tblpatradiotest where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3) and flvisible=&4 and fldtestid in(select fldexamid from tblradio where fldcategory IS NULL)", encid, "Reported", "Verified", "Visible")
+      res = modDatabase.$syConn.Exec("select fldid,fldtime_report,fldreportquanti,fldreportquali,fldtest_type,fldtestid,flduserid_report,fldpacstudy,fldpacseries,fldpacsform,fldpacsnode from tblpatradiotest where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3) and flvisible=&4 and fldtestid in(select fldexamid from tblradio where fldcategory IS NULL)", encid, "Reported", "Verified", "Visible")
     Else
-      res = modDatabase.$syConn.Exec("select fldid,fldtime_report,fldreportquanti,fldreportquali,fldtest_type,fldtestid,flduserid_report from tblpatradiotest where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3) and flvisible=&4 and fldtestid in(select fldexamid from tblradio where fldcategory=&5)", encid, "Reported", "Verified", "Visible", xcateg)
+      res = modDatabase.$syConn.Exec("select fldid,fldtime_report,fldreportquanti,fldreportquali,fldtest_type,fldtestid,flduserid_report,fldpacstudy,fldpacseries,fldpacsform,fldpacsnode from tblpatradiotest where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3) and flvisible=&4 and fldtestid in(select fldexamid from tblradio where fldcategory=&5)", encid, "Reported", "Verified", "Visible", xcateg)
     Endif
     If res.Available Then
       xx = xx & "<tr align='center'>" & gb.NewLine
@@ -1565,6 +1569,19 @@ Public Function GetCompleteRadioTestByEnc(encid As String) As String
         xx = xx & "<td>" & res["fldtestid"] & "</td>" & gb.NewLine
         xval = modRadioTest.GetRadiobTestValueSubString(res["fldid"], True)
         xx = xx & "<td>" & xval & "</td>" & gb.NewLine
+        If res["fldpacseries"] Then
+          xserver = modPACS.GetPacsNodeFromHost(res["fldpacsnode"])
+          If xserver Then
+            modPACS.GetPacsSetting(xserver)
+            xLink = modPACS.DicomSeriesWebView(res["fldpacsform"], encid, res["fldpacstudy"], res["fldpacseries"])
+          Endif
+        Endif
+        If xLink Then
+          xx = xx & "<td>" & "<a href='" & xLink & "' target='_blank'>Click</a>" & "</td>" & gb.NewLine
+        Else
+          xx = xx & "<td>" & "</td>" & gb.NewLine
+        Endif
+
         If modBasic.$SHowDayDiagnosticReport = "User" Then
           xx = xx & "<td>" & res["flduserid_report"] & "</td>" & gb.NewLine
         Else If modBasic.$SHowDayDiagnosticReport = "Date+User" Then
