@@ -20,6 +20,25 @@ Public Function GetStockIDFromCardex(cardexid As Long) As String
 
 End
 
+Public Function GetRouteFromCardex(dosid As Long) As String
+
+  Dim res As Result
+  Dim xx As String
+
+  res = modDatabase.$myConn.Exec("select fldroute from tblinpatdosing where fldid=&1", dosid)
+  If res.Available Then
+    If res["fldroute"] Then
+      xx = res["fldroute"]
+    Else
+      xx = ""
+    Endif
+  Else
+    xx = ""
+  Endif
+  Return xx
+
+End
+
 Public Function GetInpatPrescriber(encid As String, xIndex As Long) As String
 
   Dim res As Result
@@ -39,16 +58,20 @@ Public Function GetInpatPrescriber(encid As String, xIndex As Long) As String
 
 End
 
-Public Function GetCardexDispensedQTY(encid As String, xCardex As Long) As Float
+Public Function GetCardexDispensedQTY(encid As String, xStockId As String) As Float
 
   Dim res As Result
   Dim xval As Float
+  Dim xpckvol As Float
 
   xval = 0
-  res = modDatabase.$myConn.Exec("select SUM(fldqtydisp-fldqtyret) as xtot from tblpatdosing where fldencounterval=&1 and flditemno=&2 and fldlevel=&3 and fldsave_order=&4", encid, xCardex, "Dispensed", True)
-  If res.Available Then
-    If res["xtot"] Then
-      xval = res["xtot"]
+  xpckvol = modMedConstant.GetPackVolValue(xStockId)
+  If xpckvol Then
+    res = modDatabase.$myConn.Exec("select SUM(fldqtydisp-fldqtyret) as xtot from tblpatdosing where fldencounterval=&1 and flditem=&2 and fldlevel=&3 and fldsave_order=&4", encid, xStockId, "Dispensed", True)
+    If res.Available Then
+      If res["xtot"] Then
+        xval = res["xtot"] * xpckvol
+      Endif
     Endif
   Endif
 
@@ -56,13 +79,13 @@ Public Function GetCardexDispensedQTY(encid As String, xCardex As Long) As Float
 
 End
 
-Public Function GetCardexAdministerQTY(encid As String, xCardex As Long) As Float
+Public Function GetCardexAdministerQTY(encid As String, xStockId As String) As Float
 
   Dim res As Result
   Dim xval As Float
 
   xval = 0
-  res = modDatabase.$myConn.Exec("select SUM(fldvalue) as xtot from tblnurdosing where fldencounterval=&1 and fldcardex=&2", encid, xCardex)
+  res = modDatabase.$myConn.Exec("select SUM(fldvalue) as xtot from tblnurdosing where fldencounterval=&1 and fldmedicine=&2", encid, xStockId)
   If res.Available Then
     If res["xtot"] Then
       xval = res["xtot"]

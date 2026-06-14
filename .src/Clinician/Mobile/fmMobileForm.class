@@ -1,13 +1,15 @@
 ' Gambas class file
 
 Private $sType As String
+Private $dicsType As String
 Private $doa As Date
 Private $sTatus As String
 
-Public Sub _new(encid As String, sType As String)
+Public Sub _new(encid As String, sType As String, xScheme As String)
 
   txtencid.Text = encid
   $sType = sType
+  $dicsType = xScheme
   modGeneralMain.GetOpenModalForm(Me)
   Me.Title = $sType
 
@@ -54,10 +56,7 @@ Private Sub LoadAttachForms()
 
   Dim hForm1 As FmClinNote
   Dim xNoteLst As String[] = ["Progress Note", "Doctor Order", "Clinicians Note", "Nurses Note", "Transfer Note"]
-
   Dim hForm2 As FmWardStock
-  Dim xScheme As String
-
   Dim hForm3 As FmIVInfusion
   Dim hForm4 As FmIPMedOrder
 
@@ -67,13 +66,16 @@ Private Sub LoadAttachForms()
     Case "Progress Note", "Doctor Order", "Clinicians Note", "Nurses Note", "Transfer Note"
       hForm1 = New FmClinNote(Trim(txtencid.Text), [$sType], $sTatus, "height-tablet-medium", WebContainer2)
     Case "Ward Stock"
-      xScheme = modNonMedical.GetAutoIPBillingPack("Pharmacy", Trim(txtencid.Text))
-      hForm2 = New FmWardStock(Trim(txtencid.Text), $sTatus, xScheme, "height-tablet-medium", WebContainer2)
+      hForm2 = New FmWardStock(Trim(txtencid.Text), $sTatus, $dicsType, "height-tablet-medium", WebContainer2)
     Case "Infusion"
-      hForm3 = New FmIVInfusion(Trim(txtencid.Text), "height-tablet-medium", WebContainer2)
+      Select $sTatus
+        Case "Admitted", "Discharged", "LAMA", "Death", "Refer", "Absconder"
+          hForm3 = New FmIVInfusion(Trim(txtencid.Text), True, "height-tablet-medium", WebContainer2)
+        Case Else
+          hForm3 = New FmIVInfusion(Trim(txtencid.Text), False, "height-tablet-medium", WebContainer2)
+      End Select
     Case "Cardex"
-      xScheme = modNonMedical.GetAutoIPBillingPack("Pharmacy", Trim(txtencid.Text))
-      hForm4 = New FmIPMedOrder(Trim(txtencid.Text), $sTatus, xScheme, "height-tablet-medium", WebContainer2)
+      hForm4 = New FmIPMedOrder(Trim(txtencid.Text), $sTatus, $dicsType, "height-tablet-medium", WebContainer2)
   End Select
 
 End

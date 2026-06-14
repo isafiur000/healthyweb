@@ -1,17 +1,24 @@
 ' Gambas class file
 
 Private $encid As String
+Private $useCardex As Boolean
 
 Private $rFludRes As Result
 Private $aFludFields As String[]
 Private $rRateRes As Result
 Private $aRateFields As String[]
 
-Public Sub _new(encid As String, sClass As String)
+Public Sub _new(encid As String, useCardex As Boolean, sClass As String)
 
   $encid = encid
+  $useCardex = useCardex
   WebContainer6.Class = sClass
 
+  If $useCardex = True Then
+    chkalldate.Visible = False
+  Else
+    chkalldate.Visible = True
+  Endif
   ShowMedFluids()
 
 End
@@ -25,6 +32,8 @@ End
 Private Sub ShowMedFluids()
 
   Dim sql As String
+  Dim sql1 As String
+  Dim sql2 As String
   Dim xrouLst As String[] = ["fluid", "CIV", "CIn(Epid)", "CIn(Block)"]
   Dim j As Integer
 
@@ -32,12 +41,18 @@ Private Sub ShowMedFluids()
     xrouLst[j] = "'" & xrouLst[j] & "'"
   Next
 
-  If chkalldate.Value = True Then
-    sql = "select fldid,fldid,CONCAT(flditem, '|', COALESCE(fldmixing, '')),flddose,fldfreq,flddays,fldstarttime,fldcurval,fldstarttime,fldstatus,fldendtime,flddirection,fldadminsite,fldmixing,fldroute,flditem,fldmixvolume,fldmixrate from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldroute IN(" & xrouLst.Join(",") & ") and fldcurval=&3 and flddose>&4 ORDER BY fldstarttime DESC"
-    $rFludRes = modDatabase.$myConn.Exec(sql, $encid, True, "Continue", 0)
+  If $useCardex = True Then
+    sql1 = "select fldid,fldid,CONCAT(flditem, '|', COALESCE(fldmixing, '')),flddose,fldfreq,flddays,fldstarttime,fldcurval,fldstarttime,fldcurval,fldendtime,flddirection,fldadminsite,fldmixing,fldroute,flditem,fldmixvolume,fldmixrate from tblinpatdosing where fldencounterval=&1 and fldroute IN(" & xrouLst.Join(",") & ") and fldcurval=&2 and flddose>&3 and flddays>&3 and fldstarttime<=&4 and fldendtime>=&5"
+    sql2 = "select fldid,fldid,CONCAT(flditem, '|', COALESCE(fldmixing, '')),flddose,fldfreq,flddays,fldstarttime,fldcurval,fldstarttime,fldcurval,fldendtime,flddirection,fldadminsite,fldmixing,fldroute,flditem,fldmixvolume,fldmixrate from tblinpatdosing where fldencounterval=&1 and fldroute IN(" & xrouLst.Join(",") & ") and fldcurval=&3 and flddose>&3 and flddays=&3"
+    $rFludRes = modDatabase.$myConn.Exec(sql1 & " UNION " & sql2, $encid, "Continue", 0, Now(), DateAdd(Now(), gb.Hour, -3))
   Else
-    sql = "select fldid,fldid,CONCAT(flditem, '|', COALESCE(fldmixing, '')),flddose,fldfreq,flddays,fldstarttime,fldcurval,fldstarttime,fldstatus,fldendtime,flddirection,fldadminsite,fldmixing,fldroute,flditem,fldmixvolume,fldmixrate from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldroute IN(" & xrouLst.Join(",") & ") and fldcurval=&3 and flddose>&4 and fldstarttime<=&5 and fldendtime>=&6 ORDER BY fldstarttime DESC"
-    $rFludRes = modDatabase.$myConn.Exec(sql, $encid, True, "Continue", 0, modDate.EndSqlDate(Now()), modDate.StartSqlDate(Now()))
+    If chkalldate.Value = True Then
+      sql = "select fldid,fldid,CONCAT(flditem, '|', COALESCE(fldmixing, '')),flddose,fldfreq,flddays,fldstarttime,fldcurval,fldstarttime,fldstatus,fldendtime,flddirection,fldadminsite,fldmixing,fldroute,flditem,fldmixvolume,fldmixrate from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldroute IN(" & xrouLst.Join(",") & ") and fldcurval=&3 and flddose>&4 ORDER BY fldstarttime DESC"
+      $rFludRes = modDatabase.$myConn.Exec(sql, $encid, True, "Continue", 0)
+    Else
+      sql = "select fldid,fldid,CONCAT(flditem, '|', COALESCE(fldmixing, '')),flddose,fldfreq,flddays,fldstarttime,fldcurval,fldstarttime,fldstatus,fldendtime,flddirection,fldadminsite,fldmixing,fldroute,flditem,fldmixvolume,fldmixrate from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldroute IN(" & xrouLst.Join(",") & ") and fldcurval=&3 and flddose>&4 and fldstarttime<=&5 and fldendtime>=&6 ORDER BY fldstarttime DESC"
+      $rFludRes = modDatabase.$myConn.Exec(sql, $encid, True, "Continue", 0, modDate.EndSqlDate(Now()), modDate.StartSqlDate(Now()))
+    Endif
   Endif
   $aFludFields = New String[]
   modGridView.ReadSmallData(grdfluid, $rFludRes, $aFludFields)
@@ -177,13 +192,15 @@ Public Sub btneditinvrate_Click()
 
   If grdfluid.Selection.Count Then
     $rFludRes.MoveTo(grdfluid.Selection[0])
-    yval = InputValue(("Enter New Rate of Administration in ") & "<b>mL/Hour</b> FOR <b>" & $rFludRes["flditem"] & "</b>", "Administration Rate", $rFludRes["fldmixrate"])
-    If yval Then
-      res = modDatabase.$myConn.Edit("tblpatdosing", "fldid=&1", $rFludRes["fldid"])
-      res["fldmixrate"] = yval
-      res["xyz"] = False
-      res.Update()
-      ShowMedFluids()
+    If $useCardex = False Then
+      yval = InputValue(("Enter New Rate of Administration in ") & "<b>mL/Hour</b> FOR <b>" & $rFludRes["flditem"] & "</b>", "Administration Rate", $rFludRes["fldmixrate"])
+      If yval Then
+        res = modDatabase.$myConn.Edit("tblpatdosing", "fldid=&1", $rFludRes["fldid"])
+        res["fldmixrate"] = yval
+        res["xyz"] = False
+        res.Update()
+        ShowMedFluids()
+      Endif
     Endif
   Endif
 
@@ -197,13 +214,15 @@ Public Sub btnfluidstatus_Click()
 
   If grdfluid.Selection.Count Then
     $rFludRes.MoveTo(grdfluid.Selection[0])
-    xval = InputCombo($rFludRes["flditem"], ("Select Current Status"), xx, $rFludRes["fldcurval"], True)
-    If xval Then
-      res = modDatabase.$myConn.Edit("tblpatdosing", "fldid=&1", $rFludRes["fldid"])
-      res["fldcurval"] = xval
-      res["xyz"] = False
-      res.Update()
-      ShowMedFluids()
+    If $useCardex = False Then
+      xval = InputCombo($rFludRes["flditem"], ("Select Current Status"), xx, $rFludRes["fldcurval"], True)
+      If xval Then
+        res = modDatabase.$myConn.Edit("tblpatdosing", "fldid=&1", $rFludRes["fldid"])
+        res["fldcurval"] = xval
+        res["xyz"] = False
+        res.Update()
+        ShowMedFluids()
+      Endif
     Endif
   Endif
 
@@ -229,7 +248,11 @@ Public Sub btnivstart_Click()
     If $rFludRes["fldcurval"] = "Continue" Then
       If GetFluidAdminStatusCode($rFludRes["fldid"]) = "icon:/small/next" Then
         If txtrate.Value Then
-          modPharmSub.InsertNurDosing($encid, $rFludRes["fldid"], 0, txtrate.Value, "mL/Hour", Now())
+          If $useCardex = True Then
+            modPharmSub.InsertNurDosingIndoor($encid, 0, $rFludRes["fldid"], txtrate.Value, "mL/Hour", $rFludRes["flditem"], $rFludRes["flddose"], $rFludRes["fldfreq"], Now())
+          Else
+            modPharmSub.InsertNurDosingIndoor($encid, $rFludRes["fldid"], 0, txtrate.Value, "mL/Hour", $rFludRes["flditem"], $rFludRes["flddose"], $rFludRes["fldfreq"], Now())
+          Endif
           FillFluidGridView($rFludRes["fldid"])
           ShowMedFluids()
           txtrate.Value = 0
@@ -243,7 +266,11 @@ End
 
 Private Sub FillFluidGridView(dosno As Long)
 
-  $rRateRes = modDatabase.$syConn.Exec("select fldid,fldid,fldvalue,fldunit,fldid,fldfromtime,fldtotime,flddoseno from tblnurdosing where fldencounterval=&1 and flddoseno=&2 and fldfromtime IS NOT NULL ORDER BY fldid DESC", $encid, dosno)
+  If $useCardex = True Then
+    $rRateRes = modDatabase.$syConn.Exec("select fldid,fldid,fldvalue,fldunit,fldid,fldfromtime,fldtotime,fldcardex from tblnurdosing where fldencounterval=&1 and fldcardex=&2 and fldfromtime IS NOT NULL ORDER BY fldid DESC", $encid, dosno)
+  Else
+    $rRateRes = modDatabase.$syConn.Exec("select fldid,fldid,fldvalue,fldunit,fldid,fldfromtime,fldtotime,flddoseno from tblnurdosing where fldencounterval=&1 and flddoseno=&2 and fldfromtime IS NOT NULL ORDER BY fldid DESC", $encid, dosno)
+  Endif
   $aRateFields = New String[]
   modGridView.ReadSmallData(grdfluiddata, $rRateRes, $aRateFields)
 
@@ -298,7 +325,11 @@ Public Sub btnivclose_Click()
       res["fldtotime"] = Now()
       res["xyz"] = False
       res.Update
-      FillFluidGridView($rRateRes["flddoseno"])
+      If $useCardex = True Then
+        FillFluidGridView($rRateRes["fldcardex"])
+      Else
+        FillFluidGridView($rRateRes["flddoseno"])
+      Endif
       ShowMedFluids()
     Endif
   Endif
@@ -327,7 +358,11 @@ Private Function GetFluidAdminStatusCode(dosno As Long) As String
   Dim res As Result
   Dim xx As String
 
-  res = modDatabase.$syConn.Exec("select fldid,fldfromtime,fldtotime from tblnurdosing where fldencounterval=&1 and flddoseno=&2 ORDER BY fldid DESC", $encid, dosno)
+  If $useCardex = True Then
+    res = modDatabase.$syConn.Exec("select fldid,fldfromtime,fldtotime from tblnurdosing where fldencounterval=&1 and fldcardex=&2 ORDER BY fldid DESC", $encid, dosno)
+  Else
+    res = modDatabase.$syConn.Exec("select fldid,fldfromtime,fldtotime from tblnurdosing where fldencounterval=&1 and flddoseno=&2 ORDER BY fldid DESC", $encid, dosno)
+  Endif
   If res.Available Then
     If res["fldfromtime"] And If Not res["fldtotime"] Then
       xx = "icon:/small/stop"

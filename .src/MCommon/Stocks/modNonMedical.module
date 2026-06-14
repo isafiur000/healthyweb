@@ -1405,6 +1405,33 @@ Public Function GetDiscBindBillMode(sPackage As String) As String
 
 End
 
+Public Function GetDiscCostingLevel(sPackage As String) As Integer
+
+  Dim res As Result
+  Dim xx As Integer
+
+  If modTableCache.$DiscSchemeVar.Exist(sPackage) Then
+    xx = modTableCache.$DiscSchemeVar[sPackage]["fldcostlevel"]
+    If Not xx Then
+      xx = 0
+    Endif
+
+  Else
+    res = modDatabase.$myConn.Exec("select fldcostlevel from tbldiscount where fldtype=&1", sPackage)
+    If res.Available Then
+      If res["fldcostlevel"] Then
+        xx = res["fldcostlevel"]
+      Else
+        xx = 0
+      Endif
+    Else
+      xx = 0
+    Endif
+  Endif
+  Return xx
+
+End
+
 ''------------------------ Others ------------------------------
 Public Function NonSTockGroupList() As String[]
 
@@ -5353,5 +5380,23 @@ Public Function GetItemQtyLimitForCategory(DiscPackage As String, sType As Strin
   Endif
 
   Return xx
+
+End
+
+Public Function GetHigherCostSchemes(xPackList As String[], xScheme As String) As String[]
+
+  Dim xbase As Integer
+  Dim xtype As String
+  Dim xList As String[]
+
+  xList = New String[]
+  xbase = GetDiscCostingLevel(xScheme)
+  For Each xtype In xPackList
+    If GetDiscCostingLevel(xtype) >= xbase Then
+      xList.Add(xtype)
+    Endif
+  Next
+
+  Return xList
 
 End

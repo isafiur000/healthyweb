@@ -66,10 +66,12 @@ Public Sub btnOKdisc_Click()
     res["fldqtylimit"] = cmbqtylimit.Text
     res["fldfixdepart"] = cmbfixdepart.Text
     res["fldlockstate"] = cmbfixstate.Text
-    res["fldonline"] = cmbonline.Text
-    res["fldbookday"] = txtbookdays.Value
     res["fldoffspring"] = cmboffspring.Text
     res["fldbankaccount"] = Trim(txtbankaccount.Text)
+    res["fldcostlevel"] = txtcostval.Value
+
+    res["fldonline"] = cmbonline.Text
+    res["fldbookday"] = txtbookdays.Value
 
     res["fldlab"] = 0
     res["fldradio"] = 0
@@ -127,10 +129,12 @@ Public Sub btnedit_Click()
     res["fldqtylimit"] = cmbqtylimit.Text
     res["fldfixdepart"] = cmbfixdepart.Text
     res["fldlockstate"] = cmbfixstate.Text
-    res["fldonline"] = cmbonline.Text
-    res["fldbookday"] = txtbookdays.Value
     res["fldoffspring"] = cmboffspring.Text
     res["fldbankaccount"] = Trim(txtbankaccount.Text)
+    res["fldcostlevel"] = txtcostval.Value
+
+    res["fldonline"] = cmbonline.Text
+    res["fldbookday"] = txtbookdays.Value
 
     res["flduserid"] = modBasic.$lbluser
     res["fldtime"] = Now()
@@ -177,7 +181,7 @@ Public Sub GridView1_Select()
 
   If GridView1.Selection.Count Then
     $rDisc.MoveTo(GridView1.Selection[0])
-    res = modDatabase.$myConn.Exec("select fldtype,fldmode,fldacledger,fldbilltype,fldamount,fldcredit,fldpercent,fldlimit,fldbillingmode,fldacledger,fldreference,fldyear,fldinvoice,fldreserved,fldcashincredit,fldforce,fldqtylimit,fldfixdepart,fldlockstate,fldonline,fldoffspring,fldbankaccount,fldbookday from tbldiscount where fldtype=&1", $rDisc["fldtype"])    ''
+    res = modDatabase.$myConn.Exec("select fldtype,fldmode,fldacledger,fldbilltype,fldamount,fldcredit,fldpercent,fldlimit,fldbillingmode,fldacledger,fldreference,fldyear,fldinvoice,fldreserved,fldcashincredit,fldforce,fldqtylimit,fldfixdepart,fldlockstate,fldonline,fldoffspring,fldbankaccount,fldbookday,fldcostlevel from tbldiscount where fldtype=&1", $rDisc["fldtype"])    ''
     If res.Available Then
       txtdiscper.Enabled = True
       txtdisctyp.Text = res["fldtype"]
@@ -200,14 +204,20 @@ Public Sub GridView1_Select()
       cmbqtylimit.Text = res["fldqtylimit"]
       cmbfixdepart.Text = res["fldfixdepart"]
       cmbfixstate.Text = res["fldlockstate"]
+      cmboffspring.Text = res["fldoffspring"]
+      txtbankaccount.Text = res["fldbankaccount"]
+      If res["fldcostlevel"] Then
+        txtcostval.Value = res["fldcostlevel"]
+      Else
+        txtcostval.Value = 0
+      Endif
+
       cmbonline.Text = res["fldonline"]
       If res["fldbookday"] Then
         txtbookdays.Value = res["fldbookday"]
       Else
         txtbookdays.Value = 0
       Endif
-      cmboffspring.Text = res["fldoffspring"]
-      txtbankaccount.Text = res["fldbankaccount"]
     Endif
   Endif
 
@@ -400,14 +410,17 @@ Public Sub btnschemes_Click()
       AddSettingReport("Quantity Limit", cmbqtylimit.Tooltip, cmbqtylimit.List.Join("; "), res["fldqtylimit"])
       AddSettingReport("Fixed Department", cmbfixdepart.Tooltip, "", res["fldfixdepart"])
       AddSettingReport("Fixed Patient State", cmbfixstate.Tooltip, cmbfixstate.List.Join("; "), res["fldlockstate"])
-      AddSettingReport("Online Billing", cmbonline.Tooltip, cmbonline.List.Join("; "), res["fldonline"])
-      AddSettingReport("Booking Days", txtbookdays.Tooltip, "", CStr(res["fldbookday"]))
       AddSettingReport("Offspring", cmboffspring.Tooltip, "", res["fldoffspring"])
+      AddSettingReport("Cost Value", txtcostval.Tooltip, "", CStr(res["fldcostlevel"]))
       If res["fldyear"] Then
         AddSettingReport("Start Date", dtstart.Tooltip, "", res["fldyear"])
       Else
         AddSettingReport("Start Date", dtstart.Tooltip, "", "")
       Endif
+
+      AddSettingReport("Online Billing", cmbonline.Tooltip, cmbonline.List.Join("; "), res["fldonline"])
+      AddSettingReport("Booking Days", txtbookdays.Tooltip, "", CStr(res["fldbookday"]))
+
       xprohList = modControlSub.GetDirectFillresultNoNull(modDatabase.$myConn.Exec("select flditemname as col from tbllockedservice where flddisctype=&1", res["fldtype"]))
       If xprohList And If xprohList.Count Then
         AddSettingReport("Prohibited", "", "", xprohList.Join("<br>"))

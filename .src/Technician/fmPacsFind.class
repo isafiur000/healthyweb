@@ -18,6 +18,7 @@ Private $xcoll As Collection
 
 Private xGridData As Variant[]
 Private xMarkedVar As Variant[]
+Private $SeriesList As String[]
 
 Public Sub _new(encid As String, sType As String, ShowSub As Boolean)
 
@@ -322,6 +323,48 @@ Public Sub btnsavestudy_Click()
 
 End
 
+Private Sub GetMarkedOrthancSeries(sHost As String, sStudy As String) As String[]
+
+  Dim sColl As Collection
+  Dim xList As String[]
+
+  xList = New String[]
+  If $sFind = "Orthanc" Then
+    For Each sColl In xMarkedVar
+      If sColl["Host"] = sHost Then
+        If sColl["Format"] = "Orthanc" Then
+          If sColl["Study"] = sStudy Then
+            xList.Add(sColl["Series"])
+          Endif
+        Else
+          If modPACS.GetOrthancString($encNo & "|" & sColl["Study"]) = sStudy Then
+            xList.Add(modPACS.GetOrthancString($encNo & "|" & sColl["Study"] & "|" & sColl["Series"]))
+          Endif
+        Endif
+      Endif
+    Next
+
+  Else
+    For Each sColl In xMarkedVar
+      If sColl["Host"] = sHost Then
+        If sColl["Format"] = "Orthanc" Then
+          If sColl["Study"] = modPACS.GetOrthancString($encNo & "|" & sStudy) Then
+            xList.Add(sColl["Series"])
+          Endif
+        Else
+          If sColl["Study"] = sStudy Then
+            xList.Add(modPACS.GetOrthancString($encNo & "|" & sColl["Study"] & "|" & sColl["Series"]))
+          Endif
+        Endif
+      Endif
+    Next
+
+  Endif
+
+  Return xList
+
+End
+
 ''========================== Second Grid ==============================
 Public Sub GridView1_Select()
 
@@ -334,6 +377,7 @@ Private Sub SHowSelectedSeries()
   If GridView1.Selection.Count Then
     $encid = xGridData[GridView1.Selection[0]][CStr(1)]
     txtstudycode.Text = xGridData[GridView1.Selection[0]][CStr(6)]
+    $SeriesList = GetMarkedOrthancSeries(modPACS.$sHost, txtstudycode.Text)
 
     $aList = New Variant[]
     $xcoll = New Collection
@@ -370,7 +414,11 @@ Public Sub GridView2_Data(Row As Integer, Column As Integer, Data As WebTableDat
     Else If Column = 1 Then
       Data.Text = txtstudycode.Text
     Else If Column = 2 Then
-      Data.Text = ""
+      If $SeriesList.Exist($aList[Row]) = True Then
+        Data.Html = modString.GetImageForHTMLGrid(modMisc.GetWebIconPath("icons/coll4.png"), "15px", "15px")
+      Else
+        Data.Html = ""
+      Endif
     Else If Column = 3 Then
       Data.Text = $aList[Row]
     Endif
@@ -381,7 +429,11 @@ Public Sub GridView2_Data(Row As Integer, Column As Integer, Data As WebTableDat
     Else If Column = 1 Then
       Data.Text = txtstudycode.Text
     Else If Column = 2 Then
-      Data.Text = ""
+      If $SeriesList.Exist(modPACS.GetOrthancString($encNo & "|" & txtstudycode.Text & "|" & $aList[Row]["0020000E"]["Value"][0])) = True Then
+        Data.Html = modString.GetImageForHTMLGrid(modMisc.GetWebIconPath("icons/coll4.png"), "15px", "15px")
+      Else
+        Data.Html = ""
+      Endif
     Else If Column = 3 Then
       Data.Text = $aList[Row]["0020000E"]["Value"][0]
     Endif
@@ -392,7 +444,11 @@ Public Sub GridView2_Data(Row As Integer, Column As Integer, Data As WebTableDat
     Else If Column = 1 Then
       Data.Text = txtstudycode.Text
     Else If Column = 2 Then
-      Data.Text = ""
+      If $SeriesList.Exist(modPACS.GetOrthancString($encNo & "|" & txtstudycode.Text & "|" & $aList[Row]["SeriesInstanceUID"])) = True Then
+        Data.Html = modString.GetImageForHTMLGrid(modMisc.GetWebIconPath("icons/coll4.png"), "15px", "15px")
+      Else
+        Data.Html = ""
+      Endif
     Else If Column = 3 Then
       Data.Text = $aList[Row]["SeriesInstanceUID"]  'GetDicomValue(FileList[Row], "SeriesInstanceUID")
     Endif
@@ -406,8 +462,7 @@ Private Sub ResizeSecondGridView()
   With GridView2
     .Columns[0].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
     .Columns[1].Hidden = True  ''Study UID
-    .Columns[2].Hidden = True
-    ' .Columns[3].Expand = True
+    .Columns[2].Width = CStr(25 * modBasic.$AppWidthRatio) & "px"
     .Columns[3].Width = CStr(400 * modBasic.$AppWidthRatio) & "px" ''series UID
 
     .Columns[0].Text = "Modality"

@@ -30,7 +30,7 @@ Public Sub _new(encid As String, DiscPackage As String, useCardex As Boolean, sC
 
   $xNHISCode = modPatient.GetPatientExtCOdebyEnc($encid)
   $sTatus = modPatient.CurrentAdmissionStatus($encid)
-  accLst = modBasic.$BillDiscountCash
+  accLst = modNonMedical.GetHigherCostSchemes(modBasic.$BillDiscountCash, $DiscPackage)
   If accLst.Count = 0 Then
     accLst.Add($DiscPackage)
   Endif
@@ -116,8 +116,8 @@ Private Sub FillMedicineList()
   Dim sql2 As String
 
   If $useCardex = True Then
-    sql1 = "select fldid,fldid,fldroute,flditem,flddose,fldfreq,flddays,fldcurval,flddirection,fldmixing,flddosecount,fldqtyorder,flduserid,fldid from tblinpatdosing where fldencounterval=&1 and fldstarttime<=&2 and fldendtime>=&3 and fldroute<>&4 and fldcurval=&5 and flddose>&6 and flddays>&6"                    ''
-    sql2 = "select fldid,fldid,fldroute,flditem,flddose,fldfreq,flddays,fldcurval,flddirection,fldmixing,flddosecount,fldqtyorder,flduserid,fldid from tblinpatdosing where fldencounterval=&1 and fldroute<>&4 and fldcurval=&5 and flddose>&6 and flddays=&6"
+    sql1 = "select flditem,fldid,fldroute,flditem,flddose,fldfreq,flddays,fldcurval,flddirection,fldmixing,flddosecount,fldqtyorder,flduserid,fldid from tblinpatdosing where fldencounterval=&1 and fldstarttime<=&2 and fldendtime>=&3 and fldroute<>&4 and fldcurval=&5 and flddose>&6 and flddays>&6"                    ''
+    sql2 = "select flditem,fldid,fldroute,flditem,flddose,fldfreq,flddays,fldcurval,flddirection,fldmixing,flddosecount,fldqtyorder,flduserid,fldid from tblinpatdosing where fldencounterval=&1 and fldroute<>&4 and fldcurval=&5 and flddose>&6 and flddays=&6"
     $rData1 = modDatabase.$myConn.Exec(sql1 & " UNION ALL " & sql2, $encid, Now(), DateAdd(Now(), gb.Hour, -3), "fluid", "Continue", 0)
   Else
     sql1 = "select fldsave_order,fldid,fldroute,flditem,flddose,fldfreq,flddays,fldstatus,flddirection,fldmixing,flddosecount,fldqtydisp,flduserid_order,flditemno from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldstarttime<=&3 and fldendtime>=&4 and fldroute<>&5 and flditemtype=&6 and fldcurval=&7 and flddose>&8 and fldqtydisp>fldqtyret"                    ''
@@ -162,15 +162,15 @@ Public Sub GridView2_Data(Row As Integer, Column As Integer, Data As WebTableDat
 
 End
 
-Private Function GetMedCardex(encid As String, sCardex As Long) As String
+Private Function GetMedCardex(encid As String, xStockId As String) As String
 
   Dim xtot As Float
   Dim xadmn As Float
   Dim xicon As String
 
-  If sCardex Then
-    xtot = modPharmacy.GetCardexDispensedQTY(encid, sCardex)
-    xadmn = modPharmacy.GetCardexAdministerQTY(encid, sCardex)
+  If xStockId Then
+    xtot = modPharmacy.GetCardexDispensedQTY(encid, xStockId)
+    xadmn = modPharmacy.GetCardexAdministerQTY(encid, xStockId)
     If xtot > xadmn Then
       xicon = "/" &/ Application.Root &/ "icons/coll4.png"
     Else
@@ -229,8 +229,8 @@ Private Sub ShowSelectedCardex()
     txtorfreq.Text = $rData1["fldfreq"]
     txtmedname.Text = modMedConstant.GetDrugFromStockID(lblmedicine.Text)
 
-    xtot = modPharmacy.GetCardexDispensedQTY($encid, $rData1["fldid"])
-    xadmn = modPharmacy.GetCardexAdministerQTY($encid, $rData1["fldid"])
+    xtot = modPharmacy.GetCardexDispensedQTY($encid, $rData1["flditem"])
+    xadmn = modPharmacy.GetCardexAdministerQTY($encid, $rData1["flditem"])
     If xtot > xadmn Then
       xpos = True
     Else

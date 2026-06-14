@@ -21,7 +21,6 @@ Private aFreqVal As New Object[50]
 Private aCardex As New Object[50]
 Private aBlankFrame As New Object[50]
 
-Private $sTatus As String
 Private $useCardex As Boolean
 Private $rData As Result
 Private $sColl As Collection
@@ -30,9 +29,10 @@ Private $sColl As Collection
 
 Private $hKeyBoard As FmQuantiEntry
 
-Public Sub _new(encid As String)
+Public Sub _new(encid As String, useCardex As Boolean)
 
   txtencid.Text = encid
+  $useCardex = useCardex
 
   modGeneralMain.GetOpenModalForm(Me)
   If txtencid.Text Then
@@ -51,8 +51,6 @@ End
 
 Public Sub btnshow_Click()
 
-  Dim xx As Boolean
-
   If txtencid.Text Then
     If modBasic.$TabletModeEnable = "Yes" Then
       $hKeyBoard = New FmQuantiEntry(pnlkeyboard)
@@ -60,18 +58,9 @@ Public Sub btnshow_Click()
       pnlkeyboard.Visible = False
     Endif
     txtname.Text = modPatient.GetPatientNameByEnc(Trim(txtencid.Text))
-    $sTatus = modPatient.CurrentAdmissionStatus(Trim(txtencid.Text))
-    Select $sTatus
-      Case "Admitted", "Discharged", "LAMA", "Death", "Refer", "Absconder"
-        $useCardex = True
-      Case Else
-        $useCardex = False
-    End Select
-    xx = modPatient.EnableClinicForm($sTatus)
     ' $minTime = DateAdd(Now(), gb.Hour, -3)
     ' $maxTime = DateAdd(Now(), gb.Hour, 3)
     LoadControlsWeb()
-    btnsaveall.Enabled = xx
   Endif
 
 End
@@ -183,7 +172,7 @@ Private Sub LoadControlsWeb()
           End With
 
           If $useCardex = True Then
-            xallow = GetMedCardex(Trim(txtencid.Text), $rData["flditemno"])
+            xallow = GetMedCardex(Trim(txtencid.Text), $rData["flditem"])
           Else
             xallow = $rData["fldsave_order"]
           Endif
@@ -313,15 +302,15 @@ Private Sub LoadControlsWeb()
 
 End
 
-Private Function GetMedCardex(encid As String, sCardex As Long) As Boolean
+Private Function GetMedCardex(encid As String, xStockId As String) As Boolean
 
   Dim xtot As Float
   Dim xadmn As Float
   Dim xicon As Boolean
 
-  If sCardex Then
-    xtot = modPharmacy.GetCardexDispensedQTY(encid, sCardex)
-    xadmn = modPharmacy.GetCardexAdministerQTY(encid, sCardex)
+  If xStockId Then
+    xtot = modPharmacy.GetCardexDispensedQTY(encid, xStockId)
+    xadmn = modPharmacy.GetCardexAdministerQTY(encid, xStockId)
     If xtot > xadmn Then
       xicon = True
     Else
