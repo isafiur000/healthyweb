@@ -2288,7 +2288,15 @@ Public Function AllowPreCheckDeposit(encid As String, sType As String, sItem As 
       paidamt = ShowCreditLimitEnc(encid)
       expenseamt = TotalSavedCreditExpensebyPatient(modDatabase.$myConn, encid) + sAmt
     Else
-      paidamt = TotalPaidAmountbyPatient(modDatabase.$myConn, encid)
+      If modBasic.$LowDepoSplitAlert = "Enable" Then
+        If sType = "Pharmacy" Then
+          paidamt = TotalPaidAmountSpecific(modDatabase.$myConn, encid, "Pharmacy")
+        Else
+          paidamt = TotalPaidAmountSpecific(modDatabase.$myConn, encid, "Service")
+        Endif
+      Else
+        paidamt = TotalPaidAmountbyPatient(modDatabase.$myConn, encid)
+      Endif
       expenseamt = TotalSavedCashExpensebyPatient(modDatabase.$myConn, encid) + sAmt
     Endif
     If expenseamt > paidamt Then
@@ -2344,7 +2352,15 @@ Public Function AllowPreEntryWithDeposit(encid As String, sType As String, sItem
           paidamt = ShowCreditLimitEnc(encid)
           expenseamt = TotalSavedCreditExpensebyPatient(modDatabase.$myConn, encid) + sAmt
         Else
-          paidamt = TotalPaidAmountbyPatient(modDatabase.$myConn, encid)
+          If modBasic.$LowDepoSplitAlert = "Enable" Then
+            If sType = "Pharmacy" Then
+              paidamt = TotalPaidAmountSpecific(modDatabase.$myConn, encid, "Pharmacy")
+            Else
+              paidamt = TotalPaidAmountSpecific(modDatabase.$myConn, encid, "Service")
+            Endif
+          Else
+            paidamt = TotalPaidAmountbyPatient(modDatabase.$myConn, encid)
+          Endif
           expenseamt = TotalSavedCashExpensebyPatient(modDatabase.$myConn, encid) + sAmt
         Endif
         If expenseamt > paidamt Then
@@ -2829,8 +2845,8 @@ End
 Public Function GetAutoBillingLock(encid As String, sPackage As String) As Boolean
 
   Dim xforce As String
-  Dim asx As String[]
-  Dim xdept As String
+  ' Dim asx As String[]
+  ' Dim xdept As String
   Dim xlock As Boolean
 
   xlock = False
@@ -4319,6 +4335,45 @@ Public Function TotalPaidAmountbyPatient($conn As Connection, encid As String) A
   Endif
 
   res1 = $conn.Exec("select SUM(fldreceivedamt+fldcurdeposit) as tot from tbltempbilldetail where fldencounterval=&1", encid)
+  If res1.Available Then
+    If res1["tot"] Then
+      amt1 = res1["tot"]
+    Else
+      amt1 = 0
+    Endif
+  Else
+    amt1 = 0
+  Endif
+
+  xtot = amt + amt1
+  Return xtot
+
+End
+
+Public Function TotalPaidAmountSpecific($conn As Connection, encid As String, sType As String) As Float
+
+  Dim amt As Float
+  Dim res As Result
+  Dim amt1 As Float
+  Dim res1 As Result
+  Dim xtot As Float
+
+  res = $conn.Exec("select SUM(fldreceivedamt+fldcurdeposit) as tot from tblpatbilldetail where fldencounterval=&1", encid)
+  If res.Available Then
+    If res["tot"] Then
+      amt = res["tot"]
+    Else
+      amt = 0
+    Endif
+  Else
+    amt = 0
+  Endif
+
+  If sType = "Pharmacy" Then
+    res1 = $conn.Exec("select SUM(fldreceivedamt+fldcurdeposit) as tot from tbltempbilldetail where fldencounterval=&1 and (fldchequeno IS NULL OR fldchequeno<>&2)", encid, "Service Deposit")
+  Else If sType = "Service" Then
+    res1 = $conn.Exec("select SUM(fldreceivedamt+fldcurdeposit) as tot from tbltempbilldetail where fldencounterval=&1 and (fldchequeno IS NULL OR fldchequeno<>&2)", encid, "Pharmacy Deposit")
+  Endif
   If res1.Available Then
     If res1["tot"] Then
       amt1 = res1["tot"]

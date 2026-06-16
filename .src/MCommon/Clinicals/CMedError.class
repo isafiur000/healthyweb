@@ -63,73 +63,61 @@ Public Sub _new()
 End
 
 'Note: -------------------------------------- Create Review Report (Sing/Mult) ------------------------------------
-Public Function ShowMedCompatibleSingleDosIDMessage(dosid As Long, druglist As String[]) As String
+Public Function ShowMedCompatibleSingleDosIDMessage(encid As String, xMedicine As String, druglist As String[]) As String
 
-  Dim res As Result
   Dim xdrug As String
   Dim xout As String
 
-  res = modDatabase.$myConn.Exec("select fldencounterval,fldroute,flditem,flddose,fldfreq,flddays,fldtime from tblpatdosing where fldid=&1", dosid)                                                                      ''
-  If res.Available = True Then
-    For Each xdrug In druglist
-      MedicationReviewCurrentMultipleDrugs(res["fldencounterval"], res["flditem"], xdrug)
-    Next
-    xout = OutFormatShow(res["fldencounterval"], "Message Box")
-  Endif
+  For Each xdrug In druglist
+    MedicationReviewCurrentMultipleDrugs(encid, xMedicine, xdrug)
+  Next
+  xout = OutFormatShow(encid, "Message Box")
+
   Return xout
 
 End
 
-Public Function ShowMedicationReviewSingleDosIDReport(dosid As Long, druglist As String[]) As String
+Public Function ShowMedicationReviewSingleDosIDReport(encid As String, xMedicine As String, xRoute As String, xDose As Float, xFreq As String, druglist As String[]) As String
 
-  Dim res As Result
   Dim xdrug As String
   Dim codeid As String
   Dim xout As String
 
-  res = modDatabase.$myConn.Exec("select fldencounterval,fldroute,flditem,flddose,fldfreq,flddays,fldtime from tblpatdosing where fldid=&1", dosid)                                                                      ''
-  If res.Available = True Then
-    codeid = modMedConstant.GetCodeFromStockID(res["flditem"])
-
-    If UseSingleDrugRev() = True Then
-      MedicationReviewSingleDrug(res["fldencounterval"], res["flditem"], codeid, res["fldroute"], res["flddose"], res["fldfreq"])
-    Endif
-    If UseDrugAllerRev() = True Then
-      MedicationReviewDugAllergy(res["fldencounterval"], res["flditem"], codeid)
-    Endif
-    If UseCurrDiseaseRev() = True Then
-      GetMedicationReviewDrugCurrentDisease(res["fldencounterval"], res["flditem"], codeid)
-    Endif
-    If UseMultiDrugRev() = True Then
-      For Each xdrug In druglist
-        MedicationReviewCurrentMultipleDrugs(res["fldencounterval"], res["flditem"], xdrug)
-      Next
-    Endif
-    If UseLabDrugRev() = True Then
-      MedicationReviewDugCurrentLab(res["fldencounterval"], res["flditem"], codeid)
-    Endif
-    If UseExamDrugRev() = True Then
-      MedicationReviewDugExamination(res["fldencounterval"], res["flditem"], codeid)
-    Endif
-
-    xout = OutFormatShow(res["fldencounterval"], "Report")
+  codeid = modMedConstant.GetCodeFromStockID(xMedicine)
+  If UseSingleDrugRev() = True Then
+    MedicationReviewSingleDrug(encid, xMedicine, codeid, xRoute, xDose, xFreq)
   Endif
+  If UseDrugAllerRev() = True Then
+    MedicationReviewDugAllergy(encid, xMedicine, codeid)
+  Endif
+  If UseCurrDiseaseRev() = True Then
+    GetMedicationReviewDrugCurrentDisease(encid, xMedicine, codeid)
+  Endif
+  If UseMultiDrugRev() = True Then
+    For Each xdrug In druglist
+      MedicationReviewCurrentMultipleDrugs(encid, xMedicine, xdrug)
+    Next
+  Endif
+  If UseLabDrugRev() = True Then
+    MedicationReviewDugCurrentLab(encid, xMedicine, codeid)
+  Endif
+  If UseExamDrugRev() = True Then
+    MedicationReviewDugExamination(encid, xMedicine, codeid)
+  Endif
+
+  xout = OutFormatShow(encid, "Report")
 
   Return xout
 
 End
 
-Private Sub ShowMedicationReviewMultipleDosID(encid As String, dosid As Long[])
+Private Sub ShowMedicationReviewMultipleDosID(encid As String, xVar As Variant[])
 
-  Dim res As Result
   Dim druglist As String[]
   Dim xdrug As String
-  Dim dos As Long
   Dim xval As String
   Dim codeid As String
 
-  Dim xVar As Variant[]
-  Dim xColl As Collection
   Dim aColl As Collection
   Dim curdrug As String
 
@@ -138,20 +126,6 @@ Private Sub ShowMedicationReviewMultipleDosID(encid As String, dosid As Long[])
   Dim xLabLst As String[]
   Dim xExamLst As String[]
   Dim xIntxLst As String[]
-
-  xVar = New Variant[]
-  For Each dos In dosid
-    res = modDatabase.$myConn.Exec("select fldencounterval,fldroute,flditem,flddose,fldfreq,flddays,fldtime from tblpatdosing where fldid=&1 and fldencounterval=&2", dos, encid)                                                                      ''
-    If res.Available Then
-      xColl = New Collection
-      xColl.Add(res["fldroute"], "Route")
-      xColl.Add(res["flditem"], "Medicine")
-      xColl.Add(res["flddose"], "Dose")
-      xColl.Add(res["fldfreq"], "Frequency")
-      xColl.Add(res["flddays"], "Duration")
-      xVar.Add(xColl)
-    Endif
-  Next
 
   druglist = New String[]
   For Each aColl In xVar
@@ -226,22 +200,22 @@ Private Sub ShowMedicationReviewMultipleDosID(encid As String, dosid As Long[])
 
 End
 
-Public Function ShowMedicationReviewMultipleDosIDReport(encid As String, dosid As Long[]) As String
+Public Function ShowMedicationReviewMultipleDosIDReport(encid As String, xVar As Variant[]) As String
 
   Dim xout As String
 
-  ShowMedicationReviewMultipleDosID(encid, dosid)
+  ShowMedicationReviewMultipleDosID(encid, xVar)
   xout = OutFormatShow(encid, "Report")
 
   Return xout
 
 End
 
-Public Function ShowMedicationReviewMultipleDosIDMessage(encid As String, dosid As Long[]) As String
+Public Function ShowMedicationReviewMultipleDosIDMessage(encid As String, xVar As Variant[]) As String
 
   Dim xout As String
 
-  ShowMedicationReviewMultipleDosID(encid, dosid)
+  ShowMedicationReviewMultipleDosID(encid, xVar)
   xout = OutFormatShow(encid, "Notification")
 
   Return xout

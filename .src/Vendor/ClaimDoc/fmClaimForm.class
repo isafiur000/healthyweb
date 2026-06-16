@@ -227,6 +227,7 @@ Private Function GetBlobData(serial As Variant) As String
   Dim hFile As Blob
   Dim ypdf As String
   Dim aFile As String
+  Dim xclaim As String
 
   If MMain.$WebEntry = True Then
     sql = "select fldencounterval,fldtitle,fldcateg,fldextension,fldpic,fldlink,fldcomp from " & $sTable & " where fldrepoid=&1"
@@ -238,9 +239,14 @@ Private Function GetBlobData(serial As Variant) As String
     txtencid.Text = res["fldencounterval"]
     txtname.Text = modPatient.GetPatientNameByEnc(res["fldencounterval"])
     If $sClaim Then
-      txtclaimcode.Text = $sClaim
+      xclaim = $sClaim
     Else
-      txtclaimcode.Text = modClaim.GetCurrentClaimCodePrint(res["fldencounterval"])
+      xclaim = modClaim.GetCurrentClaimCodePrint(res["fldencounterval"])
+    Endif
+    If modBasic.$RegistCreateHIClaim = "Disable" Then
+      txtclaimcode.Text = xclaim
+    Else
+      txtclaimcode.Text = modClaim.GetRemoteClaimCode(xclaim)
     Endif
     txttitle.Text = res["fldtitle"]
 
@@ -292,7 +298,11 @@ Private Function GetInvoiceData(serial As Long) As String
   If res.Available Then
     txtencid.Text = res["fldencounterval"]
     txtname.Text = modPatient.GetPatientNameByEnc(res["fldencounterval"])
-    txtclaimcode.Text = res["fldchequeno"]
+    If modBasic.$RegistCreateHIClaim = "Disable" Then
+      txtclaimcode.Text = res["fldchequeno"]
+    Else
+      txtclaimcode.Text = modClaim.GetRemoteClaimCode(res["fldchequeno"])
+    Endif
     txtclaimcode.ReadOnly = True
     txttitle.Text = res["fldbillno"]
 
@@ -323,7 +333,11 @@ Private Function GetReceiptData(serial As Long) As String
   If res.Available Then
     txtencid.Text = res["fldencounterval"]
     txtname.Text = modPatient.GetPatientNameByEnc(res["fldencounterval"])
-    txtclaimcode.Text = res["fldchequeno"]
+    If modBasic.$RegistCreateHIClaim = "Disable" Then
+      txtclaimcode.Text = res["fldchequeno"]
+    Else
+      txtclaimcode.Text = modClaim.GetRemoteClaimCode(res["fldchequeno"])
+    Endif
     txtclaimcode.ReadOnly = True
     txttitle.Text = res["fldbillno"]
 
@@ -341,7 +355,11 @@ Public Sub btnfolder_Click()
   If btnfolder.Tag Then
     asx = Split(btnfolder.Tag, "/")
     If asx.Count Then
-      txtclaimcode.Text = asx[asx.Count - 1]
+      If modBasic.$RegistCreateHIClaim = "Disable" Then
+        txtclaimcode.Text = asx[asx.Count - 1]
+      Else
+        txtclaimcode.Text = modClaim.GetRemoteClaimCode(asx[asx.Count - 1])
+      Endif
     Endif
   Endif
 
