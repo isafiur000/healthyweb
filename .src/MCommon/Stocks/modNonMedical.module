@@ -2528,6 +2528,30 @@ Public Function GetPatientItemSavedSalesPackage(encid As String, sItem As String
 
 End
 
+Public Function GetPatientItemMonthlySalesPackage(encid As String, sItem As String, sPackage As String) As Float
+
+  Dim res As Result
+  Dim xpatno As String
+  Dim xstart As Date
+  Dim xval As Float
+
+  xpatno = modPatient.GetPatientNoByEnc(encid)
+  xstart = DateAdd(Now(), gb.Month, -1)
+  res = modDatabase.$myConn.Exec("select sum(tblpatbilling.flditemqty) as flditemqty from tblpatbilling inner join tblencounter ON tblpatbilling.fldencounterval=tblencounter.fldencounterval where tblencounter.fldpatientval=&1 and tblpatbilling.flditemname=&2 and tblpatbilling.fldsave=&3 and tblpatbilling.flddisctype like &4 and tblpatbilling.fldtime>=&5", xpatno, sItem, True, sPackage, xstart)
+  If res.Available Then
+    If res["flditemqty"] Then
+      xval = res["flditemqty"]
+    Else
+      xval = 0
+    Endif
+  Else
+    xval = 0
+  Endif
+
+  Return xval
+
+End
+
 Public Function GetPatientItemYearlySalesPackage(encid As String, sItem As String, sPackage As String) As Float
 
   Dim res As Result
@@ -3770,6 +3794,8 @@ Public Function AllowProceedBilling(encid As String, DiscType As String, DiscAmt
         If xmaxQty Then
           If resx["fldqtylimit"] = "Encounter" Then
             xusedQty = modNonMedical.GetPatientItemAllSalesPackage(encid, xItemName, DiscType)
+          Else If resx["fldqtylimit"] = "Month Interval" Then
+            xusedQty = modNonMedical.GetPatientItemMonthlySalesPackage(encid, xItemName, DiscType)
           Else If resx["fldqtylimit"] = "Year Interval" Then
             xusedQty = modNonMedical.GetPatientItemYearlySalesPackage(encid, xItemName, DiscType)
           Else If resx["fldqtylimit"] = "Fiscal Year" Then

@@ -1,0 +1,205 @@
+' Gambas class file
+
+Private $wardList As String[]
+Private $BedsTotal As Integer
+Private $BedsOccupied As Integer
+
+Private $URL As String
+Private $Hash As String
+Private $Facility As String
+Private $useCert As String
+Private $userAgent As String
+
+Private $outPut As String
+
+Public Sub _new()
+
+  Dim xPath As String
+  Dim xColl As Collection
+
+  $URL = modSettings.ShowSettingFromFIle("MoHPDashboard/URL")
+  $Hash = modSettings.ShowSettingFromFIle("MoHPDashboard/Key")
+  $Facility = modSettings.ShowSettingFromFIle("MoHPDashboard/Facility")
+  $useCert = modSettings.ShowSettingFromFIle("MoHPDashboard/CACertificate")
+  $userAgent = modSettings.ShowSettingFromFIle("MoHPDashboard/UserAgent")
+  GetDataValue()
+
+  xColl = CreateDataSet()
+  xPath = Temp() & ".json"
+  File.Save(xPath, JSON.Encode(xColl))
+  Wait
+  UploadData(xPath)
+
+End
+
+Private Sub UploadData(sPath As String)
+
+  Dim xcont As String
+  Dim ycont As String
+  Dim acmd As String
+  Dim xhead As String
+
+  xcont = "Content-Type: application/json"
+  ycont = "Authorization: Bearer " & $Hash
+  xhead = Space(1)
+  If $useCert = "Disable" Then
+    xhead = xhead & "-k" & Space(1)
+  Endif
+  If $userAgent Then
+    xhead = xhead & "-A " & $userAgent & Space(1)
+  Endif
+
+  acmd = "curl" & xhead & " -H " & Quote(ycont) & " -H " & Quote(xcont) & " --data-binary '@" & sPath & "' -X POST " & $URL
+  modBasic.DebugAPIString(Replace("Execute " & acmd, $Hash, "****"))
+  Shell acmd To $outPut
+  modBasic.DebugAPIString("Response: " & $outPut)
+
+End
+
+Public Function GetOutput() As String
+
+  Return $outPut
+
+End
+
+Private Sub GetDataValue()
+
+  $wardList = modGeneral.GetDepartmentWithBedList()
+  $BedsTotal = modGeneral.GetWardBedCount("%")
+  $BedsOccupied = modGeneral.GetWardFilledBedCount("%")
+
+End
+
+Private Function CreateDataSet() As Collection
+
+  Dim aColl As Collection
+  Dim xVar As Variant[]
+
+  Dim bColl As Collection
+  Dim cColl As Collection
+  Dim dColl As Collection
+  Dim pVar As Variant[]
+  Dim qVar As Variant[]
+
+  aColl = New Collection
+  aColl.Add("MeasureReport", "resourceType")
+  aColl.Add("complete", "status")
+  aColl.Add("summary", "type")
+  aColl.Add("https://nihis.mohp.gov.np/fhir/Measure/nihis-capacity", "measure")
+
+  bColl = New Collection
+  cColl = New Collection
+  cColl.Add("urn:nihis:facility", "system")
+  cColl.Add($Facility, "value")
+  bColl.Add(cColl, "identifier")
+  aColl.Add(bColl, "subject")
+
+  aColl.Add(Now(), "date")
+
+  cColl = New Collection
+  cColl.Add(Now(), "start")
+  cColl.Add(Now(), "end")
+  aColl.Add(cColl, "period")
+
+  xVar = New Variant[]
+  bColl = New Collection
+
+  cColl = New Collection
+  pVar = New Variant[]
+  dColl = New Collection
+  dColl.Add("urn:nihis:capacity", "system")
+  dColl.Add("beds", "code")
+  pVar.Add(dColl)
+  cColl.Add(pVar, "coding")
+  bColl.Add(cColl, "code")
+
+  ''occupation summary
+  pVar = New Variant[]
+  cColl = New Collection
+  cColl.Add(GetCCValue("total"), "code")
+  cColl.Add($BedsTotal, "count")
+  pVar.Add(cColl)
+  cColl.Add(GetCCValue("occupied"), "code")
+  cColl.Add($BedsOccupied, "count")
+  pVar.Add(cColl)
+  bColl.Add(pVar, "population")
+
+  ''occupancy counts
+  pVar = New Variant[]
+  cColl = New Collection
+  qVar = New Variant[]
+  qVar.Add(GetCCValue("ward"))
+  cColl.Add(qVar, "code")
+  cColl.Add(GetWardOccupancyCount($wardList), "stratum")
+  pVar.Add(cColl)
+  bColl.Add(pVar, "stratifier")
+
+  ''end
+  xVar.Add(bColl)
+  aColl.Add(xVar, "group")
+
+  Return aColl
+
+End
+
+''---------------------------- Supporting functions ----------------------------------
+Private Function GetWardOccupancyCount(wardList As String[]) As Variant[]
+
+  Dim aVar As Variant[]
+  Dim xward As String
+  Dim xColl As Collection
+  Dim xVar As Variant[]
+
+  Dim xtotalbeds As Integer
+  Dim xfillbeds As Integer
+
+  aVar = New Variant[]
+  For Each xward In wardList
+    xtotalbeds = modGeneral.GetWardBedCount(xward)
+    xfillbeds = modGeneral.GetWardFilledBedCount(xward)
+
+    xColl = New Collection
+    xColl.Add(GetCCValue(xward), "value")
+
+    xVar = New Variant[]
+    xVar.Add(GetPPValue("total", xtotalbeds))
+    xVar.Add(GetPPValue("occupied", xfillbeds))
+    xColl.Add(xVar, "population")
+
+    aVar.Add(xColl)
+  Next
+
+  Return aVar
+
+End
+
+''------------------------ Basic functions -------------------------------
+Private Function GetCCValue(xx As String) As Collection
+
+  Dim xColl As Collection
+  Dim pVar As Variant[]
+  Dim yColl As Collection
+
+  xColl = New Collection
+  pVar = New Variant[]
+  yColl = New Collection
+  yColl.Add("urn:nihis:capacity", "system")
+  yColl.Add(xx, "code")
+  pVar.Add(yColl)
+  xColl.Add(pVar, "coding")
+
+  Return xColl
+
+End
+
+Private Function GetPPValue(xx As String, xval As Integer) As Collection
+
+  Dim xColl As Collection
+
+  xColl = New Collection
+  xColl.Add(GetCCValue(xx), "code")
+  xColl.Add(xval, "count")
+
+  Return xColl
+
+End

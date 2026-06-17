@@ -464,21 +464,31 @@ Public Sub btnselectuser_Click()
 
   Dim xMedUser As String[]
 
-  If txtclinIndex.Value Then
-    xMedUser = MedicalSelectedValue(("Select Consultant"), modBasic.$OPConsulUserList)
-    If xMedUser And If xMedUser.Count Then
-      btnconsult.Tag = xMedUser[0]
-      btnconsult.Text = xMedUser[1]
-    Else
-      btnconsult.Tag = ""
-      btnconsult.Text = ""
-    Endif
-    If btnconsult.Tag And If txtencid.Text Then
-      If txtclinmode.Text = "Consultation" Then
-        modPatientSub.UpdateConsultConsultant(txtclinIndex.Value, btnconsult.Tag)
+  If txtclinIndex.Value And If txtencid.Text Then
+    If txtclinmode.Text = "Consultation" Then
+      xMedUser = MedicalSelectedValue(("Select Consultant"), modBasic.$OPConsulUserList)
+      If xMedUser And If xMedUser.Count Then
+        btnconsult.Tag = xMedUser[0]
+        btnconsult.Text = xMedUser[1]
+      Else
+        btnconsult.Tag = ""
+        btnconsult.Text = ""
       Endif
-      Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
-      ButtonControl()
+      If btnconsult.Tag Then
+        modPatientSub.UpdateConsultConsultant(txtclinIndex.Value, btnconsult.Tag)
+        Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+        ButtonControl()
+      Endif
+
+    Else If txtclinmode.Text = "OP Visit" Then
+      If Message.Question("Set as Attending User ?", ("No"), "Yes") = 2 Then
+        modPatientSub.MarkConsultVisitFlag(txtclinIndex.Value, "tblopvisit")
+        btnconsult.Tag = modBasic.$lbluser
+        btnconsult.Text = modGeneral.GetUserFullName(btnconsult.Tag)
+        Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+        ButtonControl()
+      Endif
+
     Endif
   Endif
 

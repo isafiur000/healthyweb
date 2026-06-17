@@ -875,7 +875,35 @@ Public Function GetWardBedCount(sDept As String) As Integer
   Dim res As Result
   Dim xval As Integer
 
-  res = modDatabase.$myConn.Exec("select COUNT(fldbed) as xtot from tbldepartmentbed where flddept like &1 and (fldstatus IS NULL or fldstatus=&2)", sDept, "Active")
+  If sDept = "%" Then
+    res = modDatabase.$myConn.Exec("select COUNT(fldbed) as xtot from tbldepartmentbed where (fldstatus IS NULL or fldstatus=&1)", "Active")
+  Else
+    res = modDatabase.$myConn.Exec("select COUNT(fldbed) as xtot from tbldepartmentbed where flddept like &1 and (fldstatus IS NULL or fldstatus=&2)", sDept, "Active")
+  Endif
+  If res.Available Then
+    If res["xtot"] Then
+      xval = res["xtot"]
+    Else
+      xval = 0
+    Endif
+  Else
+    xval = 0
+  Endif
+
+  Return xval
+
+End
+
+Public Function GetWardFilledBedCount(sDept As String) As Integer
+
+  Dim res As Result
+  Dim xval As Integer
+
+  If sDept = "%" Then
+    res = modDatabase.$myConn.Exec("select COUNT(fldbed) as xtot from tbldepartmentbed where (fldstatus IS NULL or fldstatus=&1) and fldencounterval like &2", "Active", "%")
+  Else
+    res = modDatabase.$myConn.Exec("select COUNT(fldbed) as xtot from tbldepartmentbed where flddept like &1 and (fldstatus IS NULL or fldstatus=&2) and fldencounterval like &3", sDept, "Active", "%")
+  Endif
   If res.Available Then
     If res["xtot"] Then
       xval = res["xtot"]
