@@ -703,195 +703,199 @@ Public Sub btnokadmit_Click()
   Dim xPolicy As String
   Dim xstate As String
 
-  If Not txtfileno.Text Then
-    If modBasic.$DiaryAutoInc = "Yes" Then
-      txtfileno.Text = CStr(modBillLock.CurrentAdmitFile())
-    Endif
-    If txtfileno.Text Then
-      modPatientSub.UpdatePatFile($PatientNum, Trim(txtfileno.Text))
-      modPatientSub.RemovePatientCache($PatientNum)
-    Endif
+  If txtencid.Text Then
+    If modPatientSub.GetInflusionClearance(Trim(txtencid.Text)) = True Then
 
-  Else
-    If modBasic.$DiaryCharLen Then
-      If Len(txtfileno.Text) = modBasic.$DiaryCharLen Then
+      If Not txtfileno.Text Then
+        If modBasic.$DiaryAutoInc = "Yes" Then
+          txtfileno.Text = CStr(modBillLock.CurrentAdmitFile())
+        Endif
+        If txtfileno.Text Then
+          modPatientSub.UpdatePatFile($PatientNum, Trim(txtfileno.Text))
+          modPatientSub.RemovePatientCache($PatientNum)
+        Endif
+
       Else
-        txtfileno.Text = ""
-      Endif
-    Endif
-
-    If txtfileno.Text Then
-      xPatLst = modPatient.GetPatientListFileNo(Trim(txtfileno.Text))
-      If xPatLst And If xPatLst.Count Then
-        If modBasic.$DiaryUnique = "Enable" Then
-          xgo = False
-          Message.Warning("Diary Number must be Unique", ("OK"))
-        Else
-          If Message.Warning(("This Diary No already registered to " & xPatLst.Join(", ") & ". Are you sure ?"), ("No"), ("Yes")) = 2 Then
-            xgo = True
+        If modBasic.$DiaryCharLen Then
+          If Len(txtfileno.Text) = modBasic.$DiaryCharLen Then
           Else
-            xgo = False
+            txtfileno.Text = ""
           Endif
         Endif
+
+        If txtfileno.Text Then
+          xPatLst = modPatient.GetPatientListFileNo(Trim(txtfileno.Text))
+          If xPatLst And If xPatLst.Count Then
+            If modBasic.$DiaryUnique = "Enable" Then
+              xgo = False
+              Message.Warning("Diary Number must be Unique", ("OK"))
+            Else
+              If Message.Warning(("This Diary No already registered to " & xPatLst.Join(", ") & ". Are you sure ?"), ("No"), ("Yes")) = 2 Then
+                xgo = True
+              Else
+                xgo = False
+              Endif
+            Endif
+          Else
+            xgo = True
+          Endif
+
+          If xgo = True Then
+            modPatientSub.UpdatePatFile($PatientNum, Trim(txtfileno.Text))
+            modPatientSub.RemovePatientCache($PatientNum)
+          Endif
+        Endif
+
+      Endif
+
+      If modBasic.$AdmitEssDiary = "Yes" Then
+        xfileno = modPatient.GetPatientFileByEnc(Trim(txtencid.Text))
+        If xfileno Then
+          xgoto = True
+        Else
+          xgoto = False
+          Message.Warning("Diary Number is empty", ("OK"))
+        Endif
       Else
-        xgo = True
+        xgoto = True
       Endif
 
-      If xgo = True Then
-        modPatientSub.UpdatePatFile($PatientNum, Trim(txtfileno.Text))
-        modPatientSub.RemovePatientCache($PatientNum)
-      Endif
-    Endif
+      If chkadmison.Value = True Then
+        If xgoto = True Then
+          modPatient.$PatProfileData.Remove(Trim(txtencid.Text))
 
-  Endif
+          If Trim(txtencid.Text) = txtlastencid.Text Then
+            If AllowDataSave(Trim(txtencid.Text)) = True Then
+              If GetAllowClaim(Trim(txtencid.Text)) = True Then
+                modDatabase.$myConn.Begin
 
-  If modBasic.$AdmitEssDiary = "Yes" Then
-    xfileno = modPatient.GetPatientFileByEnc(Trim(txtencid.Text))
-    If xfileno Then
-      xgoto = True
-    Else
-      xgoto = False
-      Message.Warning("Diary Number is empty", ("OK"))
-    Endif
-  Else
-    xgoto = True
-  Endif
+                xadmitId = modPatientSub.GetPatientAdmission(Trim(txtencid.Text))
+                If cmbsource.Text Then
+                  modPatientSub.AddAccGeneralQualiData(Trim(txtencid.Text), "Demographics", "Admission Source", Trim(cmbsource.Text), "", Now(), True)
+                Endif
+                If btnconsult.Tag Then
+                  modPatientSub.UpdateAttendingConsultant(Trim(txtencid.Text), btnconsult.Tag)
+                Endif
+                If chkclaim.Value = True Then
+                  If $ClaimStr = "Claim Code" Then
+                    If modBasic.$HIPackage And If modBasic.$HIPackageER Then
+                      hiElig = New CimisAPIEligible($PatientCode)
+                      xPolicy = hiElig.GetPolicyNo()
+                      If xPolicy Then
+                        xpayval = hiElig.GetCopayValue()
+                        xmedipd = hiElig.GetAllowedMedAmt()
 
-  If txtencid.Text Then
-    If chkadmison.Value = True Then
-      If xgoto = True Then
-        modPatient.$PatProfileData.Remove(Trim(txtencid.Text))
+                        res = modDatabase.$myConn.Edit("tblencounter", "fldencounterval=&1", Trim(txtencid.Text))
+                        If xpayval Then
+                          res["fldcashcredit"] = xmedipd * (1 - xpayval)
+                        Else
+                          res["fldcashcredit"] = xmedipd
+                        Endif
+                        res.Update
 
-        If Trim(txtencid.Text) = txtlastencid.Text Then
-          If AllowDataSave(Trim(txtencid.Text)) = True Then
-            If GetAllowClaim(Trim(txtencid.Text)) = True Then
-              modDatabase.$myConn.Begin
-
-              xadmitId = modPatientSub.GetPatientAdmission(Trim(txtencid.Text))
-              If cmbsource.Text Then
-                modPatientSub.AddAccGeneralQualiData(Trim(txtencid.Text), "Demographics", "Admission Source", Trim(cmbsource.Text), "", Now(), True)
-              Endif
-              If btnconsult.Tag Then
-                modPatientSub.UpdateAttendingConsultant(Trim(txtencid.Text), btnconsult.Tag)
-              Endif
-              If chkclaim.Value = True Then
-                If $ClaimStr = "Claim Code" Then
-                  If modBasic.$HIPackage And If modBasic.$HIPackageER Then
-                    hiElig = New CimisAPIEligible($PatientCode)
-                    xPolicy = hiElig.GetPolicyNo()
-                    If xPolicy Then
-                      xpayval = hiElig.GetCopayValue()
-                      xmedipd = hiElig.GetAllowedMedAmt()
-
-                      res = modDatabase.$myConn.Edit("tblencounter", "fldencounterval=&1", Trim(txtencid.Text))
-                      If xpayval Then
-                        res["fldcashcredit"] = xmedipd * (1 - xpayval)
+                        If xpayval = 0.1 Then
+                          If $DiscPackage = modBasic.$HIPackageER Then
+                            SetHealthCopayment()
+                          Endif
+                        Endif
                       Else
-                        res["fldcashcredit"] = xmedipd
-                      Endif
-                      res.Update
-
-                      If xpayval = 0.1 Then
                         If $DiscPackage = modBasic.$HIPackageER Then
                           SetHealthCopayment()
                         Endif
                       Endif
+                    Endif
+
+                    If modBasic.$AutoClaimtoIPD = "Enable" Then
+                      modClaim.UpdateCLaimToIPD($PatientCode, txtclaim.Text)
                     Else
-                      If $DiscPackage = modBasic.$HIPackageER Then
-                        SetHealthCopayment()
+                      txtclaim.Text = modClaim.GetCurrentClaimCodePrint(Trim(txtencid.Text))
+                      If Not txtclaim.Text Then
+                        txtclaim.Text = modClaim.GetClaimCidePatient(Trim(txtencid.Text), modNonMedical.GetLastCLaimType(Trim(txtencid.Text)))
                       Endif
                     Endif
-                  Endif
 
-                  If modBasic.$AutoClaimtoIPD = "Enable" Then
-                    modClaim.UpdateCLaimToIPD($PatientCode, txtclaim.Text)
-                  Else
-                    txtclaim.Text = modClaim.GetCurrentClaimCodePrint(Trim(txtencid.Text))
-                    If Not txtclaim.Text Then
-                      txtclaim.Text = modClaim.GetClaimCidePatient(Trim(txtencid.Text), modNonMedical.GetLastCLaimType(Trim(txtencid.Text)))
+                  Else If $ClaimStr = "Accident SSF" Then
+                    txtclaim.Text = modSSF.GetSSFClaimCodePatient(Trim(txtencid.Text), "Accident SSF")
+
+                  Else If $ClaimStr = "Critical SSF" Then
+                    If modBasic.$SSFCritical Then
+                      xstate = modSSF.GetCtiticalSSFStatus(Trim(txtencid.Text))
+                      txtclaim.Text = modSSF.GetSSFClaimCodePatient(Trim(txtencid.Text), "Critical SSF", xstate)
+                      If xstate = "Post Diagnosis" Then
+                        hCElig = New CssfAPIEligible($PatientCode)
+                        xmedipd = hCElig.GetPostDiagnoAmt()
+                        If xmedipd > 0 Then
+                          xcashper = modNonMedical.GetCashinCreditFixPercent(modBasic.$SSFCritical)
+                          res = modDatabase.$myConn.Edit("tblencounter", "fldencounterval=&1", Trim(txtencid.Text))
+                          res["fldcashcredit"] = xmedipd * (100 - xcashper) / 100
+                          res.Update
+                        Endif
+                      Endif
                     Endif
-                  Endif
 
-                Else If $ClaimStr = "Accident SSF" Then
-                  txtclaim.Text = modSSF.GetSSFClaimCodePatient(Trim(txtencid.Text), "Accident SSF")
-
-                Else If $ClaimStr = "Critical SSF" Then
-                  If modBasic.$SSFCritical Then
-                    xstate = modSSF.GetCtiticalSSFStatus(Trim(txtencid.Text))
-                    txtclaim.Text = modSSF.GetSSFClaimCodePatient(Trim(txtencid.Text), "Critical SSF", xstate)
-                    If xstate = "Post Diagnosis" Then
+                  Else If $ClaimStr = "MedExtra SSF" Then
+                    If modBasic.$SSFMedExtra Then
+                      xstate = modSSF.GetSSFClaimStatus(Trim(txtencid.Text))
+                      txtclaim.Text = modSSF.GetSSFClaimCodePatient(Trim(txtencid.Text), "MedExtra SSF", xstate)
                       hCElig = New CssfAPIEligible($PatientCode)
-                      xmedipd = hCElig.GetPostDiagnoAmt()
+                      xmedipd = hCElig.GetMedExtraAmt()
                       If xmedipd > 0 Then
-                        xcashper = modNonMedical.GetCashinCreditFixPercent(modBasic.$SSFCritical)
+                        xcashper = modNonMedical.GetCashinCreditFixPercent(modBasic.$SSFMedExtra)
                         res = modDatabase.$myConn.Edit("tblencounter", "fldencounterval=&1", Trim(txtencid.Text))
                         res["fldcashcredit"] = xmedipd * (100 - xcashper) / 100
                         res.Update
                       Endif
                     Endif
-                  Endif
 
-                Else If $ClaimStr = "MedExtra SSF" Then
-                  If modBasic.$SSFMedExtra Then
-                    xstate = modSSF.GetSSFClaimStatus(Trim(txtencid.Text))
-                    txtclaim.Text = modSSF.GetSSFClaimCodePatient(Trim(txtencid.Text), "MedExtra SSF", xstate)
-                    hCElig = New CssfAPIEligible($PatientCode)
-                    xmedipd = hCElig.GetMedExtraAmt()
-                    If xmedipd > 0 Then
-                      xcashper = modNonMedical.GetCashinCreditFixPercent(modBasic.$SSFMedExtra)
-                      res = modDatabase.$myConn.Edit("tblencounter", "fldencounterval=&1", Trim(txtencid.Text))
-                      res["fldcashcredit"] = xmedipd * (100 - xcashper) / 100
-                      res.Update
+                  Else If $ClaimStr = "Medical SSF" Then
+                    If modBasic.$SSFMedical Then
+                      xstate = modSSF.GetSSFClaimStatus(Trim(txtencid.Text))
+                      txtclaim.Text = modSSF.GetSSFClaimCodePatient(Trim(txtencid.Text), "Medical SSF", xstate)
+                      hCElig = New CssfAPIEligible($PatientCode)
+                      xmedopd = hCElig.GetMedicalOPDAmt()
+                      xmedipd = hCElig.GetMedicalIPDAmt()
+                      If xmedopd + xmedipd > 0 Then
+                        xcashper = modNonMedical.GetCashinCreditFixPercent(modBasic.$SSFMedical)
+                        res = modDatabase.$myConn.Edit("tblencounter", "fldencounterval=&1", Trim(txtencid.Text))
+                        res["fldcashcredit"] = (xmedopd + xmedipd) * (100 - xcashper) / 100
+                        res.Update
+                      Endif
                     Endif
-                  Endif
 
-                Else If $ClaimStr = "Medical SSF" Then
-                  If modBasic.$SSFMedical Then
-                    xstate = modSSF.GetSSFClaimStatus(Trim(txtencid.Text))
-                    txtclaim.Text = modSSF.GetSSFClaimCodePatient(Trim(txtencid.Text), "Medical SSF", xstate)
-                    hCElig = New CssfAPIEligible($PatientCode)
-                    xmedopd = hCElig.GetMedicalOPDAmt()
-                    xmedipd = hCElig.GetMedicalIPDAmt()
-                    If xmedopd + xmedipd > 0 Then
-                      xcashper = modNonMedical.GetCashinCreditFixPercent(modBasic.$SSFMedical)
-                      res = modDatabase.$myConn.Edit("tblencounter", "fldencounterval=&1", Trim(txtencid.Text))
-                      res["fldcashcredit"] = (xmedopd + xmedipd) * (100 - xcashper) / 100
-                      res.Update
-                    Endif
                   Endif
-
                 Endif
-              Endif
-              modDatabase.$myConn.Commit
-              txtadmitcode.Text = xadmitId
+                modDatabase.$myConn.Commit
+                txtadmitcode.Text = xadmitId
 
-              $Status = modPatient.CurrentAdmissionStatus(Trim(txtencid.Text))
-              SetAdmissionDepositLock()
-              txtpatlocation.Text = modPatient.GetLocationSetting(Trim(txtencid.Text), $Status)
-              ShowAllEncounters()
-              Me.Exec("Toastify({text: 'Patient Admitted', duration: 3000}).showToast()")
+                $Status = modPatient.CurrentAdmissionStatus(Trim(txtencid.Text))
+                SetAdmissionDepositLock()
+                txtpatlocation.Text = modPatient.GetLocationSetting(Trim(txtencid.Text), $Status)
+                ShowAllEncounters()
+                Me.Exec("Toastify({text: 'Patient Admitted', duration: 3000}).showToast()")
+                ' Balloon.Delay = modBasic.$BalloonDelay
+
+                If modSettings.ShowSettingFromFIle("Admission Report/Name") Then
+                  hCls = New CReportCustom(Trim(txtencid.Text), "Admission Report", "ReportSize", MMain.$defUnit)
+                  hCls.Preview()
+                Else
+                  xPath = modPatReports.ShowAdmissionSheet(Trim(txtencid.Text))
+                  modControlSub.OpenHTMLPreview(Trim(txtencid.Text), xPath, "ReportSize")
+                Endif
+
+              Endif
+            Else
+              hForm = New FmIndexForm(Trim(txtencid.Text), False, True)
+              hForm.Show()
+              ' Me.Exec("Toastify({text: 'Incomplete data', duration: 3000}).showToast()")
               ' Balloon.Delay = modBasic.$BalloonDelay
-
-              If modSettings.ShowSettingFromFIle("Admission Report/Name") Then
-                hCls = New CReportCustom(Trim(txtencid.Text), "Admission Report", "ReportSize", MMain.$defUnit)
-                hCls.Preview()
-              Else
-                xPath = modPatReports.ShowAdmissionSheet(Trim(txtencid.Text))
-                modControlSub.OpenHTMLPreview(Trim(txtencid.Text), xPath, "ReportSize")
-              Endif
-
             Endif
           Else
-            hForm = New FmIndexForm(Trim(txtencid.Text), False, True)
-            hForm.Show()
-            ' Me.Exec("Toastify({text: 'Incomplete data', duration: 3000}).showToast()")
-            ' Balloon.Delay = modBasic.$BalloonDelay
+            Message.Warning(("Use Last Encounter ID"), ("OK"))
           Endif
-        Else
-          Message.Warning(("Use Last Encounter ID"), ("OK"))
-        Endif
 
+        Endif
       Endif
+
     Endif
   Endif
 

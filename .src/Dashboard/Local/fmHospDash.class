@@ -2,12 +2,15 @@
 
 Export
 
+Private $CharitySchemes As String[]
 Private $ShowMaternity As Boolean
 Private $WardFormat As String
 
 Private varTable1 As Variant[]
 Private varTable2 As Variant[]
 Private varTable3 As Variant[]
+Private varTable4 As Variant[]
+Private varTable5 As Variant[]
 
 Private dtfir As Date
 Private dtlast As Date
@@ -23,6 +26,7 @@ End
 Public Sub _new()
 
   Dim xmater As String
+  Dim xcharity As String
   Dim xfont As String
 
   Me.AddHeader("<meta name='viewport' content='width=device-width, initial-scale=1'>")
@@ -49,6 +53,14 @@ Public Sub _new()
     $ShowMaternity = True
   Else
     $ShowMaternity = False
+  Endif
+  xcharity = modSettings.ShowSettingFromFIle("Dashboard/CharityPackages")
+  If xcharity Then
+    $CharitySchemes = Split(xcharity, ";")
+    pnlcharity.Visible = True
+  Else
+    $CharitySchemes = New String[]
+    pnlcharity.Visible = False
   Endif
   $WardFormat = modSettings.ShowSettingFromFIle("Dashboard/WardFormat")
   WebHtml2.Html = "<small>Developed By: D Code Technology Pvt Ltd, Kathmandu</small>"
@@ -81,6 +93,9 @@ Public Sub btnagree_Click()
     ShowDiagnostics()
     ShowConsultations()
     ShowBedOccupancy()
+
+    btnoutpharm.Enabled = True
+    btnshowipd.Enabled = True
 
     $start = Now()
     WebTimer1.Enabled = True
@@ -271,5 +286,85 @@ Public Sub WebTable3_Data(Row As Integer, Column As Integer, Data As WebTableDat
 
   modGridView.GridViewDecoration(Data, Row)
   Data.Text = varTable3[Row][CStr(Column)]
+
+End
+
+Public Sub btnoutpharm_Click()
+
+  If $CharitySchemes.Count Then
+    ShowOPDCharity()
+  Endif
+
+End
+
+Private Sub ShowOPDCharity()
+
+  Dim xFinal As Variant[]
+
+  xFinal = modHospitalDash.SubGetCurrOPDCharityDash($CharitySchemes, dtfir, dtlast, "", "")
+
+  WebTable4.Clear()
+  WebTable4.Columns.Count = 4
+  WebTable4.Count = xFinal.Count
+  With WebTable4
+    .Columns[0].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
+    .Columns[1].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
+    .Columns[2].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+    .Columns[3].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
+
+    .Columns[0].Text = "Encounter"
+    .Columns[1].Text = "Department"
+    .Columns[2].Text = "Category"
+    .Columns[3].Text = "Amount"
+  End With
+
+  varTable4 = xFinal
+
+End
+
+Public Sub WebTable4_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  modGridView.GridViewDecoration(Data, Row)
+  Data.Text = varTable4[Row][CStr(Column)]
+
+End
+
+Public Sub btnshowipd_Click()
+
+  If $CharitySchemes.Count Then
+    ShowIPDCharity()
+  Endif
+
+End
+
+Private Sub ShowIPDCharity()
+
+  Dim xFinal As Variant[]
+
+  xFinal = modHospitalDash.SubGetCurrIPDCharityDash($CharitySchemes, "", "")
+
+  WebTable5.Clear()
+  WebTable5.Columns.Count = 4
+  WebTable5.Count = xFinal.Count
+  With WebTable5
+    .Columns[0].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
+    .Columns[1].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
+    .Columns[2].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+    .Columns[3].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
+
+    .Columns[0].Text = "Encounter"
+    .Columns[1].Text = "Department"
+    .Columns[2].Text = "Category"
+    .Columns[3].Text = "Amount"
+  End With
+
+  varTable5 = xFinal
+
+End
+
+Public Sub WebTable5_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  modGridView.GridViewDecoration(Data, Row)
+  Data.Text = varTable5[Row][CStr(Column)]
 
 End

@@ -10,11 +10,11 @@ Public Function GetPatPassCheck(sCon As Connection, patno As String) As Boolean
 
   res = sCon.Exec("select fldpassword from tblpatientinfo where fldpatientval=&1", patno)
   If res.Available Then
-    If res!fldpassword Then
+    If res["fldpassword"] Then
       xval = InputPassword(("Input Patient Password"), "Password", "")
       If xval Then
         xpass = modPassword.EncryptSimple(xval)
-        If res!fldpassword = xpass Then
+        If res["fldpassword"] = xpass Then
           xx = True
         Else
           xx = False
@@ -889,13 +889,13 @@ Public Sub PrintRegistExtraReport(encid As String)
   res = modDatabase.$myConn.Exec("select fldvisit from tblencounter where fldencounterval=&1", encid)
   xregist = modSettings.ShowSettingFromFIle("RegistrationForm/Template")
   xlateregist = modSettings.ShowSettingFromFIle("RegistrationLaterForm/Template")
-  If res!fldvisit Then
-    If res!fldvisit = "NEW" Then
+  If res["fldvisit"] Then
+    If res["fldvisit"] = "NEW" Then
       If xregist Then
         hCls = New CReportCustom(encid, xregist, "ReportSize", MMain.$defUnit)
         hCls.Preview()
       Endif
-    Else If res!fldvisit = "OLD" Then
+    Else If res["fldvisit"] = "OLD" Then
       If xregist Then
         hCls = New CReportCustom(encid, xregist, "ReportSize", MMain.$defUnit)
         hCls.Preview()
@@ -1005,49 +1005,81 @@ End
 ' End
 
 ''------------------------- patient Exit ---------------------------
-Public Function GetClearanceForExit(encid As String) As Boolean
+Public Function GetInflusionClearance(encid As String) As Boolean
 
-  Dim sTypeList As String[] = ["Events", "Delivery", "Procedure", "Devices"]
-  Dim xType As String
-  Dim res As Result
   Dim res1 As Result
+  Dim xval As Boolean
+
+  xval = True
+  res1 = modDatabase.$myConn.Exec("select fldid,flditem,fldfirsttime from tblpattiming where fldencounterval=&1 and fldtype=&2 and fldfirstsave=&3 and fldsecondsave=&4", encid, "Equipment", True, False)
+  If res1.Available Then
+    xval = False
+    Message.Warning(("Please Close running Equipment(s)"), ("OK"))
+  Endif
+  Return xval
+
+End
+
+Public Function GetEpuipmentClearance(encid As String) As Boolean
+
   Dim res2 As Result
   Dim xval As Boolean
 
   xval = True
-  If xval = True Then
-    res1 = modDatabase.$myConn.Exec("select fldid,flditem,fldfirsttime from tblpattiming where fldencounterval=&1 and fldtype=&2 and fldfirstsave=&3 and fldsecondsave=&4", encid, "Equipment", True, False)
-    If res1.Available Then
-      xval = False
-      Message.Warning(("Please Close running Equipment(s)"), ("OK"))
-    Endif
-  Endif
-
-  If xval = True Then
-    For Each xType In sTypeList
-      res = modDatabase.$myConn.Exec("select fldid,flditem,fldfirsttime from tblpatevents where fldencounterval=&1 and fldtype=&2 and fldfirstsave=&3 and fldsecondsave=&4", encid, xType, True, False)
-      If res.Available Then
+  res2 = modDatabase.$myConn.Exec("select fldid,flddoseno,fldfromtime,fldtotime from tblnurdosing where fldencounterval=&1 and flddoseno in(select fldid from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldroute=&3 and fldcurval=&4)", encid, True, "fluid", "Continue")
+  If res2.Available Then
+    For Each res2
+      If res2["fldfromtime"] And If Not res2["fldtotime"] Then
         xval = False
-        Message.Warning(("Please Close running Event(s) for " & xType), ("OK"))
+        Message.Warning(("Please Close running IV Infusion(s)"), ("OK"))
         Break
       Endif
     Next
   Endif
 
-  If xval = True Then
-    res2 = modDatabase.$myConn.Exec("select fldid,flddoseno,fldfromtime,fldtotime from tblnurdosing where fldencounterval=&1 and flddoseno in(select fldid from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldroute=&3 and fldcurval=&4)", encid, True, "fluid", "Continue")
-    If res2.Available Then
-      For Each res2
-        If res2!fldfromtime And If Not res2!fldtotime Then
-          xval = False
-          Message.Warning(("Please Close running IV Infusion(s)"), ("OK"))
-          Break
-        Endif
-      Next
+  Return xval
+
+End
+
+Public Function GetClinEventClearance(encid As String) As Boolean
+
+  Dim sTypeList As String[] = ["Events", "Delivery", "Procedure", "Devices"]
+  Dim xType As String
+  Dim res As Result
+  Dim xval As Boolean
+
+  xval = True
+  For Each xType In sTypeList
+    res = modDatabase.$myConn.Exec("select fldid,flditem,fldfirsttime from tblpatevents where fldencounterval=&1 and fldtype=&2 and fldfirstsave=&3 and fldsecondsave=&4", encid, xType, True, False)
+    If res.Available Then
+      xval = False
+      Message.Warning(("Please Close running Event(s) for " & xType), ("OK"))
+      Break
     Endif
-  Endif
+  Next
 
   Return xval
+
+End
+
+Public Function GetClearanceForExit(encid As String) As Boolean
+
+  Dim xval As Boolean
+  Dim yval As Boolean
+  Dim zval As Boolean
+  Dim aval As Boolean
+
+  xval = GetInflusionClearance(encid)
+  yval = GetEpuipmentClearance(encid)
+  zval = GetClinEventClearance(encid)
+
+  If xval And If yval And If zval Then
+    aval = True
+  Else
+    aval = False
+  Endif
+
+  Return aval
 
 End
 

@@ -1,0 +1,657 @@
+' Gambas class file
+
+Private $encid As String
+Private $useCardex As Boolean
+
+Private $rFludRes As Result
+Private $aFludFields As String[]
+Private $rRateRes As Result
+Private $aRateFields As String[]
+
+Private $rMixRes As Result
+Private $aMixFields As String[]
+
+Public Sub _new(encid As String, useCardex As Boolean, sClass As String)
+
+  $encid = encid
+  $useCardex = useCardex
+  WebContainer6.Class = sClass
+
+  ShowMedFluids()
+  If $useCardex = True Then
+    ShowMixtureFluids()
+  Endif
+
+End
+
+Public Sub RefreshTables()
+
+  ShowMedFluids()
+  If $useCardex = True Then
+    ShowMixtureFluids()
+  Endif
+
+End
+
+Public Sub chkalldate_Click()
+
+  ShowMedFluids()
+
+End
+
+Private Sub ShowMedFluids()
+
+  Dim xFields As String[]
+  Dim sql As String
+  Dim sql1 As String
+  Dim sql2 As String
+  Dim xrouLst As String[] = ["fluid", "CIV", "CIn(Epid)", "CIn(Block)"]
+  Dim j As Integer
+
+  For j = 0 To xrouLst.Count - 1
+    xrouLst[j] = "'" & xrouLst[j] & "'"
+  Next
+
+  If $useCardex = True Then
+    xFields = ["fldid", "fldid", "CONCAT(flditem, '|', COALESCE(fldmixing, ''))", "CONCAT(flditem, '|', flddose)", "fldfreq", "flddays", "fldstarttime", "fldcurval", "fldstarttime", "fldcurval", "fldendtime", "flddirection", "fldadminsite", "fldmixing", "fldroute", "flditem", "fldmixvolume", "fldmixrate", "flddose"]
+  Else
+    xFields = ["fldid", "fldid", "CONCAT(flditem, '|', COALESCE(fldmixing, ''))", "CONCAT(flditem, '|', flddose)", "fldfreq", "flddays", "fldstarttime", "fldcurval", "fldstarttime", "fldstatus", "fldendtime", "flddirection", "fldadminsite", "fldmixing", "fldroute", "flditem", "fldmixvolume", "fldmixrate", "flddose"]                                               ''
+  Endif
+
+  If $useCardex = True Then
+    If chkalldate.Value = True Then
+      sql = "select " & xFields.Join(",") & " from tblinpatdosing where fldencounterval=&1 and fldroute IN(" & xrouLst.Join(",") & ") and fldcurval=&3 and flddose>&3 and (fldmixing IS NULL or fldmixing NOT LIKE &4)"
+      $rFludRes = modDatabase.$myConn.Exec(sql, $encid, "Continue", 0, "ADMIXTURE:" & "%")
+    Else
+      sql1 = "select " & xFields.Join(",") & " from tblinpatdosing where fldencounterval=&1 and fldroute IN(" & xrouLst.Join(",") & ") and fldcurval=&2 and flddose>&3 and flddays>&3 and (fldmixing IS NULL or fldmixing NOT LIKE &4) and fldstarttime<=&5 and fldendtime>=&6"
+      sql2 = "select " & xFields.Join(",") & " from tblinpatdosing where fldencounterval=&1 and fldroute IN(" & xrouLst.Join(",") & ") and fldcurval=&3 and flddose>&3 and flddays=&3 and (fldmixing IS NULL or fldmixing NOT LIKE &4)"
+      $rFludRes = modDatabase.$myConn.Exec(sql1 & " UNION " & sql2, $encid, "Continue", 0, "ADMIXTURE:" & "%", Now(), DateAdd(Now(), gb.Hour, -3))
+    Endif
+  Else
+    If chkalldate.Value = True Then
+      sql = "select " & xFields.Join(",") & " from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldroute IN(" & xrouLst.Join(",") & ") and fldcurval=&3 and flddose>&4 and (fldmixing IS NULL or fldmixing NOT LIKE &5) ORDER BY fldstarttime DESC"
+      $rFludRes = modDatabase.$myConn.Exec(sql, $encid, True, "Continue", 0)
+    Else
+      sql = "select " & xFields.Join(",") & " from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldroute IN(" & xrouLst.Join(",") & ") and fldcurval=&3 and flddose>&4 and (fldmixing IS NULL or fldmixing NOT LIKE &5) and fldstarttime<=&6 and fldendtime>=&7 ORDER BY fldstarttime DESC"
+      $rFludRes = modDatabase.$myConn.Exec(sql, $encid, True, "Continue", 0, "ADMIXTURE:" & "%", modDate.EndSqlDate(Now()), modDate.StartSqlDate(Now()))
+    Endif
+  Endif
+  $aFludFields = New String[]
+  modGridView.ReadSmallData(grdfluid, $rFludRes, $aFludFields)
+
+  With grdfluid
+    .Columns[0].Hidden = True
+    .Columns[1].Width = CStr(25 * modBasic.$AppWidthRatio) & "px"
+    .Columns[2].Width = CStr(350 * modBasic.$AppWidthRatio) & "px"
+    .Columns[3].Width = CStr(50 * modBasic.$AppWidthRatio) & "px"
+    .Columns[4].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
+    .Columns[5].Hidden = True
+    .Columns[6].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+    .Columns[7].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
+    .Columns[8].Hidden = True  ''start time
+    .Columns[9].Hidden = True
+    .Columns[10].Hidden = True  ''close time
+    .Columns[11].Hidden = True
+    .Columns[12].Hidden = True
+    .Columns[13].Hidden = True
+    .Columns[14].Hidden = True
+    .Columns[15].Hidden = True
+    .Columns[16].Hidden = True
+    .Columns[17].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
+    .Columns[18].Hidden = True
+
+    .Columns[2].Text = "Medicine"
+    .Columns[3].Text = "Dose"
+    .Columns[4].Text = "Freq"
+    .Columns[6].Text = "Date"
+    .Columns[7].Text = "Status"
+    .Columns[17].Text = "mL/Hour"
+  End With
+
+End
+
+Public Sub grdfluid_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  $rFludRes.MoveTo(Row)
+  modGridView.GridViewDecoration(Data, Row)
+  If Column = 1 Then
+    Data.Html = modString.GetImageForHTMLGrid(modGeneralMain.GetSystemIcon(GetFluidAdminStatusCode($rFludRes[$aFludFields[Column]])), "15px", "15px")
+    Data.Text = ""
+  Else If Column = 2 Then
+    Data.Html = GetInjectionName($rFludRes[$aFludFields[Column]])
+  Else If Column = 3 Then
+    Data.Text = GetMedicineDose($rFludRes[$aFludFields[Column]])
+  Else If Column = 6 Then
+    Data.Text = modReportVar.GetDateTimeReport($rFludRes[$aFludFields[Column]], gb.GeneralDate)
+  Else
+    Data.Text = $rFludRes[$aFludFields[Column]]
+  Endif
+
+End
+
+Private Function GetInjectionName(sItem As String) As String
+
+  Dim asx As String[]
+  Dim xx As String
+
+  asx = Split(sItem, "|")
+  If asx.Count = 2 Then
+    If Trim(asx[1]) Then
+      xx = asx[0] & " <small>[" & asx[1] & "]</small>"
+    Else
+      xx = asx[0]
+    Endif
+  Else
+    xx = asx[0]
+  Endif
+
+  Return xx
+
+End
+
+Private Function GetMedicineDose(sItem As String) As String
+
+  Dim asx As String[]
+  Dim xx As String
+
+  asx = Split(sItem, "|")
+  If asx.Count = 2 Then
+    xx = asx[1] & Space(1) & modMedConstant.GetMedicineDoseUnit(asx[0])
+  Else
+    xx = ""
+  Endif
+
+  Return xx
+
+End
+
+Public Sub btndirection_Click()
+
+  If grdfluid.Selection.Count Then
+    $rFludRes.MoveTo(grdfluid.Selection[0])
+    lblduration.Text = $rFludRes["flddirection"]
+  Endif
+
+End
+
+Public Sub btnfluid_Click()
+
+  If grdfluid.Selection.Count Then
+    $rFludRes.MoveTo(grdfluid.Selection[0])
+    lblduration.Text = $rFludRes["fldmixing"] & "  Volume: " & $rFludRes["fldmixvolume"] & " mL"
+  Endif
+
+End
+
+Public Sub btnprotocol_Click()
+
+  Dim res As Result
+  Dim hForm As FmInjection
+
+  If grdfluid.Selection.Count Then
+    $rFludRes.MoveTo(grdfluid.Selection[0])
+    res = modDatabase.$medConn.Exec("select fldlabel from tbllabel where flddrug=&1 and fldsubroute=&2", modMedConstant.GetDrugFromStockID($rFludRes["flditem"]), $rFludRes["fldroute"])
+    If res.Available Then
+      res.MoveFirst
+      hForm = New FmInjection($rFludRes["fldroute"], res["fldlabel"])
+      hForm.ShowModal
+    Endif
+  Endif
+
+End
+
+Private Function GetDateTimeLabel(dt1 As Date, dt2 As Date) As String
+
+  Dim xx As String
+
+  If dt2 Then
+    If modDate.StartSqlDate(dt1) = modDate.StartSqlDate(dt2) Then
+      xx = modReportVar.GetDateTimeReport(dt1, gb.GeneralDate) & " TO " & modReportVar.GetDateTimeReport(dt2, gb.MediumTime)
+    Else
+      xx = modReportVar.GetDateTimeReport(dt1, gb.GeneralDate) & " TO " & modReportVar.GetDateTimeReport(dt2, gb.GeneralDate)
+    Endif
+  Else
+    xx = modReportVar.GetDateTimeReport(dt1, gb.GeneralDate)
+  Endif
+  Return xx
+
+End
+
+Public Sub btntime_Click()
+
+  If grdfluid.Selection.Count Then
+    $rFludRes.MoveTo(grdfluid.Selection[0])
+    lblduration.Text = GetDateTimeLabel($rFludRes["fldstarttime"], $rFludRes["fldendtime"])
+  Endif
+
+End
+
+Public Sub btneditinvrate_Click()
+
+  Dim res As Result
+  Dim yval As Float
+
+  If grdfluid.Selection.Count Then
+    $rFludRes.MoveTo(grdfluid.Selection[0])
+    If $useCardex = False Then
+      yval = InputValue(("Enter New Rate of Administration in ") & "<b>mL/Hour</b> FOR <b>" & $rFludRes["flditem"] & "</b>", "Administration Rate", $rFludRes["fldmixrate"])
+      If yval Then
+        res = modDatabase.$myConn.Edit("tblpatdosing", "fldid=&1", $rFludRes["fldid"])
+        res["fldmixrate"] = yval
+        res["xyz"] = False
+        res.Update()
+        ShowMedFluids()
+      Endif
+    Endif
+  Endif
+
+End
+
+Public Sub btnfluidstatus_Click()
+
+  Dim xx As String[] = ["Continue", "Discontinue", "On Hold", "Cancelled"]
+  Dim res As Result
+  Dim xval As String
+
+  If grdfluid.Selection.Count Then
+    $rFludRes.MoveTo(grdfluid.Selection[0])
+    If $useCardex = False Then
+      xval = InputCombo($rFludRes["flditem"], ("Select Current Status"), xx, $rFludRes["fldcurval"], True)
+      If xval Then
+        res = modDatabase.$myConn.Edit("tblpatdosing", "fldid=&1", $rFludRes["fldid"])
+        res["fldcurval"] = xval
+        res["xyz"] = False
+        res.Update()
+        ShowMedFluids()
+      Endif
+    Endif
+  Endif
+
+End
+
+Public Sub grdfluid_Select()
+
+  If grdfluid.Selection.Count Then
+    $rFludRes.MoveTo(grdfluid.Selection[0])
+    btnivclose.Visible = True
+    FillFluidGridView($rFludRes["fldid"])
+    lblduration.Text = $rFludRes["flddirection"]
+  Endif
+
+End
+
+Public Sub btnivstart_Click()
+
+  If grdfluid.Selection.Count Then
+    $rFludRes.MoveTo(grdfluid.Selection[0])
+
+    If $rFludRes["fldcurval"] = "Continue" Then
+      If GetFluidAdminStatusCode($rFludRes["fldid"]) = "icon:/small/next" Then
+        If txtrate.Value Then
+          If $useCardex = True Then
+            modPharmSub.InsertNurDosingIndoor($encid, 0, $rFludRes["fldid"], txtrate.Value, "mL/Hour", $rFludRes["flditem"], $rFludRes["flddose"], $rFludRes["fldfreq"], Now())
+          Else
+            modPharmSub.InsertNurDosingIndoor($encid, $rFludRes["fldid"], 0, txtrate.Value, "mL/Hour", $rFludRes["flditem"], $rFludRes["flddose"], $rFludRes["fldfreq"], Now())
+          Endif
+          FillFluidGridView($rFludRes["fldid"])
+          ShowMedFluids()
+          txtrate.Value = 0
+        Endif
+      Endif
+    Endif
+
+  Endif
+
+End
+
+Private Sub FillFluidGridView(dosno As Long)
+
+  If $useCardex = True Then
+    $rRateRes = modDatabase.$myConn.Exec("select fldid,fldmedicine,fldvalue,fldunit,fldid,fldfromtime,fldtotime,fldcardex from tblnurdosing where fldencounterval=&1 and fldcardex=&2 and fldfromtime IS NOT NULL ORDER BY fldid DESC", $encid, dosno)
+  Else
+    $rRateRes = modDatabase.$myConn.Exec("select fldid,fldmedicine,fldvalue,fldunit,fldid,fldfromtime,fldtotime,flddoseno from tblnurdosing where fldencounterval=&1 and flddoseno=&2 and fldfromtime IS NOT NULL ORDER BY fldid DESC", $encid, dosno)
+  Endif
+  $aRateFields = New String[]
+  modGridView.ReadSmallData(grdfluiddata, $rRateRes, $aRateFields)
+
+  With grdfluiddata
+    .Columns[0].Width = CStr(25 * modBasic.$AppWidthRatio) & "px"
+    .Columns[1].Width = CStr(400 * modBasic.$AppWidthRatio) & "px"
+    .Columns[2].Width = CStr(50 * modBasic.$AppWidthRatio) & "px"
+    .Columns[3].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
+    .Columns[4].Hidden = True
+    .Columns[5].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+    .Columns[6].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+    .Columns[7].Hidden = True
+
+    .Columns[1].Text = "Particulars"
+    .Columns[2].Text = "Rate"
+    .Columns[3].Text = "Unit"
+    .Columns[5].Text = "Start"
+    .Columns[6].Text = "Close"
+  End With
+
+End
+
+Public Sub grdfluiddata_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  $rRateRes.MoveTo(Row)
+  modGridView.GridViewDecoration(Data, Row)
+  If Column = 0 Then
+    Data.Html = modString.GetImageForHTMLGrid(modGeneralMain.GetSystemIcon(GetPictureDosing($rRateRes[$aRateFields[Column]])), "15px", "15px")
+    Data.Text = ""
+  Else If Column = 2 Then
+    Data.Text = $rRateRes[$aRateFields[Column]]
+  Else If Column = 5 Then
+    Data.Text = modReportVar.GetDateTimeReport($rRateRes[$aRateFields[Column]], gb.GeneralDate)
+  Else If Column = 6 Then
+    Data.Text = modReportVar.GetDateTimeReport($rRateRes[$aRateFields[Column]], gb.GeneralDate)
+  Else
+    Data.Text = $rRateRes[$aRateFields[Column]]
+  Endif
+
+End
+
+Public Sub btnivclose_Click()
+
+  Dim res As Result
+
+  If grdfluiddata.Selection.Count Then
+    $rRateRes.MoveTo(grdfluiddata.Selection[0])
+    If GetPictureDosing($rRateRes["fldid"]) = "icon:/small/stop" Then
+      res = modDatabase.$myConn.Edit("tblnurdosing", "fldid=&1 and fldencounterval=&2", $rRateRes["fldid"], $encid)
+      res["fldtotime"] = Now()
+      res["xyz"] = False
+      res.Update
+      If $useCardex = True Then
+        FillFluidGridView($rRateRes["fldcardex"])
+      Else
+        FillFluidGridView($rRateRes["flddoseno"])
+      Endif
+      ShowMedFluids()
+    Endif
+  Endif
+
+End
+
+Private Function GetPictureDosing(dosid As Long) As String
+
+  Dim res As Result
+  Dim xx As String
+
+  res = modDatabase.$myConn.Exec("select flddoseno,fldfromtime,fldtotime from tblnurdosing where fldid=&1", dosid)
+  If res.Available Then
+    res.MoveFirst
+    If res["fldfromtime"] And If Not res["fldtotime"] Then
+      xx = "icon:/small/stop"
+    Else If res["fldfromtime"] And If res["fldtotime"] Then
+      xx = "icon:/small/lock"
+    Endif
+  Endif
+  Return xx
+
+End
+
+Private Function GetFluidAdminStatusCode(dosno As Long) As String
+
+  Dim res As Result
+  Dim xx As String
+
+  If $useCardex = True Then
+    res = modDatabase.$myConn.Exec("select fldid,fldfromtime,fldtotime from tblnurdosing where fldencounterval=&1 and fldcardex=&2 ORDER BY fldid DESC", $encid, dosno)
+  Else
+    res = modDatabase.$myConn.Exec("select fldid,fldfromtime,fldtotime from tblnurdosing where fldencounterval=&1 and flddoseno=&2 ORDER BY fldid DESC", $encid, dosno)
+  Endif
+  If res.Available Then
+    res.MoveFirst
+    If res["fldfromtime"] And If Not res["fldtotime"] Then
+      xx = "icon:/small/stop"
+    Else
+      xx = "icon:/small/next"
+    Endif
+  Else
+    xx = "icon:/small/next"
+  Endif
+  Return xx
+
+End
+
+''================================= Admixture =============================
+Public Sub chkmixall_Click()
+
+  If $useCardex = True Then
+    ShowMixtureFluids()
+  Endif
+
+End
+
+Private Sub ShowMixtureFluids()
+
+  Dim xFields As String[]
+  Dim sql As String
+  Dim sql1 As String
+  Dim sql2 As String
+  Dim res As Result
+  Dim rsx As Result
+  Dim xrouLst As String[] = ["fluid", "CIV", "CIn(Epid)", "CIn(Block)"]
+  Dim j As Integer
+
+  Dim Column As Integer
+  Dim fld As ResultField
+
+  Dim pic2 As String
+
+  If $useCardex = True Then
+    xFields = ["flditem", "CONCAT(flditem, '|', flddose)", "fldfreq", "flddays", "fldstarttime", "fldcurval", "fldstarttime", "fldcurval", "fldendtime", "flddirection", "fldadminsite", "fldmixing", "fldroute", "flditem", "fldmixvolume", "fldmixrate", "fldid"]
+  Endif
+
+  ColumnView1.Clear
+  ColumnView1.Columns.Count = xFields.Count
+  With ColumnView1
+    .Columns[0].Width = CStr(400 * modBasic.$AppWidthRatio) & "px"
+    .Columns[1].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
+    .Columns[2].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
+    .Columns[3].Width = CStr(50 * modBasic.$AppWidthRatio) & "px"
+    .Columns[4].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+    .Columns[5].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
+    .Columns[6].Hidden = True ''start time
+    .Columns[7].Hidden = True
+    .Columns[8].Hidden = True ''end time
+    .Columns[9].Hidden = True ''direction
+    .Columns[10].Hidden = True ''admin site
+    .Columns[11].Hidden = True ''dilution
+    .Columns[12].Hidden = True  ''route
+    .Columns[13].Hidden = True ''Item name
+    .Columns[14].Hidden = True ''Mix Volume
+    .Columns[15].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
+    .Columns[16].Hidden = True  ''fldid
+
+    .Columns[0].Text = "Medicine"
+    .Columns[1].Text = "Dose"
+    .Columns[2].Text = "Freq"
+    .Columns[3].Text = "Days"
+    .Columns[4].Text = "Date"
+    .Columns[5].Text = "Status"
+    .Columns[15].Text = "mL/Hour"
+  End With
+
+  For j = 0 To xrouLst.Count - 1
+    xrouLst[j] = "'" & xrouLst[j] & "'"
+  Next
+
+  If $useCardex = True Then
+    If chkmixall.Value = True Then
+      sql = "select distinct(fldmixing) as fldmixing from tblinpatdosing where fldencounterval=&1 and fldroute IN(" & xrouLst.Join(",") & ") and fldcurval=&3 and flddose>&3 and fldmixing LIKE &4"
+      rsx = modDatabase.$myConn.Exec(sql, $encid, "Continue", 0, "ADMIXTURE:" & "%")
+    Else
+      sql1 = "select distinct(fldmixing) as fldmixing from tblinpatdosing where fldencounterval=&1 and fldroute IN(" & xrouLst.Join(",") & ") and fldcurval=&2 and flddose>&3 and flddays>&3 and fldmixing LIKE &4 and fldstarttime<=&5 and fldendtime>=&6"
+      sql2 = "select distinct(fldmixing) as fldmixing from tblinpatdosing where fldencounterval=&1 and fldroute IN(" & xrouLst.Join(",") & ") and fldcurval=&3 and flddose>&3 and flddays=&3 and fldmixing LIKE &4"
+      rsx = modDatabase.$myConn.Exec(sql1 & " UNION " & sql2, $encid, "Continue", 0, "ADMIXTURE:" & "%", Now(), DateAdd(Now(), gb.Hour, -3))
+    Endif
+  Endif
+  If rsx.Available Then
+    For Each rsx
+      ColumnView1.Add(rsx["fldmixing"], rsx["fldmixing"])
+
+      If $useCardex = True Then
+        If chkmixall.Value = True Then
+          sql = "select " & xFields.Join(",") & " from tblinpatdosing where fldencounterval=&1 and fldroute IN(" & xrouLst.Join(",") & ") and fldcurval=&3 and flddose>&3 and fldmixing=&4"
+          res = modDatabase.$myConn.Exec(sql, $encid, "Continue", 0, rsx["fldmixing"])
+        Else
+          sql1 = "select " & xFields.Join(",") & " from tblinpatdosing where fldencounterval=&1 and fldroute IN(" & xrouLst.Join(",") & ") and fldcurval=&2 and flddose>&3 and flddays>&3 and fldmixing=&4 and fldstarttime<=&5 and fldendtime>=&6"
+          sql2 = "select " & xFields.Join(",") & " from tblinpatdosing where fldencounterval=&1 and fldroute IN(" & xrouLst.Join(",") & ") and fldcurval=&3 and flddose>&3 and flddays=&3 and fldmixing=&4"
+          res = modDatabase.$myConn.Exec(sql1 & " UNION " & sql2, $encid, "Continue", 0, rsx["fldmixing"], Now(), DateAdd(Now(), gb.Hour, -3))
+        Endif
+      Endif
+      If res.Available Then
+        res.MoveFirst
+        pic2 = GetFluidAdminStatusCode(res["fldid"])
+        ColumnView1[rsx["fldmixing"]].Image = pic2
+
+        For Each res
+          ColumnView1.Add(rsx["fldmixing"] & "@" & CStr(res["fldid"]), res["fldid"], pic2, rsx["fldmixing"])
+          Column = 0
+          For Each fld In res.Fields
+            If Column = 1 Then
+              ColumnView1[rsx["fldmixing"] & "@" & CStr(res["fldid"])][Column] = GetMedicineDose(res[fld.Name])
+            Else
+              ColumnView1[rsx["fldmixing"] & "@" & CStr(res["fldid"])][Column] = res[fld.Name]
+            Endif
+            Column = Column + 1
+          Next
+        Next
+      Endif
+
+    Next
+  Endif
+
+End
+
+Private Sub ResetButtons()
+
+  If ColumnView1.Current.Image = "icon:/small/next" Then
+    btnmixstart.Visible = True
+    btnmixclose.Visible = False
+  Else
+    btnmixstart.Visible = False
+    btnmixclose.Visible = True
+  Endif
+
+End
+
+Public Sub ColumnView1_Select()
+
+  If ColumnView1.Current.Key = ColumnView1.Current.Text Then
+    txtmixture.Text = ColumnView1.Current.Key
+    ResetButtons()
+
+  Else
+    txtmixture.Text = ""
+    btnmixstart.Visible = False
+    btnmixclose.Visible = False
+  Endif
+  FillMixtureGridView(txtmixture.Text)
+
+End
+
+Public Sub btnmixstart_Click()
+
+  Dim res As Result
+  Dim xrouLst As String[] = ["fluid", "CIV", "CIn(Epid)", "CIn(Block)"]
+  Dim j As Integer
+
+  For j = 0 To xrouLst.Count - 1
+    xrouLst[j] = "'" & xrouLst[j] & "'"
+  Next
+
+  If ColumnView1.Selection.Count Then
+    If txtmixrate.Value > 0 Then
+      If ColumnView1.Current.Image = "icon:/small/next" Then
+
+        If $useCardex = True Then
+          res = modDatabase.$myConn.Exec("select fldid,flditem,flddose,fldfreq from tblinpatdosing where fldencounterval=&1 and fldroute IN(" & xrouLst.Join(",") & ") and fldcurval=&2 and flddose>&3 and fldmixing=&4", $encid, "Continue", 0, txtmixture.Text)
+          If res.Available Then
+            For Each res
+              If $useCardex = True Then
+                modPharmSub.InsertNurDosingIndoor($encid, 0, res["fldid"], txtmixrate.Value, "mL/Hour", res["flditem"], res["flddose"], res["fldfreq"], Now())
+              Endif
+            Next
+            FillMixtureGridView(txtmixture.Text)
+            ResetButtons()
+            ShowMixtureFluids()
+          Endif
+        Endif
+
+      Endif
+    Endif
+  Endif
+
+End
+
+Private Sub FillMixtureGridView(xMixture As String)
+
+  If $useCardex = True Then
+    $rMixRes = modDatabase.$myConn.Exec("select t1.fldid,t1.fldmedicine,t1.fldvalue,t1.fldunit,t1.fldid,t1.fldfromtime,t1.fldtotime,t1.fldcardex from tblnurdosing as t1 inner join tblinpatdosing as t2 on (t1.fldcardex=t2.fldid and t1.fldencounterval=t2.fldencounterval) where t1.fldencounterval=&1 and t1.fldfromtime IS NOT NULL and t2.fldmixing=&2  ORDER BY t1.fldid DESC", $encid, xMixture)
+  Endif
+  $aMixFields = New String[]
+  modGridView.ReadSmallData(grdmixture, $rMixRes, $aMixFields)
+
+  With grdmixture
+    .Columns[0].Hidden = True
+    .Columns[1].Width = CStr(400 * modBasic.$AppWidthRatio) & "px"
+    .Columns[2].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
+    .Columns[3].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
+    .Columns[4].Width = CStr(40 * modBasic.$AppWidthRatio) & "px"
+    .Columns[5].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+    .Columns[6].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+    .Columns[7].Hidden = True
+
+    .Columns[1].Text = "Particulars"
+    .Columns[2].Text = "Rate"
+    .Columns[3].Text = "Unit"
+    .Columns[5].Text = "Start"
+    .Columns[6].Text = "Close"
+  End With
+
+End
+
+Public Sub grdmixture_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  $rMixRes.MoveTo(Row)
+  modGridView.GridViewDecoration(Data, Row)
+  If Column = 2 Then
+    Data.Text = $rMixRes[$aMixFields[Column]]
+  Else If Column = 4 Then
+    Data.Html = modString.GetImageForHTMLGrid(modGeneralMain.GetSystemIcon(GetPictureDosing($rMixRes[$aMixFields[Column]])), "15px", "15px")
+    Data.Text = ""
+  Else If Column = 5 Then
+    Data.Text = modReportVar.GetDateTimeReport($rMixRes[$aMixFields[Column]], gb.GeneralDate)
+  Else If Column = 6 Then
+    Data.Text = modReportVar.GetDateTimeReport($rMixRes[$aMixFields[Column]], gb.GeneralDate)
+  Else
+    Data.Text = $rMixRes[$aMixFields[Column]]
+  Endif
+
+End
+
+Public Sub btnmixclose_Click()
+
+  Dim res As Result
+  Dim Row As Integer
+
+  If ColumnView1.Selection.Count Then
+    If ColumnView1.Current.Image = "icon:/small/stop" Then
+      For Row = 0 To grdmixture.Count - 1
+        $rMixRes.MoveTo(Row)
+        res = modDatabase.$myConn.Edit("tblnurdosing", "fldid=&1 and fldencounterval=&2", $rMixRes["fldid"], $encid)
+        res["fldtotime"] = Now()
+        res["xyz"] = False
+        res.Update
+      Next
+      FillMixtureGridView(txtmixture.Text)
+      ResetButtons()
+      ShowMixtureFluids()
+    Endif
+  Endif
+
+End

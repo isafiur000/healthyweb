@@ -271,3 +271,73 @@ Public Function SubGetCurrOccupancyDash(sType As String, sLocaType As String, sL
   Return xFinal
 
 End
+
+''---------------- charity -----------------
+Public Function SubGetCurrOPDCharityDash(xSchemeList As String[], xdtfir As Date, xdtlast As Date, sLocaType As String, sLocation As String) As Variant[]
+
+  Dim res As Result
+  Dim xFinal As Variant[]
+  Dim xRowVal As Collection
+  Dim i As Integer
+  Dim xList As String[]
+
+  xList = xSchemeList.Copy()
+  For i = 0 To xList.Count - 1
+    xList[i] = "'" & xList[i] & "'"
+  Next
+  xFinal = New Variant[]
+
+  res = modDatabase.$syConn.Exec("select fldencounterval,fldcurrlocat,flditemtype,SUM((REPLACE(REPLACE(fldbilltype , 'Cash', 0), 'Credit', 100) - COALESCE(fldcashincredit, 0)) * fldditemamt / 100) as xcredit from tblpatbilling where flddisctype in(" & xList.Join(",") & ") and fldtime>=&1 and fldtime<=&2 and fldsave=&3 and fldcurrlocat in(select flddept from tbldepartment where fldcateg=&4 or fldcateg=&5)" & modDataRepo.GetWhereStringRepo(sLocaType, sLocation) & " GROUP BY fldencounterval,flditemtype", modDate.StartSqlDate(xdtfir), modDate.EndSqlDate(xdtlast), True, "Consultation", "OPD Visit")
+  If res.Available Then
+    For Each res
+      xRowVal = New Collection
+      xRowVal.Add(res["fldencounterval"], CStr(0))
+      xRowVal.Add(res["fldcurrlocat"], CStr(1))
+      xRowVal.Add(res["flditemtype"], CStr(2))
+      xRowVal.Add(res["xcredit"], CStr(3))
+      xFinal.Add(xRowVal)
+    Next
+  Endif
+
+  Return xFinal
+
+End
+
+Public Function SubGetCurrIPDCharityDash(xSchemeList As String[], sLocaType As String, sLocation As String) As Variant[]
+
+  Dim sql1 As String
+  Dim sql2 As String
+  Dim res As Result
+  Dim xFinal As Variant[]
+  Dim xRowVal As Collection
+  Dim i As Integer
+  Dim xList As String[]
+  Dim j As Integer
+  Dim yList As String[] = ["Discharged", "LAMA", "Death", "Refer", "Absconder"]
+
+  xList = xSchemeList.Copy()
+  For i = 0 To xList.Count - 1
+    xList[i] = "'" & xList[i] & "'"
+  Next
+  For j = 0 To yList.Count - 1
+    yList[j] = "'" & yList[j] & "'"
+  Next
+  xFinal = New Variant[]
+
+  sql1 = "select t1.fldencounterval as fldencounterval,t1.fldcurrlocat as fldcurrlocat,t1.flditemtype as flditemtype,SUM((REPLACE(REPLACE(t1.fldbilltype , 'Cash', 0), 'Credit', 100) - COALESCE(t1.fldcashincredit, 0)) * t1.fldditemamt / 100) as xcredit from tblpatbilling as t1 inner join tblencounter as t2 on t1.fldencounterval=t2.fldencounterval where t1.flddisctype in(" & xList.Join(",") & ") and t2.flddod>=&1 and t2.flddod<=&2 and t1.fldsave=&3 and t2.fldadmission in(" & yList.Join(",") & ")" & modDataRepo.GetWhereStringRepo(sLocaType, sLocation) & " GROUP BY t1.fldencounterval,t1.flditemtype"
+  sql2 = "select t1.fldencounterval as fldencounterval,t1.fldcurrlocat as fldcurrlocat,t1.flditemtype as flditemtype,SUM((REPLACE(REPLACE(t1.fldbilltype , 'Cash', 0), 'Credit', 100) - COALESCE(t1.fldcashincredit, 0)) * t1.fldditemamt / 100) as xcredit from tblpatbilling as t1 inner join tblencounter as t2 on t1.fldencounterval=t2.fldencounterval where t1.flddisctype in(" & xList.Join(",") & ") and t2.flddoa IS NOT NULL and t1.fldsave=&3 and t2.fldadmission=&4" & modDataRepo.GetWhereStringRepo(sLocaType, sLocation) & " GROUP BY t1.fldencounterval,t1.flditemtype"
+  res = modDatabase.$syConn.Exec(sql1 & " UNION " & sql2, modDate.StartSqlDate(Now()), modDate.EndSqlDate(Now()), True, "Admitted")
+  If res.Available Then
+    For Each res
+      xRowVal = New Collection
+      xRowVal.Add(res["fldencounterval"], CStr(0))
+      xRowVal.Add(res["fldcurrlocat"], CStr(1))
+      xRowVal.Add(res["flditemtype"], CStr(2))
+      xRowVal.Add(res["xcredit"], CStr(3))
+      xFinal.Add(xRowVal)
+    Next
+  Endif
+
+  Return xFinal
+
+End
