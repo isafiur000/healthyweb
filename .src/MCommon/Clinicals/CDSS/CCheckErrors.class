@@ -1,0 +1,359 @@
+' Gambas class file
+
+Private $encid As String
+Private $xVar As Variant[]
+
+Private $pregstat As String
+Private $hepstat As String
+Private $cretclr As Float
+Private $dtbir As Date
+Private $dtrec As Date
+Private $sAllerList As String[]
+Private $diagnosisList As String[]
+Private $hypoTestList As String[]
+Private $hyperTestList As String[]
+Private $bradyExamList As String[]
+Private $tachyExamList As String[]
+Private $donelablist As String[]
+
+Private xAllegLst As String[]
+Private xDisesLst As String[]
+Private xSideEff As String[]
+Private xLabLst As String[]
+Private xExamLst As String[]
+Private xIntxLst As String[]
+Private xInjLst As String[]
+Private xFludLst As String[]
+
+Public Sub _new(encid As String, sVar As Variant[])
+
+  $encid = encid
+  $xVar = sVar
+
+  xAllegLst = New String[]
+  xDisesLst = New String[]
+  xSideEff = New String[]
+  xLabLst = New String[]
+  xExamLst = New String[]
+  xIntxLst = New String[]
+  xInjLst = New String[]
+  xFludLst = New String[]
+
+End
+
+Public Function GetMedErrorOutput() As String
+
+  Dim xList As String[]
+  Dim xxx As String
+
+  xList = AnalyzeErrors()
+  If xList.Count Then
+    xxx = xList.Join("<br>")
+  Else
+    xxx = ""
+  Endif
+
+  Return xxx
+
+End
+
+Private Function AnalyzeErrors() As String[]
+
+  Dim cForm As CMedicineError
+  Dim xdoseunit As String
+  Dim druglist As String[]
+  Dim xdrug As String
+  Dim xval As String
+  Dim aColl As Collection
+  Dim curdrug As String
+  Dim xoutput As String[]
+
+  druglist = New String[]
+  For Each aColl In $xVar
+    xval = modMedConstant.GetDrugFromStockID(aColl["Medicine"])
+    If druglist.Count = 0 Then
+      druglist.Add(xval)
+    Else
+      If druglist.Exist(xval) = False Then
+        druglist.Add(xval)
+      Endif
+    Endif
+  Next
+  If druglist Then
+    druglist.Sort()
+  Endif
+
+  xoutput = New String[]
+  For Each aColl In $xVar
+    cForm = New CMedicineError($encid, aColl["Medicine"])
+
+    ''check Dose
+    If GetDoseChecking() = True Then
+      If aColl["Dose"] Then
+        xdoseunit = modMedConstant.GetMedicineDoseUnit(aColl["Medicine"])
+        cForm.CheckDoseLimits(aColl["Dose"], xdoseunit, aColl["Frequency"])
+        If modMedError.$MaxUnitDose = "No" Then
+        Else
+          cForm.MaximumUnitDose()
+        Endif
+        If modMedError.$MaxDailyDose = "No" Then
+        Else
+          cForm.MaximumDailyDose()
+        Endif
+        If modMedError.$MaxFrequency = "No" Then
+        Else
+          cForm.MaximumFrequency()
+        Endif
+        If modMedError.$MinDailyDose = "No" Then
+        Else
+          cForm.MinimumDailyDose()
+        Endif
+      Endif
+    Endif
+
+    If modMedError.$DoseBreak = "No" Then
+    Else
+      cForm.DoseBreaking(aColl["Dose"], aColl["Route"])
+    Endif
+    If modMedError.$PRNRestriction = "No" Then
+    Else
+      cForm.PRNRestriction(aColl["Frequency"])
+    Endif
+    If modMedError.$PregnancyPrecaution = "No" Then
+    Else
+      cForm.PregnancyPrecaution($pregstat)
+    Endif
+    If modMedError.$HepaticPrecaution = "No" Then
+    Else
+      cForm.LiverPrecaution($hepstat)
+    Endif
+    If modMedError.$RenalPrecaution = "No" Then
+    Else
+      cForm.RenalPrecaution($cretclr)
+    Endif
+
+    ''--------------- using drug list
+    If modMedError.$DrugInteraction = "No" Then
+    Else
+      curdrug = modMedConstant.GetDrugFromStockID(aColl["Medicine"])
+      For Each xdrug In druglist
+        If curdrug = xdrug Then
+        Else
+          If xIntxLst.Exist(curdrug & "|" & xdrug) = False Then
+            cForm.DrugDrugInteractions(xdrug)
+            xIntxLst.Add(curdrug & "|" & xdrug)
+            xIntxLst.Add(xdrug & "|" & curdrug)
+          Endif
+        Endif
+      Next
+    Endif
+
+    If modMedError.$InjectionIncompatibility = "No" Then
+    Else
+      curdrug = modMedConstant.GetDrugFromStockID(aColl["Medicine"])
+      For Each xdrug In druglist
+        If curdrug = xdrug Then
+        Else
+          If xInjLst.Exist(curdrug & "|" & xdrug) = False Then
+            cForm.DrugInjectionIncompat(xdrug)
+            xInjLst.Add(curdrug & "|" & xdrug)
+            xInjLst.Add(xdrug & "|" & curdrug)
+          Endif
+        Endif
+      Next
+    Endif
+
+    If modMedError.$IVFluidIncompatibility = "No" Then
+    Else
+      curdrug = modMedConstant.GetDrugFromStockID(aColl["Medicine"])
+      For Each xdrug In druglist
+        If curdrug = xdrug Then
+        Else
+          If xFludLst.Exist(curdrug & "|" & xdrug) = False Then
+            cForm.DrugFluidIncompat(xdrug)
+            xFludLst.Add(curdrug & "|" & xdrug)
+            xFludLst.Add(xdrug & "|" & curdrug)
+          Endif
+        Endif
+      Next
+    Endif
+
+    ''--------------other
+    If modMedError.$AgeContraindication = "Yes" Then
+      cForm.AgeContraIndications($dtbir, $dtrec)
+    Endif
+    If modMedError.$PreservativePrecaution = "Yes" Then
+      cForm.PreservativePrecaution($dtbir, $dtrec)
+    Endif
+
+    ''------------------ cache to avoid repetition
+    If modMedError.$DrugAllergy = "Yes" Then
+      If xAllegLst.Exist(aColl["Medicine"]) = False Then
+        cForm.DrugAllergy($sAllerList)
+        xAllegLst.Add(aColl["Medicine"])
+      Endif
+    Endif
+
+    If modMedError.$DiseaseContraindication = "Yes" Then
+      If xDisesLst.Exist(aColl["Medicine"]) = False Then
+        cForm.DiseaseContraIndications($diagnosisList)
+        xDisesLst.Add(aColl["Medicine"])
+      Endif
+    Endif
+
+    If modMedError.$SideEffects = "Yes" Then
+      If xSideEff.Exist(aColl["Medicine"]) = False Then
+        cForm.DrugSideEffects($diagnosisList)
+        xSideEff.Add(aColl["Medicine"])
+      Endif
+    Endif
+
+    If modMedError.$LaboratoryInteraction = "Yes" Then
+      If xLabLst.Exist(aColl["Medicine"]) = False Then
+        cForm.LaboratoryInteractions($hypoTestList, $hyperTestList)
+        xLabLst.Add(aColl["Medicine"])
+      Endif
+    Endif
+    If modMedError.$ExaminationInteraction = "Yes" Then
+      If xExamLst.Exist(aColl["Medicine"]) = False Then
+        cForm.ExamInteractions($bradyExamList, $tachyExamList)
+        xExamLst.Add(aColl["Medicine"])
+      Endif
+    Endif
+
+    ''-----------other
+    If modMedError.$AntibioticResistance = "Yes" Then
+      cForm.DrugResistance()
+    Endif
+    If modMedError.$PreAdminMonitor = "Yes" Then
+      cForm.PreAdminMonitoring($donelablist)
+    Endif
+
+    xoutput.Insert(cForm.GetOutputMessage())
+  Next
+
+  Return xoutput
+
+End
+
+Private Function GetDoseChecking() As Boolean
+
+  Dim xbool As Boolean
+
+  xbool = False
+  If modMedError.$MaxUnitDose = "No" Then
+  Else
+    xbool = True
+  Endif
+  If modMedError.$MaxDailyDose = "No" Then
+  Else
+    xbool = True
+  Endif
+  If modMedError.$MaxFrequency = "No" Then
+  Else
+    xbool = True
+  Endif
+  If modMedError.$MinDailyDose = "No" Then
+  Else
+    xbool = True
+  Endif
+
+  Return xbool
+
+End
+
+''----------------- get values --------------------
+Public Sub SetHepaticStatus(sValue As String)
+
+  $hepstat = sValue
+
+End
+
+Public Sub SetPregnancyStatus(sValue As String)
+
+  $pregstat = sValue
+
+End
+
+Public Sub SetRenalStatus(sValue As Float)
+
+  $cretclr = sValue
+
+End
+
+Public Sub SetPatientDates(xbirth As Date, xrec As Date)
+
+  $dtbir = xbirth
+  $dtrec = xrec
+
+End
+
+Public Sub SetAllergy(xList As String[])
+
+  $sAllerList = xList
+
+End
+
+Public Sub SetDiagnosisList(xList As String[])
+
+  $diagnosisList = xList
+
+End
+
+Public Sub SetLabAbnormList(xHypo As String[], xHyper As String[])
+
+  $hypoTestList = xHypo
+  $hyperTestList = xHyper
+
+End
+
+Public Sub SetExamAbnormList(xHypo As String[], xHyper As String[])
+
+  $bradyExamList = xHypo
+  $tachyExamList = xHyper
+
+End
+
+Public Sub SetDoneLabList(xList As String[])
+
+  $donelablist = xList
+
+End
+
+Public Sub GetRequiredParameters()
+
+  If modMedError.$PregnancyPrecaution = "No" Then
+  Else
+    $pregstat = modPatient.GetPregnancyStatus($encid)
+  Endif
+  If modMedError.$HepaticPrecaution = "No" Then
+  Else
+    $hepstat = modClinic.GetHepaticStatus($encid)
+  Endif
+  If modMedError.$RenalPrecaution = "No" Then
+  Else
+    $cretclr = modSysCons.GetCreatinineClearance($encid)
+  Endif
+  If modMedError.$AgeContraindication = "Yes" Or If modMedError.$PreservativePrecaution = "Yes" Then
+    $dtbir = modPatient.GetPatientBirthDay($encid)
+    $dtrec = modPatient.GetRecordDate($encid)
+  Endif
+  If modMedError.$DrugAllergy = "Yes" Then
+    $sAllerList = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(t1.fldcode) as col from tblpatfindings as t1 inner join tblencounter as t2 on t1.fldencounterval=t2.fldencounterval where t1.fldtype=&1 and t2.fldpatientval=&2 and fldsave=&3", "Allergic Drugs", modPatient.GetPatientNoByEnc($encid), True))
+  Endif
+  If modMedError.$DiseaseContraindication = "Yes" Or If modMedError.$SideEffects = "Yes" Then
+    $diagnosisList = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldcode) as col from tblpatfindings where fldencounterval=&1 and (fldtype=&2 or fldtype=&3) and fldsave=&4", $encid, "Final Diagnosis", "Provisional Diagnosis", True))
+  Endif
+  If modMedError.$LaboratoryInteraction = "Yes" Then
+    $hypoTestList = modLabTest.GetHypoTestList($encid)
+    $hyperTestList = modLabTest.GetHyperTestList($encid)
+  Endif
+  If modMedError.$ExaminationInteraction = "Yes" Then
+    $bradyExamList = modClinic.GetBradyExamList($encid)
+    $tachyExamList = modClinic.GetTachyExamList($encid)
+  Endif
+  If modMedError.$PreAdminMonitor = "Yes" Then
+    $donelablist = modLabTest.PaientAllTestNameArray($encid)
+  Endif
+
+End

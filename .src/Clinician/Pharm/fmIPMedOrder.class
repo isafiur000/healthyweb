@@ -63,9 +63,6 @@ Public Sub _new(encid As String, sStatus As String, sPackage As String, sClass A
   SetNarcoticsPrescriber()
 
   $ShowReview = modBasic.$MedErrorEnable
-  If Not $ShowReview Then
-    $ShowReview = "Notification"
-  Endif
   If modPharmacy.DisableEncounterForReview($encid) = True Then
     $ShowReview = "None"
   Endif
@@ -339,7 +336,7 @@ Private Function GetDosingTarget(sValue As String) As String
   If asx.Count = 5 Then
     Select asx[0]
       Case "CIV", "CIn(Epid)", "CIn(Block)"
-        If asx[3] Then
+        If asx[3] And If CFloat(asx[3]) Then
           xunit = modMedConstant.GetMedicineDoseUnit(asx[1])
           xval = (CFloat(asx[2]) * CFloat(asx[4])) / (CFloat(asx[3]) * 60)
           xx = CStr(Round(xval, -3)) & Space(1) & xunit & "/min"
@@ -1080,11 +1077,11 @@ End
 
 Public Sub txtday_Activate()
 
-  Dim opt As String[]
-  Dim xval As String
-  Dim xcount As String
+  ' Dim opt As String[]
+  ' Dim xval As String
+  ' Dim xcount As String
   Dim xday As Integer
-  Dim cForm As CMedError
+  ' Dim cForm As CMedError
 
   If txtdose.Value And If cmbfreq.Text Then
     If txtday.Value Then
@@ -1096,39 +1093,39 @@ Public Sub txtday_Activate()
     Endif
 
     If xday Then
-      xcount = 0
-      If $HideErr = False Then
-        If txtdose.Value And If cmbfreq.Text Then
-
-          Select cmbroute.Text
-            Case "suture", "msurg", "ortho", "extra", "topical"
-              ''do nothing
-            Case Else
-              If $ShowReview = "None" Then
-              Else
-                opt = New String[]
-                For Each $rData
-                  Select $rData["fldroute"]
-                    Case "suture", "msurg", "ortho", "extra", "topical"
-                    Case Else
-                      xval = modMedConstant.GetDrugFromStockID($rData["flditem"])
-                      If opt.Count = 0 Then
-                        opt.Add(xval)
-                      Else
-                        If opt.Exist(xval) = False Then
-                          opt.Add(xval)
-                        Endif
-                      Endif
-                  End Select
-                Next
-                $HideErr = True
-                cForm = New CMedError
-                xcount = cForm.ShowMedicationReviewPunching($encid, cmbroute.Text, cmbmedicine.Text, txtdose.Value, cmbfreq.Text, opt)
-              Endif
-          End Select
-
-        Endif
-      Endif
+      ' xcount = 0
+      ' If $HideErr = False Then
+      '   If txtdose.Value And If cmbfreq.Text Then
+      '
+      '     Select cmbroute.Text
+      '       Case "suture", "msurg", "ortho", "extra", "topical"
+      '         ''do nothing
+      '       Case Else
+      '         If $ShowReview = "None" Then
+      '         Else
+      '           opt = New String[]
+      '           For Each $rData
+      '             Select $rData["fldroute"]
+      '               Case "suture", "msurg", "ortho", "extra", "topical"
+      '               Case Else
+      '                 xval = modMedConstant.GetDrugFromStockID($rData["flditem"])
+      '                 If opt.Count = 0 Then
+      '                   opt.Add(xval)
+      '                 Else
+      '                   If opt.Exist(xval) = False Then
+      '                     opt.Add(xval)
+      '                   Endif
+      '                 Endif
+      '             End Select
+      '           Next
+      '           $HideErr = True
+      '           cForm = New CMedError
+      '           xcount = cForm.ShowMedicationReviewPunching($encid, cmbroute.Text, cmbmedicine.Text, txtdose.Value, cmbfreq.Text, opt)
+      '         Endif
+      '     End Select
+      '
+      '   Endif
+      ' Endif
 
       txtqty.Value = Ceil(modMedConstant.GetQuantityDosing(cmbmedicine.Text, txtdose.Value, cmbfreq.Text, xday, modBasic.$SalesQTYPack))
       txtqty.SetFocus()

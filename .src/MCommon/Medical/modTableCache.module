@@ -18,13 +18,14 @@ Public $TestMastereData As Collection
 Public $ExamMasterData As Collection
 Public $RadioMasterData As Collection
 
-Public $CodeDrugIntxnData As Collection
 Public $DrugInjecIncompatData As Collection
 Public $DrugFluidIncompatData As Collection
-Public $CodePregnancyData As Collection
-' Public $CodePregnancyPrec As Collection
+Public $CodeDrugIntxnData As Collection
 
-Public $CodeHepaticPrec As Collection
+Public $CodePregnancyData As Collection
+Public $CodeHepaticData As Collection
+Public $CodeRenalData As Collection
+
 Public $CodeDiseaseContra As Collection
 Public $CodeAdverseRxn As Collection
 Public $CodeDrugAllergy As Collection
@@ -53,12 +54,14 @@ Public Sub InitializeTableCache()
   modNonMedical.$InvoiceTableData = New Collection
   modNonMedical.$ReceiptTableData = New Collection
 
-  $CodeDrugIntxnData = New Collection
   $DrugInjecIncompatData = New Collection
   $DrugFluidIncompatData = New Collection
-  $CodePregnancyData = New Collection
+  $CodeDrugIntxnData = New Collection
 
-  $CodeHepaticPrec = New Collection
+  $CodePregnancyData = New Collection
+  $CodeHepaticData = New Collection
+  $CodeRenalData = New Collection
+
   $CodeDiseaseContra = New Collection
   $CodeAdverseRxn = New Collection
   $CodeDrugAllergy = New Collection
@@ -507,21 +510,7 @@ Private Sub LoadExamsCompwiseData()
 
 End
 
-''============== Med Error ====================
 ''-------------- Drug problem: compare other drugs ------------
-Public Sub LoadDrugDrugInteractions(sCon As Connection)
-
-  Dim res As Result
-
-  res = sCon.Exec("select fldcodename,fldcondition,fldoutput,fldreference from tblmedinteraction")
-  If res.Available Then
-    For Each res
-      $CodeDrugIntxnData.Add(res["fldoutput"] & " [" & res["fldreference"] & "]", res["fldcodename"] & "|" & res["fldcondition"])
-    Next
-  Endif
-
-End
-
 Public Sub LoadDrugInjectionIncompatibility(sCon As Connection)
 
   Dim res As Result
@@ -548,6 +537,19 @@ Public Sub LoadDrugFluidIncompatibility(sCon As Connection)
 
 End
 
+Public Sub LoadDrugDrugInteractions(sCon As Connection)
+
+  Dim res As Result
+
+  res = sCon.Exec("select fldcodename,fldcondition,fldoutput,fldreference from tblmedinteraction")
+  If res.Available Then
+    For Each res
+      $CodeDrugIntxnData.Add(res["fldoutput"] & " [" & res["fldreference"] & "]", res["fldcodename"] & "|" & res["fldcondition"])
+    Next
+  Endif
+
+End
+
 ''-------------- Drug problem: compare tblencounter ------------
 Public Sub LoadPregnancyPrecaution(sCon As Connection)
 
@@ -557,6 +559,32 @@ Public Sub LoadPregnancyPrecaution(sCon As Connection)
   If res.Available Then
     For Each res
       $CodePregnancyData.Add(res["fldoutput"] & " [" & res["fldreference"] & "]", res["fldcodename"] & "|" & res["fldcondition"])
+    Next
+  Endif
+
+End
+
+Public Sub LoadHepaticPrecaution(sCon As Connection)
+
+  Dim res As Result
+
+  res = sCon.Exec("select fldcodename,fldcondition,fldoutput,fldreference from tblmedhepatic")
+  If res.Available Then
+    For Each res
+      $CodeHepaticData.Add(res["fldoutput"] & " [" & res["fldreference"] & "]", res["fldcodename"] & "|" & res["fldcondition"])
+    Next
+  Endif
+
+End
+
+Public Sub LoadRenalPrecaution(sCon As Connection)
+
+  Dim res As Result
+
+  res = sCon.Exec("select fldcodename,fldgfrfrom,fldgfrto,fldoutput,fldreference from tblmedrenal")
+  If res.Available Then
+    For Each res
+      $CodeRenalData.Add(res["fldoutput"] & " [" & res["fldreference"] & "]", res["fldcodename"] & "|" & modMedicine.GetKidneyCondition(res["fldgfrfrom"], res["fldgfrto"]))
     Next
   Endif
 
