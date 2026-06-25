@@ -2000,6 +2000,48 @@ Public Function ShowMedicationOrder(encid As String) As String
 End
 
 ''----------------------------------------------------- medication review --------------------------------------------------
+Public Function ShowMedicationReviewCollectionHTML(encid As String, xVar As Variant[]) As String
+
+  Dim $BillingReport As CReportHTML
+  Dim asx As New String[0]
+  Dim xx As String
+
+  Dim xColl As Collection
+  Dim categLst As String[]
+
+  $BillingReport = New CReportHTML([("Medicine"), ("Observation"), ("Recommendation")], "PatientReport", encid)
+  $BillingReport.UserData.Add("REPORT", "Report")
+  $BillingReport.UserData.Add("MEDICATION REVIEW", "PARAM1")
+
+  categLst = modString.GetListFromVariant(xVar, "Category", True)
+  For Each xx In categLst
+    $BillingReport.AddSection(xx, True)
+
+    For Each xColl In xVar
+      If xColl["Category"] = xx Then
+        With asx
+          .Add(xColl["Drug"])
+          .Add(xColl["Condition"])
+          .Add(xColl["Warning"])
+        End With
+        $BillingReport.Add(asx)
+        asx.Clear()
+      Endif
+    Next
+
+    With asx
+      .Add("")
+      .Add("")
+      .Add("")
+    End With
+    $BillingReport.Add(asx)
+    asx.Clear()
+  Next
+
+  Return $BillingReport.NewHTMLPath()
+
+End
+
 Public Function ShowMedicationReviewReportHTML(encid As String, $categ As String[], $drug As String[], $condi As String[], $warn As String[]) As String
 
   Dim $BillingReport As CReportHTML

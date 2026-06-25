@@ -27,7 +27,6 @@ Private $rData3 As Result
 Private $aMyFields3 As String[]
 Private $LastEncid As String
 
-Private $HideErr As Boolean
 Private $HideDos As Boolean
 Private $ShowReview As String
 Private $AlphaList As String[]
@@ -270,7 +269,6 @@ Private Sub BlankDosingBox()
   txtqty.Tag = ""
   txtqty.Value = 0
   txtdirection.Text = ""
-  $HideErr = False
   $HideDos = False
   lbldose.Text = ""
   lblregimen.Text = ""
@@ -454,7 +452,6 @@ Public Sub btnmedlist_Click()
   Dim aList As String[]
   Dim aList1 As String[]
 
-  $HideErr = False
   xlist = GetMedicineList()
   If xlist Then
     If cmbroute.Text = "suture" Or If cmbroute.Text = "msurg" Or If cmbroute.Text = "ortho" Or If cmbroute.Text = "extra" Then
@@ -611,11 +608,7 @@ End
 
 Public Sub txtday_Activate()
 
-  Dim opt As String[]
-  Dim xval As String
-  Dim xcount As String
   Dim xday As Integer
-  Dim cForm As CMedError
 
   If txtdose.Value And If cmbfreq.Text Then
     If txtday.Value Then
@@ -627,40 +620,6 @@ Public Sub txtday_Activate()
     Endif
 
     If xday Then
-      xcount = 0
-      If $HideErr = False Then
-        If txtdose.Value And If cmbfreq.Text Then
-
-          Select cmbroute.Text
-            Case "suture", "msurg", "ortho", "extra", "topical"
-              ''do nothing
-            Case Else
-              If $ShowReview = "None" Then
-              Else
-                opt = New String[]
-                For Each $rDataM
-                  Select $rDataM["fldroute"]
-                    Case "suture", "msurg", "ortho", "extra", "topical"
-                    Case Else
-                      xval = modMedConstant.GetDrugFromStockID($rDataM["flditem"])
-                      If opt.Count = 0 Then
-                        opt.Add(xval)
-                      Else
-                        If opt.Exist(xval) = False Then
-                          opt.Add(xval)
-                        Endif
-                      Endif
-                  End Select
-                Next
-                $HideErr = True
-                cForm = New CMedError
-                xcount = cForm.ShowMedicationReviewPunching($encid, cmbroute.Text, cmbmedicine.Text, txtdose.Value, cmbfreq.Text, opt)
-              Endif
-          End Select
-
-        Endif
-      Endif
-
       txtqty.Value = Ceil(modMedConstant.GetQuantityDosing(cmbmedicine.Text, txtdose.Value, cmbfreq.Text, xday, modBasic.$SalesQTYPack))
       txtqty.SetFocus()
       Me.Exec("$_(" & JS(txtqty.Name & ":entry") & ").select()")

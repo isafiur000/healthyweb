@@ -77,6 +77,7 @@ Public Function ShowMedCompatibleSingleDosIDMessage(encid As String, xMedicine A
 
 End
 
+''migrate to new module
 Public Function ShowMedicationReviewSingleDosIDReport(encid As String, xMedicine As String, xRoute As String, xDose As Float, xFreq As String, druglist As String[]) As String
 
   Dim xdrug As String
@@ -200,6 +201,7 @@ Private Sub ShowMedicationReviewMultipleDosID(encid As String, xVar As Variant[]
 
 End
 
+''migrate to new module
 Public Function ShowMedicationReviewMultipleDosIDReport(encid As String, xVar As Variant[]) As String
 
   Dim xout As String
@@ -222,56 +224,56 @@ Public Function ShowMedicationReviewMultipleDosIDMessage(encid As String, xVar A
 
 End
 
-Public Function ShowMedicationReviewPunching(encid As String, txtroute As String, stockid As String, dose As Float, freq As String, drglist As String[]) As String
-
-  Dim xdrug As String
-  Dim codeid As String
-  Dim curdrug As String
-  Dim xout As String
-
-  Dim xIntxLst As String[]
-
-  codeid = modMedConstant.GetCodeFromStockID(stockid)
-  curdrug = modMedConstant.GetDrugFromStockID(stockid)
-
-  If UseSingleDrugRev() = True Then
-    MedicationReviewSingleDrug(encid, stockid, codeid, txtroute, dose, freq)
-  Endif
-
-  If UseDrugAllerRev() = True Then
-    MedicationReviewDugAllergy(encid, stockid, codeid)
-  Endif
-
-  If UseCurrDiseaseRev() = True Then
-    GetMedicationReviewDrugCurrentDisease(encid, stockid, codeid)
-  Endif
-
-  xIntxLst = New String[]
-  If UseMultiDrugRev() = True Then
-    For Each xdrug In drglist
-      If curdrug = xdrug Then
-      Else
-        If xIntxLst.Exist(curdrug & "|" & xdrug) = False Then
-          MedicationReviewCurrentMultipleDrugs(encid, stockid, xdrug)
-          xIntxLst.Add(curdrug & "|" & xdrug)
-          xIntxLst.Add(xdrug & "|" & curdrug)
-        Endif
-      Endif
-    Next
-  Endif
-
-  If UseLabDrugRev() = True Then
-    MedicationReviewDugCurrentLab(encid, stockid, codeid)
-  Endif
-
-  If UseExamDrugRev() = True Then
-    MedicationReviewDugExamination(encid, stockid, codeid)
-  Endif
-
-  xout = OutFormatShow(encid, "Notification")
-  Return xout
-
-End
+' Public Function ShowMedicationReviewPunching(encid As String, txtroute As String, stockid As String, dose As Float, freq As String, drglist As String[]) As String
+'
+'   Dim xdrug As String
+'   Dim codeid As String
+'   Dim curdrug As String
+'   Dim xout As String
+'
+'   Dim xIntxLst As String[]
+'
+'   codeid = modMedConstant.GetCodeFromStockID(stockid)
+'   curdrug = modMedConstant.GetDrugFromStockID(stockid)
+'
+'   If UseSingleDrugRev() = True Then
+'     MedicationReviewSingleDrug(encid, stockid, codeid, txtroute, dose, freq)
+'   Endif
+'
+'   If UseDrugAllerRev() = True Then
+'     MedicationReviewDugAllergy(encid, stockid, codeid)
+'   Endif
+'
+'   If UseCurrDiseaseRev() = True Then
+'     GetMedicationReviewDrugCurrentDisease(encid, stockid, codeid)
+'   Endif
+'
+'   xIntxLst = New String[]
+'   If UseMultiDrugRev() = True Then
+'     For Each xdrug In drglist
+'       If curdrug = xdrug Then
+'       Else
+'         If xIntxLst.Exist(curdrug & "|" & xdrug) = False Then
+'           MedicationReviewCurrentMultipleDrugs(encid, stockid, xdrug)
+'           xIntxLst.Add(curdrug & "|" & xdrug)
+'           xIntxLst.Add(xdrug & "|" & curdrug)
+'         Endif
+'       Endif
+'     Next
+'   Endif
+'
+'   If UseLabDrugRev() = True Then
+'     MedicationReviewDugCurrentLab(encid, stockid, codeid)
+'   Endif
+'
+'   If UseExamDrugRev() = True Then
+'     MedicationReviewDugExamination(encid, stockid, codeid)
+'   Endif
+'
+'   xout = OutFormatShow(encid, "Notification")
+'   Return xout
+'
+' End
 
 Public Function MedicalAuditReport(dtfir As Date, dtlast As Date) As String
 
@@ -372,11 +374,10 @@ Private Function OutFormatShow(encid As String, strOutput As String) As String
     Else If strOutput = "Notification" Then
       messlst = New String[]
       For i = 0 To $categ.Count - 1
-        ' messlst.Add("<u>[" & $categ[i] & "]</u>" & " <b>" & $condi[i] & "</b>" & " : " & $warn[i])
         If $categ[i] = "Drug Interaction" Then
-          WebForm.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "[" & $categ[i] & "] " & $drug[i] & " : " & $condi[i], modBasic.$BalloonDelay))
+          messlst.Add("<u>[" & $categ[i] & "]</u>" & " <b>" & $drug[i] & " : " & $condi[i] & "</b>" & " :: " & $warn[i])
         Else
-          WebForm.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "[" & $categ[i] & "] " & $condi[i], modBasic.$BalloonDelay))
+          messlst.Add("<u>[" & $categ[i] & "]</u>" & " <b>" & $condi[i] & "</b>" & " :: " & $warn[i])
         Endif
         If modBasic.$MedLogRecommend = "Yes" Then
           modMedError.AddDrugProblemsPopUp(encid, $categ[i], $drug[i], $condi[i], $warn[i], "")

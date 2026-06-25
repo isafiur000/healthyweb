@@ -1,28 +1,5 @@
 ' Gambas class file
 
-' Private $CheckPreviousSensitivity As String
-' Private $AgeContraindication As String
-' Private $DrugAllergy As String
-' Private $AntibioticResistance As String
-' Private $DiseaseContraindication As String
-' Private $DrugInteraction As String
-' Private $ExaminationInteraction As String
-' Private $HepaticPrecaution As String
-' Private $InjectionIncompatibility As String
-' Private $IVFluidIncompatibility As String
-' Private $LaboratoryInteraction As String
-' Private $MaxDailyDose As String
-' Private $MaxFrequency As String
-' Private $MaxUnitDose As String
-' Private $MinDailyDose As String
-' Private $PregnancyPrecaution As String
-' Private $PreservativePrecaution As String
-' Private $PRNRestriction As String
-' Private $RenalPrecaution As String
-' Private $SideEffects As String
-' Private $DoseBreak As String
-' Private $PreAdminMonitor As String
-
 Private $encid As String
 Private $stockid As String
 
@@ -39,9 +16,14 @@ Public Sub _new(encid As String, stockid As String)
   $encid = encid
   $stockid = stockid
 
-  $codeid = modMedConstant.GetCodeFromDrugID($stockid)
+  $codeid = modMedConstant.GetCodeFromStockID($stockid)
   $xVar = New Variant[]
-  ' SetVarSettings()
+
+End
+
+Public Function GetOutputVariant() As Variant[]
+
+  Return $xVar
 
 End
 
@@ -360,7 +342,7 @@ Public Sub DrugAllergy(sMedList As String[])
       xWarn = GetLocalPrecaution($stockid, "MedicationReview/DrugAllergy", modMedConstant.GetChemicalClass(xmed))
       If xWarn Then
         xColl = New Collection
-        xColl.Add("Drug Sensitivity", "Category")
+        xColl.Add("Drug Allergy", "Category")
         xColl.Add($codeid, "Drug")
         xColl.Add(xmed, "Condition")
         xColl.Add(xWarn, "Warning")
@@ -368,10 +350,10 @@ Public Sub DrugAllergy(sMedList As String[])
 
       Else If xmed = $codeid Then
         xColl = New Collection
-        xColl.Add("Drug Sensitivity", "Category")
+        xColl.Add("Drug Allergy", "Category")
         xColl.Add($codeid, "Drug")
         xColl.Add(xmed, "Condition")
-        xColl.Add("Sensitive to " & $codeid, "Warning")
+        xColl.Add("Allergic to " & $codeid, "Warning")
         $xVar.Add(xColl)
       Endif
 
@@ -556,29 +538,24 @@ Public Sub LaboratoryInteractions(hypoTestList As String[], hyperTestList As Str
 
 End
 
-Public Sub DrugResistance()
+Public Sub DrugResistance(sensiColl As Collection)
 
   Dim xColl As Collection
-  Dim codeid As String
   Dim sensid As String
-  Dim res As Result
 
   'drug-drug resistance
   ' If $AntibioticResistance = "Yes" Then
   sensid = modMedConstant.GetSensiNameFromStockID($stockid)
   If sensid Then
-    res = modDatabase.$myConn.Exec("select fldvariable,fldvalue FROM tblpatlabsubtable where fldsubtestid in(select fldid from tblpatlabsubtest where fldencounterval=&1) and fldvariable=&2 and (fldvalue=&3 or fldvalue=&4)", $encid, sensid, "Intermediate", "Resistant")
-    If res.Available = True Then
-      For Each res
+    If sensiColl.Exist(sensid) Then
 
-        xColl = New Collection
-        xColl.Add("Drug Resistance", "Category")
-        xColl.Add(sensid, "Drug")
-        xColl.Add(res["fldvalue"], "Condition")
-        xColl.Add(sensid & " Found " & res["fldvalue"] & " to isolated organism", "Warning")
-        $xVar.Add(xColl)
+      xColl = New Collection
+      xColl.Add("Drug Resistance", "Category")
+      xColl.Add(sensid, "Drug")
+      xColl.Add(sensiColl[sensid], "Condition")
+      xColl.Add(sensid & " Found " & sensiColl[sensid] & " to isolated organism", "Warning")
+      $xVar.Add(xColl)
 
-      Next
     Endif
   Endif
   ' Endif
@@ -757,7 +734,7 @@ Private Function GetLocalPrecaution(stockid As String, strCategory As String, st
       res = modDatabase.$medConn.Exec(sql, codeid, strVal)
       If res.Available = True Then
         res.MoveLast
-        xx = "SENSITIVE to drugs of " & res["fldchemclass"] & " [" & res["fldreference"] & "]"
+        xx = "ALLERGIC to drugs of " & res["fldchemclass"] & " [" & res["fldreference"] & "]"
         If modBasic.$AppCacheDrugRelatedProblems = "Yes" Then
           modTableCache.$CodeDrugAllergy.Add(xx, codeid & "|" & strVal)
         Endif
@@ -803,30 +780,3 @@ Private Function GetLocalPrecaution(stockid As String, strCategory As String, st
   Return xx
 
 End
-
-' Private Sub SetVarSettings()
-'
-'   $CheckPreviousSensitivity = modMedError.$CheckPreviousSensitivity
-'   $AgeContraindication = modMedError.$AgeContraindication
-'   $DrugAllergy = modMedError.$DrugAllergy
-'   $AntibioticResistance = modMedError.$AntibioticResistance
-'   $DiseaseContraindication = modMedError.$DiseaseContraindication
-'   $DrugInteraction = modMedError.$DrugInteraction
-'   $ExaminationInteraction = modMedError.$ExaminationInteraction
-'   $HepaticPrecaution = modMedError.$HepaticPrecaution
-'   $InjectionIncompatibility = modMedError.$InjectionIncompatibility
-'   $IVFluidIncompatibility = modMedError.$IVFluidIncompatibility
-'   $LaboratoryInteraction = modMedError.$LaboratoryInteraction
-'   $MaxDailyDose = modMedError.$MaxDailyDose
-'   $MaxFrequency = modMedError.$MaxFrequency
-'   $MaxUnitDose = modMedError.$MaxUnitDose
-'   $MinDailyDose = modMedError.$MinDailyDose
-'   $PregnancyPrecaution = modMedError.$PregnancyPrecaution
-'   $PreservativePrecaution = modMedError.$PreservativePrecaution
-'   $PRNRestriction = modMedError.$PRNRestriction
-'   $RenalPrecaution = modMedError.$RenalPrecaution
-'   $SideEffects = modMedError.$SideEffects
-'   $DoseBreak = modMedError.$DoseBreak
-'   $PreAdminMonitor = modMedError.$PreAdminMonitor
-'
-' End
