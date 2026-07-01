@@ -1,6 +1,7 @@
 ' Gambas class file
 
 Private $ColCount As Integer
+Private $exColCount As Integer
 Private $encArr As String[]
 Private $encTot As String[]
 Private $newColumn As String[]
@@ -8,6 +9,37 @@ Private $newColumn As String[]
 Private $encList As String[]
 Private $chartLimit As Float[]
 Private $RepoStr As String
+
+''Laboratory
+Private $dataVar As Collection
+Private xcataVar As Collection
+Private $LabList As String[]
+Private $varList As String[]
+Private $warList As String[]
+
+''Examination
+Private $pataVar As Collection
+Private pcataVar As Collection
+Private $ExamList As String[]
+Private $parList As String[]
+Private $qarList As String[]
+
+''Radiology
+Private $bataVar As Collection
+Private bcataVar As Collection
+Private $RadioList As String[]
+Private $barList As String[]
+Private $carList As String[]
+
+''History/Notes
+Private $gataVar As Collection
+Private gcataVar As Collection
+Private $HistoryList As String[]
+Private $garList As String[]
+Private $harList As String[]
+
+''Medicine
+Private $MedicList As String[]
 
 Public Sub _new()
 
@@ -70,6 +102,12 @@ Private Function FillCategCombo() As String[]
   xx.Add("General Param")
   xx.Add("Date Free Param")
   xx.Add("Date of Birth")
+  xx.Add("Examination")
+  xx.Add("Diagnostic Tests")
+  xx.Add("Radio Diagnostics")
+  xx.Add("History")
+  xx.Add("Notes")
+  xx.Add("Medicines")
   xx.Add("Clinical Demographics")
   xx.Add("Presenting Complaints")
   xx.Add("Provisional Diagnosis Code")
@@ -77,10 +115,6 @@ Private Function FillCategCombo() As String[]
   xx.Add("Final Diagnosis Code")
   xx.Add("Final Diagnosis")
   xx.Add("Allergic Drugs")
-  xx.Add("Examination")
-  xx.Add("Diagnostic Tests")
-  xx.Add("Radio Diagnostics")
-  xx.Add("Medicines")
   xx.Add("Patient Symptoms")
   xx.Add("Major Procedures")
   xx.Add("Delivery Profile")
@@ -91,7 +125,7 @@ End
 
 Private Sub FillItemCombo(cmbcategory As WebComboBox, cmbitem As WebComboBox, txtitem As WebTextBox, txtfrom As WebValueBox, txtto As WebValueBox)
 
-  Dim sql As String
+  Dim xList As String[]
   Dim res As Result
 
   Dim xx As String[]
@@ -123,6 +157,22 @@ Private Sub FillItemCombo(cmbcategory As WebComboBox, cmbitem As WebComboBox, tx
     txtitem.Enabled = False
     txtfrom.Enabled = True
     txtto.Enabled = True
+
+  Else If cmbcategory.Text = "History" Then
+    xList = modMedicine.GetPatHistoryVar()
+    xList.Add("General Complaints")
+    cmbitem.List = xList
+    txtitem.Enabled = True
+    txtfrom.Enabled = False
+    txtto.Enabled = False
+
+  Else If cmbcategory.Text = "Notes" Then
+    xList = modMedicine.GetDischargeVar()
+    xList.Insert(["Progress Note", "Doctor Order", "Clinicians Note", "Nurses Note", "Transfer Note", "Patient Note"])
+    cmbitem.List = xList
+    txtitem.Enabled = True
+    txtfrom.Enabled = False
+    txtto.Enabled = False
 
   Else
 
@@ -170,6 +220,10 @@ Private Sub FillItemCombo(cmbcategory As WebComboBox, cmbitem As WebComboBox, tx
     Else If cmbcategory.Text = "Major Procedures" Then
 
     Else If cmbcategory.Text = "Radio Diagnostics" Then
+      res = modDatabase.$syConn.Exec("select fldexamid as col from tblradio")
+      txtitem.Enabled = True
+      txtfrom.Enabled = True
+      txtto.Enabled = True
 
     Else If cmbcategory.Text = "Patient Symptoms" Then
       res = modDatabase.$syConn.Exec("select fldsymptom as col from tblsymptoms")
@@ -182,8 +236,7 @@ Private Sub FillItemCombo(cmbcategory As WebComboBox, cmbitem As WebComboBox, tx
       txtfrom.Enabled = True
       txtto.Enabled = True
     Else If cmbcategory.Text = "Clinical Demographics" Then
-      sql = "select distinct(flditem) as col from tblexamgeneral where fldinput=&1" & $RepoStr
-      res = modDatabase.$syConn.Exec(sql, "Demographics")
+      res = modDatabase.$syConn.Exec("select distinct(flditem) as col from tblexamgeneral where fldinput=&1", "Demographics")
       txtitem.Enabled = True
       txtfrom.Enabled = False
       txtto.Enabled = False
@@ -381,6 +434,7 @@ End
 Private Function GetEncounterArray(cmbcategory As WebComboBox, cmbitem As WebComboBox, txtitem As WebTextBox, txtfrom As WebValueBox, txtto As WebValueBox) As String[]                                    ''
 
   Dim sql As String
+  Dim sql1 As String
   Dim res As Result
   Dim sType As String
   Dim xfld As String
@@ -447,6 +501,29 @@ Private Function GetEncounterArray(cmbcategory As WebComboBox, cmbitem As WebCom
       Endif
 
     Else If cmbcategory.Text = "Radio Diagnostics" Then
+      sType = modFixRadio.GetRadioTestType(cmbitem.Text)
+      If sType = "Qualitative" Then
+        sql = "select distinct(fldencounterval) as col from tblpatradiotest where (fldstatus=&1 or fldstatus=&2) and fldtestid=&3 and lower(fldreportquali) like &4 and fldtime_report>=&5 and fldtime_report<=&6" & $RepoStr
+        res = modDatabase.$syConn.Exec(sql, "Reported", "Verified", cmbitem.Text, LCase(txtitem.Text), modDate.StartSqlDate(dtfir.value), modDate.EndSqlDate(dtlast.value))
+      Else If sType = "Quantitative" Then
+        If txtfrom.Value = 0 And If txtto.Value = 0 Then
+          sqlqty = ""
+        Else
+          sqlqty = " and fldreportquali>=&4 and fldreportquali<=&5"
+        Endif
+        sql = "select distinct(fldencounterval) as col from tblpatradiotest where (fldstatus=&1 or fldstatus=&2) and fldtestid=&3" & sqlqty & " and fldtime_report>=&6 and fldtime_report<=&7" & $RepoStr
+        res = modDatabase.$syConn.Exec(sql, "Reported", "Verified", cmbitem.Text, txtfrom.Value, txtto.Value, modDate.StartSqlDate(dtfir.value), modDate.EndSqlDate(dtlast.value))
+      Endif
+
+    Else If cmbcategory.Text = "History" Then
+      sql = "select distinct(fldencounterval) as col from tblexamgeneral where fldinput=&1 and flditem=&2 and fldtime>=&3 and fldtime<=&4 and lower(flddetail) like &5"
+      sql1 = "select distinct(fldencounterval) as col from tblpatientnotes where fldinput=&1 and flditem=&2 and fldtime>=&3 and fldtime<=&4 and lower(flddetail) like &5"
+      res = modDatabase.$syConn.Exec(sql & " UNION ALL " & sql1, "History", cmbitem.Text, modDate.StartSqlDate(dtfir.value), modDate.EndSqlDate(dtlast.value), Trim(txtitem.Text))
+
+    Else If cmbcategory.Text = "Notes" Then
+      sql = "select distinct(fldencounterval) as col from tblexamgeneral where fldinput=&1 and flditem=&2 and fldtime>=&3 and fldtime<=&4 and lower(flddetail) like &5"
+      sql1 = "select distinct(fldencounterval) as col from tblpatientnotes where fldinput=&1 and flditem=&2 and fldtime>=&3 and fldtime<=&4 and lower(flddetail) like &5"
+      res = modDatabase.$syConn.Exec(sql & " UNION ALL " & sql1, "Notes", cmbitem.Text, modDate.StartSqlDate(dtfir.value), modDate.EndSqlDate(dtlast.value), Trim(txtitem.Text))
 
     Else If cmbcategory.Text = "Major Procedures" Then
       sql = "select distinct(fldencounterval) as col from tblpatsubgeneral where fldchapter=&1 and lower(fldreportquali) like &2 and flditemid in(select fldid from tblpatgeneral where fldinput=&3 and fldreportquali=&4) and fldtime>=&5 and fldtime<=&6" & $RepoStr
@@ -674,17 +751,65 @@ End
 
 Private Sub FillEncGrid()
 
-  Dim i As Integer
+  Dim Column As Integer
+  Dim totColmn As Integer
 
   GridView1.Clear
-  If $newColumn.Count Then
-    GridView1.Columns.Count = 8 + $newColumn.Count
-  Else
-    GridView1.Columns.Count = 8
-  Endif
-  GridView1.Count = $encTot.Count
+  totColmn = 0
   $ColCount = 8
+  If $newColumn.Count Then
+    $exColCount = $ColCount + $newColumn.Count
+  Else
+    $exColCount = $ColCount
+  Endif
+  totColmn = $exColCount
 
+  ''laboratory columns
+  If chklaball.Value = True Then
+    $varList = $LabList
+    $warList = $LabList
+    If modBasic.$StatClinValues = "First-LastVal" Then
+      totColmn = totColmn + $varList.Count + $warList.Count
+    Else
+      totColmn = totColmn + $varList.Count
+    Endif
+  Endif
+
+  ''examination
+  If chkexamall.Value = True Then
+    $parList = $ExamList
+    $qarList = $ExamList
+    If modBasic.$StatClinValues = "First-LastVal" Then
+      totColmn = totColmn + $parList.Count + $qarList.Count
+    Else
+      totColmn = totColmn + $parList.Count
+    Endif
+  Endif
+
+  ''radiology
+  If chkradiology.Value = True Then
+    $barList = $RadioList
+    $carList = $RadioList
+    If modBasic.$StatClinValues = "First-LastVal" Then
+      totColmn = totColmn + $barList.Count + $carList.Count
+    Else
+      totColmn = totColmn + $barList.Count
+    Endif
+  Endif
+
+  ''History/Notes
+  If chknoteall.Value = True Then
+    $garList = $HistoryList
+    $harList = $HistoryList
+    If modBasic.$StatClinValues = "First-LastVal" Then
+      totColmn = totColmn + $garList.Count + $harList.Count
+    Else
+      totColmn = totColmn + $garList.Count
+    Endif
+  Endif
+
+  GridView1.Columns.Count = totColmn
+  GridView1.Count = $encTot.Count
   With GridView1
     .Columns[0].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
     .Columns[1].Width = CStr(175 * modBasic.$AppWidthRatio) & "px"
@@ -703,12 +828,82 @@ Private Sub FillEncGrid()
     .Columns[5].Text = "PatientNo"
     .Columns[6].Text = "Address"
     .Columns[7].Text = "Contact"
+    totColmn = $ColCount
 
     If $newColumn.Count Then
-      For i = 0 To $newColumn.Count - 1
-        .Columns[8 + i].Text = $newColumn[i]
-        .Columns[8 + i].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+      For Column = 0 To $newColumn.Count - 1
+        .Columns[totColmn + Column].Text = $newColumn[Column]
+        .Columns[totColmn + Column].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
       Next
+      totColmn = totColmn + $newColumn.Count
+    Endif
+
+    ''laboratory columns
+    If chklaball.Value = True Then
+      For Column = 0 To $varList.Count - 1
+        .Columns[Column + totColmn].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+        .Columns[Column + totColmn].Text = $varList[Column]
+      Next
+      totColmn = totColmn + $varList.Count
+
+      If modBasic.$StatClinValues = "First-LastVal" Then
+        For Column = 0 To $warList.Count - 1
+          .Columns[Column + totColmn].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+          .Columns[Column + totColmn].Text = $warList[Column] & "(LAST)"
+        Next
+        totColmn = totColmn + $warList.Count
+      Endif
+    Endif
+
+    ''examination
+    If chkexamall.Value = True Then
+      For Column = 0 To $parList.Count - 1
+        .Columns[Column + totColmn].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+        .Columns[Column + totColmn].Text = $parList[Column]
+      Next
+      totColmn = totColmn + $parList.Count
+
+      If modBasic.$StatClinValues = "First-LastVal" Then
+        For Column = 0 To $qarList.Count - 1
+          .Columns[Column + totColmn].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+          .Columns[Column + totColmn].Text = $qarList[Column] & "(LAST)"
+        Next
+        totColmn = totColmn + $qarList.Count
+      Endif
+    Endif
+
+    ''radiology
+    If chkradiology.Value = True Then
+      For Column = 0 To $barList.Count - 1
+        .Columns[Column + totColmn].Width = CStr(200 * modBasic.$AppWidthRatio) & "px"
+        .Columns[Column + totColmn].Text = $barList[Column]
+      Next
+      totColmn = totColmn + $barList.Count
+
+      If modBasic.$StatClinValues = "First-LastVal" Then
+        For Column = 0 To $carList.Count - 1
+          .Columns[Column + totColmn].Width = CStr(200 * modBasic.$AppWidthRatio) & "px"
+          .Columns[Column + totColmn].Text = $carList[Column] & "(LAST)"
+        Next
+        totColmn = totColmn + $carList.Count
+      Endif
+    Endif
+
+    ''History/Notes
+    If chknoteall.Value = True Then
+      For Column = 0 To $garList.Count - 1
+        .Columns[Column + totColmn].Width = CStr(200 * modBasic.$AppWidthRatio) & "px"
+        .Columns[Column + totColmn].Text = $garList[Column]
+      Next
+      totColmn = totColmn + $garList.Count
+
+      If modBasic.$StatClinValues = "First-LastVal" Then
+        For Column = 0 To $harList.Count - 1
+          .Columns[Column + totColmn].Width = CStr(200 * modBasic.$AppWidthRatio) & "px"
+          .Columns[Column + totColmn].Text = $harList[Column] & "(LAST)"
+        Next
+        totColmn = totColmn + $harList.Count
+      Endif
     Endif
 
   End With
@@ -719,8 +914,155 @@ Private Function GetGridViewValue(Column As Integer, xVariable As Variant) As Va
 
   Dim xxx As Variant
   Dim i As Integer
+  Dim labColumn As Integer
+  Dim examColumn As Integer
+  Dim radiColumn As Integer
+  Dim noteColumn As Integer
 
-  If Column = 1 Then
+  Dim prelabCol As Integer
+  Dim preexamCol As Integer
+  Dim preradCol As Integer
+  Dim prenotCol As Integer
+
+  Dim xColl As Collection
+  Dim yColl As Collection
+
+  Dim pColl As Collection
+  Dim qColl As Collection
+
+  Dim aColl As Collection
+  Dim bColl As Collection
+
+  Dim gColl As Collection
+  Dim hColl As Collection
+
+  ''laboratory
+  prelabCol = $exColCount
+  If chklaball.Value = True Then
+    If $varList And If $varList.Count Then
+
+      If modBasic.$StatClinValues = "First-LastVal" Then
+        labColumn = $varList.Count + $warList.Count
+      Else
+        labColumn = $varList.Count
+      Endif
+
+      If modBasic.$StatClinValues = "First-LastVal" Then
+        If $dataVar.Exist(xVariable) = False Then
+          $dataVar.Add(GetLabCollection(xVariable, "ASC"), xVariable)
+        Endif
+        If xcataVar.Exist(xVariable) = False Then
+          xcataVar.Add(GetLabCollection(xVariable, "DESC"), xVariable)
+        Endif
+      Else If modBasic.$StatClinValues = "FitsrVal" Then
+        If $dataVar.Exist(xVariable) = False Then
+          $dataVar.Add(GetLabCollection(xVariable, "ASC"), xVariable)
+        Endif
+      Else
+        If $dataVar.Exist(xVariable) = False Then
+          $dataVar.Add(GetLabCollection(xVariable, "DESC"), xVariable)
+        Endif
+      Endif
+
+    Endif
+  Endif
+
+  ''examination
+  preexamCol = $exColCount + labColumn
+  If chkexamall.Value = True Then
+    If $parList And If $parList.Count Then
+
+      If modBasic.$StatClinValues = "First-LastVal" Then
+        examColumn = $parList.Count + $qarList.Count
+      Else
+        examColumn = $parList.Count
+      Endif
+
+      If modBasic.$StatClinValues = "First-LastVal" Then
+        If $pataVar.Exist(xVariable) = False Then
+          $pataVar.Add(GetExamCollection(xVariable, "ASC"), xVariable)
+        Endif
+        If pcataVar.Exist(xVariable) = False Then
+          pcataVar.Add(GetExamCollection(xVariable, "DESC"), xVariable)
+        Endif
+      Else If modBasic.$StatClinValues = "FitsrVal" Then
+        If $pataVar.Exist(xVariable) = False Then
+          $pataVar.Add(GetExamCollection(xVariable, "ASC"), xVariable)
+        Endif
+      Else
+        If $pataVar.Exist(xVariable) = False Then
+          $pataVar.Add(GetExamCollection(xVariable, "DESC"), xVariable)
+        Endif
+      Endif
+
+    Endif
+  Endif
+
+  ''radiology
+  preradCol = $exColCount + labColumn + examColumn
+  If chkradiology.Value = True Then
+    If $barList And If $barList.Count Then
+
+      If modBasic.$StatClinValues = "First-LastVal" Then
+        radiColumn = $barList.Count + $carList.Count
+      Else
+        radiColumn = $barList.Count
+      Endif
+
+      If modBasic.$StatClinValues = "First-LastVal" Then
+        If $bataVar.Exist(xVariable) = False Then
+          $bataVar.Add(GetRadioCollection(xVariable, "ASC"), xVariable)
+        Endif
+        If bcataVar.Exist(xVariable) = False Then
+          bcataVar.Add(GetRadioCollection(xVariable, "DESC"), xVariable)
+        Endif
+      Else If modBasic.$StatClinValues = "FitsrVal" Then
+        If $bataVar.Exist(xVariable) = False Then
+          $bataVar.Add(GetRadioCollection(xVariable, "ASC"), xVariable)
+        Endif
+      Else
+        If $bataVar.Exist(xVariable) = False Then
+          $bataVar.Add(GetRadioCollection(xVariable, "DESC"), xVariable)
+        Endif
+      Endif
+
+    Endif
+  Endif
+
+  ''History/Notes
+  prenotCol = $exColCount + labColumn + examColumn + radiColumn
+  If chknoteall.Value = True Then
+    If $garList And If $garList.Count Then
+
+      If modBasic.$StatClinValues = "First-LastVal" Then
+        noteColumn = $garList.Count + $harList.Count
+      Else
+        noteColumn = $garList.Count
+      Endif
+
+      If modBasic.$StatClinValues = "First-LastVal" Then
+        If $gataVar.Exist(xVariable) = False Then
+          $gataVar.Add(GetHistotyCollection(xVariable, "ASC"), xVariable)
+        Endif
+        If gcataVar.Exist(xVariable) = False Then
+          gcataVar.Add(GetHistotyCollection(xVariable, "DESC"), xVariable)
+        Endif
+      Else If modBasic.$StatClinValues = "FitsrVal" Then
+        If $gataVar.Exist(xVariable) = False Then
+          $gataVar.Add(GetHistotyCollection(xVariable, "ASC"), xVariable)
+        Endif
+      Else
+        If $gataVar.Exist(xVariable) = False Then
+          $gataVar.Add(GetHistotyCollection(xVariable, "DESC"), xVariable)
+        Endif
+      Endif
+
+    Endif
+  Endif
+
+  If Column = 0 Then
+    xxx = xVariable
+  Else If Column = 1 Then
     xxx = modPatient.GetPatientNameByEnc(xVariable, modDatabase.$syConn)
   Else If Column = 2 Then
     xxx = modPatient.GetPatientSex(xVariable, modDatabase.$syConn)
@@ -735,16 +1077,152 @@ Private Function GetGridViewValue(Column As Integer, xVariable As Variant) As Va
   Else If Column = 7 Then
     xxx = modPatient.GetPatientContactByEnc(xVariable)
   Else
-    xxx = xVariable
+    If $newColumn.Count Then
+      For i = 0 To $newColumn.Count - 1
+        If Column = $ColCount + i Then
+          xxx = modCustPatient.NewColValue(Me.Tag, $newColumn[i], xVariable)
+        Endif
+      Next
+    Endif
+
+    ''laboratory columns
+    If chklaball.Value = True Then
+      If $varList And If $varList.Count Then
+
+        If modBasic.$StatClinValues = "First-LastVal" Then
+          If Column >= prelabCol And If Column < $varList.Count + prelabCol Then
+            xColl = $dataVar[xVariable]
+            If $varList[Column - prelabCol] And If xColl.Exist($varList[Column - prelabCol]) Then
+              xxx = xColl[$varList[Column - prelabCol]]
+            Else
+              xxx = ""
+            Endif
+          Else If Column >= prelabCol And If Column < $warList.Count + $varList.Count + prelabCol Then
+            yColl = xcataVar[xVariable]
+            If $warList[Column - prelabCol - $varList.Count] And If yColl.Exist($warList[Column - prelabCol - $varList.Count]) Then
+              xxx = yColl[$warList[Column - prelabCol - $varList.Count]]
+            Else
+              xxx = ""
+            Endif
+          Endif
+        Else
+          If Column >= prelabCol And If Column < $varList.Count + prelabCol Then
+            xColl = $dataVar[xVariable]
+            If $varList[Column - prelabCol] And If xColl.Exist($varList[Column - prelabCol]) Then
+              xxx = xColl[$varList[Column - prelabCol]]
+            Else
+              xxx = ""
+            Endif
+          Endif
+        Endif
+
+      Endif
+    Endif
+
+    ''examination
+    If chkexamall.Value = True Then
+      If $parList And If $parList.Count Then
+
+        If modBasic.$StatClinValues = "First-LastVal" Then
+          If Column >= preexamCol And If Column < $parList.Count + preexamCol Then
+            pColl = $pataVar[xVariable]
+            If $parList[Column - preexamCol] And If pColl.Exist($parList[Column - preexamCol]) Then
+              xxx = pColl[$parList[Column - preexamCol]]
+            Else
+              xxx = ""
+            Endif
+          Else If Column >= preexamCol And If Column < $qarList.Count + $parList.Count + preexamCol Then
+            qColl = pcataVar[xVariable]
+            If $qarList[Column - preexamCol - $parList.Count] And If qColl.Exist($qarList[Column - preexamCol - $parList.Count]) Then
+              xxx = qColl[$qarList[Column - preexamCol - $parList.Count]]
+            Else
+              xxx = ""
+            Endif
+          Endif
+        Else
+          If Column >= preexamCol And If Column < $parList.Count + preexamCol Then
+            pColl = $pataVar[xVariable]
+            If $parList[Column - preexamCol] And If pColl.Exist($parList[Column - preexamCol]) Then
+              xxx = pColl[$parList[Column - preexamCol]]
+            Else
+              xxx = ""
+            Endif
+          Endif
+        Endif
+
+      Endif
+    Endif
+
+    ''radiology
+    If chkradiology.Value = True Then
+      If $barList And If $barList.Count Then
+
+        If modBasic.$StatClinValues = "First-LastVal" Then
+          If Column >= preradCol And If Column < $barList.Count + preradCol Then
+            aColl = $bataVar[xVariable]
+            If $barList[Column - preradCol] And If aColl.Exist($barList[Column - preradCol]) Then
+              xxx = aColl[$barList[Column - preradCol]]
+            Else
+              xxx = ""
+            Endif
+          Else If Column >= preradCol And If Column < $carList.Count + $barList.Count + preradCol Then
+            bColl = bcataVar[xVariable]
+            If $carList[Column - preradCol - $barList.Count] And If bColl.Exist($carList[Column - preradCol - $barList.Count]) Then
+              xxx = bColl[$carList[Column - preradCol - $barList.Count]]
+            Else
+              xxx = ""
+            Endif
+          Endif
+        Else
+          If Column >= preradCol And If Column < $barList.Count + preradCol Then
+            aColl = $bataVar[xVariable]
+            If $barList[Column - preradCol] And If aColl.Exist($barList[Column - preradCol]) Then
+              xxx = aColl[$barList[Column - preradCol]]
+            Else
+              xxx = ""
+            Endif
+          Endif
+        Endif
+
+      Endif
+    Endif
+
+    ''History/Notes
+    If chknoteall.Value = True Then
+      If $garList And If $garList.Count Then
+
+        If modBasic.$StatClinValues = "First-LastVal" Then
+          If Column >= prenotCol And If Column < $garList.Count + prenotCol Then
+            gColl = $gataVar[xVariable]
+            If $garList[Column - prenotCol] And If gColl.Exist($garList[Column - prenotCol]) Then
+              xxx = gColl[$garList[Column - prenotCol]]
+            Else
+              xxx = ""
+            Endif
+          Else If Column >= prenotCol And If Column < $harList.Count + $garList.Count + prenotCol Then
+            hColl = gcataVar[xVariable]
+            If $harList[Column - prenotCol - $garList.Count] And If hColl.Exist($harList[Column - prenotCol - $garList.Count]) Then
+              xxx = hColl[$harList[Column - prenotCol - $garList.Count]]
+            Else
+              xxx = ""
+            Endif
+          Endif
+        Else
+          If Column >= prenotCol And If Column < $garList.Count + prenotCol Then
+            gColl = $gataVar[xVariable]
+            If $garList[Column - prenotCol] And If gColl.Exist($garList[Column - prenotCol]) Then
+              xxx = gColl[$garList[Column - prenotCol]]
+            Else
+              xxx = ""
+            Endif
+          Endif
+        Endif
+
+      Endif
+    Endif
+
   Endif
 
-  If $newColumn.Count Then
-    For i = 0 To $newColumn.Count - 1
-      If Column = 8 + i Then
-        xxx = modCustPatient.NewColValue(Me.Tag, $newColumn[i], xVariable)
-      Endif
-    Next
-  Endif
   Return xxx
 
 End
@@ -1437,5 +1915,229 @@ Public Sub mnuexpocolumn_Click()
 
   hForm = New FmCustColumnSet(Me.Tag)
   hForm.ShowModal
+
+End
+
+''--------------- Data View (Labs) --------------------------
+Public Sub chklaball_Click()
+
+  Dim xList As String[]
+
+  xList = modMedicine.FillLabTestCombo("%")
+  If xList And If xList.Count Then
+    $LabList = GridListView(("Select Particulars"), xList)
+  Endif
+  $dataVar = New Collection
+  xcataVar = New Collection
+
+End
+
+Private Function GetLabCollection(encid As String, xOrder As String) As Collection
+
+  Dim res1 As Result
+  Dim res2 As Result
+  Dim aColl As Collection
+  Dim aList As String[]
+  Dim i As Integer
+
+  aList = New String[]
+  aList = $LabList.Copy()
+  If aList And If aList.Count Then
+    For i = 0 To aList.Count - 1
+      aList[i] = "'" & aList[i] & "'"
+    Next
+
+    aColl = New Collection
+    res1 = modDatabase.$syConn.Exec("select fldid,fldtestid,fldreportquali from tblpatlabtest where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3) and fldtestid in(" & aList.Join(",") & ") and fldtest_type=&4 ORDER BY fldtime_sample " & xOrder, encid, "Reported", "Verified", "Qualitative")
+    If res1.Available Then
+      For Each res1
+        If aColl.Exist(res1["fldtestid"]) = False Then
+          aColl.Add(modLabTest.GetLabTestValueSubString(res1["fldid"], LabUnit(), True), res1["fldtestid"])
+        Endif
+      Next
+    Endif
+    res2 = modDatabase.$syConn.Exec("select fldid,fldtestid,fldreportquanti from tblpatlabtest where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3) and fldtestid in(" & aList.Join(",") & ") and fldtest_type=&4 ORDER BY fldtime_sample ASC", encid, "Reported", "Verified", "Quantitative")
+    If res2.Available Then
+      For Each res2
+        If aColl.Exist(res2["fldtestid"]) = False Then
+          aColl.Add(modLabTest.GetTestQuantiValueLabID(encid, res2["fldid"], LabUnit()), res2["fldtestid"])
+        Endif
+      Next
+    Endif
+  Endif
+
+  Return aColl
+
+End
+
+''--------------- Data View (Exam) --------------------------
+Public Sub chkexamall_Click()
+
+  Dim xList As String[]
+
+  xList = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldhead) as col from tblpatientexam where fldtime>=&1 and fldtime<=&2", modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value)))
+  If xList And If xList.Count Then
+    $ExamList = GridListView(("Select Particulars"), xList)
+  Endif
+  $pataVar = New Collection
+  pcataVar = New Collection
+
+End
+
+Private Function GetExamCollection(encid As String, xOrder As String) As Collection
+
+  Dim res1 As Result
+  Dim res2 As Result
+  Dim aColl As Collection
+  Dim aList As String[]
+  Dim i As Integer
+
+  aList = New String[]
+  aList = $ExamList.Copy()
+  If aList And If aList.Count Then
+    For i = 0 To aList.Count - 1
+      aList[i] = "'" & aList[i] & "'"
+    Next
+
+    aColl = New Collection
+    res1 = modDatabase.$syConn.Exec("select fldhead,fldrepquali from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldhead in(" & aList.Join(",") & ") and fldtype=&3 ORDER BY fldtime " & xOrder, encid, True, "Qualitative")
+    If res1.Available Then
+      For Each res1
+        If aColl.Exist(res1["fldhead"]) = False Then
+          aColl.Add(res1["fldrepquali"], res1["fldhead"])
+        Endif
+      Next
+    Endif
+    res2 = modDatabase.$syConn.Exec("select fldhead,fldrepquanti from tblpatientexam where fldencounterval=&1 and fldsave=&2 and fldhead in(" & aList.Join(",") & ") and fldtype=&3 ORDER BY fldtime " & xOrder, encid, True, "Quantitative")
+    If res2.Available Then
+      For Each res2
+        If aColl.Exist(res2["fldhead"]) = False Then
+          aColl.Add(res2["fldrepquanti"], res2["fldhead"])
+        Endif
+      Next
+    Endif
+  Endif
+
+  Return aColl
+
+End
+
+''------------------- Data View (Radio --------------------------------------)
+Public Sub chkradiology_Click()
+
+  Dim xList As String[]
+
+  xList = modMedicine.FillRadioTestCombo("%")
+  If xList And If xList.Count Then
+    $RadioList = GridListView(("Select Particulars"), xList)
+  Endif
+  $bataVar = New Collection
+  bcataVar = New Collection
+
+End
+
+Private Function GetRadioCollection(encid As String, xOrder As String) As Collection
+
+  Dim res1 As Result
+  Dim res2 As Result
+  Dim aColl As Collection
+  Dim aList As String[]
+  Dim i As Integer
+
+  aList = New String[]
+  aList = $RadioList.Copy()
+  If aList And If aList.Count Then
+    For i = 0 To aList.Count - 1
+      aList[i] = "'" & aList[i] & "'"
+    Next
+
+    aColl = New Collection
+    res1 = modDatabase.$syConn.Exec("select fldid,fldtestid,fldreportquali from tblpatradiotest where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3) and fldtestid in(" & aList.Join(",") & ") and fldtest_type=&4 ORDER BY fldtime_report " & xOrder, encid, "Reported", "Verified", "Qualitative")
+    If res1.Available Then
+      For Each res1
+        If aColl.Exist(res1["fldtestid"]) = False Then
+          aColl.Add(modRadioTest.GetRadiobTestValueSubString(res1["fldid"], True, encid), res1["fldtestid"])
+        Endif
+      Next
+    Endif
+    res2 = modDatabase.$syConn.Exec("select fldtestid,fldreportquanti from tblpatradiotest where fldencounterval=&1 and (fldstatus=&2 or fldstatus=&3) and fldtestid in(" & aList.Join(",") & ") and fldtest_type=&4 ORDER BY fldtime_report " & xOrder, encid, "Reported", "Verified", "Quantitative")
+    If res2.Available Then
+      For Each res2
+        If aColl.Exist(res2["fldtestid"]) = False Then
+          aColl.Add(res2["fldreportquanti"], res2["fldtestid"])
+        Endif
+      Next
+    Endif
+  Endif
+
+  Return aColl
+
+End
+
+''--------------- Data View (History/Notes) --------------------------
+Public Sub chknoteall_Click()
+
+  Dim xList As String[]
+  Dim xHistList As String[]
+  Dim xDiscList As String[]
+
+  xList = New String[]
+  xHistList = modMedicine.GetPatHistoryVar()
+  xHistList.Add("General Complaints")
+  xDiscList = modMedicine.GetDischargeVar()
+  xList.Insert(xHistList)
+  xList.Insert(["Progress Note", "Doctor Order", "Clinicians Note", "Nurses Note", "Transfer Note", "Patient Note"])
+  xList.Insert(xDiscList)
+
+  If xList And If xList.Count Then
+    $HistoryList = GridListView(("Select Particulars"), xList)
+  Endif
+  $gataVar = New Collection
+  gcataVar = New Collection
+
+End
+
+Private Function GetHistotyCollection(encid As String, xOrder As String) As Collection
+
+  Dim res As Result
+  Dim sql1 As String
+  Dim sql2 As String
+  Dim aColl As Collection
+  Dim aList As String[]
+  Dim i As Integer
+
+  aList = New String[]
+  aList = $HistoryList.Copy()
+  If aList And If aList.Count Then
+    For i = 0 To aList.Count - 1
+      aList[i] = "'" & aList[i] & "'"
+    Next
+
+    aColl = New Collection
+    sql1 = "select flditem,flddetail from tblexamgeneral where fldencounterval=&1 and (fldinput=&2 or fldinput=&3)"
+    sql2 = "select flditem,flddetail from tblpatientnotes where fldencounterval=&1 and (fldinput=&2 or fldinput=&3)"
+    res = modDatabase.$syConn.Exec(sql1 & " UNION ALL " & sql2, encid, "History", "Notes")
+    If res.Available Then
+      For Each res
+        If aColl.Exist(res["flditem"]) = False Then
+          aColl.Add(res["flddetail"], res["flditem"])
+        Endif
+      Next
+    Endif
+  Endif
+
+  Return aColl
+
+End
+
+''--------------- Data View (Medicine) --------------------------
+Public Sub chkmedall_Click()
+
+  Dim xList As String[]
+
+  xList = modMedicine.GetDosageMedList()
+  If xList And If xList.Count Then
+    $MedicList = GridListView(("Select Particulars"), xList)
+  Endif
 
 End

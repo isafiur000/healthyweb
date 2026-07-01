@@ -399,7 +399,7 @@ Public Function RadioTestInterpretByTestID(labid As Long) As String
 
 End
 
-Public Function GetRadiobTestValueSubString(id As Variant, fullView As Boolean) As Variant
+Public Function GetRadiobTestValueSubString(id As Variant, fullView As Boolean, Optional encid As String) As Variant
 
   Dim res As Result
   Dim res1 As Result
@@ -409,12 +409,21 @@ Public Function GetRadiobTestValueSubString(id As Variant, fullView As Boolean) 
   Dim xcaption As String
   Dim xType As String
 
-  If MMain.$WebEntry = True Then  ''remoteoptimized
-    sql = "select fldid,fldencounterval,fldtestid,fldreportquali,fldreportquanti,fldtest_type,fldabnormal,fldhospcode from tblpatradiotest where fldrepoid=&1"
+  If encid Then
+    If MMain.$WebEntry = True Then  ''remoteoptimized
+      sql = "select fldid,fldencounterval,fldtestid,fldreportquali,fldreportquanti,fldtest_type,fldabnormal,fldhospcode from tblpatradiotest where fldrepoid=&1 and fldencounterval=&2"
+    Else
+      sql = "select fldid,fldencounterval,fldtestid,fldreportquali,fldreportquanti,fldtest_type,fldabnormal from tblpatradiotest where fldid=&1 and fldencounterval=&2"
+    Endif
+    res = modDatabase.$myConn.Exec(sql, id, encid)
   Else
-    sql = "select fldid,fldencounterval,fldtestid,fldreportquali,fldreportquanti,fldtest_type,fldabnormal from tblpatradiotest where fldid=&1"
+    If MMain.$WebEntry = True Then  ''remoteoptimized
+      sql = "select fldid,fldencounterval,fldtestid,fldreportquali,fldreportquanti,fldtest_type,fldabnormal,fldhospcode from tblpatradiotest where fldrepoid=&1"
+    Else
+      sql = "select fldid,fldencounterval,fldtestid,fldreportquali,fldreportquanti,fldtest_type,fldabnormal from tblpatradiotest where fldid=&1"
+    Endif
+    res = modDatabase.$myConn.Exec(sql, id)
   Endif
-  res = modDatabase.$myConn.Exec(sql, id)
   If res.Available = True Then
     xcaption = modFixRadio.GetRadiotestCaption(res["fldtestid"])
     If modBasic.$SuperUser = False And If xcaption = "$Encryption" Then
@@ -574,7 +583,7 @@ Public Function GetRadioValuePosition(encid As String, sExam As String, sType As
       Endif
       xx.Add(modReportVar.GetDateTimeReport(res["fldtime_report"], gb.GeneralDate))
       If MMain.$WebEntry = True Then ''remoteoptimized
-        xx.Add(modRadioTest.GetRadiobTestValueSubString(res["fldrepoid"], True))
+        xx.Add(modRadioTest.GetRadiobTestValueSubString(res["fldrepoid"], True, encid))
       Else
         If res["fldpacseries"] Then
           xserver = modPACS.GetPacsNodeFromHost(res["fldpacsnode"])
@@ -584,9 +593,9 @@ Public Function GetRadioValuePosition(encid As String, sExam As String, sType As
           Endif
         Endif
         If xLink Then
-          xx.Add(modRadioTest.GetRadiobTestValueSubString(res["fldid"], True) & "<br>" & "<a href='" & xLink & "' target='_blank'>Click</a>")
+          xx.Add(modRadioTest.GetRadiobTestValueSubString(res["fldid"], True, encid) & "<br>" & "<a href='" & xLink & "' target='_blank'>Click</a>")
         Else
-          xx.Add(modRadioTest.GetRadiobTestValueSubString(res["fldid"], True))
+          xx.Add(modRadioTest.GetRadiobTestValueSubString(res["fldid"], True, encid))
         Endif
       Endif
       xx.Add(res["flduserid_report"])
