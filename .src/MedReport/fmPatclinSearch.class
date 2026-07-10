@@ -108,7 +108,9 @@ Public Sub btnrefresh_Click()
   modCustPatient.FillNewCOlumnCollection(Me.Tag)
   $newColumn = modCustPatient.CustomNewColumnsTitle(Me.Tag)
 
-  GetDistinctEncounters()
+  If cmbtype.Text Then
+    GetDistinctEncounters()
+  Endif
 
   If chkgrid.Value = True Then
     FillPatientGrid()
@@ -156,15 +158,23 @@ Private Sub GetDistinctEncounters()
       $fld = "flddetail"
       If cmbclass.Text Then
         If cmbsex.Text = "%" Then
-          res1 = modDatabase.$syConn.Exec("select fldencounterval from tblpatientnotes where fldinput=&1 and fldtime>=&2 and fldtime<=&3 and lower(flddetail) like &4 and flditem like &5" & $RepoStr, cmbtype.Text, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(txtsearch.Text), cmbclass.Text)
+          sql1 = "select fldencounterval from tblpatientnotes where fldinput=&1 and fldtime>=&2 and fldtime<=&3 and lower(flddetail) like &4 and flditem like &5" & $RepoStr
+          sql2 = "select fldencounterval from tblexamgeneral where fldinput=&1 and fldtime>=&2 and fldtime<=&3 and lower(flddetail) like &4 and flditem like &5" & $RepoStr
+          res1 = modDatabase.$syConn.Exec(sql1 & " UNION " & sql2, cmbtype.Text, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(txtsearch.Text), cmbclass.Text)
         Else
-          res1 = modDatabase.$syConn.Exec("select fldencounterval from tblpatientnotes where fldinput=&1 and fldtime>=&2 and fldtime<=&3 and lower(flddetail) like &4 and flditem like &5 and fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &6))" & $RepoStr, cmbtype.Text, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(txtsearch.Text), cmbclass.Text, cmbsex.Text)                                                    ''
+          sql1 = "select t1.fldencounterval as fldencounterval from tblpatientnotes as t1 inner join tblencounter as t2 on t1.fldencounterval=t2.fldencounterval where t1.fldinput=&1 and t1.fldtime>=&2 and t1.fldtime<=&3 and lower(t1.flddetail) like &4 and t1.flditem like &5 and t2.fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &6))" & $RepoStr
+          sql2 = "select t1.fldencounterval as fldencounterval from tblexamgeneral as t1 inner join tblencounter as t2 on t1.fldencounterval=t2.fldencounterval where t1.fldinput=&1 and t1.fldtime>=&2 and t1.fldtime<=&3 and lower(t1.flddetail) like &4 and t1.flditem like &5 and t2.fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &6))" & $RepoStr
+          res1 = modDatabase.$syConn.Exec(sql1 & " UNION " & sql2, cmbtype.Text, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(txtsearch.Text), cmbclass.Text, cmbsex.Text)
         Endif
       Else
         If cmbsex.Text = "%" Then
-          res1 = modDatabase.$syConn.Exec("select fldencounterval from tblpatientnotes where fldinput=&1 and fldtime>=&2 and fldtime<=&3 and lower(flddetail) like &4" & $RepoStr, cmbtype.Text, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(txtsearch.Text))
+          sql1 = "select fldencounterval from tblpatientnotes where fldinput=&1 and fldtime>=&2 and fldtime<=&3 and lower(flddetail) like &4" & $RepoStr
+          sql2 = "select fldencounterval from tblexamgeneral where fldinput=&1 and fldtime>=&2 and fldtime<=&3 and lower(flddetail) like &4" & $RepoStr
+          res1 = modDatabase.$syConn.Exec(sql1 & " UNION " & sql2, cmbtype.Text, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(txtsearch.Text))
         Else
-          res1 = modDatabase.$syConn.Exec("select fldencounterval from tblpatientnotes where fldinput=&1 and fldtime>=&2 and fldtime<=&3 and lower(flddetail) like &4 and fldencounterval in(select fldencounterval from tblencounter where fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &5))" & $RepoStr, cmbtype.Text, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(txtsearch.Text), cmbsex.Text)                                                    ''
+          sql1 = "select t1.fldencounterval as fldencounterval from tblpatientnotes as t1 inner join tblencounter as t2 on t1.fldencounterval=t2.fldencounterval where t1.fldinput=&1 and t1.fldtime>=&2 and t1.fldtime<=&3 and lower(t1.flddetail) like &4 and t2.fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &5))" & $RepoStr
+          sql2 = "select t1.fldencounterval as fldencounterval from tblexamgeneral as t1 inner join tblencounter as t2 on t1.fldencounterval=t2.fldencounterval where t1.fldinput=&1 and t1.fldtime>=&2 and t1.fldtime<=&3 and lower(t1.flddetail) like &4 and t2.fldpatientval in(select fldpatientval from tblpatientinfo where fldptsex like &5))" & $RepoStr
+          res1 = modDatabase.$syConn.Exec(sql1 & " UNION " & sql2, cmbtype.Text, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(txtsearch.Text), cmbsex.Text)                                                    ''
         Endif
       Endif
       xxx = modControlSub.GetDirectFillresult(res1)
@@ -296,6 +306,7 @@ Private Sub GetDistinctEncounters()
         Else
           res1 = modDatabase.$syConn.Exec(sql1 & xstr & $RepoStr, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), cmbtype.Text, LCase(txtsearch.Text), cmbsex.Text)
         Endif
+        xxx = modControlSub.GetDirectFillresult(res1)
 
       Else
         sql1 = "select fldencounterval from tblpatplanning where fldtime>=&1 and fldtime<=&2 and fldplancategory=&3 and lower(fldsubjective) like &4"
@@ -344,9 +355,13 @@ Private Sub GetCOlumnData(encid As String, sSearch As String) As String
 
     Case "History", "Notes"
       If cmbclass.Text Then
-        res1 = modDatabase.$syConn.Exec("select flddetail as col from tblpatientnotes where fldinput=&1 and fldtime>=&2 and fldtime<=&3 and lower(flddetail) like &4 and fldencounterval=&5 and flditem like &6", cmbtype.Text, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(sSearch), encid, cmbclass.Text)
+        sql1 = "select flddetail as col from tblpatientnotes where fldinput=&1 and fldtime>=&2 and fldtime<=&3 and lower(flddetail) like &4 and fldencounterval=&5 and flditem like &6"
+        sql2 = "select flddetail as col from tblexamgeneral where fldinput=&1 and fldtime>=&2 and fldtime<=&3 and lower(flddetail) like &4 and fldencounterval=&5 and flditem like &6"
+        res1 = modDatabase.$syConn.Exec(sql1 & " UNION ALL " & sql2, cmbtype.Text, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(sSearch), encid, cmbclass.Text)
       Else
-        res1 = modDatabase.$syConn.Exec("select flddetail as col from tblpatientnotes where fldinput=&1 and fldtime>=&2 and fldtime<=&3 and lower(flddetail) like &4 and fldencounterval=&5", cmbtype.Text, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(sSearch), encid)
+        sql1 = "select flddetail as col from tblpatientnotes where fldinput=&1 and fldtime>=&2 and fldtime<=&3 and lower(flddetail) like &4 and fldencounterval=&5"
+        sql2 = "select flddetail as col from tblexamgeneral where fldinput=&1 and fldtime>=&2 and fldtime<=&3 and lower(flddetail) like &4 and fldencounterval=&5"
+        res1 = modDatabase.$syConn.Exec(sql1 & " UNION ALL " & sql2, cmbtype.Text, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), LCase(sSearch), encid)
       Endif
 
     Case "Delivery Note"
@@ -520,7 +535,7 @@ Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableDat
     Data.Html = GetGridViewValue(Column, $enctr[Row])
   Else
     If Column > 6 Then
-      Data.Html = modString.TextToHTML(GetGridViewValue(Column, $enctr[Row]))
+      Data.Html = GetGridViewValue(Column, $enctr[Row])
     Else
       Data.Text = GetGridViewValue(Column, $enctr[Row])
     Endif

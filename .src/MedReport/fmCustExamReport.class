@@ -9,6 +9,13 @@ Private $RepoStr As String
 Private $ColCount As Integer
 Private $newColumn As String[]
 
+Private $rDatav As Result
+Private $aMyFieldsv As String[]
+Private $varList As String[]
+Private $dataVar As Collection
+Private $warList As String[]
+Private $cataVar As Collection
+
 Public Sub _new()
 
   Dim xhospfld As String
@@ -120,24 +127,34 @@ Private Function GetSQLColumns() As String[]
 
 End
 
-Private Function ExecuteQuery(xFldList As String[], Optional sGroup As String) As Result
+Private Function ExecuteQuery(xFldList As String[], Optional sExtra As String) As Result
 
   Dim sql As String
   Dim res As Result
-  Dim xgroup As String
+  Dim xextra As String
+  Dim asx As String[]
 
-  If sGroup Then
-    xgroup = " GROUP BY " & sGroup
+  If sExtra Then
+    If sExtra = "GROUP BY" Then
+      xextra = " GROUP BY fldencounterval"
+    Else
+      asx = Split(sExtra, "|")
+      If asx.Count = 2 Then
+        xextra = db.Subst(" and " & asx[0] & "=&1", asx[1])
+      Else If asx.Count = 3 Then
+        xextra = db.Subst(" and " & asx[0] & "=&1", asx[1]) & " " & asx[2]
+      Endif
+    Endif
   Else
-    xgroup = ""
+    xextra = ""
   Endif
 
   $RepoStr = modDataRepo.GetWhereStringRepo(cmblocation.Text, cmbvalue.Text)
   If cmbsubclass.Text = "Department" Then
-    sql = "select " & xFldList.Join(",") & " from tblpatientexam where fldmethod=&1 and fldtime>=&2 and fldtime<=&3 and fldhead like &4 and fldinput like &5" & $RepoStr & xgroup
+    sql = "select " & xFldList.Join(",") & " from tblpatientexam where fldmethod=&1 and fldtime>=&2 and fldtime<=&3 and fldhead like &4 and fldinput like &5" & $RepoStr & xextra
     res = modDatabase.$syConn.Exec(sql, "Physician Examinations", modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), cmbexam.Text, cmbcategory.Text)
   Else
-    sql = "select " & xFldList.Join(",") & " from tblpatientexam where fldmethod=&1 and fldtime>=&2 and fldtime<=&3 and fldhead like &4 and fldserialval in(select fldheadcode from tblstructexam where fldsubclass like &5 and fldcategory like &6)" & $RepoStr & xgroup                                                                       ''"
+    sql = "select " & xFldList.Join(",") & " from tblpatientexam where fldmethod=&1 and fldtime>=&2 and fldtime<=&3 and fldhead like &4 and fldserialval in(select fldheadcode from tblstructexam where fldsubclass like &5 and fldcategory like &6)" & $RepoStr & xextra                                                                       ''"
     res = modDatabase.$syConn.Exec(sql, cmbsubclass.Text, modDate.StartSqlDate(dtfir.Value), modDate.EndSqlDate(dtlast.Value), cmbexam.Text, cmbsubclass.Text, cmbcategory.Text)
   Endif
 
@@ -203,6 +220,10 @@ Public Sub btnrefresh_Click()
     FillItemChartQTY()
   Endif
 
+  If chkdataview.Value = True Then
+    MakeDataViewGrid()
+  Endif
+
 End
 
 Public Sub FillPatGrid()
@@ -255,7 +276,7 @@ Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableDat
     Data.Html = GetGridViewValue(Column, $rData[$aMyFields[Column]])
   Else
     If Column > $SSQLFields.Count - 1 Then
-      Data.Html = modString.TextToHTML(GetGridViewValue(Column, $rData[$aMyFields[Column]]))
+      Data.Html = GetGridViewValue(Column, $rData[$aMyFields[Column]])
     Else
       Data.Text = GetGridViewValue(Column, $rData[$aMyFields[Column]])
     Endif
@@ -816,5 +837,225 @@ Public Sub mnuaddcolm_Click()
 
   hForm = New FmAddNewColumn(Me.Tag)
   hForm.ShowModal
+
+End
+
+''========================= Data View ========================
+Private Function GetDataViewColumns() As String[]
+
+  Dim xlist As String[]
+  Dim xFldList As String[]
+  Dim i As Integer
+  Dim xcol As String
+  Dim ycol As String
+
+  xlist = modControlSub.GetDirectFillresultNoNull(ExecuteQuery(["distinct(fldhead)"]))
+  $varList = xlist
+  $warList = xlist
+
+  xFldList = New String[]
+  xFldList.Add("fldencounterval")
+  xFldList.Add("fldencounterval")
+  xFldList.Add("fldencounterval")
+  xFldList.Add("fldencounterval")
+  For Each xcol In $varList
+    xFldList.Add("fldencounterval")
+  Next
+
+  If modBasic.$StatClinValues = "First-LastVal" Then
+    For Each ycol In $warList
+      xFldList.Add("fldencounterval")
+    Next
+  Endif
+
+  modCustPatient.FillNewCOlumnCollection(Me.Tag)
+  $newColumn = modCustPatient.CustomNewColumnsTitle(Me.Tag)
+  If $newColumn.Count Then
+    For i = 0 To $newColumn.Count - 1
+      xFldList.Add("fldencounterval")
+    Next
+  Endif
+
+  Return xFldList
+
+End
+
+Private Sub MakeDataViewGrid()
+
+  Dim xFldList As String[]
+
+  xFldList = GetDataViewColumns()
+  $rDatav = ExecuteQuery(xFldList, "GROUP BY")
+  $dataVar = New Collection
+  $cataVar = New Collection
+  FillDataViewGrid()
+
+End
+
+Private Sub FillDataViewGrid()
+
+  Dim i As Integer
+  Dim Column As Integer
+
+  $aMyFieldsv = New String[]
+  modGridView.ReadSmallData(GridView2, $rDatav, $aMyFieldsv)
+  With GridView2
+    .Columns[0].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
+    .Columns[1].Width = CStr(175 * modBasic.$AppWidthRatio) & "px"
+    .Columns[2].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
+    .Columns[3].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
+    .Columns[0].Text = "EncID"
+    .Columns[1].Text = "Name"
+    .Columns[2].Text = "Age"
+    .Columns[3].Text = "Gender"
+
+    For Column = 0 To $varList.Count - 1
+      .Columns[Column + 4].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+      .Columns[Column + 4].Text = $varList[Column]
+    Next
+
+    If modBasic.$StatClinValues = "First-LastVal" Then
+      For Column = 0 To $warList.Count - 1
+        .Columns[Column + 4 + $varList.Count].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+        .Columns[Column + 4 + $varList.Count].Text = $warList[Column] & "(LAST)"
+      Next
+    Endif
+
+    If $newColumn.Count Then
+      For i = 0 To $newColumn.Count - 1
+        If modBasic.$StatClinValues = "First-LastVal" Then
+          .Columns[i + 4 + $varList.Count + $warList.Count].Text = $newColumn[i]
+          .Columns[i + 4 + $varList.Count + $warList.Count].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+        Else
+          .Columns[i + 4 + $varList.Count].Text = $newColumn[i]
+          .Columns[i + 4 + $varList.Count].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
+        Endif
+      Next
+    Endif
+  End With
+
+End
+
+Public Sub GridView2_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  $rDatav.MoveTo(Row)
+  modGridView.GridViewDecoration(Data, Row)
+  If Column > ($varList.Count + 4) - 1 Then
+    Data.Html = GetDataViewValue(Column, $rDatav[$aMyFieldsv[Column]])
+  Else
+    Data.Text = GetDataViewValue(Column, $rDatav[$aMyFieldsv[Column]])
+  Endif
+
+End
+
+Private Function GetDataViewValue(Column As Integer, xVariable As Variant) As Variant
+
+  Dim xxx As Variant
+  Dim i As Integer
+  Dim aColl As Collection
+  Dim bColl As Collection
+
+  If modBasic.$StatClinValues = "First-LastVal" Then
+    If $dataVar.Exist(xVariable) = False Then
+      $dataVar.Add(GetLabCollection(xVariable), xVariable)
+    Endif
+    If $cataVar.Exist(xVariable) = False Then
+      $cataVar.Add(GetLastLabCollection(xVariable), xVariable)
+    Endif
+  Else If modBasic.$StatClinValues = "FitsrVal" Then
+    If $dataVar.Exist(xVariable) = False Then
+      $dataVar.Add(GetLabCollection(xVariable), xVariable)
+    Endif
+  Else
+    If $dataVar.Exist(xVariable) = False Then
+      $dataVar.Add(GetLastLabCollection(xVariable), xVariable)
+    Endif
+  Endif
+
+  If Column = 0 Then
+    xxx = xVariable
+  Else If Column = 1 Then
+    xxx = modPatient.GetPatientNameByEnc(xVariable, modDatabase.$syConn)
+  Else If Column = 2 Then
+    xxx = modMedReports.GetPatientPastAgeString("tblencounter", xVariable)
+  Else If Column = 3 Then
+    xxx = modPatient.GetPatientSex(xVariable, modDatabase.$syConn)
+  Else
+
+    If modBasic.$StatClinValues = "First-LastVal" Then
+      If Column < $varList.Count + 4 Then
+        aColl = $dataVar[xVariable]
+        If $varList[Column - 4] And If aColl.Exist($varList[Column - 4]) Then
+          xxx = aColl[$varList[Column - 4]]
+        Else
+          xxx = ""
+        Endif
+      Else If Column < $warList.Count + $varList.Count + 4 Then
+        bColl = $cataVar[xVariable]
+        If $warList[Column - 4 - $varList.Count] And If bColl.Exist($warList[Column - 4 - $varList.Count]) Then
+          xxx = bColl[$warList[Column - 4 - $varList.Count]]
+        Else
+          xxx = ""
+        Endif
+      Endif
+    Else
+      If Column < $varList.Count + 4 Then
+        aColl = $dataVar[xVariable]
+        If $varList[Column - 4] And If aColl.Exist($varList[Column - 4]) Then
+          xxx = aColl[$varList[Column - 4]]
+        Else
+          xxx = ""
+        Endif
+      Endif
+    Endif
+
+  Endif
+
+  If $newColumn.Count Then
+    For i = 0 To $newColumn.Count - 1
+      If Column = $warList.Count + $varList.Count + 4 + i Then
+        xxx = modCustPatient.NewColValue(Me.Tag, $newColumn[i], xVariable)
+      Endif
+    Next
+  Endif
+  Return xxx
+
+End
+
+Private Function GetLabCollection(encid As String) As Collection
+
+  Dim res As Result
+  Dim aColl As Collection
+
+  aColl = New Collection
+  res = ExecuteQuery(["fldhead", "fldrepquali"], "fldencounterval|" & encid & "|ORDER BY fldtime ASC")
+  If res.Available Then
+    For Each res
+      If aColl.Exist(res["fldhead"]) = False Then
+        aColl.Add(res["fldrepquali"], res["fldhead"])
+      Endif
+    Next
+  Endif
+
+  Return aColl
+
+End
+
+Private Function GetLastLabCollection(encid As String) As Collection
+
+  Dim res As Result
+  Dim aColl As Collection
+
+  aColl = New Collection
+  res = ExecuteQuery(["fldhead", "fldrepquali"], "fldencounterval|" & encid & "|ORDER BY fldtime DESC")
+  If res.Available Then
+    For Each res
+      If aColl.Exist(res["fldhead"]) = False Then
+        aColl.Add(res["fldrepquali"], res["fldhead"])
+      Endif
+    Next
+  Endif
+
+  Return aColl
 
 End

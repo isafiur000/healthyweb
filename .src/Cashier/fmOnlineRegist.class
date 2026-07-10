@@ -63,7 +63,7 @@ Private Sub LoadGridData()
 
   Dim sql As String
 
-  sql = "select fldbookingval,fldbookingval,fldconsultdate,fldadmitlocat,fldpatientval,fldptnamefir,fldptnamelast,fldptsex,flddisctype,fldpayreference,fldencounterval,fldbillno,fldconsultdate,fldbookingval from tblonlinebook where flddisctype like &1 and fldconsultdate>=&2 and fldconsultdate<=&3 and fldadmitlocat like &4 and fldstate=&5"
+  sql = "select fldbookingval,fldbookingval,fldconsultdate,fldadmitlocat,fldpatientval,fldptnamefir,fldptnamelast,fldptsex,flddisctype,fldpayreference,fldencounterval,fldinvoice,fldconsultdate,fldbookingval from tblonlinebook where flddisctype like &1 and fldconsultdate>=&2 and fldconsultdate<=&3 and fldadmitlocat like &4 and fldstate=&5"
   $rData = modDatabase.$myConn.Exec(sql, cmbscheme.Text, modDate.StartSqlDate(dtconsult.Value), modDate.EndSqlDate(dtconsult.Value), cmbdepart.Text, "Paid")
   $aMyFields = New String[]
   modGridView.ReadSmallData(GridView1, $rData, $aMyFields)
@@ -170,12 +170,12 @@ Public Sub btnregist_Click()
         Endif
 
         If xEncID Then
-          If Not $rData["fldbillno"] Then
+          If Not $rData["fldinvoice"] Then
             GetRegistrationBilling(xEncID, $rData["flddisctype"])
             Wait
             xbillno = hPatient.GetCurrentInvoice()
             res = modDatabase.$myConn.Edit("tblonlinebook", "fldbookingval=&1", $rData["fldbookingval"])
-            res["fldbillno"] = xbillno
+            res["fldinvoice"] = xbillno
             res.Update
           Endif
           xpass = modGeneral.SendPatientPasswordForRemote(xEncID)
@@ -292,6 +292,7 @@ Private Function GetRegistration(sBookID As String) As String
 
   Dim xPatNo As String
   Dim xEncID As String
+  Dim xBillMode As String
   Dim res As Result
   Dim res1 As Result
   Dim res2 As Result
@@ -305,7 +306,7 @@ Private Function GetRegistration(sBookID As String) As String
   Dim xdate As Date
   Dim xpdamt As Float
 
-  res = modDatabase.$myConn.Exec("select fldpatientval,fldconsultdate,fldadmitlocat,flduserid,flddisctype,fldbillingmode,fldencounterval,fldbillno,fldpayreference,flditemamt,fldstate from tblonlinebook where fldbookingval=&1", sBookID)
+  res = modDatabase.$myConn.Exec("select fldpatientval,fldconsultdate,fldadmitlocat,flduserid,flddisctype,fldbillingmode,fldencounterval,fldinvoice,fldpayreference,flditemamt,fldstate from tblonlinebook where fldbookingval=&1", sBookID)
   If res.Available Then
     xpdamt = 0
     If res["fldstate"] = "Paid" Then
@@ -316,9 +317,10 @@ Private Function GetRegistration(sBookID As String) As String
         xpdamt = resx["fldtransamt"]
       Endif
     Endif
+    xBillMode = modNonMedical.GetDiscBindBillMode(res["flddisctype"])
 
     xtotamt = 0
-    xtotamt = modBillings.GetAutoRegistCost(res["fldadmitlocat"], res["flddisctype"], res["fldbillingmode"], "New")
+    xtotamt = modBillings.GetAutoRegistCost(res["fldadmitlocat"], res["flddisctype"], xBillMode, "New")
     If xpdamt >= xtotamt Then
 
       idLock = modBillLock.LockTableForID("Registration")
@@ -341,7 +343,7 @@ Private Function GetRegistration(sBookID As String) As String
             res1["fldpatientval"] = xPatNo
             res1["fldadmitlocat"] = res["fldadmitlocat"]
             res1["flddisctype"] = res["flddisctype"]
-            res1["fldbillingmode"] = res["fldbillingmode"]
+            res1["fldbillingmode"] = xBillMode
             res1["fldadmission"] = "Registered"
             res1["fldregdate"] = Now()
             res1["fldcomp"] = modBasic.$compID
@@ -370,16 +372,16 @@ Private Function GetRegistration(sBookID As String) As String
             Endif
             res1.Update()
 
-            autobil = modBillings.InsertRegistrationBilling("Full", xEncID, res["fldadmitlocat"], res["flddisctype"], res["fldbillingmode"], "New", res["flduserid"])
+            autobil = modBillings.InsertRegistrationBilling("Full", xEncID, res["fldadmitlocat"], res["flddisctype"], xBillMode, "New", res["flduserid"])
             If autobil = True Then
               xcomm = "Paid Consultation"
 
               xformat = modGeneral.GetCategoryFromDept(res["fldadmitlocat"])
               xdate = modGeneral.GetDepartConsultTime(xformat, res["fldadmitlocat"], res["fldconsultdate"])
               If xformat = "Consultation" Then
-                modPatientSub.AddConsultData(xEncID, res["fldadmitlocat"], xdate, res["fldbillingmode"], xcomm, res["flduserid"])
+                modPatientSub.AddConsultData(xEncID, res["fldadmitlocat"], xdate, xBillMode, xcomm, res["flduserid"])
               Else
-                modPatientSub.AddOPVisitData(xEncID, res["fldadmitlocat"], xdate, res["fldbillingmode"], xcomm)
+                modPatientSub.AddOPVisitData(xEncID, res["fldadmitlocat"], xdate, xBillMode, xcomm)
               Endif
 
               res2 = modDatabase.$myConn.Edit("tblonlinebook", "fldbookingval=&1", sBookID)
@@ -521,19 +523,19 @@ Public Sub mnuinvoice_Click()
   If GridView1.Selection.Count Then
     $rData.MoveTo(GridView1.Selection[0])
     If $rData["fldencounterval"] Then
-      If Not $rData["fldbillno"] Then
+      If Not $rData["fldinvoice"] Then
         hPatient.RefreshAll()
         GetRegistrationBilling($rData["fldencounterval"], $rData["flddisctype"])
         Wait
         xbillno = hPatient.GetCurrentInvoice()
         res = modDatabase.$myConn.Edit("tblonlinebook", "fldbookingval=&1", $rData["fldbookingval"])
-        res["fldbillno"] = xbillno
+        res["fldinvoice"] = xbillno
         res.Update
         modBILLFormat.PrintSelectedInvoice(xbillno)
         LoadGridData()
 
-      Else If $rData["fldbillno"] Then
-        modBILLFormat.PrintSelectedInvoice($rData["fldbillno"])
+      Else If $rData["fldinvoice"] Then
+        modBILLFormat.PrintSelectedInvoice($rData["fldinvoice"])
       Endif
     Endif
   Endif
