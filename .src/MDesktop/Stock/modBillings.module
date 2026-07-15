@@ -961,6 +961,30 @@ Public Sub GetAutoBillingEntry(encid As String, DiscPackage As String, sRoute As
 End
 
 ''================================== Billing Procedures ==========================================
+Private Function AllowRegistrationBilling(sFormat As String, sCutOff As Date) As Boolean
+
+  Dim xgo As Boolean
+
+  If sFormat Then
+    If sFormat = "Before" Then
+      If Time(sCutOff) > Time() Then
+        xgo = True
+      Endif
+    Else If sFormat = "After" Then
+      If Time(sCutOff) < Time() Then
+        xgo = True
+      Endif
+    Else
+      xgo = True
+    Endif
+  Else
+    xgo = True
+  Endif
+
+  Return xgo
+
+End
+
 Public Function GetAutoRegistCost(sDept As String, sPackage As String, sBillMode As String, sVisit As String) As Float
 
   Dim resx As Result
@@ -980,28 +1004,30 @@ Public Function GetAutoRegistCost(sDept As String, sPackage As String, sBillMode
   Endif
   If resx.Available Then
     For Each resx
-      itemtyp = modNonMedical.GetBillItemCategoryFromCombo(resx["flditemtype"])
+      If AllowRegistrationBilling(resx["fldexitemtype"], resx["fldcutoff"]) = True Then
 
-      discper = modNonMedical.DiscPercentForCategoryAll(sPackage, itemtyp, resx["flditemname"], sBillMode)
-      If MMain.$WebEntry = True And If modBasic.$HospCode Then
-        res = modDatabase.$myConn.Exec("select fldid,flditemcost,flditemunit,fldtarget,fldtaxcode from tblservicecost where flditemname=&1 and flditemtype like &2 and fldhospcode like &3", resx["flditemname"], itemtyp, modBasic.$HospCode)
-      Else
-        res = modDatabase.$myConn.Exec("select fldid,flditemcost,flditemunit,fldtarget,fldtaxcode from tblservicecost where flditemname=&1 and flditemtype like &2", resx["flditemname"], itemtyp)
-      Endif
-      If res.Available Then
-        If res["flditemunit"] Then
-          sRate = modNonMedical.GetCurrConvertAmount(res["flditemcost"], res["flditemunit"])
+        itemtyp = modNonMedical.GetBillItemCategoryFromCombo(resx["flditemtype"])
+        discper = modNonMedical.DiscPercentForCategoryAll(sPackage, itemtyp, resx["flditemname"], sBillMode)
+        If MMain.$WebEntry = True And If modBasic.$HospCode Then
+          res = modDatabase.$myConn.Exec("select fldid,flditemcost,flditemunit,fldtarget,fldtaxcode from tblservicecost where flditemname=&1 and flditemtype like &2 and fldhospcode like &3", resx["flditemname"], itemtyp, modBasic.$HospCode)
         Else
-          sRate = res["flditemcost"]
+          res = modDatabase.$myConn.Exec("select fldid,flditemcost,flditemunit,fldtarget,fldtaxcode from tblservicecost where flditemname=&1 and flditemtype like &2", resx["flditemname"], itemtyp)
         Endif
-        If res["fldtaxcode"] Then
-          taxper = modNonMedical.GetTaxPerFromCode(res["fldtaxcode"])
-        Else
-          taxper = 0
+        If res.Available Then
+          If res["flditemunit"] Then
+            sRate = modNonMedical.GetCurrConvertAmount(res["flditemcost"], res["flditemunit"])
+          Else
+            sRate = res["flditemcost"]
+          Endif
+          If res["fldtaxcode"] Then
+            taxper = modNonMedical.GetTaxPerFromCode(res["fldtaxcode"])
+          Else
+            taxper = 0
+          Endif
+          xtot = xtot + (sRate * resx["flditemqty"]) * (1 - discper / 100) * (1 + taxper / 100)
         Endif
-        xtot = xtot + (sRate * resx["flditemqty"]) * (1 - discper / 100) * (1 + taxper / 100)
-      Endif
 
+      Endif
     Next
   Endif
 

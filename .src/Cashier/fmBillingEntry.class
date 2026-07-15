@@ -8,6 +8,7 @@ Public $LockToInvOwn As String
 Public $ACLedger As String
 Public $ACReference As String
 Public $RetInvoice As String
+Public $TaxSource As String
 Public $StickerMode As Boolean
 Public $AdvTraceID As String
 Public $OutPhmHash As String
@@ -389,7 +390,11 @@ Private Sub ShowChargecData()
         $CashInCredit = 0
       Else
         If res["fldcashincredit"] Then
-          $CashInCredit = $CashInCredit + (res["fldcashincredit"] / 100) * (xdue + xtax - xdisc)
+          If $TaxSource = "Proportional" Then
+            $CashInCredit = $CashInCredit + (res["fldcashincredit"] / 100) * (xdue + xtax - xdisc)
+          Else
+            $CashInCredit = $CashInCredit + (res["fldcashincredit"] / 100) * (xdue - xdisc)
+          Endif
         Endif
       Endif
 
@@ -417,27 +422,35 @@ End
 
 Private Sub AdjustChargeValue()
 
+  Dim xrcvamt As Float
+
   'net total
   txttotalamt.Value = Round(txtamtdue.Value + txttaxamt.Value - txtdiscamt.Value, -2)
 
   'current deposit
   If rbcredit.Value = True Then
     If $CashInCredit Then
-      txtrecvamt.Value = $CashInCredit
+      xrcvamt = $CashInCredit
     Else
       If chkunlock.Value = False Then
-        txtrecvamt.Value = 0
+        xrcvamt = 0
       Endif
     Endif
   Else
     If $billtype = "InvoiceClearance" Or If $billtype = "ReceiptClearance" Then
       If chkunlock.Value = True Then
       Else
-        txtrecvamt.Value = txttotalamt.Value
+        xrcvamt = txttotalamt.Value
       Endif
     Else
-      txtrecvamt.Value = txttotalamt.Value
+      xrcvamt = txttotalamt.Value
     Endif
+  Endif
+
+  If $TaxSource = "Proportional" Then
+    txtrecvamt.Value = xrcvamt
+  Else
+    txtrecvamt.Value = xrcvamt + txttaxamt.Value
   Endif
 
 End
@@ -1424,7 +1437,11 @@ Public Sub SetCashInCredit(sVal As Float)
 
   If rbcredit.Value = True Then
     chkunlock.Value = True
-    txtrecvamt.Value = sVal
+    If $TaxSource = "Proportional" Then
+      txtrecvamt.Value = sVal
+    Else
+      txtrecvamt.Value = sVal + txttaxamt.Value
+    Endif
   Endif
 
 End
@@ -1432,7 +1449,11 @@ End
 Public Sub SetCashCreditDfault()
 
   chkunlock.Value = False
-  txtrecvamt.Value = 0
+  If $TaxSource = "Proportional" Then
+    txtrecvamt.Value = 0
+  Else
+    txtrecvamt.Value = txttaxamt.Value
+  Endif
 
 End
 

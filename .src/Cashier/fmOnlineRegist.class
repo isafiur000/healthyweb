@@ -211,13 +211,14 @@ Private Sub GetRegistrationBilling(encID As String, sPackage As String)
   Dim xbilltype As String
   Dim xledger As String
   Dim xlock As Boolean
+  Dim xtaxsource As String
 
   If sPackage Then
     hPatient.$encid = encID
     hPatient.$billtype = "CashBilling"
 
     xlock = False
-    resx = modDatabase.$myConn.Exec("select fldmode,fldbillingmode,fldacledger,fldbilltype,fldreference,fldlimit,fldlockstate from tbldiscount where fldtype=&1", sPackage)
+    resx = modDatabase.$myConn.Exec("select fldmode,fldbillingmode,fldacledger,fldbilltype,fldreference,fldlimit,fldlockstate,fldtaxsource from tbldiscount where fldtype=&1", sPackage)
     If resx.Available Then
       ''billingmode
       If resx["fldbillingmode"] Then
@@ -225,6 +226,7 @@ Private Sub GetRegistrationBilling(encID As String, sPackage As String)
       Else
         xBillMode = modBasic.$BillDefaultMode
       Endif
+      xtaxsource = resx["fldtaxsource"]
       ''claim code button
       If resx["fldreference"] Then
         If resx["fldreference"] = "Claim Code" Then
@@ -265,6 +267,7 @@ Private Sub GetRegistrationBilling(encID As String, sPackage As String)
     If ShowBilling() = True Then
       If hPatient.Enabled = True Then
         hPatient.$ACLedger = xAccLedger
+        hPatient.$TaxSource = xtaxsource
         hPatient.$ACReference = xRefrence
         hPatient.DirectCashBilling()
       Endif

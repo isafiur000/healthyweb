@@ -202,6 +202,7 @@ Public Sub btnshow_Click()
   Dim xcredit As Float
   Dim frmshow As Boolean
   Dim xallow As Boolean
+  Dim xtaxsource As String
 
   If Not txtencid.Text Then Return
   If modBasic.$EncIdPrefix And If txtencid.Text = modBasic.$EncIdPrefix Then
@@ -264,7 +265,7 @@ Public Sub btnshow_Click()
         '   cmbdisctype.Enabled = False
         ' Endif
         xlock = False
-        resx = modDatabase.$myConn.Exec("select fldmode,fldbillingmode,fldacledger,fldbilltype,fldreference,fldlimit,fldlockstate from tbldiscount where fldtype=&1", $DiscPackage)
+        resx = modDatabase.$myConn.Exec("select fldmode,fldbillingmode,fldacledger,fldbilltype,fldreference,fldlimit,fldlockstate,fldtaxsource from tbldiscount where fldtype=&1", $DiscPackage)
         If resx.Available Then
           ''billingmode
           If resx["fldbillingmode"] Then
@@ -276,6 +277,15 @@ Public Sub btnshow_Click()
             cmbmode.Enabled = True
             cmbmode.Text = modBasic.$BillDefaultMode
           Endif
+          ''ledger A/C
+          xledger = resx["fldacledger"]
+          If xledger Then
+            cmbledgerac.Text = xledger
+            cmbledgerac.Enabled = False
+          Else
+            cmbledgerac.Enabled = True
+          Endif
+          xtaxsource = resx["fldtaxsource"]
           ''claim code button
           If resx["fldreference"] Then
             If resx["fldreference"] = "Staff List" Then
@@ -308,14 +318,6 @@ Public Sub btnshow_Click()
                 frmshow = False
               Endif
             Endif
-          Endif
-          ''ledger A/C
-          xledger = resx["fldacledger"]
-          If xledger Then
-            cmbledgerac.Text = xledger
-            cmbledgerac.Enabled = False
-          Else
-            cmbledgerac.Enabled = True
           Endif
           ''BillType
           xbilltype = resx["fldbilltype"]
@@ -373,6 +375,7 @@ Public Sub btnshow_Click()
           hPatient.SetDefaultModeCashCredit(modBasic.$BillFixBilling, xlock)
         Endif
         hPatient.$PatStatus = $sTatus
+        hPatient.$TaxSource = xtaxsource
         ShowCashCreditMode()
 
         If xledger Then
@@ -470,6 +473,7 @@ Private Sub ShowBillingParam(sPack As String)
   Dim xledger As String
   Dim xlock As Boolean
   Dim xallow As Boolean
+  Dim xtaxsource As String
 
   If sPack Then
     cmbmode.Text = ""
@@ -478,7 +482,7 @@ Private Sub ShowBillingParam(sPack As String)
     txtreference.Tag = ""
     txtreference.ReadOnly = False
     xlock = False
-    resx = modDatabase.$myConn.Exec("select fldmode,fldbillingmode,fldacledger,fldbilltype,fldreference,fldlimit,fldlockstate from tbldiscount where fldtype=&1", sPack)
+    resx = modDatabase.$myConn.Exec("select fldmode,fldbillingmode,fldacledger,fldbilltype,fldreference,fldlimit,fldlockstate,fldtaxsource from tbldiscount where fldtype=&1", sPack)
     If resx.Available Then
       ''billingmode
       If resx["fldbillingmode"] Then
@@ -490,6 +494,7 @@ Private Sub ShowBillingParam(sPack As String)
         cmbmode.Enabled = True
         cmbmode.Text = modBasic.$BillDefaultMode
       Endif
+      xtaxsource = resx["fldtaxsource"]
       ''claim code button
       If resx["fldreference"] Then
         If resx["fldreference"] = "Staff List" Then
@@ -580,6 +585,7 @@ Private Sub ShowBillingParam(sPack As String)
     Else
       hPatient.SetDefaultModeCashCredit(modBasic.$BillFixBilling, xlock)
     Endif
+    hPatient.$TaxSource = xtaxsource
 
   Endif
 

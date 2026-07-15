@@ -242,6 +242,7 @@ Public Sub btnshow_Click()
         ShowReturnGrid()
         ShowReturnDoneGrid()
         BlankAllControl()
+
         txtbill.ReadOnly = True
         If $xFinClear = True Then
           Me.Exec("Toastify({text: 'Account Locked', duration: 3000}).showToast()")
@@ -505,6 +506,7 @@ Private Sub ShowReturnGrid()
   Dim sql As String
   Dim xx As Float
   Dim xstatus As String
+  Dim xpackage As String
 
   If rbpunch.Value = True Then
     xstatus = "Punched"
@@ -532,6 +534,7 @@ Private Sub ShowReturnGrid()
   xx = 0
   For Each $rData
     xx = xx + $rData["tot"]
+    xpackage = $rData["flddisctype"]
   Next
 
   With GridView1
@@ -563,7 +566,10 @@ Private Sub ShowReturnGrid()
     .Columns[12].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
     .Columns[13].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
   End With
-  txttotnew.Value = Round(xx, -2)
+  If xpackage Then
+    txttotnew.Value = Round(xx, -2)
+    hPatient1.$TaxSource = modNonMedical.GetTaxCollectSource(xpackage)
+  Endif
 
 End
 
@@ -586,6 +592,7 @@ Public Sub GridView1_Select()
 
     $CashMode = $rData["fldbilltype"]
     $LedgerAC = $rData["fldacledger"]
+    hPatient1.$TaxSource = modNonMedical.GetTaxCollectSource($rData["flddisctype"])
     hPatient1.SetDefaultModeCashCredit($CashMode, True)
     hPatient1.$ACLedger = $LedgerAC
 
@@ -804,6 +811,7 @@ Private Sub ShowReturnDoneGrid()
 
   Dim sql As String
   Dim xx As Float
+  Dim xpackage As String
 
   If rbBill.Value = True Then
     If modBasic.$BillInvoiceWiseReturn = "Yes" Then
@@ -831,6 +839,7 @@ Private Sub ShowReturnDoneGrid()
   xx = 0
   For Each $rData1
     xx = xx + $rData1["tot"]
+    xpackage = $rData1["flddisctype"]
   Next
 
   With GridView2
@@ -864,9 +873,11 @@ Private Sub ShowReturnDoneGrid()
     .Columns[12].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
     .Columns[13].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
   End With
-  txttotsaved.Value = Round(xx, -2)
-
-  hPatient1.ShowBillingDatainBox()
+  If xpackage Then
+    txttotsaved.Value = Round(xx, -2)
+    hPatient1.$TaxSource = modNonMedical.GetTaxCollectSource(xpackage)
+    hPatient1.ShowBillingDatainBox()
+  Endif
 
 End
 
@@ -884,7 +895,7 @@ Public Sub GridView2_Select()
     $rData.MoveTo(GridView2.Selection[0])
 
     hPatient1.$ACLedger = $rData1["fldacledger"]
-
+    hPatient1.$TaxSource = modNonMedical.GetTaxCollectSource($rData1["flddisctype"])
   Endif
 
 End
