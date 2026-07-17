@@ -21,6 +21,7 @@ Private $RecevAmt As Float
 Private $RecvTotal As Float
 Private $CashInCredit As Float
 Private $billtype As String
+Private $TaxSource As String
 
 Private $LockToComp As Boolean
 Private $ACLedger As String
@@ -42,6 +43,7 @@ Public Sub _new(encid As String, sAdvRecep As String, xScheme As String, xgivenA
   $givenAmt = xgivenAmt
   GetBillingParams()
   $PatStatus = modPatient.CurrentAdmissionStatus($encid)
+  $TaxSource = modNonMedical.GetTaxCollectSource($xScheme)
 
   $xSQL = db.Subst("and fldextracol=&1 and fldstatus=&2 and flditemqty>&3 and fldretqty=&3 and fldbillno IS NULL", $AdvRecep, "Punched", 0)
   $LockToComp = False
@@ -52,13 +54,13 @@ Public Sub _new(encid As String, sAdvRecep As String, xScheme As String, xgivenA
   $billtype = "CashBilling"
   $xSelIdLst = ShowChargecData()
 
+End
+
+Public Function CompleteBilling() As Boolean
+
   If $givenAmt >= $RecevAmt Then
     $InvDone = SaveBillingENtry($invoiceType, $ACReference, $ACLedger, $xSelIdLst)
   Endif
-
-End
-
-Public Function GetInvoiceDone() As Boolean
 
   Return $InvDone
 
@@ -109,6 +111,7 @@ Private Function ShowChargecData() As String[]
   Dim xdue As Float
   Dim xdisc As Float
   Dim xtax As Float
+  Dim xrcvamt As Float
 
   Dim ycomp As String
   Dim xFieldLst As String[]
@@ -171,6 +174,7 @@ Private Function ShowChargecData() As String[]
   disc = 0
   tax = 0
   $CashInCredit = 0
+  xrcvamt = 0
 
   If res.Available Then
     For Each res
@@ -205,7 +209,11 @@ Private Function ShowChargecData() As String[]
           xtax = (xdue - xdisc) * res["fldtaxper"] / 100
 
           If res["fldcashincredit"] Then
-            $CashInCredit = $CashInCredit + (res["fldcashincredit"] / 100) * (xdue + xtax - xdisc)
+            If $TaxSource = "Proportional" Then
+              $CashInCredit = $CashInCredit + (res["fldcashincredit"] / 100) * (xdue + xtax - xdisc)
+            Else
+              $CashInCredit = $CashInCredit + (res["fldcashincredit"] / 100) * (xdue - xdisc)
+            Endif
           Endif
 
           due = due + xdue
@@ -229,10 +237,16 @@ Private Function ShowChargecData() As String[]
   'current deposit
   If $invoiceType = "Credit" Then
     If $CashInCredit Then
-      $RecevAmt = $CashInCredit
+      xrcvamt = $CashInCredit
     Else
-      $RecevAmt = 0
+      xrcvamt = 0
     Endif
+    If $TaxSource = "Proportional" Then
+      $RecevAmt = xrcvamt
+    Else
+      $RecevAmt = xrcvamt + $TaxTot
+    Endif
+
   Else
     $RecevAmt = $TotalAmt
   Endif

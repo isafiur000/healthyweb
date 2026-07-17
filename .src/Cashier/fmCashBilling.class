@@ -1747,7 +1747,8 @@ Private Sub ExecuteNewQuery()
   Dim xx As Float
   Dim disc As Float
   Dim tax As Float
-  Dim xCashCrd As Float
+  Dim xcshper As Float
+  Dim xrcvamt As Float
 
   If chkall.Value Then
     xcomp = "%"
@@ -1762,25 +1763,35 @@ Private Sub ExecuteNewQuery()
   tax = 0
   disc = 0
   xx = 0
-  xCashCrd = 0
+  xrcvamt = 0
   For Each $rData
     xitem = xitem + $rData["flditemrate"] * $rData["flditemqty"]
     tax = tax + $rData["fldtaxamt"]
     disc = disc + $rData["flddiscamt"]
     xx = xx + $rData["fldditemamt"]
+
+    If $rData["fldcashincredit"] Then
+      xcshper = $rData["fldcashincredit"]
+    Else
+      xcshper = 0
+    Endif
     If $rData["fldbilltype"] = "Cash" Then
-      xCashCrd = xCashCrd + $rData["fldditemamt"]
+      xrcvamt = xrcvamt + $rData["fldditemamt"]
     Else If $rData["fldbilltype"] = "Credit" Then
-      If $rData["fldcashincredit"] Then
-        xCashCrd = xCashCrd + ($rData["fldcashincredit"] / 100) * $rData["fldditemamt"]
+      If modNonMedical.GetTaxCollectSource($rData["flddisctype"]) = "Proportional" Then
+        xrcvamt = xrcvamt + (xcshper / 100) * (($rData["flditemrate"] * $rData["flditemqty"]) + $rData["fldtaxamt"] - $rData["flddiscamt"])
+      Else
+        xrcvamt = xrcvamt + $rData["fldtaxamt"] + ((xcshper / 100) * (($rData["flditemrate"] * $rData["flditemqty"]) - $rData["flddiscamt"]))
       Endif
     Endif
+
   Next
+
   txtsubtotalnew.Value = Round(xitem, -2)
   txttotaxnew.Value = Round(tax, -2)
   txtdiscnew.Value = Round(disc, -2)
   txtnetotalnew.Value = Round(xx, -2)
-  txtpaynew.Value = Round(xCashCrd, -2)
+  txtpaynew.Value = Round(xrcvamt, -2)
   txttotnew.Value = txtpaynew.Value + txtpayitem.Value
 
 End
