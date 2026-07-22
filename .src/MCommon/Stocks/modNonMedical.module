@@ -41,7 +41,7 @@ Public Function GetCashBillAmount(xRate As Float, xQty As Float, xBillType As St
   If xBillType = "Cash" Then
     xfinal = xtotamt
   Else If xBillType = "Credit" Then
-    xfinal = xtotamt * xCashCredit / 100
+    xfinal = ((xtotamt - xtaxamt) * xCashCredit / 100) + xtaxamt
   Endif
 
   Return xfinal
@@ -164,7 +164,7 @@ Public Function CashCreditRow(Optional sTable As String) As String
     xtable = "tblpatbilling"
   Endif
 
-  xx = Subst("((REPLACE(REPLACE(&1.fldbilltype , 'Cash', 0), 'Credit', 100) - COALESCE(&1.fldcashincredit, 0)) * &1.fldditemamt / 100) as xcredit,((REPLACE(REPLACE(&1.fldbilltype , 'Cash', 100), 'Credit', 0) + COALESCE(&1.fldcashincredit, 0)) * &1.fldditemamt / 100) as xcash", xtable)
+  xx = Subst("((REPLACE(REPLACE(&1.fldbilltype , 'Cash', 0), 'Credit', 100) - COALESCE(&1.fldcashincredit, 0)) * (&1.fldditemamt - &1.fldtaxamt) / 100) as xcredit,(((REPLACE(REPLACE(&1.fldbilltype , 'Cash', 100), 'Credit', 0) + COALESCE(&1.fldcashincredit, 0)) * (&1.fldditemamt - &1.fldtaxamt) / 100) + &1.fldtaxamt) as xcash", xtable)
   Return xx
 
 End
@@ -180,7 +180,7 @@ Public Function CashCreditSQL(Optional sTable As String) As String
     xtable = "tblpatbilling"
   Endif
 
-  xx = Subst("SUM((REPLACE(REPLACE(&1.fldbilltype , 'Cash', 0), 'Credit', 100) - COALESCE(&1.fldcashincredit, 0)) * &1.fldditemamt / 100) as xcredit,SUM((REPLACE(REPLACE(&1.fldbilltype , 'Cash', 100), 'Credit', 0) + COALESCE(&1.fldcashincredit, 0)) * &1.fldditemamt / 100) as xcash", xtable)
+  xx = Subst("SUM((REPLACE(REPLACE(&1.fldbilltype , 'Cash', 0), 'Credit', 100) - COALESCE(&1.fldcashincredit, 0)) * (&1.fldditemamt - &1.fldtaxamt) / 100) as xcredit,SUM(((REPLACE(REPLACE(&1.fldbilltype , 'Cash', 100), 'Credit', 0) + COALESCE(&1.fldcashincredit, 0)) * (&1.fldditemamt - &1.fldtaxamt) / 100) + &1.fldtaxamt) as xcash", xtable)
   Return xx
 
 End
@@ -196,7 +196,7 @@ Public Function CashCreditBillSQL(Optional sTable As String) As String
     xtable = "tblpatbilling"
   Endif
 
-  xx = Subst("SUM(&1.flditemrate*&1.flditemqty) as duemt,SUM(&1.flddiscamt) as disctot,SUM(&1.fldtaxamt) as taxtot,SUM(&1.fldditemamt) as netamt,SUM((REPLACE(REPLACE(&1.fldbilltype , 'Cash', 0), 'Credit', 100) - COALESCE(&1.fldcashincredit, 0)) * &1.fldditemamt / 100) as xcredit,SUM((REPLACE(REPLACE(&1.fldbilltype , 'Cash', 100), 'Credit', 0) + COALESCE(&1.fldcashincredit, 0)) * &1.fldditemamt / 100) as xcash", xtable)
+  xx = Subst("SUM(&1.flditemrate*&1.flditemqty) as duemt,SUM(&1.flddiscamt) as disctot,SUM(&1.fldtaxamt) as taxtot,SUM(&1.fldditemamt) as netamt,SUM((REPLACE(REPLACE(&1.fldbilltype , 'Cash', 0), 'Credit', 100) - COALESCE(&1.fldcashincredit, 0)) * (&1.fldditemamt - &1.fldtaxamt) / 100) as xcredit,SUM(((REPLACE(REPLACE(&1.fldbilltype , 'Cash', 100), 'Credit', 0) + COALESCE(&1.fldcashincredit, 0)) * (&1.fldditemamt - &1.fldtaxamt) / 100) + &1.fldtaxamt) as xcash", xtable)
   Return xx
 
 End
@@ -1119,6 +1119,34 @@ Public Function GetBillingSupportAmt(sItem As String) As Float
     If res.Available = True Then
       If res["fldminlimit"] Then
         xx = res["fldminlimit"]
+      Else
+        xx = 0
+      Endif
+    Else
+      xx = 0
+    Endif
+  Endif
+
+  Return xx
+
+End
+
+Public Function GetBillingDefaultQTY(sItem As String) As Float
+
+  Dim res As Result
+  Dim xx As Float
+
+  If modTableCache.$ServiceDataVar.Exist(sItem) Then
+    xx = modTableCache.$ServiceDataVar[sItem]["flddefqty"]
+    If Not xx Then
+      xx = 0
+    Endif
+
+  Else
+    res = modDatabase.$myConn.Exec("select flddefqty from tblservicecost where flditemname=&1", sItem)
+    If res.Available = True Then
+      If res["flddefqty"] Then
+        xx = res["flddefqty"]
       Else
         xx = 0
       Endif
@@ -2596,7 +2624,7 @@ Public Function GetPatientItemSavedSalesPackage(encid As String, sItem As String
 
 End
 
-Public Function GetPatientItemMonthlySalesPackage(encid As String, sItem As String, sPackage As String) As Float
+Public Function GetPatientItemSelMonthSalesPackage(encid As String, sItem As String, sPackage As String, sMonth As Integer) As Float
 
   Dim res As Result
   Dim xpatno As String
@@ -2604,7 +2632,7 @@ Public Function GetPatientItemMonthlySalesPackage(encid As String, sItem As Stri
   Dim xval As Float
 
   xpatno = modPatient.GetPatientNoByEnc(encid)
-  xstart = DateAdd(Now(), gb.Month, -1)
+  xstart = DateAdd(Now(), gb.Month, 0 - sMonth)
   res = modDatabase.$myConn.Exec("select sum(tblpatbilling.flditemqty) as flditemqty from tblpatbilling inner join tblencounter ON tblpatbilling.fldencounterval=tblencounter.fldencounterval where tblencounter.fldpatientval=&1 and tblpatbilling.flditemname=&2 and tblpatbilling.fldsave=&3 and tblpatbilling.flddisctype like &4 and tblpatbilling.fldtime>=&5", xpatno, sItem, True, sPackage, xstart)
   If res.Available Then
     If res["flditemqty"] Then
@@ -2620,7 +2648,7 @@ Public Function GetPatientItemMonthlySalesPackage(encid As String, sItem As Stri
 
 End
 
-Public Function GetPatientPharmMonthlySalesPackage(encid As String, sDrug As String, sType As String, sPackage As String) As Float
+Public Function GetPatientPharmSelMonthSalesPackage(encid As String, sDrug As String, sType As String, sPackage As String, sMonth As Integer) As Float
 
   Dim res As Result
   Dim xpatno As String
@@ -2628,7 +2656,7 @@ Public Function GetPatientPharmMonthlySalesPackage(encid As String, sDrug As Str
   Dim xval As Float
 
   xpatno = modPatient.GetPatientNoByEnc(encid)
-  xstart = DateAdd(Now(), gb.Month, -1)
+  xstart = DateAdd(Now(), gb.Month, 0 - sMonth)
   Select sType
     Case "Medicines"
       res = modDatabase.$myConn.Exec("select sum(tblpatbilling.flditemqty) as flditemqty from tblpatbilling inner join tblencounter ON tblpatbilling.fldencounterval=tblencounter.fldencounterval where tblencounter.fldpatientval=&1 and tblpatbilling.flditemname in(select fldbrandid from tblmedbrand where flddrug=&2) and tblpatbilling.fldsave=&3 and tblpatbilling.flddisctype like &4 and tblpatbilling.fldtime>=&5 and tblpatbilling.flditemtype=&6", xpatno, sDrug, True, sPackage, xstart, sType)
@@ -4015,7 +4043,11 @@ Public Function AllowProceedBilling(encid As String, DiscType As String, DiscAmt
             If resx["fldqtylimit"] = "Encounter" Then
               xusedQty = modNonMedical.GetPatientPharmAllSalesPackage(encid, aItem, xItemType, DiscType)
             Else If resx["fldqtylimit"] = "Month Interval" Then
-              xusedQty = modNonMedical.GetPatientPharmMonthlySalesPackage(encid, aItem, xItemType, DiscType)
+              xusedQty = modNonMedical.GetPatientPharmSelMonthSalesPackage(encid, aItem, xItemType, DiscType, 1)
+            Else If resx["fldqtylimit"] = "Quarter Interval" Then
+              xusedQty = modNonMedical.GetPatientPharmSelMonthSalesPackage(encid, aItem, xItemType, DiscType, 3)
+            Else If resx["fldqtylimit"] = "Half-year Interval" Then
+              xusedQty = modNonMedical.GetPatientPharmSelMonthSalesPackage(encid, aItem, xItemType, DiscType, 6)
             Else If resx["fldqtylimit"] = "Year Interval" Then
               xusedQty = modNonMedical.GetPatientPharmYearlySalesPackage(encid, aItem, xItemType, DiscType)
             Else If resx["fldqtylimit"] = "Fiscal Year" Then
@@ -4025,7 +4057,11 @@ Public Function AllowProceedBilling(encid As String, DiscType As String, DiscAmt
             If resx["fldqtylimit"] = "Encounter" Then
               xusedQty = modNonMedical.GetPatientItemAllSalesPackage(encid, aItem, DiscType)
             Else If resx["fldqtylimit"] = "Month Interval" Then
-              xusedQty = modNonMedical.GetPatientItemMonthlySalesPackage(encid, aItem, DiscType)
+              xusedQty = modNonMedical.GetPatientItemSelMonthSalesPackage(encid, aItem, DiscType, 1)
+            Else If resx["fldqtylimit"] = "Quarter Interval" Then
+              xusedQty = modNonMedical.GetPatientItemSelMonthSalesPackage(encid, aItem, DiscType, 3)
+            Else If resx["fldqtylimit"] = "Half-year Interval" Then
+              xusedQty = modNonMedical.GetPatientItemSelMonthSalesPackage(encid, aItem, DiscType, 6)
             Else If resx["fldqtylimit"] = "Year Interval" Then
               xusedQty = modNonMedical.GetPatientItemYearlySalesPackage(encid, aItem, DiscType)
             Else If resx["fldqtylimit"] = "Fiscal Year" Then
@@ -4701,7 +4737,7 @@ Public Function TotalSavedCreditExpensebyPatient($conn As Connection, encid As S
   Dim amt As Float
   Dim res As Result
 
-  res = $conn.Exec("select SUM((REPLACE(REPLACE(fldbilltype , 'Cash', 0), 'Credit', 100) - COALESCE(fldcashincredit, 0)) * fldditemamt / 100) as tot from tblpatbilling where fldencounterval=&1 and fldsave=&2 and fldbilltype=&3", encid, True, "Credit")
+  res = $conn.Exec("select SUM((REPLACE(REPLACE(fldbilltype , 'Cash', 0), 'Credit', 100) - COALESCE(fldcashincredit, 0)) * (fldditemamt - fldtaxamt) / 100) as tot from tblpatbilling where fldencounterval=&1 and fldsave=&2 and fldbilltype=&3", encid, True, "Credit")
   If res.Available Then
     If res["tot"] Then
       amt = res["tot"]
@@ -4721,7 +4757,7 @@ Public Function TotalSavedCashExpensebyPatient($conn As Connection, encid As Str
   Dim amt As Float
   Dim res As Result
 
-  res = $conn.Exec("select SUM((REPLACE(REPLACE(fldbilltype , 'Cash', 100), 'Credit', 0) + COALESCE(fldcashincredit, 0)) * fldditemamt / 100) as tot from tblpatbilling where fldencounterval=&1 and fldsave=&2", encid, True)
+  res = $conn.Exec("select SUM(((REPLACE(REPLACE(fldbilltype , 'Cash', 100), 'Credit', 0) + COALESCE(fldcashincredit, 0)) * (fldditemamt - fldtaxamt) / 100) + fldtaxamt) as tot from tblpatbilling where fldencounterval=&1 and fldsave=&2", encid, True)
   If res.Available Then
     If res["tot"] Then
       amt = res["tot"]
@@ -4741,7 +4777,7 @@ Public Function TotalClaimedCreditExpensebyPatient($conn As Connection, encid As
   Dim amt As Float
   Dim res As Result
 
-  res = $conn.Exec("select SUM((REPLACE(REPLACE(fldbilltype , 'Cash', 0), 'Credit', 100) - COALESCE(fldcashincredit, 0)) * fldditemamt / 100) as tot from tblpatbilling where fldencounterval=&1 and fldsave=&2 and fldbilltype=&3 and fldclaimid IS NOT NULL", encid, True, "Credit")
+  res = $conn.Exec("select SUM((REPLACE(REPLACE(fldbilltype , 'Cash', 0), 'Credit', 100) - COALESCE(fldcashincredit, 0)) * (fldditemamt - fldtaxamt) / 100) as tot from tblpatbilling where fldencounterval=&1 and fldsave=&2 and fldbilltype=&3 and fldclaimid IS NOT NULL", encid, True, "Credit")
   If res.Available Then
     If res["tot"] Then
       amt = res["tot"]
@@ -5250,7 +5286,9 @@ Public Function GetQRInvoiceAmountBetweenBills(sUser As String, bill1 As String,
   Dim bilid1 As Long
   Dim bilid2 As Long
   Dim res As Result
+  Dim res1 As Result
   Dim xtot As Float
+  Dim ytot As Float
 
   If sTable Then
     bilid1 = modNonMedical.GetBillIDFromBillNo(bill1, sTable)
@@ -5275,11 +5313,28 @@ Public Function GetQRInvoiceAmountBetweenBills(sUser As String, bill1 As String,
     Else
       xtot = 0
     Endif
+
+    If sTable Then
+      res1 = modDatabase.$myConn.Exec("select SUM(flditemamt) as tot from tblonlinebook where fldinvoice in(select fldbillno from " & sTable & " where fldid>=&1 and fldid<=&2 and flduserid like &3 and fldcomp like &4)", bilid1, bilid2, sUser, sComp)
+    Else
+      res1 = modDatabase.$myConn.Exec("select SUM(flditemamt) as tot from tblonlinebook where fldinvoice in(select fldbillno from tblpatbilldetail where fldid>=&1 and fldid<=&2 and flduserid like &3 and fldcomp like &4)", bilid1, bilid2, sUser, sComp)
+    Endif
+    If res1.Available Then
+      If res1["tot"] Then
+        ytot = res1["tot"]
+      Else
+        ytot = 0
+      Endif
+    Else
+      ytot = 0
+    Endif
+
   Else
     xtot = 0
+    ytot = 0
   Endif
 
-  Return xtot
+  Return (xtot + ytot)
 
 End
 

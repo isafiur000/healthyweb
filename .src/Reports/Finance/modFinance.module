@@ -965,7 +965,7 @@ Public Function GetInvoiceCreditRound($conn As Connection, dtfir As Date, dtlast
   Endif
 
   RepoStr1 = modDataRepo.GetWhereStringRepo(sLocaType, sLocation, "t1")
-  res1 = $conn.Exec("select SUM((REPLACE(REPLACE(t1.fldbilltype , 'Cash', 100), 'Credit', 0) + COALESCE(t1.fldcashincredit, 0)) * t1.fldditemamt / 100) as xcash from " & xbilling & " AS t1 inner join " & xbilldetail & " AS t2 ON t1.fldbillno=t2.fldbillno where t2.fldtime>=&1 and t2.fldtime<=&2 and t2.fldbilltype=&3 and t2.flduserid like &4 and t2.fldcomp like &5 and t2.flditemamt<>&6" & RepoStr1, modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast), "Credit", sUser, sComp, 0)                                                                    ''
+  res1 = $conn.Exec("select SUM(((REPLACE(REPLACE(t1.fldbilltype , 'Cash', 100), 'Credit', 0) + COALESCE(t1.fldcashincredit, 0)) * (t1.fldditemamt - t1.fldtaxamt) / 100) + t1.fldtaxamt) as xcash from " & xbilling & " AS t1 inner join " & xbilldetail & " AS t2 ON t1.fldbillno=t2.fldbillno where t2.fldtime>=&1 and t2.fldtime<=&2 and t2.fldbilltype=&3 and t2.flduserid like &4 and t2.fldcomp like &5 and t2.flditemamt<>&6" & RepoStr1, modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast), "Credit", sUser, sComp, 0)                                                                    ''
   If res1.Available Then
     If res1["xcash"] Then
       yval = res1["xcash"]
@@ -1026,7 +1026,7 @@ Public Function GetInvoiceCreditRoundMulti($conn As Connection, dtfir As Date, d
   Endif
 
   RepoStr1 = modDataRepo.GetWhereStringRepo(sLocaType, sLocation, "t1")
-  res1 = $conn.Exec("select SUM((REPLACE(REPLACE(t1.fldbilltype , 'Cash', 100), 'Credit', 0) + COALESCE(t1.fldcashincredit, 0)) * t1.fldditemamt / 100) as xcash from " & xbilling & " AS t1 inner join " & xbilldetail & " AS t2 ON t1.fldbillno=t2.fldbillno where t2.fldtime>=&1 and t2.fldtime<=&2 and t2.fldbilltype=&3 and t2.flduserid like &4 and t2.fldcomp in(" & sCompLst.Join(",") & ") and t2.flditemamt<>&5" & RepoStr1, modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast), "Credit", sUser, 0)                                                                    ''
+  res1 = $conn.Exec("select SUM(((REPLACE(REPLACE(t1.fldbilltype , 'Cash', 100), 'Credit', 0) + COALESCE(t1.fldcashincredit, 0)) * (t1.fldditemamt - t1.fldtaxamt) / 100) + t1.fldtaxamt) as xcash from " & xbilling & " AS t1 inner join " & xbilldetail & " AS t2 ON t1.fldbillno=t2.fldbillno where t2.fldtime>=&1 and t2.fldtime<=&2 and t2.fldbilltype=&3 and t2.flduserid like &4 and t2.fldcomp in(" & sCompLst.Join(",") & ") and t2.flditemamt<>&5" & RepoStr1, modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast), "Credit", sUser, 0)                                                                    ''
   If res1.Available Then
     If res1["xcash"] Then
       yval = res1["xcash"]

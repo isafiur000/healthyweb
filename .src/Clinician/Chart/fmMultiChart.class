@@ -202,6 +202,16 @@ Public Sub GridView2_Data(Row As Integer, Column As Integer, Data As WebTableDat
       Else If rbmonth.Value = True Then
         Data.Text = GetLabValueByDate($PatientNum, $xParamVar[Row], DateAdd($xfir, gb.Month, Column))
       Endif
+    Else If $xParamVar[Row]["Category"] = "Medicines" Then
+      If rbminute.Value = True Then
+        Data.Text = GetMedicineDoseByDate($PatientNum, $xParamVar[Row], DateAdd($xfir, gb.Minute, Column * 10))
+      Else If rbhour.Value = True Then
+        Data.Text = GetMedicineDoseByDate($PatientNum, $xParamVar[Row], DateAdd($xfir, gb.Hour, Column))
+      Else If rbdaily.Value = True Then
+        Data.Text = GetMedicineDoseByDate($PatientNum, $xParamVar[Row], DateAdd($xfir, gb.Day, Column))
+      Else If rbmonth.Value = True Then
+        Data.Text = GetMedicineDoseByDate($PatientNum, $xParamVar[Row], DateAdd($xfir, gb.Month, Column))
+      Endif
     Endif
 
   Endif
@@ -256,6 +266,40 @@ Private Function GetLabValueByDate(patNo As String, xColl As Collection, xDate A
     Endif
 
   Endif
+  Return xx
+
+End
+
+Private Function GetMedicineDoseByDate(patNo As String, xColl As Collection, xDate As Date) As String
+
+  Dim res As Result
+  Dim xx As String
+  Dim xfir As Date
+  Dim xlast As Date
+  Dim aColl As Collection
+
+  If rbminute.Value = True Then
+    xfir = modDate.StartSqlTenMinute(xDate)
+    xlast = modDate.EndSqlTenMinute(xDate)
+  Else If rbhour.Value = True Then
+    xfir = modDate.StartSqlHour(xDate)
+    xlast = modDate.EndSqlHour(xDate)
+  Else If rbdaily.Value = True Then
+    xfir = modDate.StartSqlDate(xDate)
+    xlast = modDate.EndSqlDate(xDate)
+  Else If rbmonth.Value = True Then
+    xfir = modDate.StartSqlMonth(xDate)
+    xlast = modDate.EndSqlMonth(xDate)
+  Endif
+
+  res = modDatabase.$myConn.Exec("select tblnurdosing.fldvalue as fldvalue,tblnurdosing.fldmedicine as fldmedicine from tblnurdosing inner join tblencounter on tblnurdosing.fldencounterval=tblencounter.fldencounterval where tblencounter.fldpatientval=&1 and tblnurdosing.fldmedicine in(select fldbrandid from tblmedbrand where flddrug=&2) and tblnurdosing.fldtime>=&3 and tblnurdosing.fldtime<=&4 ORDER BY tblnurdosing.fldtime", patNo, xColl["Examination"], xfir, xlast)
+  If res.Available Then
+    res.MoveLast
+    xx = res["fldvalue"] * modMedConstant.GetDrugInitialStrength(res["fldmedicine"])
+  Else
+    xx = ""
+  Endif
+
   Return xx
 
 End
