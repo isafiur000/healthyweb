@@ -1,7 +1,7 @@
 ' Gambas module file
 
 ''--------------------------------------- PATIENT FINDINGS -------------------------------------
-Public Sub AddPatientFindings(sType As String, encid As String, txtname As String, codeidnew As String, Optional codeidold As String, Optional sUser As String)
+Public Sub AddPatientFindings(sType As String, encid As String, txtname As String, codeidnew As String, codeidold As String, Optional sLocation As String)
 
   Dim res As Result
   Dim xIntVal As String
@@ -9,6 +9,42 @@ Public Sub AddPatientFindings(sType As String, encid As String, txtname As Strin
   res = modDatabase.$myConn.Create("tblpatfindings")
   res["fldtype"] = sType
   res["fldencounterval"] = encid
+  If sLocation Then
+    res["fldlocation"] = sLocation
+  Endif
+  res["fldcode"] = txtname
+  res["fldcodeid"] = codeidold
+  res["fldcodenew"] = codeidnew
+  res["flduserid"] = modBasic.$lbluser
+  res["fldtime"] = Now()
+  res["fldcomp"] = modBasic.$compID
+  res["fldsave"] = True
+  res["xyz"] = False
+
+  If MMain.$WebEntry = True Then
+    xIntVal = modString.GetDateString(Now())
+    res["fldid"] = CLong(xIntVal)
+    res["fldrepoid"] = modMisc.GetWebIndexStr(xIntVal)
+    res["fldrepodate"] = Now()
+    res["fldrepomac"] = CGI["REMOTE_ADDR"] & ":" & CGI["REMOTE_PORT"]
+    res["fldhospcode"] = modBasic.$HospCode
+  Endif
+  res.Update()
+  'don't catch error
+
+End
+
+Public Sub AddPatientFindingsUser(sType As String, encid As String, txtname As String, codeidnew As String, codeidold As String, sUser As String, Optional sLocation As String)
+
+  Dim res As Result
+  Dim xIntVal As String
+
+  res = modDatabase.$myConn.Create("tblpatfindings")
+  res["fldtype"] = sType
+  res["fldencounterval"] = encid
+  If sLocation Then
+    res["fldlocation"] = sLocation
+  Endif
   res["fldcode"] = txtname
   res["fldcodeid"] = codeidold
   res["fldcodenew"] = codeidnew
@@ -144,7 +180,7 @@ Public Function AddPatientTableFirstTime(encid As String, txtcateg As String, sD
     res["fldid"] = CLong(xIntVal)
     res["fldrepoid"] = modMisc.GetWebIndexStr(xIntVal)
     res["fldrepodate"] = Now()
-    res["fldrepomac"] = modHelpVariable.$MACAddress
+    res["fldrepomac"] = CGI["REMOTE_ADDR"] & ":" & CGI["REMOTE_PORT"]
     res["fldhospcode"] = modBasic.$HospCode
   Endif
   res.Update
@@ -194,7 +230,7 @@ Public Sub UpdatePatientTableEndTime(encid As String, txtcateg As String, txtite
 End
 
 ''------------------------ tblpatientnotes ------------------------------
-Public Sub AddPatientParagraph(encid As String, strInput As String, strItem As String, strReport As String, strDetail As String, Optional sUnique As Boolean)
+Public Sub AddPatientParagraph(encid As String, strInput As String, strItem As String, strReport As String, strDetail As String, sUnique As Boolean, Optional sLocation As String)
 
   Dim res As Result
   Dim rsx As Result
@@ -223,6 +259,9 @@ Public Sub AddPatientParagraph(encid As String, strInput As String, strItem As S
   If suniq = True Then
     res = modDatabase.$myConn.Edit("tblpatientnotes", "fldencounterval=&1 and fldinput=&2 and flditem=&3", encid, strInput, strItem)
     If modGeneral.AllowClinicalEdit(res["flduserid"]) = True Then
+      If sLocation Then
+        res["fldlocation"] = sLocation
+      Endif
       res["fldreportquali"] = strReport
       If modBasic.$ConvertToASCII = "Enable" Then
         res["flddetail"] = modDevAll.ConvertStringToASCII(strDetail)
@@ -241,6 +280,9 @@ Public Sub AddPatientParagraph(encid As String, strInput As String, strItem As S
     res = modDatabase.$myConn.Create("tblpatientnotes")
     res["fldencounterval"] = encid
     res["fldinput"] = strInput
+    If sLocation Then
+      res["fldlocation"] = sLocation
+    Endif
     res["flditem"] = strItem
     res["fldreportquali"] = strReport
     If modBasic.$ConvertToASCII = "Enable" Then
@@ -261,7 +303,7 @@ Public Sub AddPatientParagraph(encid As String, strInput As String, strItem As S
       res["fldid"] = CLong(xIntVal)
       res["fldrepoid"] = modMisc.GetWebIndexStr(xIntVal)
       res["fldrepodate"] = Now()
-      res["fldrepomac"] = modHelpVariable.$MACAddress
+      res["fldrepomac"] = CGI["REMOTE_ADDR"] & ":" & CGI["REMOTE_PORT"]
       res["fldhospcode"] = modBasic.$HospCode
     Endif
 
@@ -438,7 +480,7 @@ Public Sub AddExamGeneralQualiData(encid As String, strInput As String, strItem 
 
 End
 
-Public Sub AddPatComplaintsData(encid As String, sCategory As String, sSymptom As String, strDetail As String, sValue As Float, sUnit As String)
+Public Sub AddPatComplaintsData(encid As String, sCategory As String, sSymptom As String, strDetail As String, sValue As Float, sUnit As String, Optional sLocation As String)
 
   Dim res As Result
   Dim xIntVal As String
@@ -447,6 +489,9 @@ Public Sub AddPatComplaintsData(encid As String, sCategory As String, sSymptom A
   res["fldencounterval"] = encid
   res["fldinput"] = sCategory
   res["fldtype"] = "Qualitative"
+  If sLocation Then
+    res["fldlocation"] = sLocation
+  Endif
   res["flditem"] = sSymptom
   res["fldreportquali"] = sUnit
   res["fldreportquanti"] = sValue

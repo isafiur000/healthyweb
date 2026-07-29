@@ -1,7 +1,6 @@
 ' Gambas class file
 
 Private $BillingReport As CReportHTMLong
-Private asx As New String[0]
 Private $FormName As String
 Private $EncColumn As Integer
 Private sHide As Integer[]
@@ -11,9 +10,11 @@ Private xvismode As String
 Private noCols As Integer[]
 Private CustCol As String[]
 
-''for csv
+''for csv/json
 Private $ReportPath As String
 Private ReportFile As File
+Private $HeadList As String[]
+Private $datVar As Variant[]
 
 Public Sub _new(FormName As String, sHeader As String[], HideColumns As Integer[], param1 As String, param2 As String, encColumn As String)
 
@@ -53,12 +54,16 @@ Public Sub _new(FormName As String, sHeader As String[], HideColumns As Integer[
     Next
   Endif
 
-  If modBasic.$ReportingPopUp = "CSV File" Then
+  If modBasic.$ReportingPopUp = "CSV" Then
     $ReportPath = Temp() & ".csv"
     ReportFile = Open $ReportPath For Write Create
-    Write #ReportFile, ";" & param1 & gb.NewLine
-    Write #ReportFile, ";" & param2 & gb.NewLine
+    ' Write #ReportFile, ";" & param1 & gb.NewLine
+    ' Write #ReportFile, ";" & param2 & gb.NewLine
     Write #ReportFile, hdr.Join(";") & gb.NewLine
+  Else If modBasic.$ReportingPopUp = "JSON" Then
+    $datVar = New Variant[]
+    $HeadList = hdr
+    $ReportPath = Temp() & ".json"
   Else
     $BillingReport = New CReportHTMLong(hdr, $HtmlFolder, "", "")
     $BillingReport.UserData.Add(param1, "PARAM1")
@@ -72,6 +77,7 @@ End
 
 Public Sub Add(Row As Integer, xColl As Collection)
 
+  Dim asx As New String[0]
   Dim Column As Integer
   Dim j As Integer
 
@@ -83,6 +89,9 @@ Public Sub Add(Row As Integer, xColl As Collection)
   Dim thrdval As Variant
   Dim optdir As String
   Dim dirval As Variant
+
+  Dim sColl As Collection
+  Dim hColm As Integer
 
   If xvismode = "Yes" Then
     With asx
@@ -122,8 +131,14 @@ Public Sub Add(Row As Integer, xColl As Collection)
         Next
       Endif
     End With
-    If modBasic.$ReportingPopUp = "CSV File" Then
+    If modBasic.$ReportingPopUp = "CSV" Then
       Write #ReportFile, asx.Join(";") & gb.NewLine
+    Else If modBasic.$ReportingPopUp = "JSON" Then
+      sColl = New Collection
+      For hColm = 0 To $HeadList.Count - 1
+        sColl.Add(asx[hColm], $HeadList[hColm])
+      Next
+      $datVar.Add(sColl)
     Else
       $BillingReport.Add(asx)
     Endif
@@ -167,8 +182,14 @@ Public Sub Add(Row As Integer, xColl As Collection)
         Next
       Endif
     End With
-    If modBasic.$ReportingPopUp = "CSV File" Then
+    If modBasic.$ReportingPopUp = "CSV" Then
       Write #ReportFile, asx.Join(";") & gb.NewLine
+    Else If modBasic.$ReportingPopUp = "JSON" Then
+      sColl = New Collection
+      For hColm = 0 To $HeadList.Count - 1
+        sColl.Add(asx[hColm], $HeadList[hColm])
+      Next
+      $datVar.Add(sColl)
     Else
       $BillingReport.Add(asx)
     Endif
@@ -185,14 +206,23 @@ Private Function NewCSVFile() As String
 
 End
 
+Private Function NewJsonPath() As String
+
+  File.Save($ReportPath, JSON.Encode($datVar))
+  Return $ReportPath
+
+End
+
 Public Function HTMLPath() As String
 
   Dim sPath As String
 
   modExternal.$ExecValueColl.Clear()
 
-  If modBasic.$ReportingPopUp = "CSV File" Then
+  If modBasic.$ReportingPopUp = "CSV" Then
     sPath = NewCSVFile()
+  Else If modBasic.$ReportingPopUp = "JSON" Then
+    sPath = NewJsonPath()
   Else
     sPath = $BillingReport.NewHTMLPath()
   Endif

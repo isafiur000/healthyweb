@@ -5,6 +5,7 @@ Private $UserRestrictPat As String[]
 
 ''MAIN FORM
 Private $sTatus As String
+Private $patDepart As String
 Private $UserRestrict As String[]
 Private $dateReg As Date
 Private $PatientNum As String
@@ -161,6 +162,7 @@ Private Sub GetEncounterValue()
   Dim xallow As Boolean
   Dim yallow As Boolean
   Dim xpaid As Float
+  Dim xdepart As String
 
   If Not txtpatientname.Text Then
     If Not txtencid.Text Then Return
@@ -220,6 +222,12 @@ Private Sub GetEncounterValue()
             $sTatus = modPatient.CurrentAdmissionStatus(Trim(txtencid.Text))
             txtnow.Text = $sTatus
             txtbedno.Text = modPatient.GetLocationSetting(Trim(txtencid.Text), $sTatus)
+            xdepart = modGeneral.GetDepartmentNameFromBed(txtbedno.Text)
+            If xdepart Then
+              $patDepart = xdepart
+            Else
+              $patDepart = txtbedno.Text
+            Endif
             txtpatdoa.Text = modReportVar.GetDateTimeReport(modPatient.GetRecordDate(Trim(txtencid.Text)), gb.GeneralDate)
             txtpatweight.Value = modClinic.GetBodyWeight(Trim(txtencid.Text))
             btnconsult.Tag = modPatient.GetAttendingConsultant(Trim(txtencid.Text))
@@ -726,7 +734,7 @@ Public Sub tbndisease_Click()
     Endif
     If sName Then
       If sName[1] And If sName[0] Then
-        modPatientGeneral.AddPatientFindings("Nursing Diagnosis", Trim(txtencid.Text), sName[0], sName[1], sName[2])
+        modPatientGeneral.AddPatientFindings("Nursing Diagnosis", Trim(txtencid.Text), sName[0], sName[1], sName[2], $patDepart)
         Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
         lsticdisease.List = modPathoSub.GetSelectedDiagnosisList("Nursing Diagnosis", Trim(txtencid.Text))
       Endif
@@ -748,7 +756,7 @@ Public Sub tbnsyndro_Click()
 
     If sName Then
       If sName[1] And If sName[0] Then
-        modPatientGeneral.AddPatientFindings("Nursing Diagnosis", Trim(txtencid.Text), sName[0], sName[1], sName[1])
+        modPatientGeneral.AddPatientFindings("Nursing Diagnosis", Trim(txtencid.Text), sName[0], sName[1], sName[1], $patDepart)
         Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
         lsticdisease.List = modPathoSub.GetSelectedDiagnosisList("Nursing Diagnosis", Trim(txtencid.Text))
       Endif
@@ -766,13 +774,13 @@ Public Sub btndismanual_Click()
     If modBasic.$ProvDiagnosisObstetrics = "Custom Text" Then
       sName = DiagnoObstetrics(Trim(txtencid.Text), True)
       If sName Then
-        modPatientGeneral.AddPatientFindings("Nursing Diagnosis", Trim(txtencid.Text), sName[0], sName[1], sName[1])
+        modPatientGeneral.AddPatientFindings("Nursing Diagnosis", Trim(txtencid.Text), sName[0], sName[1], sName[1], $patDepart)
         Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
       Endif
     Else
       xx = InputBox(("Enter custom Nursing Diagnosis"), ("Nursing Diagnosis"), "")
       If xx Then
-        modPatientGeneral.AddPatientFindings("Nursing Diagnosis", Trim(txtencid.Text), xx, "Other", "Other")
+        modPatientGeneral.AddPatientFindings("Nursing Diagnosis", Trim(txtencid.Text), xx, "Other", "Other", $patDepart)
         Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
       Endif
     Endif
@@ -826,7 +834,7 @@ Public Sub btnallergymanual_Click()
   If txtencid.Text Then
     xx = InputBox(("Enter custom Drug Allergy"), ("Drug Allergy"), "")
     If xx Then
-      modPatientGeneral.AddPatientFindings("Allergic Drugs", Trim(txtencid.Text), xx, "", "")
+      modPatientGeneral.AddPatientFindings("Allergic Drugs", Trim(txtencid.Text), xx, "", "", $patDepart)
       Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
       lstallergy.List = modPathoSub.GetAllergyMedicineList(Trim(txtencid.Text), chkallergy.Value)
     Endif
@@ -845,7 +853,7 @@ Public Sub btnallergy_Click()
     sName = GridListView(("Select Drugs"), druglist)
     If sName And If sName.Count Then
       For Each sText In sName
-        modPatientGeneral.AddPatientFindings("Allergic Drugs", Trim(txtencid.Text), sText, "", "")
+        modPatientGeneral.AddPatientFindings("Allergic Drugs", Trim(txtencid.Text), sText, "", "", $patDepart)
       Next
     Endif
     Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
@@ -884,14 +892,14 @@ Public Sub btnaddsymplist_Click()
       aList = GridListView("Select Presenting Complaints", xlist)
       If aList And If aList.Count Then
         For Each xitem In aList
-          modPatientGeneral.AddPatComplaintsData(Trim(txtencid.Text), "Presenting Symptoms", xitem, "", 0, "")
+          modPatientGeneral.AddPatComplaintsData(Trim(txtencid.Text), "Presenting Symptoms", xitem, "", 0, "", $patDepart)
         Next
         ShowSymptomData()
       Endif
     Endif
 
   Else
-    hForm = New FmMultiComplaints(Trim(txtencid.Text))
+    hForm = New FmMultiComplaints(Trim(txtencid.Text), $patDepart)
     hForm.ShowModal()
     ShowSymptomData()
   Endif
@@ -990,7 +998,7 @@ Public Sub btnsympadd_Click()
 
   If txtencid.Text Then
     If cmbsymptom.Text Then
-      modPatientGeneral.AddPatComplaintsData(Trim(txtencid.Text), "Presenting Symptoms", cmbsymptom.Text, cmbsymdura.Text, txtsympval.Value, cmbsympunit.Text)
+      modPatientGeneral.AddPatComplaintsData(Trim(txtencid.Text), "Presenting Symptoms", cmbsymptom.Text, cmbsymdura.Text, txtsympval.Value, cmbsympunit.Text, $patDepart)
       ShowSymptomData()
       cmbsymptom.Text = ""
       cmbsymdura.Text = ""
@@ -1416,7 +1424,7 @@ Public Sub btngencompln_Click()
   Endif
 
   If txtgencomplaint.Text Then
-    modPatientGeneral.AddPatientParagraph(Trim(txtencid.Text), "History", "General Complaints", txtgencomplaint.KeyList.Join(";"), txtgencomplaint.RichText, xboolean)
+    modPatientGeneral.AddPatientParagraph(Trim(txtencid.Text), "History", "General Complaints", txtgencomplaint.KeyList.Join(";"), txtgencomplaint.RichText, xboolean, $patDepart)
     Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
   Endif
   modSettings.SaveSettingsToFile("OPDForm/Complaints", "General")
@@ -2900,6 +2908,7 @@ Public Sub btnmoniadd_Click()
   res = modDatabase.$myConn.Create("tblpatplanning")
   res["fldencounterval"] = Trim(txtencid.Text)
   res["fldplancategory"] = "IP Monitoring"
+  res["fldlocation"] = $patDepart
   res["fldproblem"] = ""
   res["fldsubjective"] = ""
   res["fldobjective"] = ""
