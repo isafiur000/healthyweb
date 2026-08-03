@@ -20,6 +20,8 @@ Private $DiscPackage As String
 Private $PatientNum As String
 Private $xNHISCode As String
 Private $xFinClear As Boolean
+Private $frmshow As Boolean
+Private $refShow As Boolean
 
 Private $MSurgicalLst As String[]
 Private $ExtraItemLst As String[]
@@ -416,12 +418,11 @@ Private Sub BasicInfoPatient()
   Dim xbilltype As String
   Dim resx As Result
   Dim xlock As Boolean
-  Dim frmshow As Boolean
   Dim xallow As Boolean
 
   modSettings.SaveSettingsToFile("Pharmacy/OriginCompID", cmborigin.Text)
   If txtencid.Text Then
-    frmshow = True
+    $frmshow = True
     modRepository.$RepoDataStatus = False
     $sTatus = txtnow.Text
     $PatientNum = modPatient.GetPatientNoByEnc(Trim(txtencid.Text))
@@ -493,7 +494,7 @@ Private Sub BasicInfoPatient()
           If txtreference.Text Then
             txtreference.ReadOnly = True
           Else
-            frmshow = False
+            $frmshow = False
           Endif
         Endif
       Endif
@@ -558,7 +559,7 @@ Private Sub BasicInfoPatient()
     ' Endif
 
     If $xFinClear = True Then
-      frmshow = False
+      $frmshow = False
     Endif
 
     If xbilltype Then
@@ -615,7 +616,7 @@ Private Sub BasicInfoPatient()
 
   Endif
 
-  If frmshow = True Then
+  If $frmshow = True Then
     TabPanel1.Enabled = True
     Panel4.Enabled = True
     If cmbledgerac.Text Then
@@ -623,7 +624,7 @@ Private Sub BasicInfoPatient()
     Else
       cmbledgerac.SetFocus
     Endif
-  Else If frmshow = False Then
+  Else If $frmshow = False Then
     TabPanel1.Enabled = False
     Panel4.Enabled = False
     txtencid.SetFocus
@@ -3910,17 +3911,28 @@ Private Sub GetHImedicineCappingVar(xSave As Boolean)
       Else
         If Not $HiCappingVar.Count Then
           hForm = New CimisAPICap($xNHISCode)
-          $HiCappingVar = hForm.GetMedicineLimits()
-          $HiCapAPIView = hForm.GetCapValidationItems()
-          If $HiCappingVar And If $HiCappingVar.Count Then
-            If xSave = True Then
-              modClaim.SaveClaimCappingLim(txtreference.Text, JSON.Encode($HiCappingVar))
+          If hForm.GetCapValidationStatus() = True Then
+            $HiCappingVar = hForm.GetMedicineLimits()
+            $HiCapAPIView = hForm.GetCapValidationItems()
+            If $HiCappingVar And If $HiCappingVar.Count Then
+              If xSave = True Then
+                modClaim.SaveClaimCappingLim(txtreference.Text, JSON.Encode($HiCappingVar))
+              Endif
+            Endif
+          Else
+            Message.Info("Couldn't obtain capping details", "OK")
+            If modBasic.$BillCappingLock = "Enable" Then
+              txtreference.Text = ""
+              txtreference.Tag = ""
             Endif
           Endif
         Endif
 
         If Not $HiCappingVar.Count Then
-          $HiCappingVar = modClaim.GetClaimCappingLimit(Trim(txtencid.Text), txtreference.Text)
+          If modBasic.$BillCappingLock = "Enable" Then
+          Else
+            $HiCappingVar = modClaim.GetClaimCappingLimit(Trim(txtencid.Text), txtreference.Text)
+          Endif
         Endif
 
       Endif

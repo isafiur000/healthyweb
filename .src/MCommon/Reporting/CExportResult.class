@@ -9,6 +9,9 @@ Private $HtmlFolder As String
 Private xvismode As String
 Private noCols As Integer[]
 Private CustCol As String[]
+Private xtransPath As String
+Private xTransNull As String
+Private $TransColl As Collection
 
 ''for csv/json
 Private $ReportPath As String
@@ -71,7 +74,36 @@ Public Sub _new(FormName As String, sHeader As String[], HideColumns As Integer[
     $BillingReport.CreateHTMLFile()
   Endif
 
+  xtransPath = modSettings.ShowSettingFromFIle("ReportColumnTranslate/TranslateList")
+  xTransNull = modSettings.ShowSettingFromFIle("ReportColumnTranslate/Default")
+  If Exist(xtransPath) Then
+    $TransColl = modString.GetCollectionFromCSV(xtransPath)
+  Endif
+
   modCustPatient.FillCOlumnCollection($FormName)
+
+End
+
+Private Function GetTranslation(xval As String) As String
+
+  Dim xword As String
+  Dim xfinal As String
+
+  If $TransColl And If $TransColl.Count Then
+    For Each xword In $TransColl
+      If xval Like $TransColl.Key Then
+        xfinal = xword
+      Endif
+    Next
+    If Not xfinal Then
+      xfinal = xval
+    Endif
+
+  Else
+    xfinal = xval
+  Endif
+
+  Return xfinal
 
 End
 
@@ -98,7 +130,7 @@ Public Sub Add(Row As Integer, xColl As Collection)
       .Add(Row + 1)
       For Column = 0 To xColl.Count - 1
         If noCols.Exist(Column) = False Then
-          .Add(xColl[CStr(Column)])
+          .Add(GetTranslation(xColl[CStr(Column)]))
         Endif
       Next
       If CustCol.Count Then
@@ -149,7 +181,7 @@ Public Sub Add(Row As Integer, xColl As Collection)
       .Add(Row + 1)
       For Column = 0 To xColl.Count - 1
         If sHide.Exist(Column) = False Then
-          .Add(xColl[CStr(Column)])
+          .Add(GetTranslation(xColl[CStr(Column)]))
         Endif
       Next
       If CustCol.Count Then

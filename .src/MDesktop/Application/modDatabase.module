@@ -282,103 +282,134 @@ Public Function GetBackupRemoteTable(sTable As String) As String
 
 End
 
-Public Function BackUpCurrentDB(Optional aFolder As String) As String
+' Public Function BackUpCurrentDB(Optional aFolder As String) As String
+'
+'   Dim sFolder As String
+'   Dim sType As String
+'   Dim DBHost As String
+'   Dim DBName As String
+'   Dim DBUser As String
+'   Dim DBPass As String
+'
+'   Dim sTargFile As String
+'   Dim xdumpForm As String
+'   Dim xcomprs As String
+'   Dim xPass As String
+'   Dim sTable As String
+'   Dim xx As String
+'   Dim xenable As String
+'   Dim idLock As Boolean
+'
+'   sType = $syConn.Type
+'   DBHost = $syConn.Host
+'   DBName = $syConn.Name
+'   DBUser = $syConn.User
+'   DBPass = $syConn.Password
+'
+'   If aFolder Then
+'     sFolder = aFolder
+'   Else
+'     sFolder = File.Dir(Temp())
+'   Endif
+'   xenable = modGlobalSetting.ShowSettingFromDB("LocalBackup/Enable")
+'   If xenable = "Yes" Then
+'     xdumpForm = modGlobalSetting.ShowSettingFromDB("LocalBackup/DumpFile")
+'     xcomprs = modGlobalSetting.ShowSettingFromDB("LocalBackup/Compression")
+'     xPass = modGlobalSetting.ShowSettingFromDB("LocalBackup/Password")
+'     sTable = modGlobalSetting.GetDBTableList("LocalBackup/TableList").Join(" ")
+'     idLock = modBillLock.LockTableForID("Backup")
+'     If idLock = True Then
+'
+'       If sType = "mysql" Then
+'         If System.Exist("mysqldump") = True Then
+'
+'           If xcomprs = "Enabled" Then
+'             If xPass Then
+'               If System.Exist("7z") = True Then
+'                 sTargFile = sFolder &/ DBName & "_backup-" & modString.GetDateString(Now()) & ".sql.7z"
+'                 xx = "mysqldump --quick --single-transaction --complete-insert --skip-extended-insert --skip-triggers" & " -B " & DBName & " --host " & DBHost & " -u " & DBUser & " -p" & DBPass & " --tables " & sTable & " | 7z a -mx=1 -mhe=on -p" & xPass & " -si " & sTargFile                    ''
+'                 modBasic.DebugString("Execute " & Replace(xx, DBPass, "***"))
+'                 Shell xx Wait
+'               Else
+'                 modApplSub.InstallSelectedApplication(["p7zip-full"])
+'               Endif
+'             Else   ''if no password
+'               If System.Exist("gzip") = True Then
+'                 sTargFile = sFolder &/ DBName & "_backup-" & modString.GetDateString(Now()) & ".sql.gz"
+'                 xx = "mysqldump --quick --single-transaction --complete-insert --skip-extended-insert --skip-triggers" & " -B " & DBName & " --host " & DBHost & " -u " & DBUser & " -p" & DBPass & " --tables " & sTable & " | gzip > " & sTargFile                    ''
+'                 modBasic.DebugString("Execute " & Replace(xx, DBPass, "***"))
+'                 Shell xx Wait
+'               Else If System.Exist("7z") = True Then
+'                 sTargFile = sFolder &/ DBName & "_backup-" & modString.GetDateString(Now()) & ".sql.7z"
+'                 xx = "mysqldump --quick --single-transaction --complete-insert --skip-extended-insert --skip-triggers" & " -B " & DBName & " --host " & DBHost & " -u " & DBUser & " -p" & DBPass & " --tables " & sTable & " | 7z a -mx=1 -si " & sTargFile                    ''
+'                 modBasic.DebugString("Execute " & Replace(xx, DBPass, "***"))
+'                 Shell xx Wait
+'               Else
+'                 modApplSub.InstallSelectedApplication(["gzip"])
+'               Endif
+'             Endif  ''password
+'           Else ''if no compression
+'             If xdumpForm = "File Per Table" Then
+'
+'             Else
+'               sTargFile = sFolder &/ DBName & "_backup-" & modString.GetDateString(Now()) & ".sql"
+'               xx = "mysqldump --quick --single-transaction --complete-insert --skip-extended-insert --skip-triggers" & " -B " & DBName & " --host " & DBHost & " -u " & DBUser & " -p" & DBPass & " --tables " & sTable & " > " & sTargFile
+'               modBasic.DebugString("Execute " & Replace(xx, DBPass, "***"))
+'               Shell xx Wait
+'             Endif
+'           Endif  ''compression
+'
+'         Else
+'           modApplSub.InstallSelectedApplication(["mariadb-client"])
+'         Endif
+'
+'       Else If sType = "postgresql" Then
+'         sTargFile = sFolder &/ DBName & "_backup-`date +%Y%m%d-%H`.sql"
+'         xx = "PGPASSWORD=" & Quote(DBPass) & " pg_dump -h " & DBHost & " -U " & DBUser & " -F p -b -v -f " & sTargFile & Space(1) & DBName                      '''
+'         modBasic.DebugString("Execute " & Replace(xx, DBPass, "***"))
+'         Shell xx Wait
+'
+'       Else If sType = "sqlite3" Then
+'         sTargFile = sFolder &/ DBName & "_backup-`date +%Y%m%d-%H`"
+'         Copy DBHost &/ DBName To sTargFile
+'         Wait
+'
+'       Endif
+'
+'       modBillLock.ReleaseLockTable("Backup")
+'     Endif
+'   Endif
+'   Return sTargFile
+'
+' Catch
+'   If idLock = True Then
+'     modBillLock.ReleaseLockTable("Backup")
+'   Endif
+'
+' End
+
+Public Sub BackUpCurrentDB(sCon As Connection) As String
 
   Dim sFolder As String
-  Dim sType As String
-  Dim DBHost As String
-  Dim DBName As String
-  Dim DBUser As String
-  Dim DBPass As String
+  Dim CForm As CBackupLocal
+  ' Dim idLock As Boolean
+  Dim xfile As String
 
-  Dim sTargFile As String
-  Dim xcomprs As String
-  Dim xPass As String
-  Dim sTable As String
-  Dim xx As String
-  Dim xenable As String
-  Dim idLock As Boolean
+  sFolder = File.Dir(Temp())
+  CForm = New CBackupLocal(sCon, sFolder)
+  ' idLock = modBillLock.LockTableForID("Backup")
+  ' If idLock = True Then
+  CForm.CreateBackUpFiles()
+  xfile = CForm.GetDumpPath()
+  '   modBillLock.ReleaseLockTable("Backup")
+  ' Endif
 
-  sType = $syConn.Type
-  DBHost = $syConn.Host
-  DBName = $syConn.Name
-  DBUser = $syConn.User
-  DBPass = $syConn.Password
+  Return xfile
 
-  If aFolder Then
-    sFolder = aFolder
-  Else
-    sFolder = File.Dir(Temp())
-  Endif
-  xenable = modGlobalSetting.ShowSettingFromDB("LocalBackup/Enable")
-  If xenable = "Yes" Then
-    xcomprs = modGlobalSetting.ShowSettingFromDB("LocalBackup/Compression")
-    xPass = modGlobalSetting.ShowSettingFromDB("LocalBackup/Password")
-    sTable = modGlobalSetting.GetDBTableList("LocalBackup/TableList").Join(" ")
-    idLock = modBillLock.LockTableForID("Backup")
-    If idLock = True Then
-
-      If sType = "mysql" Then
-        If System.Exist("mysqldump") = True Then
-
-          If xcomprs = "Enabled" Then
-            If xPass Then
-              If System.Exist("7z") = True Then
-                sTargFile = sFolder &/ DBName & "_backup-" & modString.GetDateString(Now()) & ".sql.7z"
-                xx = "mysqldump --quick --single-transaction --complete-insert --skip-extended-insert --skip-triggers" & " -B " & DBName & " --host " & DBHost & " -u " & DBUser & " -p" & DBPass & " --tables " & sTable & " | 7z a -mx=1 -mhe=on -p" & xPass & " -si " & sTargFile                    ''
-                modBasic.DebugString("Execute " & Replace(xx, DBPass, "***"))
-                Shell xx Wait
-              Else
-                modApplSub.InstallSelectedApplication(["p7zip-full"])
-              Endif
-            Else   ''if no password
-              If System.Exist("gzip") = True Then
-                sTargFile = sFolder &/ DBName & "_backup-" & modString.GetDateString(Now()) & ".sql.gz"
-                xx = "mysqldump --quick --single-transaction --complete-insert --skip-extended-insert --skip-triggers" & " -B " & DBName & " --host " & DBHost & " -u " & DBUser & " -p" & DBPass & " --tables " & sTable & " | gzip > " & sTargFile                    ''
-                modBasic.DebugString("Execute " & Replace(xx, DBPass, "***"))
-                Shell xx Wait
-              Else If System.Exist("7z") = True Then
-                sTargFile = sFolder &/ DBName & "_backup-" & modString.GetDateString(Now()) & ".sql.7z"
-                xx = "mysqldump --quick --single-transaction --complete-insert --skip-extended-insert --skip-triggers" & " -B " & DBName & " --host " & DBHost & " -u " & DBUser & " -p" & DBPass & " --tables " & sTable & " | 7z a -mx=1 -si " & sTargFile                    ''
-                modBasic.DebugString("Execute " & Replace(xx, DBPass, "***"))
-                Shell xx Wait
-              Else
-                modApplSub.InstallSelectedApplication(["gzip"])
-              Endif
-            Endif  ''password
-          Else ''if no compression
-            sTargFile = sFolder &/ DBName & "_backup-" & modString.GetDateString(Now()) & ".sql"
-            xx = "mysqldump --quick --single-transaction --complete-insert --skip-extended-insert --skip-triggers" & " -B " & DBName & " --host " & DBHost & " -u " & DBUser & " -p" & DBPass & " --tables " & sTable & " > " & sTargFile
-            modBasic.DebugString("Execute " & Replace(xx, DBPass, "***"))
-            Shell xx Wait
-          Endif  ''compression
-
-        Else
-          modApplSub.InstallSelectedApplication(["mariadb-client"])
-        Endif
-
-      Else If sType = "postgresql" Then
-        sTargFile = sFolder &/ DBName & "_backup-`date +%Y%m%d-%H`.sql"
-        xx = "PGPASSWORD=" & Quote(DBPass) & " pg_dump -h " & DBHost & " -U " & DBUser & " -F p -b -v -f " & sTargFile & Space(1) & DBName                      '''
-        modBasic.DebugString("Execute " & Replace(xx, DBPass, "***"))
-        Shell xx Wait
-
-      Else If sType = "sqlite3" Then
-        sTargFile = sFolder &/ DBName & "_backup-`date +%Y%m%d-%H`"
-        Copy DBHost &/ DBName To sTargFile
-        Wait
-
-      Endif
-
-      modBillLock.ReleaseLockTable("Backup")
-    Endif
-  Endif
-  Return sTargFile
-
-Catch
-  If idLock = True Then
-    modBillLock.ReleaseLockTable("Backup")
-  Endif
+  ' Catch
+  ' If idLock = True Then
+  '   modBillLock.ReleaseLockTable("Backup")
+  ' Endif
 
 End
 

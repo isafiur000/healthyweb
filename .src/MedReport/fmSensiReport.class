@@ -444,6 +444,52 @@ Public Sub mnuenchart_Click()
   If TabStrip1.Index = 0 Then
     UnivariateGridView()
   Else If TabStrip1.Index = 2 Then
+    UnivariateDataView()
+  Endif
+
+End
+
+Private Sub UnivariateDataView()
+
+  Dim xx As String
+  Dim xField As String
+  Dim Column As Integer
+  Dim res As Result
+  Dim xval As Variant
+  Dim hFile As CUnivariate
+  Dim xFldList As String[]
+  Dim sOrder As String[]
+
+  Dim hUniv As FmAnalyzeSett
+
+  hUniv = New FmAnalyzeSett("Univariate", modGridView.GetGridViewColumns(GridView2))
+  hUniv.ShowModal
+
+  xFldList = GetDataViewColumns()
+  hFile = New CUnivariate
+  Column = modCustPatient.GetUnivariateColumn(0)
+  xField = xFldList[Column]
+  res = ExecuteQuery([xField], "GROUP BY")
+
+  If res.Available Then
+    For Each res
+      If xField = "CONCAT(t2.fldencounterval, '|', t2.fldsubtest) AS concatfield" Then
+        xval = GetDataViewValue(Column, res["concatfield"])
+      Else
+        xval = GetDataViewValue(Column, res[xField])
+      Endif
+      If xval Then
+        hFile.Add(xval)
+      Endif
+    Next
+  Endif
+
+  If modSettings.ShowSettingFromFIle("UnivariateAnalysis/DataType") = "Ordinal" Then
+    sOrder = ListOrder("Select Order", hFile.DistinctValues())
+  Endif
+  xx = modPSPP.GetEncChartGridNew(hFile.GetSPSSFile(), sOrder)
+  If xx Then
+    modControlSub.OpenBrowser(xx)
   Endif
 
 End
@@ -494,6 +540,62 @@ Public Sub mnucrosstab_Click()
   If TabStrip1.Index = 0 Then
     BivariateGridView()
   Else If TabStrip1.Index = 2 Then
+    BivariateDataView()
+  Endif
+
+End
+
+Private Sub BivariateDataView()
+
+  Dim xx As String
+  Dim Row As Integer
+  Dim Column As Integer
+  Dim xFieRow As String
+  Dim xFieColm As String
+  Dim res As Result
+  Dim xval As Variant
+  Dim yval As Variant
+
+  Dim hFile As CBivariate
+  Dim xFldList As String[]
+  Dim sOrder As String[]
+  Dim hBivar As FmAnalyzeSett
+
+  hBivar = New FmAnalyzeSett("Bivariate", modGridView.GetGridViewColumns(GridView2))
+  hBivar.ShowModal
+
+  xFldList = GetDataViewColumns()
+  hFile = New CBivariate
+  Row = modCustPatient.GetCrossVarRow(0)
+  xFieRow = xFldList[Row]
+  Column = modCustPatient.GetCrossVarColumn(0)
+  xFieColm = xFldList[Column]
+  res = ExecuteQuery([xFieRow, xFieColm], "GROUP BY")
+
+  If res.Available Then
+    For Each res
+      If xFieRow = "CONCAT(t2.fldencounterval, '|', t2.fldsubtest) AS concatfield" Then
+        xval = GetDataViewValue(Row, res["concatfield"])
+      Else
+        xval = GetDataViewValue(Row, res[xFieRow])
+      Endif
+      If xFieColm = "CONCAT(t2.fldencounterval, '|', t2.fldsubtest) AS concatfield" Then
+        yval = GetDataViewValue(Column, res["concatfield"])
+      Else
+        yval = GetDataViewValue(Column, res[xFieColm])
+      Endif
+      If xval And If yval Then
+        hFile.Add([xval, yval])
+      Endif
+    Next
+  Endif
+
+  If modCustPatient.$CrossOutcomeType = "Ordinal" Then
+    sOrder = ListOrder("Select Order", hFile.DistinctValues())
+  Endif
+  xx = modPSPP.GetCrossTabStatNew(hFile.GetSPSSFile(), hFile.GetGroups(), sOrder)
+  If xx Then
+    modControlSub.OpenBrowser(xx)
   Endif
 
 End
@@ -550,6 +652,60 @@ Public Sub mnucrotab_Click()
   If TabStrip1.Index = 0 Then
     CrossTabGridView()
   Else If TabStrip1.Index = 2 Then
+    CrossTabDataView()
+  Endif
+
+End
+
+Private Sub CrossTabDataView()
+
+  Dim Row As Integer
+  Dim Column As Integer
+  Dim xFieRow As String
+  Dim xFieColm As String
+  Dim res As Result
+  Dim xval As Variant
+  Dim yval As Variant
+
+  Dim hForm As FmGridCrossTab
+  Dim xForm As CCrossTab
+  Dim xFldList As String[]
+  Dim hGdChr As FmAnalyzeSett
+
+  hGdChr = New FmAnalyzeSett("GridCrossTab", modGridView.GetGridViewColumns(GridView2))
+  hGdChr.ShowModal
+
+  xFldList = GetDataViewColumns()
+  If modCustPatient.$TabRowColumn And If modCustPatient.$TabFieldColumn Then
+    xForm = New CCrossTab
+
+    Row = CInt(modCustPatient.$TabRowColumn) - 1
+    xFieRow = xFldList[Row]
+    Column = CInt(modCustPatient.$TabFieldColumn) - 1
+    xFieColm = xFldList[Column]
+    res = ExecuteQuery([xFieRow, xFieColm], "GROUP BY")
+
+    If res.Available Then
+      For Each res
+        If xFieRow = "CONCAT(t2.fldencounterval, '|', t2.fldsubtest) AS concatfield" Then
+          xval = GetDataViewValue(Row, res["concatfield"])
+        Else
+          xval = GetDataViewValue(Row, res[xFieRow])
+        Endif
+        If xFieColm = "CONCAT(t2.fldencounterval, '|', t2.fldsubtest) AS concatfield" Then
+          yval = GetDataViewValue(Column, res["concatfield"])
+        Else
+          yval = GetDataViewValue(Column, res[xFieColm])
+        Endif
+        If xval And If yval Then
+          xForm.Add([xval, yval])
+        Endif
+      Next
+    Endif
+
+    hForm = New FmGridCrossTab(GridView2.Columns[Row].Text, xForm.GetSPSSFile())
+    hForm.ShowModal
+    'modExternal.$ExecValueColl.Clear()
   Endif
 
 End
@@ -604,6 +760,93 @@ Public Sub mnugridsummary_Click()
   If TabStrip1.Index = 0 Then
     SummaryGridView()
   Else If TabStrip1.Index = 2 Then
+    SummaryDataView()
+  Endif
+
+End
+
+Private Sub SummaryDataView()
+
+  Dim xx As String
+  Dim ChapCol As String
+  Dim GropCol As String
+  Dim xChapList As String[]
+  Dim xGropList As String[]
+
+  Dim res As Result
+  Dim valCol As String
+  Dim xFieldList As String[]
+
+  Dim xFinList As Variant[]
+  Dim xrowVar As Variant[]
+  Dim xchapval As String
+  Dim xgroup As String
+  Dim xPath As String
+  Dim xFldList As String[]
+  Dim hGdSum As FmAnalyzeSett
+
+  hGdSum = New FmAnalyzeSett("GridSummary", modGridView.GetGridViewColumns(GridView2))
+  hGdSum.ShowModal
+  If Not modCustPatient.$SumGroupColumn Or If Not modCustPatient.$SumValueColumn Then Return
+
+  xFldList = GetDataViewColumns()
+  xFieldList = New String[]
+  If modCustPatient.$SumChapterColumn Then
+    ChapCol = xFldList[modCustPatient.$SumChapterColumn - 1]
+    xFieldList.Add(ChapCol)
+  Endif
+  GropCol = xFldList[modCustPatient.$SumGroupColumn - 1]
+  valCol = xFldList[modCustPatient.$SumValueColumn - 1]
+  xFieldList.Add(GropCol)
+  xFieldList.Add(valCol)
+
+  xChapList = New String[]
+  xGropList = New String[]
+  xFinList = New Variant[]
+  res = ExecuteQuery(xFieldList, "GROUP BY")
+  If res.Available Then
+    For Each res
+      xrowVar = New Variant[]
+      If modCustPatient.$SumChapterColumn Then
+        If ChapCol = "CONCAT(t2.fldencounterval, '|', t2.fldsubtest) AS concatfield" Then
+          xchapval = GetDataViewValue(modCustPatient.$SumChapterColumn - 1, res["concatfield"])
+        Else
+          xchapval = GetDataViewValue(modCustPatient.$SumChapterColumn - 1, res[ChapCol])
+        Endif
+        xrowVar.Add(xchapval)
+        xChapList.Add(xchapval)
+      Endif
+      If GropCol = "CONCAT(t2.fldencounterval, '|', t2.fldsubtest) AS concatfield" Then
+        xgroup = GetDataViewValue(modCustPatient.$SumGroupColumn - 1, res["concatfield"])
+      Else
+        xgroup = GetDataViewValue(modCustPatient.$SumGroupColumn - 1, res[GropCol])
+      Endif
+      xrowVar.Add(xgroup)
+      xGropList.Add(xgroup)
+
+      If valCol = "CONCAT(t2.fldencounterval, '|', t2.fldsubtest) AS concatfield" Then
+        xrowVar.Add(GetDataViewValue(modCustPatient.$SumValueColumn - 1, res["concatfield"]))
+      Else
+        xrowVar.Add(GetDataViewValue(modCustPatient.$SumValueColumn - 1, res[valCol]))
+      Endif
+      xFinList.Add(xrowVar)
+    Next
+  Endif
+
+  xx = "Date: " & modReportVar.GetDateTimeReport(dtfir.Value, gb.MediumDate) & " To " & modReportVar.GetDateTimeReport(dtlast.Value, gb.MediumDate)
+  If modCustPatient.$SumGroupColumn And If modCustPatient.$SumValueColumn Then
+    If modCustPatient.$SumChapterColumn Then
+      If modCustPatient.$SummaryType = "Summation(Table)" Then
+        xPath = modCHTMLReport.SummaryGridChapterTableReport("Report Summary", xx, modString.GetDistinctStringArray(xChapList), modString.GetDistinctStringArray(xGropList), xFinList)
+      Else If modCustPatient.$SummaryType = "Count(Table)" Then
+        xPath = modCHTMLReport.SummaryGridChapCountTableReport("Report Summary", xx, modString.GetDistinctStringArray(xChapList), modString.GetDistinctStringArray(xGropList), xFinList)
+      Else
+        xPath = modCHTMLReport.SummaryGridChapterReport("Report Summary", xx, modString.GetDistinctStringArray(xChapList), modString.GetDistinctStringArray(xGropList), xFinList)
+      Endif
+    Else
+      xPath = modCHTMLReport.SummaryGridReport("Report Summary", xx, modString.GetDistinctStringArray(xGropList), xFinList)
+    Endif
+    modControlSub.DisplayReportExport(xPath)
   Endif
 
 End
@@ -1179,6 +1422,49 @@ Public Sub mnucountuni_Click()
   If TabStrip1.Index = 0 Then
     ColCountGridView()
   Else If TabStrip1.Index = 2 Then
+    ColCountDataView()
+  Endif
+
+End
+
+Private Sub ColCountDataView()
+
+  Dim Column As Integer
+  Dim xFieColm As String
+  Dim res As Result
+  Dim yval As Variant
+
+  Dim xColl As Collection
+  Dim xFldList As String[]
+  Dim xPath As String
+
+  Column = ListIndex("Column Index", modGridView.GetGridViewColumns(GridView2))
+  If Column + 1 > 0 Then
+    xFldList = GetDataViewColumns()
+    xFieColm = xFldList[Column]
+    res = ExecuteQuery([xFieColm], "GROUP BY")
+    xColl = New Collection
+    If res.Available Then
+      For Each res
+        If xFieColm = "CONCAT(t2.fldencounterval, '|', t2.fldsubtest) AS concatfield" Then
+          yval = GetDataViewValue(Column, res["concatfield"])
+        Else
+          yval = GetDataViewValue(Column, res[xFieColm])
+        Endif
+        If yval Then
+          If xColl.Exist(CStr(yval)) Then
+            xColl[CStr(yval)] = xColl[CStr(yval)] + 1
+          Else
+            xColl[CStr(yval)] = 1
+          Endif
+        Endif
+      Next
+    Endif
+    If xColl.Count Then
+      xPath = modCHTMLReport.CreateHTMLReportFromCollection(["Variable", "Count"], xColl, GridView2.Columns[Column].Text, modReportVar.GetDateTimeReport(Now(), gb.GeneralDate))
+    Endif
+
+    modControlSub.OpenHTMLPreview("", xPath, "ReportSize")
   Endif
 
 End
@@ -1248,7 +1534,7 @@ Private Function GetDataViewColumns() As String[]
   xFldList.Add("t2.fldencounterval")
   xFldList.Add("t2.fldsubtest")
   For Each xcol In $varList
-    xFldList.Add("CONCAT(t2.fldencounterval, '|', t2.fldsubtest) ")
+    xFldList.Add("CONCAT(t2.fldencounterval, '|', t2.fldsubtest) AS concatfield")
   Next
 
   modCustPatient.FillNewCOlumnCollection(Me.Tag)

@@ -285,6 +285,8 @@ Private $ReportOptionThir As String
 Private $ReportVariable As String
 Private $ReportFormatScript As String
 Private $ReportFormatShell As String
+Private $ReportFormatTranslate As String
+Private $ReportFormatColl As Collection
 
 Public $extColumnColl As Collection
 Public $newColumnColl As Collection
@@ -301,6 +303,10 @@ Public Sub LoadReportColumnFOrmat()
   $ReportVariable = modSettings.ShowSettingFromFIle("ReportColumnFormat/PatVariable")
   $ReportFormatScript = modSettings.ShowSettingFromFIle("ReportColumnFormat/FormatScript")
   $ReportFormatShell = modSettings.ShowSettingFromFIle("ReportColumnFormat/FormatShell")
+  $ReportFormatTranslate = modSettings.ShowSettingFromFIle("ReportColumnFormat/Translate")
+  If $ReportFormatTranslate = "Yes" Then
+    $ReportFormatColl = modString.GetCollectionFromCSV($ReportFormatScript)
+  Endif
 
 End
 
@@ -316,6 +322,7 @@ Public Function ReportCustColumnValue(sText As String) As Variant
   Dim xfinal As Variant
   Dim ref As String
   Dim xval As String[]
+  Dim xword As String
 
   If $ReportVariable Then
     xx = modReportVar.GetPatientVariableValue($ReportVariable, sText)
@@ -357,7 +364,19 @@ Public Function ReportCustColumnValue(sText As String) As Variant
 
   Endif
 
-  xfinal = modExternal.GerScriptValueNoCache($ReportFormatScript, $ReportFormatShell, xx)
+  If $ReportFormatTranslate = "Yes" Then
+    For Each xword In $ReportFormatColl
+      If xx Like $ReportFormatColl.Key Then
+        xfinal = xword
+      Endif
+    Next
+    If Not xfinal Then
+      xfinal = xx
+    Endif
+
+  Else
+    xfinal = modExternal.GerScriptValueNoCache($ReportFormatScript, $ReportFormatShell, xx)
+  Endif
   Return xfinal
 
 Catch

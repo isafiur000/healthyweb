@@ -89,6 +89,7 @@ Public Sub _new()
   cmbfraction.List = ["Enable", "Disable"]
   cmbexpired.List = ["Enable", "Disable"]
   cmbbillalert.List = ["Patient No", "Patient Code", "Data Repo", "None"]
+  cmblockcapping.List = ["Enable", "Disable"]
 
   cmbcatequip.List = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select fldsection as col from tblbillsection where fldcateg=&1", "Equipment"))
   cmbcatequip.Add("%")
@@ -753,6 +754,7 @@ Private Sub ShowBillEntry()
   cmbfraction.Text = modGlobalSetting.ShowSettingFromDBAny("CashBilling/FractionQuantity", cmbtarget.Text)
   cmbexpired.Text = modGlobalSetting.ShowSettingFromDBAny("CashBilling/ExpiredPunching", cmbtarget.Text)
   cmbbillalert.Text = modGlobalSetting.ShowSettingFromDBAny("CashBilling/HistoryAlert", cmbtarget.Text)
+  cmblockcapping.Text = modGlobalSetting.ShowSettingFromDBAny("CashBilling/LockToCapping", cmbtarget.Text)
 
   xpunch = modGlobalSetting.ShowSettingFromDBAny("CashBilling/LockPunchingAfter", cmbtarget.Text)
   If xpunch Then
@@ -861,6 +863,13 @@ End
 Public Sub btnbillalert_Click()
 
   modGlobalSetting.SaveSettingToDB("CashBilling/HistoryAlert", cmbbillalert.Text, cmbtarget.Text)
+  Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+
+End
+
+Public Sub btnlockcapping_Click()
+
+  modGlobalSetting.SaveSettingToDB("CashBilling/LockToCapping", cmblockcapping.Text, cmbtarget.Text)
   Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
 
 End
@@ -1163,6 +1172,7 @@ Public Sub btnsettall_Click()
   xList.Add("CashBilling/ExpiredPunching")
   xList.Add("CashBilling/LockPunchingAfter")
   xList.Add("CashBilling/HistoryAlert")
+  xList.Add("CashBilling/LockToCapping")
 
   xList.Add("CashBilling/Section_Service")
   xList.Add("CashBilling/Section_Equipment")
@@ -1316,6 +1326,7 @@ Private Sub PrintableSettings()
   AddSettingReport("CashBilling/ExpiredPunching", cmbtarget.Text, cmbexpired.Tooltip, cmbexpired.List.Join("; "))
   AddSettingReport("CashBilling/LockPunchingAfter", cmbtarget.Text, txtpunchlock.Tooltip, "")
   AddSettingReport("CashBilling/HistoryAlert", cmbtarget.Text, cmbbillalert.Tooltip, cmbbillalert.List.Join("; "))
+  AddSettingReport("CashBilling/LockToCapping", cmbtarget.Text, cmblockcapping.Tooltip, cmblockcapping.List.Join("; "))
 
   $BillingReport.AddChapter("Billing Section")
   AddSettingReport("CashBilling/Section_Service", cmbtarget.Text, cmbcatgeneral.Tooltip, "")

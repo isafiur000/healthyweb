@@ -1,0 +1,268 @@
+' Gambas class file
+
+Private $Folder As String
+Private $dumpFile As String
+
+Private $Type As String
+Private $DBHost As String
+Private $DBName As String
+Private $DBUser As String
+Private $DBPass As String
+
+Private $dumpForm As String
+Private $comprs As String
+Private $Pass As String
+Private $TabList As String[]
+Private $TableStr As String
+
+Public Sub _new(sCon As Connection, sFolder As String)
+
+  $Folder = sFolder
+
+  $Type = sCon.Type
+  $DBHost = sCon.Host
+  $DBName = sCon.Name
+  $DBUser = sCon.User
+  $DBPass = sCon.Password
+  GetSettings()
+
+End
+
+Private Sub GetSettings()
+
+  Dim xenable As String
+
+  xenable = modGlobalSetting.ShowSettingFromDB("LocalBackup/Enable")
+  If xenable = "Yes" Then
+    $dumpForm = modGlobalSetting.ShowSettingFromDB("LocalBackup/DumpFile")
+    $comprs = modGlobalSetting.ShowSettingFromDB("LocalBackup/Compression")
+    $Pass = modGlobalSetting.ShowSettingFromDB("LocalBackup/Password")
+    $TabList = modGlobalSetting.GetDBTableList("LocalBackup/TableList")
+    $TableStr = $TabList.Join(" ")
+  Endif
+
+End
+
+Public Function GetDumpPath() As String
+
+  Return $dumpFile
+
+End
+
+Public Sub CreateBackUpFiles()
+
+  If $Type = "mysql" Then
+    If System.Exist("mysqldump") = True Then
+
+      If $comprs = "Enabled" Then
+        If $Pass Then
+          If System.Exist("7z") = True Then
+            If $dumpForm = "File Per Table" Then
+              $dumpFile = GetMyDump7zPassMulti($Pass)
+            Else
+              $dumpFile = GetMyDump7zPassOneFile($Pass)
+            Endif
+          Else
+            modApplSub.InstallSelectedApplication(["p7zip-full"])
+          Endif
+        Else   ''if no password
+          If System.Exist("gzip") = True Then
+            If $dumpForm = "File Per Table" Then
+              $dumpFile = GetMyDumpGzipMulti()
+            Else
+              $dumpFile = GetMyDumpGzipOneFile()
+            Endif
+          Else If System.Exist("7z") = True Then
+            If $dumpForm = "File Per Table" Then
+              $dumpFile = GetMyDump7zMulti()
+            Else
+              $dumpFile = GetMyDump7zOneFile()
+            Endif
+          Else
+            modApplSub.InstallSelectedApplication(["gzip"])
+          Endif
+        Endif  ''password
+
+      Else ''if no compression
+        If $dumpForm = "File Per Table" Then
+          $dumpFile = GetMyDumpNormalMulti()
+        Else
+          $dumpFile = GetMyDumpNormalOneFile()
+        Endif
+      Endif  ''compression
+
+    Else
+      modApplSub.InstallSelectedApplication(["mariadb-client"])
+    Endif
+
+  Else If $Type = "postgresql" Then
+    $dumpFile = GetPgDumpNormalOneFile()
+  Else If $Type = "sqlite3" Then
+    $dumpFile = GetSqliteNormalFile()
+  Endif
+
+End
+
+''========================== One File ==========================
+Private Function GetMyDump7zPassOneFile(xPass As String) As String
+
+  Dim sTargFile As String
+  Dim xx As String
+
+  sTargFile = $Folder &/ $DBName & "_backup-" & modString.GetDateString(Now()) & ".sql.7z"
+  xx = "mysqldump --quick --single-transaction --complete-insert --skip-extended-insert --skip-triggers" & " -B " & $DBName & " --host " & $DBHost & " -u " & $DBUser & " -p" & $DBPass & " --tables " & $TableStr & " | 7z a -mx=1 -mhe=on -p" & xPass & " -si " & sTargFile                    ''
+  modBasic.DebugString("Execute " & Replace(xx, $DBPass, "***"))
+  Shell xx Wait
+
+  Return sTargFile
+
+End
+
+Private Function GetMyDumpGzipOneFile() As String
+
+  Dim sTargFile As String
+  Dim xx As String
+
+  sTargFile = $Folder &/ $DBName & "_backup-" & modString.GetDateString(Now()) & ".sql.gz"
+  xx = "mysqldump --quick --single-transaction --complete-insert --skip-extended-insert --skip-triggers" & " -B " & $DBName & " --host " & $DBHost & " -u " & $DBUser & " -p" & $DBPass & " --tables " & $TableStr & " | gzip > " & sTargFile                    ''
+  modBasic.DebugString("Execute " & Replace(xx, $DBPass, "***"))
+  Shell xx Wait
+
+  Return sTargFile
+
+End
+
+Private Function GetMyDump7zOneFile() As String
+
+  Dim sTargFile As String
+  Dim xx As String
+
+  sTargFile = $Folder &/ $DBName & "_backup-" & modString.GetDateString(Now()) & ".sql.7z"
+  xx = "mysqldump --quick --single-transaction --complete-insert --skip-extended-insert --skip-triggers" & " -B " & $DBName & " --host " & $DBHost & " -u " & $DBUser & " -p" & $DBPass & " --tables " & $TableStr & " | 7z a -mx=1 -si " & sTargFile                    ''
+  modBasic.DebugString("Execute " & Replace(xx, $DBPass, "***"))
+  Shell xx Wait
+
+  Return sTargFile
+
+End
+
+Private Function GetMyDumpNormalOneFile() As String
+
+  Dim sTargFile As String
+  Dim xx As String
+
+  sTargFile = $Folder &/ $DBName & "_backup-" & modString.GetDateString(Now()) & ".sql"
+  xx = "mysqldump --quick --single-transaction --complete-insert --skip-extended-insert --skip-triggers" & " -B " & $DBName & " --host " & $DBHost & " -u " & $DBUser & " -p" & $DBPass & " --tables " & $TableStr & " > " & sTargFile
+  modBasic.DebugString("Execute " & Replace(xx, $DBPass, "***"))
+  Shell xx Wait
+
+  Return sTargFile
+
+End
+
+Private Function GetPgDumpNormalOneFile() As String
+
+  Dim sTargFile As String
+  Dim xx As String
+
+  sTargFile = $Folder &/ $DBName & "_backup-`date +%Y%m%d-%H`.sql"
+  xx = "PGPASSWORD=" & Quote($DBPass) & " pg_dump -h " & $DBHost & " -U " & $DBUser & " -F p -b -v -f " & sTargFile & Space(1) & $DBName                      '''
+  modBasic.DebugString("Execute " & Replace(xx, $DBPass, "***"))
+  Shell xx Wait
+
+  Return sTargFile
+
+End
+
+Private Function GetSqliteNormalFile() As String
+
+  Dim sTargFile As String
+
+  sTargFile = $Folder &/ $DBName & "_backup-`date +%Y%m%d-%H`"
+  Copy $DBHost &/ $DBName To sTargFile
+  Wait
+
+  Return sTargFile
+
+End
+
+''========================= Multiple File =========================
+Private Function GetMyDump7zPassMulti(xPass As String) As String
+
+  Dim sTargFile As String
+  Dim xTable As String
+  Dim xx As String
+
+  sTargFile = $Folder &/ $DBName & modString.GetNowString()
+  If Exist(sTargFile) = False Then
+    Mkdir sTargFile
+  Endif
+  For Each xTable In $TabList
+    xx = "mysqldump --quick --single-transaction --complete-insert --skip-extended-insert --skip-triggers" & " -B " & $DBName & " --host " & $DBHost & " -u " & $DBUser & " -p" & $DBPass & " --tables " & xTable & " | 7z a -mx=1 -mhe=on -p" & xPass & " -si " & sTargFile &/ xTable & ".sql.7z"                    ''
+    modBasic.DebugString("Execute " & Replace(xx, $DBPass, "***"))
+    Shell xx Wait
+  Next
+
+  Return sTargFile
+
+End
+
+Private Function GetMyDumpGzipMulti() As String
+
+  Dim sTargFile As String
+  Dim xTable As String
+  Dim xx As String
+
+  sTargFile = $Folder &/ $DBName & modString.GetNowString()
+  If Exist(sTargFile) = False Then
+    Mkdir sTargFile
+  Endif
+  For Each xTable In $TabList
+    xx = "mysqldump --quick --single-transaction --complete-insert --skip-extended-insert --skip-triggers" & " -B " & $DBName & " --host " & $DBHost & " -u " & $DBUser & " -p" & $DBPass & " --tables " & xTable & " | gzip > " & sTargFile &/ xTable & ".sql.gz"                    ''
+    modBasic.DebugString("Execute " & Replace(xx, $DBPass, "***"))
+    Shell xx Wait
+  Next
+
+  Return sTargFile
+
+End
+
+Private Function GetMyDump7zMulti() As String
+
+  Dim sTargFile As String
+  Dim xTable As String
+  Dim xx As String
+
+  sTargFile = $Folder &/ $DBName & modString.GetNowString()
+  If Exist(sTargFile) = False Then
+    Mkdir sTargFile
+  Endif
+  For Each xTable In $TabList
+    xx = "mysqldump --quick --single-transaction --complete-insert --skip-extended-insert --skip-triggers" & " -B " & $DBName & " --host " & $DBHost & " -u " & $DBUser & " -p" & $DBPass & " --tables " & xTable & " | 7z a -mx=1 -si " & sTargFile &/ xTable & ".sql.7z"                    ''
+    modBasic.DebugString("Execute " & Replace(xx, $DBPass, "***"))
+    Shell xx Wait
+  Next
+
+  Return sTargFile
+
+End
+
+Private Function GetMyDumpNormalMulti() As String
+
+  Dim sTargFile As String
+  Dim xTable As String
+  Dim xx As String
+
+  sTargFile = $Folder &/ $DBName & modString.GetNowString()
+  If Exist(sTargFile) = False Then
+    Mkdir sTargFile
+  Endif
+  For Each xTable In $TabList
+    xx = "mysqldump --quick --single-transaction --complete-insert --skip-extended-insert --skip-triggers" & " -B " & $DBName & " --host " & $DBHost & " -u " & $DBUser & " -p" & $DBPass & " --tables " & xTable & " > " & sTargFile &/ xTable & ".sql"
+    modBasic.DebugString("Execute " & Replace(xx, $DBPass, "***"))
+    Shell xx Wait
+  Next
+
+  Return sTargFile
+
+End

@@ -22,6 +22,8 @@ Private xYear As Integer
 Private $AdvPayment As String
 Private $DefaultItemType As String
 Private $lstEncid As String
+Private $frmshow As Boolean
+Private $refShow As Boolean
 
 Private $TestArray As String[]
 Private $ServiceArray As String[]
@@ -200,7 +202,6 @@ Public Sub btnshow_Click()
   Dim xledger As String
   Dim xlock As Boolean
   Dim xcredit As Float
-  Dim frmshow As Boolean
   Dim xallow As Boolean
   Dim xtaxsource As String
 
@@ -235,7 +236,6 @@ Public Sub btnshow_Click()
       modRepository.$RepoDataStatus = False
       txtpatientname.Text = modPatient.GetPatientNameByEnc(Trim(txtencid.Text))
       If txtpatientname.Text Then
-        frmshow = True
         hPatient.$encid = Trim(txtencid.Text)
         hPatient.$billtype = "CashBilling"
         If ShowBilling() = False Then
@@ -253,17 +253,9 @@ Public Sub btnshow_Click()
         $xNHISCode = modPatient.GetPatientExtCOdebyEnc(Trim(txtencid.Text))
         $DiscPackage = modNonMedical.DefaultBillingScheme(Trim(txtencid.Text), modBasic.$compID)
         ServicePackComboBox()
-        ' If Not cmbdisctype.List.Exist($DiscPackage) Then
-        '   cmbdisctype.Add($DiscPackage)
-        ' Endif
-        ' cmbdisctype.Text = $DiscPackage
-        ' If modBasic.$BillAlterPackage = "Yes" Then
-        '   cmbdisctype.Enabled = True
-        ' Else If modBasic.$BillAlterPackage = "Partial" Then
-        '   cmbdisctype.Enabled = True
-        ' Else
-        '   cmbdisctype.Enabled = False
-        ' Endif
+
+        $frmshow = True
+        $refShow = True
         xlock = False
         resx = modDatabase.$myConn.Exec("select fldmode,fldbillingmode,fldacledger,fldbilltype,fldreference,fldlimit,fldlockstate,fldtaxsource from tbldiscount where fldtype=&1", $DiscPackage)
         If resx.Available Then
@@ -315,7 +307,7 @@ Public Sub btnshow_Click()
               If txtreference.Text Then
                 txtreference.ReadOnly = True
               Else
-                frmshow = False
+                $refShow = False
               Endif
             Endif
           Endif
@@ -366,7 +358,7 @@ Public Sub btnshow_Click()
         Endif
 
         If $xFinClear = True Then
-          frmshow = False
+          $frmshow = False
         Endif
 
         If xbilltype Then
@@ -425,21 +417,34 @@ Public Sub btnshow_Click()
         Endif
 
       Else
-        frmshow = False
+        $frmshow = False
         Message.Warning(("Encounter ID not found"), ("OK"))
       Endif
     Endif
   Endif
 
-  If frmshow = True Then
-    TabStrip1.Enabled = True
-    Panel2.Enabled = True
-    If cmbledgerac.Text Then
-      cmbtype.SetFocus
-    Else
-      cmbledgerac.SetFocus
+  SetEntryForm()
+
+End
+
+Private Sub SetEntryForm()
+
+  If $frmshow = True Then
+    If $refShow = True Then
+      TabStrip1.Enabled = True
+      Panel2.Enabled = True
+      If cmbledgerac.Text Then
+        cmbtype.SetFocus
+      Else
+        cmbledgerac.SetFocus
+      Endif
+    Else If $refShow = False Then
+      TabStrip1.Enabled = False
+      Panel2.Enabled = False
+      txtpatientname.SetFocus
     Endif
-  Else If frmshow = False Then
+
+  Else If $frmshow = False Then
     TabStrip1.Enabled = False
     Panel2.Enabled = False
     txtencid.SetFocus
@@ -481,6 +486,8 @@ Private Sub ShowBillingParam(sPack As String)
     txtreference.Text = ""
     txtreference.Tag = ""
     txtreference.ReadOnly = False
+
+    $refShow = True
     xlock = False
     resx = modDatabase.$myConn.Exec("select fldmode,fldbillingmode,fldacledger,fldbilltype,fldreference,fldlimit,fldlockstate,fldtaxsource from tbldiscount where fldtype=&1", sPack)
     If resx.Available Then
@@ -523,6 +530,8 @@ Private Sub ShowBillingParam(sPack As String)
           Endif
           If txtreference.Text Then
             txtreference.ReadOnly = True
+          Else
+            $refShow = False
           Endif
         Endif
       Endif
@@ -593,9 +602,12 @@ End
 
 Public Sub cmbdisctype_Click()
 
-  IniateCategoryArray()
-  IniateCategoryPharmArray()
-  ShowBillingParam(cmbdisctype.Text)
+  If $frmshow = True Then
+    IniateCategoryArray()
+    IniateCategoryPharmArray()
+    ShowBillingParam(cmbdisctype.Text)
+    SetEntryForm()
+  Endif
 
 End
 
@@ -5738,17 +5750,28 @@ Private Sub GetHImedicineCappingVar(xSave As Boolean)
       Else
         If Not $HiCappingVar.Count Then
           hForm = New CimisAPICap($xNHISCode)
-          $HiCappingVar = hForm.GetMedicineLimits()
-          $HiCapAPIView = hForm.GetCapValidationItems()
-          If $HiCappingVar And If $HiCappingVar.Count Then
-            If xSave = True Then
-              modClaim.SaveClaimCappingLim(txtreference.Text, JSON.Encode($HiCappingVar))
+          If hForm.GetCapValidationStatus() = True Then
+            $HiCappingVar = hForm.GetMedicineLimits()
+            $HiCapAPIView = hForm.GetCapValidationItems()
+            If $HiCappingVar And If $HiCappingVar.Count Then
+              If xSave = True Then
+                modClaim.SaveClaimCappingLim(txtreference.Text, JSON.Encode($HiCappingVar))
+              Endif
+            Endif
+          Else
+            Message.Info("Couldn't obtain capping details", "OK")
+            If modBasic.$BillCappingLock = "Enable" Then
+              txtreference.Text = ""
+              txtreference.Tag = ""
             Endif
           Endif
         Endif
 
         If Not $HiCappingVar.Count Then
-          $HiCappingVar = modClaim.GetClaimCappingLimit(Trim(txtencid.Text), txtreference.Text)
+          If modBasic.$BillCappingLock = "Enable" Then
+          Else
+            $HiCappingVar = modClaim.GetClaimCappingLimit(Trim(txtencid.Text), txtreference.Text)
+          Endif
         Endif
 
       Endif
