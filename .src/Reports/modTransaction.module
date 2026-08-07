@@ -74,6 +74,7 @@ Public Function ShowOpeningStockQtyColl($con As Connection, sType As String, dt 
   Dim rs1 As Result
   Dim rs2 As Result
   Dim rs3 As Result
+  Dim rs3re As Result
   Dim rs4 As Result
   Dim rs5 As Result
   Dim rs6 As Result
@@ -99,6 +100,7 @@ Public Function ShowOpeningStockQtyColl($con As Connection, sType As String, dt 
   Dim bCollRetnPast As Collection
   Dim bCollBulkPast As Collection
   Dim bCollSalePast As Collection
+  Dim bCollSalePastre As Collection
   Dim bCollSentPast As Collection
   Dim bCollRecvPast As Collection
   Dim bCollAdjusPast As Collection
@@ -134,6 +136,13 @@ Public Function ShowOpeningStockQtyColl($con As Connection, sType As String, dt 
   bCollSalePast = New Collection
   rs3 = $con.Exec("select t2.fldstockid as fldname,SUM(t1.flditemqty) as fldvalue from tblpatbilling AS t1 inner join tblentry AS t2 on t1.flditemno=t2.fldstockno where t1.fldtime>&1 and t1.fldtime<=&2 and t1.flditemtype=&3 and t1.fldcomp in(" & sCompLst.Join(",") & ") and t1.fldsave=&4" & RepoStr & " GROUP BY fldname", modDate.EndSqlDate(dt), dtx, sType, True)
   bCollSalePast = GetCollectionCount(rs3)
+
+  ''past db
+  bCollSalePastre = New Collection
+  If modHelpVariable.$pastDBService Then
+    rs3re = modDatabase.$pastConn.Exec("select t2.fldstockid as fldname,SUM(t1.flditemqty) as fldvalue from tblpatbilling AS t1 inner join tblentry AS t2 on t1.flditemno=t2.fldstockno where t1.fldtime>&1 and t1.fldtime<=&2 and t1.flditemtype=&3 and t1.fldcomp in(" & sCompLst.Join(",") & ") and t1.fldsave=&4" & RepoStr & " GROUP BY fldname", modDate.EndSqlDate(dt), dtx, sType, True)
+    bCollSalePastre = GetCollectionCount(rs3re)
+  Endif
 
   bCollSentPast = New Collection
   rs4 = $con.Exec("select fldstockid as fldname,SUM(fldqty) as fldvalue from tbltransfer where fldtoentrytime>&1 and fldtoentrytime<=&2 and fldcategory=&3 and fldtosav=&4 and fldfromcomp in(" & sCompLst.Join(",") & ")" & RepoStr & " GROUP BY fldname", modDate.EndSqlDate(dt), dtx, sType, True)
@@ -177,20 +186,10 @@ Public Function ShowOpeningStockQtyColl($con As Connection, sType As String, dt 
       If bCollSalePast[res["fldstockid"]] Then
         salqty = bCollSalePast[res["fldstockid"]]
       Endif
-
-      rex = $con.Exec("select fldpatbilling from tblfisclosing where (fldstate=&1 or fldstate IS NULL)", "Active")
-      If rex.Available Then
-        For Each rex
-          If rex["fldpatbilling"] = "tblpatbilling" Then
-          Else
-            rss3 = $con.Exec("select SUM(flditemqty) as qty from " & rex["fldpatbilling"] & " where fldtime>&1 and fldtime<=&2 and flditemno in(select fldstockno from tblentry where fldstockid=&3) and flditemtype=&4 and fldcomp in(" & sCompLst.Join(",") & ") and fldsave=&5" & RepoStr, modDate.EndSqlDate(dt), dtx, res["fldstockid"], sType, True)
-            If rss3.Available = True Then
-              If rss3["qty"] Then
-                salqty = salqty + rss3["qty"]
-              Endif
-            Endif
-          Endif
-        Next
+      If modHelpVariable.$pastDBService Then
+        If bCollSalePastre[res["fldstockid"]] Then
+          salqty = salqty + bCollSalePastre[res["fldstockid"]]
+        Endif
       Endif
 
       sentqty = 0
@@ -286,8 +285,6 @@ End
 
 Public Function GetTransactionBillingColl($con As Connection, sType As String, dt1 As Date, dt2 As Date, compList As String[], sLocaType As String, sLocation As String) As Collection
 
-  ' Dim rex As Result
-  ' Dim rs2 As Result
   Dim rs3 As Result
   Dim RepoStr As String
   Dim xColl As Collection
@@ -303,23 +300,6 @@ Public Function GetTransactionBillingColl($con As Connection, sType As String, d
   RepoStr = modDataRepo.GetWhereStringRepo(sLocaType, sLocation)
   rs3 = $con.Exec("select t2.fldstockid as fldname,SUM(t1.flditemqty) as fldvalue from tblpatbilling AS t1 inner join tblentry AS t2 on t1.flditemno=t2.fldstockno where t1.fldtime>=&1 and t1.fldtime<=&2 and t1.flditemtype=&3 and t1.fldcomp in(" & sCompLst.Join(",") & ") and t1.fldsave=&4" & RepoStr & " GROUP BY fldname", modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), sType, True)
   xColl = GetCollectionCount(rs3)
-
-  ' ' rex = $con.Exec("select fldpatbilling from tblfisclosing where (fldstate=&1 or fldstate IS NULL)", "Active")
-  ' ' If rex.Available Then
-  ' '   For Each rex
-  ' '     If rex["fldpatbilling"] = "tblpatbilling" Then
-  ' '     Else
-  ' '
-  ' '       rs2 = $con.Exec("select SUM(flditemqty) as qty from " & rex["fldpatbilling"] & " where fldtime>=&1 and fldtime<=&2 and flditemno in(select fldstockno from tblentry where fldstockid=&3) and flditemtype=&4 and fldcomp like &5 and fldsave=&6" & RepoStr, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), sItem, sType, sComp, True)
-  ' '       If rs2.Available = True Then
-  ' '         If rs2["qty"] Then
-  ' '           salqty = salqty + rs2["qty"]
-  ' '         Endif
-  ' '       Endif
-  ' '
-  ' '     Endif
-  ' '   Next
-  ' ' Endif
 
   Return xColl
 
@@ -485,7 +465,7 @@ Public Function ShowSpecStockReportItemwise($con As Connection, sType As String,
 
 End
 
-Public Function ShowTransectionReportItemwise($con As Connection, sType As String, dt1 As Date, dt2 As Date, sCompLst As String[], sList As String[], sLocaType As String, sLocation As String, ShowNull As Boolean) As String
+Public Function ShowTransectionReportItemwise($con As Connection, sType As String, dt1 As Date, dt2 As Date, compList As String[], sList As String[], sLocaType As String, sLocation As String, ShowNull As Boolean) As String
 
   Dim $BillingReport As CReportHTML
   Dim asx As New String[0]
@@ -507,6 +487,7 @@ Public Function ShowTransectionReportItemwise($con As Connection, sType As Strin
   Dim bCollRetnPast As Collection
   Dim bCollBulkPast As Collection
   Dim bCollSalePast As Collection
+  Dim bCollSalePastre As Collection
   Dim bCollSentPast As Collection
   Dim bCollRecvPast As Collection
   Dim bCollAdjusPast As Collection
@@ -514,12 +495,14 @@ Public Function ShowTransectionReportItemwise($con As Connection, sType As Strin
   Dim sItem As String
   Dim p As Integer
   Dim xgo As Boolean
+  Dim sCompLst As String[]
 
   ' If MMain.$IsGUIApp = True Then
   '   $ProgressBar1 = modAppSupport.FindWorkProgressBar(modHelpVariable.$LogInCategory)
   '   $ProgressBar1.Tag = "Const"
   ' Endif
 
+  sCompLst = compList.Copy()
   $BillingReport = New CReportHTML([("SNO"), ("PARTICULARS"), ("OPENING"), ("PURCHASE"), ("RECEIVED"), ("RETURN"), ("SALES"), ("CONSUMED"), ("SENT"), ("ADJUST"), ("ENDING")], "", "")
   $BillingReport.UserData.Add("CATEGORY: " & sType, "PARAM1")
   $BillingReport.UserData.Add("Date: " & modReportVar.GetDateTimeReport(dt1, gb.MediumDate) & " TO " & modReportVar.GetDateTimeReport(dt2, gb.MediumDate) & "   Comp: " & sCompLst.Join(", "), "PARAM2")
@@ -529,6 +512,9 @@ Public Function ShowTransectionReportItemwise($con As Connection, sType As Strin
   bCollRetnPast = GetTransactionPurReturnColl($con, sType, dt1, dt2, sCompLst, sLocaType, sLocation)
   bCollBulkPast = GetTransactionBulkSaleColl($con, sType, dt1, dt2, sCompLst, sLocaType, sLocation)
   bCollSalePast = GetTransactionBillingColl($con, sType, dt1, dt2, sCompLst, sLocaType, sLocation)
+  If modHelpVariable.$pastDBService Then
+    bCollSalePastre = GetTransactionBillingColl(modDatabase.$pastConn, sType, dt1, dt2, sCompLst, sLocaType, sLocation)
+  Endif
   bCollSentPast = GetTransactionTransferFromColl($con, sType, dt1, dt2, sCompLst, sLocaType, sLocation)
   bCollRecvPast = GetTransactionTransferToColl($con, sType, dt1, dt2, sCompLst, sLocaType, sLocation)
   bCollAdjusPast = GetTransactionAdjustmentColl($con, sType, dt1, dt2, sCompLst, sLocaType, sLocation)
@@ -558,6 +544,11 @@ Public Function ShowTransectionReportItemwise($con As Connection, sType As Strin
     Endif
     If bCollSalePast[sItem] Then
       salqty = bCollSalePast[sItem]
+    Endif
+    If modHelpVariable.$pastDBService Then
+      If bCollSalePastre[sItem] Then
+        salqty = salqty + bCollSalePastre[sItem]
+      Endif
     Endif
     If bCollSentPast[sItem] Then
       sentqty = bCollSentPast[sItem]
@@ -622,6 +613,7 @@ Public Function ShowSpecStockReport($con As Connection, sType As String, dt As D
   Dim rs1 As Result
   Dim rs2 As Result
   Dim rs3 As Result
+  Dim rs3re As Result
   Dim rs4 As Result
   Dim rs5 As Result
   Dim rs6 As Result
@@ -653,6 +645,7 @@ Public Function ShowSpecStockReport($con As Connection, sType As String, dt As D
   Dim bCollRetnPast As Collection
   Dim bCollBulkPast As Collection
   Dim bCollSalePast As Collection
+  Dim bCollSalePastre As Collection
   Dim bCollSentPast As Collection
   Dim bCollRecvPast As Collection
   Dim bCollAdjusPast As Collection
@@ -692,6 +685,13 @@ Public Function ShowSpecStockReport($con As Connection, sType As String, dt As D
   bCollSalePast = New Collection
   rs3 = $con.Exec("select CONVERT(t1.flditemno,CHAR) as fldcode,t2.fldstockid as fldname,SUM(t1.flditemqty) as fldvalue from tblpatbilling AS t1 inner join tblentry AS t2 on t1.flditemno=t2.fldstockno where t1.fldtime>&1 and t1.fldtime<=&2 and t1.flditemtype=&3 and t1.fldcomp in(" & sCompLst.Join(",") & ") and t1.fldsave=&4" & modDataRepo.GetWhereStringRepo(sLocaType, sLocation, "t1") & " GROUP BY CONVERT(t1.flditemno,CHAR),fldname", modDate.EndSqlDate(dt), dt2, sType, True)
   bCollSalePast = GetCollectionRecord(rs3)
+
+  ''past db
+  bCollSalePastre = New Collection
+  If modHelpVariable.$pastDBService Then
+    rs3re = modDatabase.$pastConn.Exec("select CONVERT(t1.flditemno,CHAR) as fldcode,t2.fldstockid as fldname,SUM(t1.flditemqty) as fldvalue from tblpatbilling AS t1 inner join tblentry AS t2 on t1.flditemno=t2.fldstockno where t1.fldtime>&1 and t1.fldtime<=&2 and t1.flditemtype=&3 and t1.fldcomp in(" & sCompLst.Join(",") & ") and t1.fldsave=&4" & modDataRepo.GetWhereStringRepo(sLocaType, sLocation, "t1") & " GROUP BY CONVERT(t1.flditemno,CHAR),fldname", modDate.EndSqlDate(dt), dt2, sType, True)
+    bCollSalePastre = GetCollectionRecord(rs3re)
+  Endif
 
   bCollSentPast = New Collection
   rs4 = $con.Exec("select CONVERT(fldoldstockno,CHAR) as fldcode,fldstockid as fldname,SUM(fldqty) as fldvalue from tbltransfer where fldtoentrytime>&1 and fldtoentrytime<=&2 and fldcategory=&3 and fldtosav=&4 and fldfromcomp in(" & sCompLst.Join(",") & ")" & RepoStr & " GROUP BY CONVERT(fldoldstockno,CHAR),fldname", modDate.EndSqlDate(dt), dt2, sType, True)
@@ -739,20 +739,10 @@ Public Function ShowSpecStockReport($con As Connection, sType As String, dt As D
       If bCollSalePast[res["col"] & "|" & res["fldstockid"]] Then
         salqty = bCollSalePast[res["col"] & "|" & res["fldstockid"]]
       Endif
-
-      rex = $con.Exec("select fldpatbilling from tblfisclosing where (fldstate=&1 or fldstate IS NULL)", "Active")
-      If rex.Available Then
-        For Each rex
-          If rex["fldpatbilling"] = "tblpatbilling" Then
-          Else
-            rss3 = $con.Exec("select SUM(flditemqty) as qty from " & rex["fldpatbilling"] & " where fldtime>&1 and fldtime<=&2 and flditemno=&3 and flditemno in(select fldstockno from tblentry where fldstockid=&4) and flditemtype=&5 and fldcomp in(" & sCompLst.Join(",") & ") and fldsave=&6" & RepoStr, modDate.EndSqlDate(dt), dt2, CInt(res["col"]), res["fldstockid"], sType, True)
-            If rss3.Available = True Then
-              If rss3["qty"] Then
-                salqty = salqty + rss3["qty"]
-              Endif
-            Endif
-          Endif
-        Next
+      If modHelpVariable.$pastDBService Then
+        If bCollSalePastre[res["col"] & "|" & res["fldstockid"]] Then
+          salqty = salqty + bCollSalePastre[res["col"] & "|" & res["fldstockid"]]
+        Endif
       Endif
 
       sentqty = 0
@@ -855,6 +845,7 @@ Public Function ShowTransectionReport($con As Connection, sType As String, dt1 A
   Dim rsx1 As Result
   Dim rsx2 As Result
   Dim rsx3 As Result
+  Dim rsx3re As Result
   Dim rsx4 As Result
   Dim rsx5 As Result
   Dim rsx6 As Result
@@ -879,6 +870,7 @@ Public Function ShowTransectionReport($con As Connection, sType As String, dt1 A
   Dim rs2 As Result
   Dim blk As Float
   Dim rs3 As Result
+  Dim rs3re As Result
   Dim sale As Float
   Dim disp As Float
   Dim rs4 As Result
@@ -921,6 +913,7 @@ Public Function ShowTransectionReport($con As Connection, sType As String, dt1 A
   Dim bCollRetnPast As Collection
   Dim bCollBulkPast As Collection
   Dim bCollSalePast As Collection
+  Dim bCollSalePastre As Collection
   Dim bCollSentPast As Collection
   Dim bCollRecvPast As Collection
   Dim bCollAdjusPast As Collection
@@ -929,6 +922,7 @@ Public Function ShowTransectionReport($con As Connection, sType As String, dt1 A
   Dim bCollRetnDura As Collection
   Dim bCollBulkhDura As Collection
   Dim bCollSalehDura As Collection
+  Dim bCollSalehDurare As Collection
   Dim bCollSenthDura As Collection
   Dim bCollRecvhDura As Collection
   Dim bCollAdjushDura As Collection
@@ -979,6 +973,13 @@ Public Function ShowTransectionReport($con As Connection, sType As String, dt1 A
   rsx3 = $con.Exec("select CONVERT(t1.flditemno,CHAR) as fldcode,t2.fldstockid as fldname,SUM(t1.flditemqty) as fldvalue from tblpatbilling AS t1 inner join tblentry AS t2 on t1.flditemno=t2.fldstockno where t1.fldtime>&1 and t1.fldtime<=&2 and t1.flditemtype=&3 and t1.fldcomp in(" & sCompLst.Join(",") & ") and t1.fldsave=&4" & modDataRepo.GetWhereStringRepo(sLocaType, sLocation, "t1") & " GROUP BY CONVERT(t1.flditemno,CHAR),fldname", modDate.EndSqlDate(dt2), dtx, sType, True)
   bCollSalePast = GetCollectionRecord(rsx3)
 
+  ''past db
+  bCollSalePastre = New Collection
+  If modHelpVariable.$pastDBService Then
+    rsx3re = modDatabase.$pastConn.Exec("select CONVERT(t1.flditemno,CHAR) as fldcode,t2.fldstockid as fldname,SUM(t1.flditemqty) as fldvalue from tblpatbilling AS t1 inner join tblentry AS t2 on t1.flditemno=t2.fldstockno where t1.fldtime>&1 and t1.fldtime<=&2 and t1.flditemtype=&3 and t1.fldcomp in(" & sCompLst.Join(",") & ") and t1.fldsave=&4" & modDataRepo.GetWhereStringRepo(sLocaType, sLocation, "t1") & " GROUP BY CONVERT(t1.flditemno,CHAR),fldname", modDate.EndSqlDate(dt2), dtx, sType, True)
+    bCollSalePastre = GetCollectionRecord(rsx3re)
+  Endif
+
   bCollSentPast = New Collection
   rsx4 = $con.Exec("select CONVERT(fldoldstockno,CHAR) as fldcode,fldstockid as fldname,SUM(fldqty) as fldvalue from tbltransfer where fldtoentrytime>&1 and fldtoentrytime<=&2 and fldcategory=&3 and fldtosav=&4 and fldfromcomp in(" & sCompLst.Join(",") & ")" & RepoStr & " GROUP BY CONVERT(fldoldstockno,CHAR),fldname", modDate.EndSqlDate(dt2), dtx, sType, True)
   bCollSentPast = GetCollectionRecord(rsx4)
@@ -1007,6 +1008,13 @@ Public Function ShowTransectionReport($con As Connection, sType As String, dt1 A
   bCollSalehDura = New Collection
   rs3 = $con.Exec("select CONVERT(t1.flditemno,CHAR) as fldcode,t2.fldstockid as fldname,SUM(t1.flditemqty) as fldcount,SUM(t1.fldditemamt) as fldamount from tblpatbilling AS t1 inner join tblentry AS t2 on t1.flditemno=t2.fldstockno where t1.fldtime>=&1 and t1.fldtime<=&2 and t1.flditemtype=&3 and t1.fldcomp in(" & sCompLst.Join(",") & ") and t1.fldsave=&4" & modDataRepo.GetWhereStringRepo(sLocaType, sLocation, "t1") & " GROUP BY CONVERT(t1.flditemno,CHAR),fldname", modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), sType, True)
   bCollSalehDura = GetCollectionDualRecord(rs3)
+
+  ''past db
+  bCollSalehDurare = New Collection
+  If modHelpVariable.$pastDBService Then
+    rs3re = modDatabase.$pastConn.Exec("select CONVERT(t1.flditemno,CHAR) as fldcode,t2.fldstockid as fldname,SUM(t1.flditemqty) as fldcount,SUM(t1.fldditemamt) as fldamount from tblpatbilling AS t1 inner join tblentry AS t2 on t1.flditemno=t2.fldstockno where t1.fldtime>=&1 and t1.fldtime<=&2 and t1.flditemtype=&3 and t1.fldcomp in(" & sCompLst.Join(",") & ") and t1.fldsave=&4" & modDataRepo.GetWhereStringRepo(sLocaType, sLocation, "t1") & " GROUP BY CONVERT(t1.flditemno,CHAR),fldname", modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), sType, True)
+    bCollSalehDurare = GetCollectionDualRecord(rs3re)
+  Endif
 
   bCollSenthDura = New Collection
   rs4 = $con.Exec("select CONVERT(fldoldstockno,CHAR) as fldcode,fldstockid as fldname,SUM(fldqty) as fldcount,SUM(fldqty*fldnetcost) as fldamount from tbltransfer where fldtoentrytime>=&1 and fldtoentrytime<=&2 and fldcategory=&3 and fldtosav=&4 and fldfromcomp in(" & sCompLst.Join(",") & ")" & RepoStr & " GROUP BY CONVERT(fldoldstockno,CHAR),fldname", modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), sType, True)
@@ -1064,20 +1072,10 @@ Public Function ShowTransectionReport($con As Connection, sType As String, dt1 A
       If bCollSalePast[res["col"] & "|" & res["fldstockid"]] Then
         salqx = bCollSalePast[res["col"] & "|" & res["fldstockid"]]
       Endif
-
-      rex = $con.Exec("select fldpatbilling from tblfisclosing where (fldstate=&1 or fldstate IS NULL)", "Active")
-      If rex.Available Then
-        For Each rex
-          If rex["fldpatbilling"] = "tblpatbilling" Then
-          Else
-            rxx3 = $con.Exec("select SUM(flditemqty) as qty from " & rex["fldpatbilling"] & " where fldtime>&1 and fldtime<=&2 and flditemno=&3 and flditemno in(select fldstockno from tblentry where fldstockid=&4) and flditemtype=&5 and fldcomp in(" & sCompLst.Join(",") & ") and fldsave=&6" & RepoStr, modDate.EndSqlDate(dt2), dtx, CInt(res["col"]), res["fldstockid"], sType, True)
-            If rxx3.Available = True Then
-              If rxx3["qty"] Then
-                salqx = salqx + rxx3["qty"]
-              Endif
-            Endif
-          Endif
-        Next
+      If modHelpVariable.$pastDBService Then
+        If bCollSalePastre[res["col"] & "|" & res["fldstockid"]] Then
+          salqx = salqx + bCollSalePastre[res["col"] & "|" & res["fldstockid"]]
+        Endif
       Endif
 
       If bCollSentPast[res["col"] & "|" & res["fldstockid"]] Then
@@ -1156,30 +1154,22 @@ Public Function ShowTransectionReport($con As Connection, sType As String, dt1 A
           Endif
         Endif
       Endif
-
-      rex = $con.Exec("select fldpatbilling from tblfisclosing where (fldstate=&1 or fldstate IS NULL)", "Active")
-      If rex.Available Then
-        For Each rex
-          If rex["fldpatbilling"] = "tblpatbilling" Then
+      If modHelpVariable.$pastDBService Then
+        If bCollSalehDurare[res["col"] & "|" & res["fldstockid"]] Then
+          If bCollSalehDurare[res["col"] & "|" & res["fldstockid"]][0] Then
+            salqty = salqty + bCollSalehDurare[res["col"] & "|" & res["fldstockid"]][0]
+          Endif
+          If sFormat = "Setting" Then
+            salamt = salamt + (salqty * xavrg)
+            If bCollSalehDurare[res["col"] & "|" & res["fldstockid"]][1] Then
+              dispamt = bCollSalehDurare[res["col"] & "|" & res["fldstockid"]][1]
+            Endif
           Else
-            rss3 = $con.Exec("select SUM(flditemqty) as qty,SUM(fldditemamt) as col from " & rex["fldpatbilling"] & " where fldtime>=&1 and fldtime<=&2 and flditemno=&3 and flditemno in(select fldstockno from tblentry where fldstockid=&4) and flditemtype=&5 and fldcomp in(" & sCompLst.Join(",") & ") and fldsave=&6" & RepoStr, modDate.StartSqlDate(dt1), modDate.EndSqlDate(dt2), CInt(res["col"]), res["fldstockid"], sType, True)
-            If rss3.Available = True Then
-              If rss3["qty"] Then
-                salqty = salqty + rss3["qty"]
-              Endif
-              If sFormat = "Setting" Then
-                salamt = salamt + (salqty * xavrg)
-                If rss3["col"] Then
-                  dispamt = dispamt + rss3["col"]
-                Endif
-              Else
-                If rss3["col"] Then
-                  salamt = salamt + rss3["col"]
-                Endif
-              Endif
+            If bCollSalehDurare[res["col"] & "|" & res["fldstockid"]][1] Then
+              salamt = salamt + bCollSalehDurare[res["col"] & "|" & res["fldstockid"]][1]
             Endif
           Endif
-        Next
+        Endif
       Endif
 
       sentqty = 0

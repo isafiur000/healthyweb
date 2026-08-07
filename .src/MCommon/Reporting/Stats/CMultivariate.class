@@ -1,0 +1,68 @@
+' Gambas class file
+
+Private $sFormat As String
+Private $sHeaders As String[]
+
+Private $ReportPath As String
+Private ReportFile As File
+Private $sDataVar As Variant[]
+
+Public Sub _new(sFormat As String)
+
+  $sFormat = sFormat
+
+  If $sFormat = "CSV" Then
+    $ReportPath = Temp() & ".csv"
+    ReportFile = Open $ReportPath For Write Create
+  Else If $sFormat = "NDJSON" Then
+    $ReportPath = Temp() & ".ndjson"
+    ReportFile = Open $ReportPath For Write Create
+  Else
+    $sDataVar = New Variant[]
+    $ReportPath = Temp() & ".json"
+  Endif
+
+End
+
+Public Sub WriteHeaders(sHeader As String[])
+
+  $sHeaders = sHeader
+
+End
+
+Public Sub Add(sArry As String[])
+
+  Dim i As Integer
+  Dim sColl As Collection
+
+  If $sFormat = "CSV" Then
+    Write #ReportFile, sArry.Join(gb.Tab) & gb.NewLine
+  Else If $sFormat = "NDJSON" Then
+    sColl = New Collection
+    For i = 0 To $sHeaders.Count - 1
+      sColl.Add(sArry[i], $sHeaders[i])
+    Next
+    Write #ReportFile, JSON.Encode(sColl) & gb.NewLine
+  Else
+    sColl = New Collection
+    For i = 0 To $sHeaders.Count - 1
+      sColl.Add(sArry[i], $sHeaders[i])
+    Next
+    $sDataVar.Add(sColl)
+  Endif
+
+End
+
+Public Function GetCSVFile() As String
+
+  If $sFormat = "CSV" Then
+    Close #ReportFile
+  Else If $sFormat = "NDJSON" Then
+    Close #ReportFile
+  Else
+    File.Save($ReportPath, JSON.Encode($sDataVar))
+  Endif
+
+  Return $ReportPath
+
+End

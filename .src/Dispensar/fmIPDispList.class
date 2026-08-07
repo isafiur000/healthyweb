@@ -391,10 +391,10 @@ Private Function ExecuteQuery(encid As String) As Result
     xrestr = ""
   Endif
 
-  If cmbdepart.Text Then
-    xsql = db.Subst(" and fldencounterval in(select fldencounterval from tblencounter where fldcurrlocat in(select fldbed from tbldepartmentbed where flddept like &1))", cmbdepart.Text)
-  Else
+  If cmbdepart.Text = "%" Then
     xsql = ""
+  Else
+    xsql = db.Subst(" and fldencounterval in(select fldencounterval from tblencounter where fldcurrlocat in(select fldbed from tbldepartmentbed where flddept like &1))", cmbdepart.Text)
   Endif
   res = modDatabase.$myConn.Exec("select fldid,fldtime_order,fldroute,flditem,fldqtydisp,flddose,fldfreq,flddays,fldlabel,flddirection,fldcomp_order,fldencounterval,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit,flditemno from tblpatdosing where fldencounterval=&1 and fldlevel=&2 and flditemtype like &3 and fldcurval=&4 and fldqtydisp>&5 and fldstatus=&6 and fldsave_order=&7" & xrestr & xsql, encid, "Requested", "%", "Continue", 0, "Admitted", False)
 
@@ -634,7 +634,7 @@ Public Sub mnusaveout_Click()
   If GridView2.Selection.Count Then
     If Message.Question(("Bring from OUTSIDE. Are you sure ?"), ("No"), ("Yes")) = 2 Then
       $rData2.MoveTo(GridView2.Selection[0])
-      modPharmSub.UpdateDispensing($rData2["fldid"], True)
+      modPharmSub.UpdateSendOut($rData2["fldid"])
       FillDispenstable($encid)
     Endif
   Endif
@@ -1026,9 +1026,9 @@ Public Sub btnlist_Click()
   Dim hForm As FRequest
 
   If chkalldate.Value = True Then
-    res = modDatabase.$myConn.Exec("select fldid,fldstarttime,fldroute,flditem,flddose,fldfreq,flddays,fldqtydisp,flduserid,fldtime from tblpatoutdosing where fldencounterval=&1", $encid)
+    res = modDatabase.$myConn.Exec("select fldid,fldstarttime,fldroute,flditem,flddose,fldfreq,flddays,fldqtydisp,flduserid,fldtime from tblpatdosing where tblpatdosing=&1 and flddispmode=&2 and fldlevel=&3", $encid, "Sent Out", "Dispensed")
   Else
-    res = modDatabase.$myConn.Exec("select fldid,fldstarttime,fldroute,flditem,flddose,fldfreq,flddays,fldqtydisp,flduserid,fldtime from tblpatoutdosing where fldencounterval=&1 and fldtime>=&2 and fldtime<=&3", $encid, modDate.StartSqlDate(dtdisp.Value), modDate.EndSqlDate(dtdisp.Value))
+    res = modDatabase.$myConn.Exec("select fldid,fldstarttime,fldroute,flditem,flddose,fldfreq,flddays,fldqtydisp,flduserid,fldtime from tblpatdosing where fldencounterval=&1 and flddispmode=&2 and fldlevel=&3 and fldtime>=&4 and fldtime<=&5", $encid, "Sent Out", "Dispensed", modDate.StartSqlDate(dtdisp.Value), modDate.EndSqlDate(dtdisp.Value))
   Endif
   If res.Available Then
     hForm = New FRequest(res, "Unavailable Medicines", "Pharmacy:Unavailable", True)
@@ -1160,9 +1160,9 @@ End
 Private Sub ShowDispensedToday(encid As String)
 
   If chkalldate.Value = True Then
-    $rData3 = modDatabase.$myConn.Exec("select fldid,fldtime,fldroute,flditem,fldqtydisp,flddose,fldfreq,flddays,fldlabel,flddirection,fldcomp,fldencounterval,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit from tblpatdosing where fldencounterval=&1 and fldlevel=&2 and flditemtype like &3 and fldcurval=&4 and fldqtydisp>&5 and fldstatus=&6 and fldsave_order=&7", encid, "Dispensed", "%", "Continue", 0, "Admitted", True)                     ''
+    $rData3 = modDatabase.$myConn.Exec("select fldid,fldtime,fldroute,flditem,fldqtydisp,flddose,fldfreq,flddays,fldlabel,flddirection,fldcomp,fldencounterval,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit,flddispmode from tblpatdosing where fldencounterval=&1 and fldlevel=&2 and flditemtype like &3 and fldcurval=&4 and fldqtydisp>&5 and fldstatus=&6 and fldsave_order=&7", encid, "Dispensed", "%", "Continue", 0, "Admitted", True)                     ''
   Else
-    $rData3 = modDatabase.$myConn.Exec("select fldid,fldtime,fldroute,flditem,fldqtydisp,flddose,fldfreq,flddays,fldlabel,flddirection,fldcomp,fldencounterval,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit from tblpatdosing where fldencounterval=&1 and fldlevel=&2 and flditemtype like &3 and fldcurval=&4 and fldqtydisp>&5 and fldstatus=&6 and fldsave_order=&7 and fldtime>=&8 and fldtime<=&9", encid, "Dispensed", "%", "Continue", 0, "Admitted", True, modDate.StartSqlDate(dtdisp.Value), modDate.EndSqlDate(dtdisp.Value))                     ''
+    $rData3 = modDatabase.$myConn.Exec("select fldid,fldtime,fldroute,flditem,fldqtydisp,flddose,fldfreq,flddays,fldlabel,flddirection,fldcomp,fldencounterval,flditemtype,fldfixname,fldfixrate,fldtaxper,flddiscper,fldbillingmode,flddisctype,fldacledger,fldbilltype,fldcashincredit,flddispmode from tblpatdosing where fldencounterval=&1 and fldlevel=&2 and flditemtype like &3 and fldcurval=&4 and fldqtydisp>&5 and fldstatus=&6 and fldsave_order=&7 and fldtime>=&8 and fldtime<=&9", encid, "Dispensed", "%", "Continue", 0, "Admitted", True, modDate.StartSqlDate(dtdisp.Value), modDate.EndSqlDate(dtdisp.Value))                     ''
   Endif
   $aMyFields3 = New String[]
   modGridView.ReadSmallData(GridView3, $rData3, $aMyFields3)
@@ -1198,6 +1198,7 @@ Private Sub ShowDispensedToday(encid As String)
     .Columns[19].Hidden = True
     .Columns[20].Hidden = True
     .Columns[21].Hidden = True
+    .Columns[22].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
 
     .Columns[1].Text = "DateTime"
     .Columns[2].Text = "Route"
@@ -1211,6 +1212,7 @@ Private Sub ShowDispensedToday(encid As String)
     .Columns[9].Text = "Direction"
     .Columns[10].Text = "Location"
     .Columns[18].Text = "Scheme"
+    .Columns[22].Text = "Mode"
   End With
 
 End

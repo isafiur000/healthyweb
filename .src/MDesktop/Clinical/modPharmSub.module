@@ -376,6 +376,43 @@ End
 ''Not used in web app
 
 ''---------------- Procedures ---------------
+Public Sub UpdateSendOut(xid As Long)
+
+  Dim res As Result
+  Dim xdate As Date
+
+  res = modDatabase.$myConn.Edit("tblpatdosing", "fldid=&1 and fldsave_order=&2 and fldcurval=&3", xid, False, "Continue")
+  If res.Available Then
+    res["fldsave_order"] = True
+    res["flduserid"] = modBasic.$lbluser
+    res["fldtime"] = Now()
+    res["fldcomp"] = modBasic.$compID
+
+    If res["fldstatus"] = "Admitted" And If modBasic.$ClinDoseStartTime Then
+      If res["flddose"] And If Not res["flddays"] Then
+        xdate = DateAdd(res["fldstarttime"], gb.Day, 1)
+        res["fldendtime"] = Date(Year(xdate), Month(xdate), Day(xdate), Hour(modBasic.$ClinDoseStartTime), Minute(modBasic.$ClinDoseStartTime), Second(modBasic.$ClinDoseStartTime))
+      Else
+        xdate = DateAdd(res["fldstarttime"], gb.Day, CInt(res["flddays"]))
+        res["fldendtime"] = Date(Year(xdate), Month(xdate), Day(xdate), Hour(modBasic.$ClinDoseStartTime), Minute(modBasic.$ClinDoseStartTime), Second(modBasic.$ClinDoseStartTime))
+      Endif
+    Else
+      If res["flddose"] And If Not res["flddays"] Then
+        res["fldendtime"] = DateAdd(res["fldstarttime"], gb.Day, 1)
+      Else
+        res["fldendtime"] = DateAdd(res["fldstarttime"], gb.Day, CInt(res["flddays"]))
+      Endif
+    Endif
+
+    res["flddispmode"] = "Sent Out"
+    res["fldlevel"] = "Dispensed"
+    res["xyz"] = False
+    res.Update()
+  Endif
+  'don't catch error
+
+End
+
 Public Sub UpdateDispensing(xid As Long, dispensed As Boolean, Optional StatDose As Boolean)
 
   Dim res As Result

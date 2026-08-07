@@ -60,9 +60,11 @@ Public Sub _new(FormName As String, sHeader As String[], HideColumns As Integer[
   If modBasic.$ReportingPopUp = "CSV" Then
     $ReportPath = Temp() & ".csv"
     ReportFile = Open $ReportPath For Write Create
-    ' Write #ReportFile, ";" & param1 & gb.NewLine
-    ' Write #ReportFile, ";" & param2 & gb.NewLine
     Write #ReportFile, hdr.Join(";") & gb.NewLine
+  Else If modBasic.$ReportingPopUp = "NDJSON" Then
+    $HeadList = hdr
+    $ReportPath = Temp() & ".ndjson"
+    ReportFile = Open $ReportPath For Write Create
   Else If modBasic.$ReportingPopUp = "JSON" Then
     $datVar = New Variant[]
     $HeadList = hdr
@@ -165,6 +167,12 @@ Public Sub Add(Row As Integer, xColl As Collection)
     End With
     If modBasic.$ReportingPopUp = "CSV" Then
       Write #ReportFile, asx.Join(";") & gb.NewLine
+    Else If modBasic.$ReportingPopUp = "NDJSON" Then
+      sColl = New Collection
+      For hColm = 0 To $HeadList.Count - 1
+        sColl.Add(asx[hColm], $HeadList[hColm])
+      Next
+      Write #ReportFile, JSON.Encode(sColl) & gb.NewLine
     Else If modBasic.$ReportingPopUp = "JSON" Then
       sColl = New Collection
       For hColm = 0 To $HeadList.Count - 1
@@ -216,6 +224,12 @@ Public Sub Add(Row As Integer, xColl As Collection)
     End With
     If modBasic.$ReportingPopUp = "CSV" Then
       Write #ReportFile, asx.Join(";") & gb.NewLine
+    Else If modBasic.$ReportingPopUp = "NDJSON" Then
+      sColl = New Collection
+      For hColm = 0 To $HeadList.Count - 1
+        sColl.Add(asx[hColm], $HeadList[hColm])
+      Next
+      Write #ReportFile, JSON.Encode(sColl) & gb.NewLine
     Else If modBasic.$ReportingPopUp = "JSON" Then
       sColl = New Collection
       For hColm = 0 To $HeadList.Count - 1
@@ -238,6 +252,13 @@ Private Function NewCSVFile() As String
 
 End
 
+Private Function NewNDJsonPath() As String
+
+  Close #ReportFile
+  Return $ReportPath
+
+End
+
 Private Function NewJsonPath() As String
 
   File.Save($ReportPath, JSON.Encode($datVar))
@@ -253,6 +274,8 @@ Public Function HTMLPath() As String
 
   If modBasic.$ReportingPopUp = "CSV" Then
     sPath = NewCSVFile()
+  Else If modBasic.$ReportingPopUp = "NDJSON" Then
+    sPath = NewNDJsonPath()
   Else If modBasic.$ReportingPopUp = "JSON" Then
     sPath = NewJsonPath()
   Else
