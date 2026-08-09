@@ -15,6 +15,48 @@ Public Function GetMLModelsList() As String[]
 
 End
 
+Public Function GetModelValueArguments(xModel As String, xArgs As String[], Optional sFile As String) As String
+
+  Dim i As Integer
+  Dim j As Integer
+  Dim xurl As String
+  Dim xcmd As String
+
+  Dim aData As String[]
+  Dim xval As String
+
+  For i = 1 To 20
+    If modSettings.ShowModelsSettingFromFIle("Model" & CStr(i) & "/" & "Name") = xModel Then
+      xurl = modSettings.ShowModelsSettingFromFIle("Model" & CStr(i) & "/" & "URL")
+      Break
+    Endif
+  Next
+
+  aData = New String[]
+  aData.Add("--form 'model=" & Quote(xModel) & "'")
+
+  For j = 0 To xArgs.Count - 1
+    If IsNumber(xArgs[j]) Then
+      aData.Add("--form 'numargs" & CStr(j + 1) & "=" & Quote(xArgs[j]) & "'")
+    Else
+      aData.Add("--form 'strargs" & CStr(j + 1) & "=" & Quote(xArgs[j]) & "'")
+    Endif
+  Next
+
+  If sFile Then
+    aData.Add("--form 'files=@" & Quote(sFile) & "'")
+  Endif
+
+  If xurl Then
+    xcmd = "curl --no-buffer --location " & xurl & "?upload" & Space(1) & aData.Join(Space(1))
+    modBasic.DebugAPIString(xcmd)
+    Shell xcmd To xval
+  Endif
+
+  Return xval
+
+End
+
 Public Function GetModelValue(encid As String, xModel As String) As String
 
   Dim i As Integer
