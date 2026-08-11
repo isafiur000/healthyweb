@@ -2056,3 +2056,37 @@ Public Function GetDepartmentExMedItem(sBrand As String, sTable As String) As St
   Return xdeprt
 
 End
+
+Public Function GetReturnReferences(xsuppId As String, srefNo As String) As String[]
+
+  Dim xxx As String[]
+  Dim res As Result
+
+  xxx = New String[]
+  res = modDatabase.$myConn.Exec("select distinct(fldnewreference) as fldnewreference from tblstockreturn where fldsuppname=&1 and fldreference=&2", xsuppId, srefNo)
+  If res.Available Then
+    For Each res
+      If res["fldnewreference"] Then
+        xxx.Add(res["fldnewreference"])
+      Endif
+    Next
+  Endif
+  Return xxx
+
+End
+
+Public Function GetReturnReferencesByStockNo(xsuppId As String, srefNo As String, xStockNo As Long) As Collection
+
+  Dim xxx As Collection
+  Dim res As Result
+
+  xxx = New Collection
+  res = modDatabase.$myConn.Exec("select fldnewreference,SUM(fldqty) as fldqty from tblstockreturn where fldsuppname=&1 and fldreference=&2 and fldstockno=&3 GROUP BY fldnewreference", xsuppId, srefNo, xStockNo)
+  If res.Available Then
+    For Each res
+      xxx.Add(res["fldqty"], res["fldnewreference"])
+    Next
+  Endif
+  Return xxx
+
+End

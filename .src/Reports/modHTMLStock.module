@@ -3,14 +3,16 @@
 ' Private $ProgressBar1 As ProgressBar
 
 ''---------------------------------------- STOCK RELATED --------------------------------------------------------------
-Public Function GetSupplierSummaryAmount(dtfir As Date, dtlast As Date, aCompLst As String[]) As String
+Public Function GetSupplierSummaryAmount(suppname As String, dtfir As Date, dtlast As Date, aCompLst As String[], aDate As String) As String
 
   Dim $BillingReport As CReportHTML
   Dim asx As New String[0]
   Dim res As Result
-  Dim rex As Result
   Dim sCompLst As String[]
   Dim j As Integer
+  Dim suppList As String[]
+  Dim xsuppl As String
+  Dim xretLst As String[]
 
   Dim xsub As Float
   Dim xtot As Float
@@ -20,34 +22,58 @@ Public Function GetSupplierSummaryAmount(dtfir As Date, dtlast As Date, aCompLst
 
   sCompLst = aCompLst.Copy()
   RepoStr = modDataRepo.GetRepoLastStr()
-  $BillingReport = New CReportHTML([("SNo"), ("Date"), ("Pur Order"), ("Invoice"), ("Reference"), ("Amount")], "", "")
+  $BillingReport = New CReportHTML([("SNo"), ("Date"), ("Order"), ("Reference"), ("Invoice"), ("Amount"), ("Returns")], "", "")
   $BillingReport.UserData.Add("PURCHASE SUMMARY : " & sCompLst.Join(", "), "PARAM1")
-  $BillingReport.UserData.Add("DATE: " & modReportVar.GetDateTimeReport(dtfir, gb.MediumDate) & " TO " & modReportVar.GetDateTimeReport(dtlast, gb.MediumDate), "PARAM2")
+  $BillingReport.UserData.Add(aDate & ": " & modReportVar.GetDateTimeReport(dtfir, gb.MediumDate) & " TO " & modReportVar.GetDateTimeReport(dtlast, gb.MediumDate), "PARAM2")
 
   For j = 0 To sCompLst.Count - 1
     sCompLst[j] = "'" & sCompLst[j] & "'"
   Next
   xstr = " and fldcomp in(" & sCompLst.Join(",") & ")"
 
+  If suppname = "%" Then
+    If aDate = "Entry Date" Then
+      suppList = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec("select distinct(fldsuppname) as fldsuppname from tblpurchasebill where fldtime>=&1 and fldtime<=&2 and fldcategory=&3" & xstr & RepoStr & " ORDER BY fldsuppname", modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast), "PurEntry"))
+    Else If aDate = "Invoice Date" Then
+      suppList = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec("select distinct(fldsuppname) as fldsuppname from tblpurchasebill where fldpurdate>=&1 and fldpurdate<=&2 and fldcategory=&3" & xstr & RepoStr & " ORDER BY fldsuppname", modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast), "PurEntry"))
+    Endif
+  Else
+    suppList = [suppname]
+  Endif
+
   xtot = 0
-  rex = modDatabase.$syConn.Exec("select distinct(fldsuppname) as fldsuppname from tblpurchasebill where fldpurdate>=&1 and fldpurdate<=&2 and fldcategory=&3" & xstr & RepoStr & " ORDER BY fldsuppname", modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast), "PurEntry")
-  If rex.Available Then
-    For Each rex
-      $BillingReport.AddChapter(rex["fldsuppname"])
+  If suppList.Count Then
+    For Each xsuppl In suppList
 
       i = 1
       xsub = 0
-      res = modDatabase.$syConn.Exec("select fldpurdate,fldsuppname,fldpurorder,fldbillno,fldreference,fldcredit from tblpurchasebill where fldpurdate>=&1 and fldpurdate<=&2 and fldcategory=&3" & xstr & " and fldsuppname=&4" & RepoStr, modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast), "PurEntry", rex["fldsuppname"])
+      If aDate = "Entry Date" Then
+        res = modDatabase.$syConn.Exec("select fldtime,fldsuppname,fldpurorder,fldbillno,fldreference,fldcredit from tblpurchasebill where fldtime>=&1 and fldtime<=&2 and fldcategory=&3" & xstr & " and fldsuppname=&4" & RepoStr, modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast), "PurEntry", xsuppl)
+      Else If aDate = "Invoice Date" Then
+        res = modDatabase.$syConn.Exec("select fldpurdate,fldsuppname,fldpurorder,fldbillno,fldreference,fldcredit from tblpurchasebill where fldpurdate>=&1 and fldpurdate<=&2 and fldcategory=&3" & xstr & " and fldsuppname=&4" & RepoStr, modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast), "PurEntry", xsuppl)
+      Endif
       If res.Available Then
+        $BillingReport.AddChapter(xsuppl)
         For Each res
+          xretLst = New String[]
+          xretLst = modStock.GetReturnReferences(xsuppl, res["fldreference"])
           xsub = xsub + res["fldcredit"]
           With asx
             .Add(CStr(i))
-            .Add(modReportVar.GetDateTimeReport(res["fldpurdate"], gb.MediumDate))
+            If aDate = "Entry Date" Then
+              .Add(modReportVar.GetDateTimeReport(res["fldtime"], gb.MediumDate))
+            Else If aDate = "Invoice Date" Then
+              .Add(modReportVar.GetDateTimeReport(res["fldpurdate"], gb.MediumDate))
+            Endif
             .Add(res["fldpurorder"])
-            .Add(res["fldbillno"])
             .Add(res["fldreference"])
+            .Add(res["fldbillno"])
             .Add(modReportVar.GetLocaleNumberFormat(res["fldcredit"], gb.Currency))
+            If xretLst.Count Then
+              .Add(xretLst.Join(gb.NewLine))
+            Else
+              .Add("")
+            Endif
           End With
           $BillingReport.Add(asx)
           asx.Clear()
@@ -63,10 +89,12 @@ Public Function GetSupplierSummaryAmount(dtfir As Date, dtlast As Date, aCompLst
           .Add("")
           .Add("")
           .Add(modReportVar.GetLocaleNumberFormat(xsub, gb.Currency))
+          .Add("")
         End With
         $BillingReport.Add(asx)
         asx.Clear()
         With asx
+          .Add("")
           .Add("")
           .Add("")
           .Add("")
@@ -87,6 +115,7 @@ Public Function GetSupplierSummaryAmount(dtfir As Date, dtlast As Date, aCompLst
     .Add("")
     .Add("")
     .Add(modReportVar.GetLocaleNumberFormat(xtot, gb.Currency))
+    .Add("")
   End With
   $BillingReport.Add(asx)
   asx.Clear()
@@ -95,13 +124,16 @@ Public Function GetSupplierSummaryAmount(dtfir As Date, dtlast As Date, aCompLst
 
 End
 
-Public Function ShowSupplierInnvoices(suppname As String, dtfir As Date, dtlast As Date, aCompLst As String[]) As String
+Public Function ShowSupplierInnvoices(suppname As String, dtfir As Date, dtlast As Date, aCompLst As String[], aDate As String) As String
 
   Dim $BillingReport As CReportHTML
   Dim res As Result
   Dim asx As New String[0]
   Dim sCompLst As String[]
   Dim i As Integer
+  Dim suppList As String[]
+  Dim xsuppl As String
+  Dim xretLst As String[]
 
   Dim debit As Float
   Dim credit As Float
@@ -114,58 +146,109 @@ Public Function ShowSupplierInnvoices(suppname As String, dtfir As Date, dtlast 
 
   sCompLst = aCompLst.Copy()
   RepoStr = modDataRepo.GetRepoLastStr()
-  $BillingReport = New CReportHTML([("Date"), ("Reference"), ("Invoice"), ("Mode"), ("Purchase"), ("Paid Cash"), ("Paid Later"), ("Pending"), ("Credit Notes")], "", "")
-  $BillingReport.UserData.Add("PURCHASE INVOICES : " & suppname & " Depart: " & sCompLst.Join(", "), "PARAM1")
-  $BillingReport.UserData.Add("DATE: " & modReportVar.GetDateTimeReport(dtfir, gb.MediumDate) & " TO " & modReportVar.GetDateTimeReport(dtlast, gb.MediumDate), "PARAM2")
+  $BillingReport = New CReportHTML([("Date"), ("Reference"), ("Invoice"), ("Mode"), ("Purchase"), ("Paid Cash"), ("Paid Later"), ("Pending"), ("Returns"), ("Credit Notes")], "", "")
+  $BillingReport.UserData.Add("PURCHASE INVOICES : " & sCompLst.Join(", "), "PARAM1")
+  $BillingReport.UserData.Add(aDate & ": " & modReportVar.GetDateTimeReport(dtfir, gb.MediumDate) & " TO " & modReportVar.GetDateTimeReport(dtlast, gb.MediumDate), "PARAM2")
 
   For i = 0 To sCompLst.Count - 1
     sCompLst[i] = "'" & sCompLst[i] & "'"
   Next
   xstr = " and fldcomp in(" & sCompLst.Join(",") & ")"
 
-  res = modDatabase.$syConn.Exec("select fldpurdate,fldbillno,fldpurtype,fldtotaltax,fldlastdisc,flddebit,fldcredit,fldreference from tblpurchasebill where fldsuppname like &1 and fldcategory=&2 and fldpurdate>=&3 and fldpurdate<=&4" & xstr & RepoStr, suppname, "PurEntry", modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast))                                                   ''
+  If suppname = "%" Then
+    If aDate = "Entry Date" Then
+      suppList = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec("select distinct(fldsuppname) as fldsuppname from tblpurchasebill where fldtime>=&1 and fldtime<=&2 and fldcategory=&3" & xstr & RepoStr & " ORDER BY fldsuppname", modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast), "PurEntry"))
+    Else If aDate = "Invoice Date" Then
+      suppList = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec("select distinct(fldsuppname) as fldsuppname from tblpurchasebill where fldpurdate>=&1 and fldpurdate<=&2 and fldcategory=&3" & xstr & RepoStr & " ORDER BY fldsuppname", modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast), "PurEntry"))
+    Endif
+  Else
+    suppList = [suppname]
+  Endif
+
   debit = 0
   credit = 0
   paidlater = 0
   crdtnote = 0
+  If suppList.Count Then
+    For Each xsuppl In suppList
+      If aDate = "Entry Date" Then
+        res = modDatabase.$syConn.Exec("select fldtime,fldbillno,fldpurtype,fldtotaltax,fldlastdisc,flddebit,fldcredit,fldreference from tblpurchasebill where fldsuppname=&1 and fldcategory=&2 and fldtime>=&3 and fldtime<=&4" & xstr & RepoStr, xsuppl, "PurEntry", modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast))
+      Else If aDate = "Invoice Date" Then
+        res = modDatabase.$syConn.Exec("select fldpurdate,fldbillno,fldpurtype,fldtotaltax,fldlastdisc,flddebit,fldcredit,fldreference from tblpurchasebill where fldsuppname=&1 and fldcategory=&2 and fldpurdate>=&3 and fldpurdate<=&4" & xstr & RepoStr, xsuppl, "PurEntry", modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast))
+      Endif
+      If res.Available Then
+        $BillingReport.AddChapter(xsuppl)
 
-  For Each res
-    xpaid = 0
-    crpay = 0
-    If suppname = "%" Then
-    Else
-      xpaid = modSupplier.GetSuppPaymentByRef(suppname, res["fldreference"])
-      crpay = modSupplier.GetSuppCrdNoteByRef(suppname, res["fldreference"])
-    Endif
+        For Each res
+          xpaid = 0
+          crpay = 0
+          xretLst = New String[]
+          xpaid = modSupplier.GetSuppPaymentByRef(xsuppl, res["fldreference"])
+          crpay = modSupplier.GetSuppCrdNoteByRef(xsuppl, res["fldreference"])
+          xretLst = modStock.GetReturnReferences(xsuppl, res["fldreference"])
 
-    debit = debit + res["flddebit"]
-    credit = credit + res["fldcredit"]
-    paidlater = paidlater + xpaid
-    crdtnote = crdtnote + crpay
-    With asx
-      .Add(modReportVar.GetDateTimeReport(res["fldpurdate"], gb.MediumDate))
-      .Add(res["fldreference"])
-      .Add(res["fldbillno"])
-      .Add(res["fldpurtype"])
-      .Add(modReportVar.GetLocaleNumberFormat(res["fldcredit"], gb.Currency))
-      .Add(modReportVar.GetLocaleNumberFormat(res["flddebit"], gb.Currency))
-      .Add(modReportVar.GetLocaleNumberFormat(xpaid, gb.Currency))
-      .Add(modReportVar.GetLocaleNumberFormat(res["fldcredit"] - (res["flddebit"] + xpaid), gb.Currency))
-      .Add(modReportVar.GetLocaleNumberFormat(crpay, gb.Currency))
-    End With
-    $BillingReport.Add(asx)
-    asx.Clear()
-  Next
+          debit = debit + res["flddebit"]
+          credit = credit + res["fldcredit"]
+          paidlater = paidlater + xpaid
+          crdtnote = crdtnote + crpay
+          With asx
+            If aDate = "Entry Date" Then
+              .Add(modReportVar.GetDateTimeReport(res["fldtime"], gb.MediumDate))
+            Else If aDate = "Invoice Date" Then
+              .Add(modReportVar.GetDateTimeReport(res["fldpurdate"], gb.MediumDate))
+            Endif
+            .Add(res["fldreference"])
+            .Add(res["fldbillno"])
+            If res["fldpurtype"] = "Cash Payment" Then
+              .Add("Cash")
+            Else If res["fldpurtype"] = "Credit Payment" Then
+              .Add("Credit")
+            Else
+              .Add("")
+            Endif
+            .Add(modReportVar.GetLocaleNumberFormat(res["fldcredit"], gb.Currency))
+            .Add(modReportVar.GetLocaleNumberFormat(res["flddebit"], gb.Currency))
+            .Add(modReportVar.GetLocaleNumberFormat(xpaid, gb.Currency))
+            .Add(modReportVar.GetLocaleNumberFormat(res["fldcredit"] - (res["flddebit"] + xpaid), gb.Currency))
+            If xretLst.Count Then
+              .Add(xretLst.Join(gb.NewLine))
+            Else
+              .Add("")
+            Endif
+            .Add(modReportVar.GetLocaleNumberFormat(crpay, gb.Currency))
+          End With
+          $BillingReport.Add(asx)
+          asx.Clear()
+        Next
+
+        With asx
+          .Add("")
+          .Add("")
+          .Add("")
+          .Add("")
+          .Add("")
+          .Add("")
+          .Add("")
+          .Add("")
+          .Add("")
+          .Add("")
+        End With
+        $BillingReport.Add(asx)
+        asx.Clear()
+      Endif
+    Next
+  Endif
 
   With asx
-    .Add("..")
-    .Add("..")
-    .Add("..")
-    .Add("..")
+    .Add("")
+    .Add("")
+    .Add("")
+    .Add("")
     .Add(modReportVar.GetLocaleNumberFormat(credit, gb.Currency))
     .Add(modReportVar.GetLocaleNumberFormat(debit, gb.Currency))
     .Add(modReportVar.GetLocaleNumberFormat(paidlater, gb.Currency))
     .Add(modReportVar.GetLocaleNumberFormat(credit - (debit + paidlater), gb.Currency))
+    .Add("")
     .Add(modReportVar.GetLocaleNumberFormat(crdtnote, gb.Currency))
   End With
   $BillingReport.Add(asx)
@@ -175,17 +258,26 @@ Public Function ShowSupplierInnvoices(suppname As String, dtfir As Date, dtlast 
 
 End
 
-Public Function ShowSupplierItemList(suppname As String, dtfir As Date, dtlast As Date, aCompLst As String[]) As String
+Public Function ShowSupplierItemList(suppname As String, dtfir As Date, dtlast As Date, aCompLst As String[], aDate As String) As String
 
   Dim $BillingReport As CReportHTML
+  Dim rsx As Result
   Dim res As Result
   Dim asx As New String[0]
   Dim sCompLst As String[]
   Dim i As Integer
+  Dim suppList As String[]
+  Dim xsuppl As String
+  Dim xColl As Collection
+  Dim xcnt As Integer
+  Dim xkey As String
 
   Dim xtot As Float
   Dim xstr As String
   Dim RepoStr As String
+  Dim Row As Integer
+  Dim xitem As Float
+  Dim xtax As Float
 
   RepoStr = modDataRepo.GetRepoLastStr()
   ' If MMain.$IsGUIApp = True Then
@@ -194,73 +286,195 @@ Public Function ShowSupplierItemList(suppname As String, dtfir As Date, dtlast A
   ' Endif
 
   sCompLst = aCompLst.Copy()
-  $BillingReport = New CReportHTML([("Date"), ("Category"), ("Particulars"), ("Pack"), ("Batch/Expiry"), ("MRP"), ("Rate"), ("NetCost"), ("QTY"), ("Total"), ("Payment"), ("Invoice")], "", "")
-  $BillingReport.UserData.Add("PURCHASE ITEMS : " & suppname & " Depart: " & sCompLst.Join(", "), "PARAM1")
-  $BillingReport.UserData.Add("DATE: " & modReportVar.GetDateTimeReport(dtfir, gb.MediumDate) & " TO " & modReportVar.GetDateTimeReport(dtlast, gb.MediumDate), "PARAM2")
+  $BillingReport = New CReportHTML([("Date"), ("Reference"), ("Invoice"), ("Category"), ("Particulars"), ("Pack"), ("Batch/Expiry"), ("MRP"), ("Rate"), ("Net"), ("QTY"), ("Total"), ("Payment"), ("Returns"), ("Ret-QTY")], "", "")
+  $BillingReport.UserData.Add("PURCHASE ITEMS : " & sCompLst.Join(", "), "PARAM1")
+  $BillingReport.UserData.Add(aDate & ": " & modReportVar.GetDateTimeReport(dtfir, gb.MediumDate) & " TO " & modReportVar.GetDateTimeReport(dtlast, gb.MediumDate), "PARAM2")
 
   For i = 0 To sCompLst.Count - 1
     sCompLst[i] = "'" & sCompLst[i] & "'"
   Next
   xstr = " and fldcomp in(" & sCompLst.Join(",") & ")"
 
+  If suppname = "%" Then
+    If aDate = "Entry Date" Then
+      suppList = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec("select distinct(fldsuppname) as fldsuppname from tblpurchasebill where fldtime>=&1 and fldtime<=&2 and fldcategory=&3" & xstr & RepoStr & " ORDER BY fldsuppname", modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast), "PurEntry"))
+    Else If aDate = "Invoice Date" Then
+      suppList = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec("select distinct(fldsuppname) as fldsuppname from tblpurchasebill where fldpurdate>=&1 and fldpurdate<=&2 and fldcategory=&3" & xstr & RepoStr & " ORDER BY fldsuppname", modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast), "PurEntry"))
+    Endif
+  Else
+    suppList = [suppname]
+  Endif
+
   xtot = 0
-  res = modDatabase.$syConn.Exec("select fldtime,fldcategory,fldstockid,fldstockno,fldtotalqty,fldmrp,flsuppcost,fldnetcost,fldtotalcost,fldpurtype,fldbillno from tblpurchase where fldsuppname like &1 and fldpurdate>=&2 and fldpurdate<=&3 and fldsav=&4" & xstr & RepoStr & " ORDER BY fldtime ASC", suppname, modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast), False)                                                                                        ''
-  For Each res
-    xtot = xtot + res["fldtotalcost"]
-    With asx
-      .Add(modReportVar.GetDateTimeReport(res["fldtime"], gb.MediumDate))
-      .Add(res["fldcategory"])
-      .Add(res["fldstockid"])
-      If res["fldcategory"] = "Medicines" Then
-        .Add(modMedConstant.GetPackVolString(res["fldstockid"]))
-      Else
-        .Add("")
+  If suppList.Count Then
+    Row = 0
+    For Each xsuppl In suppList
+      If aDate = "Entry Date" Then
+        rsx = modDatabase.$syConn.Exec("select fldreference,fldtotaltax,fldlastdisc,fldadjust,fldcredit from tblpurchasebill where fldtime>=&1 and fldtime<=&2 and fldcategory=&3 and fldsuppname=&4" & xstr & RepoStr & " ORDER BY fldtime ASC", modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast), "PurEntry", xsuppl)
+      Else If aDate = "Invoice Date" Then
+        rsx = modDatabase.$syConn.Exec("select fldreference,fldtotaltax,fldlastdisc,fldadjust,fldcredit from tblpurchasebill where fldpurdate>=&1 and fldpurdate<=&2 and fldcategory=&3 and fldsuppname=&4" & xstr & RepoStr & " ORDER BY fldtime ASC", modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast), "PurEntry", xsuppl)
       Endif
-      .Add(modStock.GetBatchFromStockNo(res["fldstockno"]) & " [" & modReportVar.GetDateTimeReport(modStock.GetExpiryFromStockNo(res["fldstockno"]), gb.MediumDate) & "]")
-      .Add(modReportVar.GetLocaleNumberFormat(res["fldmrp"], gb.Currency))
-      .Add(modReportVar.GetLocaleNumberFormat(res["flsuppcost"], gb.Currency))
-      .Add(modReportVar.GetLocaleNumberFormat(res["fldtotalcost"] / res["fldtotalqty"], gb.Currency))
-      .Add(modReportVar.GetLocaleNumberFormat(res["fldtotalqty"], -2))
-      .Add(modReportVar.GetLocaleNumberFormat(res["fldtotalcost"], gb.Currency))
-      If res["fldpurtype"] = "Cash Payment" Then
-        .Add("Cash")
-      Else If res["fldpurtype"] = "Credit Payment" Then
-        .Add("Credit")
-      Else
-        .Add("")
-      Endif
-      .Add(res["fldbillno"])
-    End With
-    $BillingReport.Add(asx)
-    asx.Clear()
+      If rsx.Available Then
+        $BillingReport.AddChapter(xsuppl)
+        For Each rsx
 
-    ' If MMain.$IsGUIApp = True Then
-    '   $ProgressBar1.Value = (res.Index + 1) / res.Count
-    '   Wait
-    ' Endif
-  Next
+          xtax = 0
+          xitem = 0
+          If aDate = "Entry Date" Then
+            res = modDatabase.$syConn.Exec("select fldtime,fldreference,fldcomp,fldcategory,fldstockid,fldstockno,fldtotalqty,fldmrp,flsuppcost,fldnetcost,fldtaxamt,fldtotalcost,fldpurtype,fldbillno from tblpurchase where fldsuppname=&1 and fldreference in(select fldreference from tblpurchasebill where fldtime>=&2 and fldtime<=&3) and fldsav=&4 and fldreference=&5" & xstr & RepoStr, xsuppl, modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast), False, rsx["fldreference"])
+          Else If aDate = "Invoice Date" Then
+            res = modDatabase.$syConn.Exec("select fldtime,fldreference,fldcomp,fldcategory,fldstockid,fldstockno,fldtotalqty,fldmrp,flsuppcost,fldnetcost,fldtaxamt,fldtotalcost,fldpurtype,fldbillno from tblpurchase where fldsuppname=&1 and fldreference in(select fldreference from tblpurchasebill where fldpurdate>=&2 and fldpurdate<=&3) and fldsav=&4 and fldreference=&5" & xstr & RepoStr, xsuppl, modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast), False, rsx["fldreference"])
+          Endif
+          If res.Available Then
+            For Each res
+              xColl = New Collection
+              xColl = modStock.GetReturnReferencesByStockNo(xsuppl, res["fldreference"], res["fldstockno"])
+              xtax = xtax + res["fldtaxamt"]
+              xitem = xitem + res["fldtotalcost"]
+              With asx
+                .Add(modReportVar.GetDateTimeReport(res["fldtime"], gb.MediumDate))
+                .Add(res["fldreference"])
+                .Add(res["fldbillno"])
+                .Add(res["fldcategory"])
+                .Add(res["fldstockid"])
+                If res["fldcategory"] = "Medicines" Then
+                  .Add(modMedConstant.GetPackVolString(res["fldstockid"]))
+                Else
+                  .Add("")
+                Endif
+                .Add(modStock.GetBatchFromStockNo(res["fldstockno"]) & " [" & modReportVar.GetDateTimeReport(modStock.GetExpiryFromStockNo(res["fldstockno"]), gb.MediumDate) & "]")
+                .Add(modReportVar.GetLocaleNumberFormat(res["fldmrp"], gb.Currency))
+                .Add(modReportVar.GetLocaleNumberFormat(res["flsuppcost"], gb.Currency))
+                .Add(modReportVar.GetLocaleNumberFormat(res["fldtotalcost"] / res["fldtotalqty"], gb.Currency))
+                .Add(modReportVar.GetLocaleNumberFormat(res["fldtotalqty"], -2))
+                .Add(modReportVar.GetLocaleNumberFormat(res["fldtotalcost"], gb.Currency))
+                If res["fldpurtype"] = "Cash Payment" Then
+                  .Add("Cash")
+                Else If res["fldpurtype"] = "Credit Payment" Then
+                  .Add("Credit")
+                Else
+                  .Add("")
+                Endif
+                If xColl.Count Then
+                  xcnt = 0
+                  For Each xkey In xColl.Keys
+                    xcnt = xcnt + xColl[xkey]
+                  Next
+                  .Add(xColl.Keys.Join(gb.NewLine))
+                  .Add(xcnt)
+                Else
+                  .Add("")
+                  .Add("")
+                Endif
+              End With
+              $BillingReport.Add(asx)
+              asx.Clear()
+
+            Next   ''items in reference number
+          Endif
+
+          xtot = xtot + xitem + (rsx["fldadjust"] - rsx["fldlastdisc"]) + (rsx["fldtotaltax"] - xtax)
+          If Round(rsx["fldadjust"] - rsx["fldlastdisc"], 0) = 0 Then
+          Else
+            With asx
+              .Add("")
+              .Add("")
+              .Add("")
+              .Add("")
+              .Add("EXTRA CHARGE/DISCOUNT : " & rsx["fldreference"])
+              .Add("")
+              .Add("")
+              .Add("")
+              .Add("")
+              .Add("")
+              .Add("")
+              .Add(modReportVar.GetLocaleNumberFormat(rsx["fldadjust"] - rsx["fldlastdisc"], gb.Currency))
+              .Add("")
+              .Add("")
+              .Add("")
+            End With
+            $BillingReport.Add(asx)
+            asx.Clear()
+          Endif
+          If Round(rsx["fldtotaltax"] - xtax, 0) = 0 Then
+          Else
+            With asx
+              .Add("")
+              .Add("")
+              .Add("")
+              .Add("")
+              .Add("ADDITIONAL TAX : " & rsx["fldreference"])
+              .Add("")
+              .Add("")
+              .Add("")
+              .Add("")
+              .Add("")
+              .Add("")
+              .Add(modReportVar.GetLocaleNumberFormat(rsx["fldtotaltax"] - xtax, gb.Currency))
+              .Add("")
+              .Add("")
+              .Add("")
+            End With
+            $BillingReport.Add(asx)
+            asx.Clear()
+          Endif
+
+          ' With asx
+          '   .Add("")
+          '   .Add("")
+          '   .Add("")
+          '   .Add("")
+          '   .Add("TOTAL : " & rsx["fldreference"])
+          '   .Add("")
+          '   .Add("")
+          '   .Add("")
+          '   .Add("")
+          '   .Add("")
+          '   .Add("")
+          '   .Add(modReportVar.GetLocaleNumberFormat(rsx["fldcredit"], gb.Currency))
+          '   .Add("")
+          '   .Add("")
+          '   .Add("")
+          ' End With
+          ' $BillingReport.Add(asx)
+          ' asx.Clear()
+
+          With asx
+            .Add("")
+            .Add("")
+            .Add("")
+            .Add("")
+            .Add("")
+            .Add("")
+            .Add("")
+            .Add("")
+            .Add("")
+            .Add("")
+            .Add("")
+            .Add("")
+            .Add("")
+            .Add("")
+            .Add("")
+          End With
+          $BillingReport.Add(asx)
+          asx.Clear()
+        Next  ''Refernce number
+      Endif
+
+      ' If MMain.$IsGUIApp = True Then
+      '   $ProgressBar1.Value = (Row + 1) / suppList.Count
+      '   Wait
+      ' Endif
+      Row = Row + 1
+    Next  ''vendor name
+  Endif
 
   With asx
     .Add("")
     .Add("")
     .Add("")
     .Add("")
-    .Add("")
-    .Add("")
-    .Add("")
-    .Add("")
-    .Add("")
-    .Add("")
-    .Add("")
-    .Add("")
-  End With
-  $BillingReport.Add(asx)
-  asx.Clear()
-
-  With asx
-    .Add("")
-    .Add("")
-    .Add("Grand Total")
+    .Add("GRAND TOTAL")
     .Add("")
     .Add("")
     .Add("")
@@ -268,6 +482,7 @@ Public Function ShowSupplierItemList(suppname As String, dtfir As Date, dtlast A
     .Add("")
     .Add("")
     .Add(modReportVar.GetLocaleNumberFormat(xtot, gb.Currency))
+    .Add("")
     .Add("")
     .Add("")
   End With
@@ -1788,6 +2003,8 @@ Public Function ShowTotalStockReturnReport(suppname As String, dtfir As Date, dt
   Dim asx As New String[0]
   Dim sCompLst As String[]
   Dim i As Integer
+  Dim suppList As String[]
+  Dim xsuppl As String
 
   Dim xcost As Float
   Dim tot As Float
@@ -1796,8 +2013,8 @@ Public Function ShowTotalStockReturnReport(suppname As String, dtfir As Date, dt
 
   sCompLst = aCompLst.Copy()
   RepoStr = modDataRepo.GetRepoLastStr()
-  $BillingReport = New CReportHTML([("Location"), ("Category"), ("Reference"), ("Supplier"), ("Particulars"), ("Batch"), ("Expiry"), ("Cost"), ("QTY"), ("Total")], "", "")
-  $BillingReport.UserData.Add("STOCK RETURNS: " & suppname & " Depart: " & sCompLst.Join(", "), "PARAM1")
+  $BillingReport = New CReportHTML([("Date"), ("Reference"), ("Category"), ("Particulars"), ("Batch/Expiry"), ("Rate"), ("QTY"), ("Total"), ("Entry Ref"), ("Group"), ("Comment")], "", "")
+  $BillingReport.UserData.Add("STOCK RETURNS: " & sCompLst.Join(", "), "PARAM1")
   $BillingReport.UserData.Add("DATE: " & modReportVar.GetDateTimeReport(dtfir, gb.MediumDate) & " TO " & modReportVar.GetDateTimeReport(dtlast, gb.MediumDate), "PARAM2")
 
   For i = 0 To sCompLst.Count - 1
@@ -1805,33 +2022,62 @@ Public Function ShowTotalStockReturnReport(suppname As String, dtfir As Date, dt
   Next
   xstr = " and fldcomp in(" & sCompLst.Join(",") & ")"
 
-  tot = 0
-  res = modDatabase.$syConn.Exec("select fldcomp,fldcategory,fldstockno,fldstockid,fldqty,fldcost,fldsuppname,fldreference,fldtime from tblstockreturn where fldsuppname like &1 and fldtime>=&2 and fldtime<=&3 and fldsave=&4" & xstr & RepoStr, suppname, modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast), True)
-  If res.Available Then
-    For Each res
-      xcost = 0
-      Select modBasic.$InvReportCost
-        Case "Average", "Latest", "Fixed"
-          xcost = modStock.GetAverageCostPriceByStockNo(res["fldstockno"], res["fldtime"])
-        Case Else
-          xcost = res["fldcost"]
-      End Select
+  If suppname = "%" Then
+    suppList = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec("select distinct(fldsuppname) as fldsuppname from tblstockreturn where fldtime>=&1 and fldtime<=&2 and fldsave=&3" & xstr & RepoStr & " ORDER BY fldsuppname", modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast), True))
+  Else
+    suppList = [suppname]
+  Endif
 
-      tot = tot + res["fldqty"] * xcost
-      With asx
-        .Add(res["fldcomp"])
-        .Add(res["fldcategory"])
-        .Add(res["fldreference"])
-        .Add(res["fldsuppname"])
-        .Add(res["fldstockid"])
-        .Add(modStock.GetBatchFromStockNo(res["fldstockno"]))
-        .Add(modReportVar.GetDateTimeReport(modStock.GetExpiryFromStockNo(res["fldstockno"]), gb.MediumDate))
-        .Add(modReportVar.GetLocaleNumberFormat(xcost, gb.Currency))
-        .Add(modReportVar.GetLocaleNumberFormat(res["fldqty"], -2))
-        .Add(modReportVar.GetLocaleNumberFormat(res["fldqty"] * xcost, gb.Currency))
-      End With
-      $BillingReport.Add(asx)
-      asx.Clear()
+  tot = 0
+  If suppList.Count Then
+    For Each xsuppl In suppList
+      res = modDatabase.$syConn.Exec("select fldtime,fldcomp,fldcategory,fldformat,fldnewreference,fldstockno,fldstockid,fldqty,fldcost,fldsuppname,fldreference,fldtime,fldcomment from tblstockreturn where fldsuppname=&1 and fldtime>=&2 and fldtime<=&3 and fldsave=&4" & xstr & RepoStr, xsuppl, modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast), True)
+      If res.Available Then
+        $BillingReport.AddChapter(xsuppl)
+
+        For Each res
+          xcost = 0
+          Select modBasic.$InvReportCost
+            Case "Average", "Latest", "Fixed"
+              xcost = modStock.GetAverageCostPriceByStockNo(res["fldstockno"], res["fldtime"])
+            Case Else
+              xcost = res["fldcost"]
+          End Select
+
+          tot = tot + res["fldqty"] * xcost
+          With asx
+            .Add(modReportVar.GetDateTimeReport(res["fldtime"], gb.MediumDate))
+            .Add(res["fldnewreference"])
+            .Add(res["fldcategory"])
+            .Add(res["fldstockid"])
+            .Add(modStock.GetBatchFromStockNo(res["fldstockno"]) & gb.NewLine & "[" & modReportVar.GetDateTimeReport(modStock.GetExpiryFromStockNo(res["fldstockno"]), gb.MediumDate) & "]")
+            .Add(modReportVar.GetLocaleNumberFormat(xcost, gb.Currency))
+            .Add(modReportVar.GetLocaleNumberFormat(res["fldqty"], -2))
+            .Add(modReportVar.GetLocaleNumberFormat(res["fldqty"] * xcost, gb.Currency))
+            .Add(res["fldreference"])
+            .Add(res["fldformat"])
+            .Add(res["fldcomment"])
+          End With
+          $BillingReport.Add(asx)
+          asx.Clear()
+        Next
+
+        With asx
+          .Add("")
+          .Add("")
+          .Add("")
+          .Add("")
+          .Add("")
+          .Add("")
+          .Add("")
+          .Add("")
+          .Add("")
+          .Add("")
+          .Add("")
+        End With
+        $BillingReport.Add(asx)
+        asx.Clear()
+      Endif
     Next
   Endif
 
@@ -1843,9 +2089,10 @@ Public Function ShowTotalStockReturnReport(suppname As String, dtfir As Date, dt
     .Add("")
     .Add("")
     .Add("")
-    .Add("")
-    .Add("")
     .Add(modReportVar.GetLocaleNumberFormat(tot, gb.Currency))
+    .Add("")
+    .Add("")
+    .Add("")
   End With
   $BillingReport.Add(asx)
   asx.Clear()
