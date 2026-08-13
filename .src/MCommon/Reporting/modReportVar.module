@@ -542,6 +542,10 @@ Private Function GetPatientVarValue(sVariable As String, encid As String) As Var
     xval = GetLastValue("tblconsult", "fldsummary", "fldencounterval", encid)
   Else If sVariable = "{LastConsultOutcome}" Then
     xval = GetLastValue("tblconsult", "fldoutcome", "fldencounterval", encid)
+  Else If sVariable = "{LastConsultRefer}" Then
+    xval = GetLastValue("tblconsult", "fldreferto", "fldencounterval", encid)
+  Else If sVariable = "{LastConsultFollowUp}" Then
+    xval = GetDateTimeReport(GetLastValue("tblconsult", "fldfollowdate", "fldencounterval", encid), gb.MediumDate)
   Else If sVariable = "{LastVisitDate}" Then
     xval = GetDateTimeReport(modPatient.GetLastVisitDate(encid), gb.MediumDate)
   Else If sVariable = "{LastVisitTime}" Then
@@ -564,6 +568,10 @@ Private Function GetPatientVarValue(sVariable As String, encid As String) As Var
     xval = GetLastValue("tblconsult", "fldsummary", "fldencounterval", modPatient.GetSecondLastEncidPatient(encid))
   Else If sVariable = "{PastConsultOutcome}" Then
     xval = GetLastValue("tblconsult", "fldoutcome", "fldencounterval", modPatient.GetSecondLastEncidPatient(encid))
+  Else If sVariable = "{PastConsultRefer}" Then
+    xval = GetLastValue("tblconsult", "fldreferto", "fldencounterval", modPatient.GetSecondLastEncidPatient(encid))
+  Else If sVariable = "{PastConsultFollowUp}" Then
+    xval = GetDateTimeReport(GetLastValue("tblconsult", "fldfollowdate", "fldencounterval", modPatient.GetSecondLastEncidPatient(encid)), gb.MediumDate)
 
   Else If sVariable = "{LaboratoryExpense}" Then
     xval = modNonMedical.TotalExpenseAmountbyCategory(modDatabase.$myConn, encid, "Diagnostic Tests")
@@ -1557,6 +1565,12 @@ Public Function GetReportLastConsult($encid As String, $Line As String) As Strin
   If (String.InStr($Line, "LastConsultResponse") > 0) Then
     $Line = Replace($Line, "{LastConsultResponse}", GetLastValue("tblconsult", "fldsummary", "fldencounterval", $encid))
   Endif
+  If (String.InStr($Line, "LastConsultRefer") > 0) Then
+    $Line = Replace($Line, "{LastConsultRefer}", GetLastValue("tblconsult", "fldreferto", "fldencounterval", $encid))
+  Endif
+  If (String.InStr($Line, "LastConsultFollowUp") > 0) Then
+    $Line = Replace($Line, "{LastConsultFollowUp}", GetDateTimeReport(GetLastValue("tblconsult", "fldfollowdate", "fldencounterval", $encid), gb.MediumDate))
+  Endif
 
   If (String.InStr($Line, "LastConsultQue") > 0) Then
     res = modDatabase.$myConn.Exec("select fldconsultname,fldconsulttime,fldstatus,flduserid,fldbillingmode from tblconsult where fldencounterval=&1", $encid)
@@ -1590,6 +1604,12 @@ Public Function GetReportLastConsult($encid As String, $Line As String) As Strin
   If (String.InStr($Line, "PastConsultOutcome") > 0) Then
     $Line = Replace($Line, "{PastConsultOutcome}", GetLastValue("tblconsult", "fldoutcome", "fldencounterval", modPatient.GetSecondLastEncidPatient($encid)))
   Endif
+  If (String.InStr($Line, "PastConsultRefer") > 0) Then
+    $Line = Replace($Line, "{PastConsultRefer}", GetLastValue("tblconsult", "fldreferto", "fldencounterval", modPatient.GetSecondLastEncidPatient($encid)))
+  Endif
+  If (String.InStr($Line, "PastConsultFollowUp") > 0) Then
+    $Line = Replace($Line, "{PastConsultFollowUp}", GetDateTimeReport(GetLastValue("tblconsult", "fldfollowdate", "fldencounterval", modPatient.GetSecondLastEncidPatient($encid)), gb.MediumDate))
+  Endif
 
   ''OP Visit
   If (String.InStr($Line, "LastOPVisitDept") > 0) Then
@@ -1615,6 +1635,12 @@ Public Function GetReportLastConsult($encid As String, $Line As String) As Strin
   Endif
   If (String.InStr($Line, "LastOPVisitOutcome") > 0) Then
     $Line = Replace($Line, "{LastOPVisitOutcome}", GetLastValue("tblopvisit", "fldoutcome", "fldencounterval", $encid))
+  Endif
+  If (String.InStr($Line, "LastOPVisitRefer") > 0) Then
+    $Line = Replace($Line, "{LastOPVisitRefer}", GetLastValue("tblopvisit", "fldreferto", "fldencounterval", $encid))
+  Endif
+  If (String.InStr($Line, "LastOPVisitFollowUp") > 0) Then
+    $Line = Replace($Line, "{LastOPVisitFollowUp}", GetDateTimeReport(GetLastValue("tblopvisit", "fldfollowdate", "fldencounterval", $encid), gb.MediumDate))
   Endif
   If (String.InStr($Line, "LastOPVisitAttendant") > 0) Then
     $Line = Replace($Line, "{LastOPVisitAttendant}", modGeneral.GetUserFullName(GetLastValue("tblopvisit", "fldflaguser", "fldencounterval", $encid)))
@@ -3485,6 +3511,8 @@ Public Sub GetReportVarCollection(sType As String) As Variant[]
     ListView1.Add(["{LastConsultStatus}", "LastConsultStatus"])
     ListView1.Add(["{LastConsultComment}", "LastConsultComment"])
     ListView1.Add(["{LastConsultOutcome}", "LastConsultOutcome"])
+    ListView1.Add(["{LastConsultRefer}", "LastConsultRefer"])
+    ListView1.Add(["{LastConsultFollowUp}", "LastConsultFollowUp"])
     ListView1.Add(["{LastConsultQue}", "LastConsultQue"])
     ListView1.Add(["{LastOPVisitDept}", "LastOPVisitDept"])
     ListView1.Add(["{LastOPVisitRoom}", "LastOPVisitRoom"])
@@ -3494,6 +3522,8 @@ Public Sub GetReportVarCollection(sType As String) As Variant[]
     ListView1.Add(["{LastOPVisitStatus}", "LastOPVisitStatus"])
     ListView1.Add(["{LastOPVisitComment}", "LastOPVisitComment"])
     ListView1.Add(["{LastOPVisitOutcome}", "LastOPVisitOutcome"])
+    ListView1.Add(["{LastOPVisitRefer}", "LastOPVisitRefer"])
+    ListView1.Add(["{LastOPVisitFollowUp}", "LastOPVisitFollowUp"])
     ListView1.Add(["{LastOPVisitAttendant}", "LastOPVisitAttendant"])
     ListView1.Add(["{LastOPVisitAttendDate}", "LastOPVisitAttendDate"])
     ListView1.Add(["{LastVisitDate}", "LastVisitDate"])

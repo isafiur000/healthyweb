@@ -3376,8 +3376,10 @@ Public Sub mnudemo_Click()
     If $xFinClear = False Then
       If modBasic.$RegistAutoDemograph Then
         hForm = New FmPatdemograph(Trim(txtencid.Text), modBasic.$RegistAutoDemograph)
-        hForm.ShowModal
+      Else
+        hForm = New FmPatdemograph(Trim(txtencid.Text), "Acount")
       Endif
+      hForm.ShowModal
     Endif
   Endif
 
@@ -5885,12 +5887,14 @@ Private Sub CopyToNewItem(encidLast As String, xItem As String)
 
   Dim res As Result
   Dim res1 As Result
+  Dim xamt As Float
 
   modDatabase.$myConn.Begin
   res = modDatabase.$myConn.Edit("tblpatbilling", "fldencounterval=&1 and fldsave=&2 and fldstatus=&3 and flditemname=&4 and fldbillno IS NULL", encidLast, False, "Planned", xItem)
   If res.Available Then
     res.MoveFirst
 
+    xamt = 0
     If res["flditemtype"] = "Radio Diagnostics" Then
       res1 = modDatabase.$myConn.Edit("tblpatradiotest", "fldencounterval=&1 and fldgroupid=&2", encidLast, res["fldid"])
       If res1.Available Then
@@ -5902,6 +5906,17 @@ Private Sub CopyToNewItem(encidLast As String, xItem As String)
       If res1.Available Then
         res1["fldencounterval"] = Trim(txtencid.Text)
         res1.Update
+      Endif
+    Endif
+
+    xamt = modNonMedical.GetCashBillItemCost(res["flditemname"], res["flditemtype"])
+    If xamt Then
+      If xamt = res["flditemrate"] Then
+      Else
+        res["flditemrate"] = xamt
+        res["flddiscamt"] = xamt * res["flditemqty"] * (res["flddiscper"] / 100)
+        res["fldtaxamt"] = xamt * res["flditemqty"] * (1 - res["flddiscper"] / 100) * (res["fldtaxper"] / 100)
+        res["fldditemamt"] = xamt * res["flditemqty"] * (1 - res["flddiscper"] / 100) * (1 + res["fldtaxper"] / 100)
       Endif
     Endif
 

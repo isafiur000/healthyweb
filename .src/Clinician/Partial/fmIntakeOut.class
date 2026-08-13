@@ -79,19 +79,24 @@ Private Sub ShowIntakeFoodGrid()
 
   Dim xList1 As String[]
   Dim xList2 As String[]
+  Dim xList3 As String[]
   Dim sql1 As String
   Dim sql2 As String
+  Dim sql3 As String
 
-  xList1 = ["fldid", "fldencounterval", "fldtype as xid", "CONCAT(flditem, '|tblexamgeneral') as xitem", "fldreportquanti as xvalue", "CONCAT(fldid, '|tblexamgeneral') as xfluid", "CONCAT(fldid, '|tblexamgeneral') as xcalorie", "fldtime"]
-  xList2 = ["fldid", "fldencounterval", "flddoseno as xid", "CONCAT(flddoseno, '|tblnurdosing') as xitem", "fldvalue as xvalue", "CONCAT(fldid, '|tblnurdosing') as xfluid", "CONCAT(fldid, '|tblnurdosing') as xcalorie", "fldtime"]
+  xList1 = ["fldid", "fldencounterval", "fldtype as xid", "flditem as xitem", "fldreportquanti as xvalue", "CONCAT(fldid, '|fldfluid|tblexamgeneral') as xfluid", "CONCAT(fldid, '|tblexamgeneral') as xcalorie", "fldtime"]
+  xList2 = ["fldid", "fldencounterval", "flddoseno as xid", "fldmedicine as xitem", "fldvalue as xvalue", "CONCAT(fldid, '|flddoseno|tblnurdosing') as xfluid", "CONCAT(fldid, '|tblnurdosing') as xcalorie", "fldtime"]
+  xList3 = ["fldid", "fldencounterval", "fldcardex as xid", "fldmedicine as xitem", "fldvalue as xvalue", "CONCAT(fldid, '|fldcardex|tblnurdosing') as xfluid", "CONCAT(fldid, '|tblnurdosing') as xcalorie", "fldtime"]
   If btnallinout.Value = False Then
     sql1 = "select " & xList1.Join(",") & " from tblexamgeneral where fldencounterval=&1 and fldsave=&2 and fldtime>=&3 and fldtime<=&4 and fldinput=&5"
-    sql2 = "select " & xList2.Join(",") & " from tblnurdosing where fldencounterval=&1 and fldsave=&2 and fldtime>=&3 and fldtime<=&4 and flddoseno in(select fldid from tblpatdosing where fldroute=&6 or fldroute=&7 or fldroute=&8)"
-    $rInputRes = modDatabase.$myConn.Exec(sql1 & " UNION ALL " & sql2, $encid, True, modDate.StartSqlDate(dtfluid.Value), modDate.EndSqlDate(dtfluid.Value), "Input Food/Fluid", "fluid", "IIV", "CIV")
+    sql2 = "select " & xList2.Join(",") & " from tblnurdosing where fldencounterval=&1 and fldsave=&2 and fldtime>=&3 and fldtime<=&4 and flddoseno in(select fldid from tblpatdosing where fldroute=&6 or fldroute=&7 or fldroute=&8) and flddoseno>&9"
+    sql3 = "select " & xList3.Join(",") & " from tblnurdosing where fldencounterval=&1 and fldsave=&2 and fldtime>=&3 and fldtime<=&4 and fldcardex in(select fldid from tblinpatdosing where fldroute=&6 or fldroute=&7 or fldroute=&8) and fldcardex>&9"
+    $rInputRes = modDatabase.$myConn.Exec(sql1 & " UNION ALL " & sql2 & " UNION " & sql3, $encid, True, modDate.StartSqlDate(dtfluid.Value), modDate.EndSqlDate(dtfluid.Value), "Input Food/Fluid", "fluid", "IIV", "CIV", 0)
   Else
     sql1 = "select " & xList1.Join(",") & " from tblexamgeneral where fldencounterval=&1 and fldsave=&2 and fldinput=&3"
-    sql2 = "select " & xList2.Join(",") & " from tblnurdosing where fldencounterval=&1 and fldsave=&2 and flddoseno in(select fldid from tblpatdosing where fldroute=&4 or fldroute=&5 or fldroute=&6)"
-    $rInputRes = modDatabase.$myConn.Exec(sql1 & " UNION ALL " & sql2, $encid, True, "Input Food/Fluid", "fluid", "IIV", "CIV")
+    sql2 = "select " & xList2.Join(",") & " from tblnurdosing where fldencounterval=&1 and fldsave=&2 and flddoseno in(select fldid from tblpatdosing where fldroute=&4 or fldroute=&5 or fldroute=&6) and flddoseno>&7"
+    sql3 = "select " & xList3.Join(",") & " from tblnurdosing where fldencounterval=&1 and fldsave=&2 and fldcardex in(select fldid from tblinpatdosing where fldroute=&4 or fldroute=&5 or fldroute=&6) and fldcardex>&7"
+    $rInputRes = modDatabase.$myConn.Exec(sql1 & " UNION ALL " & sql2 & " UNION " & sql3, $encid, True, "Input Food/Fluid", "fluid", "IIV", "CIV", 0)
   Endif
   $aInputFields = New String[]
   modGridView.ReadSmallData(grdintake, $rInputRes, $aInputFields)
@@ -119,9 +124,7 @@ Public Sub grdintake_Data(Row As Integer, Column As Integer, Data As WebTableDat
 
   $rInputRes.MoveTo(Row)
   modGridView.GridViewDecoration(Data, Row)
-  If Column = 3 Then
-    Data.Text = GetIntakeName($rInputRes[$aInputFields[Column]])
-  Else If Column = 5 Then
+  If Column = 5 Then
     Data.Text = GetIntakeFluid($rInputRes[$aInputFields[Column]])
   Else If Column = 6 Then
     Data.Text = GetIntakeCalorie($rInputRes[$aInputFields[Column]])
@@ -155,10 +158,10 @@ Private Function GetIntakeFluid(sIndex As String) As Float
   Dim xval As Float
 
   asx = Split(sIndex, "|")
-  If asx[1] = "tblexamgeneral" Then
-    xval = modPatPatho.GetTotalCoponentFood(CLong(asx[0]), "fldfluid")
-  Else If asx[1] = "tblnurdosing" Then
-    xval = modPharmacy.GetTotalFluidMedicine(CLong(asx[0]))
+  If asx[2] = "tblexamgeneral" Then
+    xval = modPatPatho.GetTotalCoponentFood(CLong(asx[0]), asx[1])
+  Else If asx[2] = "tblnurdosing" Then
+    xval = modPharmacy.GetTotalFluidMedicine(CLong(asx[0]), asx[1])
   Endif
 
   Return xval
