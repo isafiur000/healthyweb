@@ -1573,10 +1573,14 @@ Public Function GetReportLastConsult($encid As String, $Line As String) As Strin
   Endif
 
   If (String.InStr($Line, "LastConsultQue") > 0) Then
-    res = modDatabase.$myConn.Exec("select fldconsultname,fldconsulttime,fldstatus,flduserid,fldbillingmode from tblconsult where fldencounterval=&1", $encid)
+    res = modDatabase.$myConn.Exec("select fldconsultname,fldconsulttime,fldstatus,flduserid,fldbillingmode,fldqueue from tblconsult where fldencounterval=&1", $encid)
     If res.Available Then
       res.MoveLast
-      $Line = Replace($Line, "{LastConsultQue}", modConsult.GetQueNumber(res["fldconsultname"], res["fldconsulttime"], $encid, res["fldbillingmode"], res["flduserid"]))
+      If res["fldqueue"] Then
+        $Line = Replace($Line, "{LastConsultQue}", CStr(res["fldqueue"]))
+      Else
+        $Line = Replace($Line, "{LastConsultQue}", modConsult.GetQueNumber(res["fldconsultname"], res["fldconsulttime"], $encid, res["fldbillingmode"], res["flduserid"]))
+      Endif
     Else
       $Line = Replace($Line, "{LastConsultQue}", "")
     Endif

@@ -314,17 +314,18 @@ Private Sub SelectBed(newbed As String)
         xitem = modNonMedical.GetIPDepartChargeRate(res["flditem"], res["flddisctype"], $bedNo)
         modPatientGeneral.UpdatePatientTableSecondTime(res["fldid"], $bedNo, xitem, dtnow.Value)
 
-        If modBasic.$AutoBillBed = "Standard" Or If modBasic.$AutoBillBed = "Full" Or If modBasic.$AutoBillBed = "Partial" Then
-          If xitem Then
-            unitrate = modNonMedical.GetBillingTargeDept(xitem, "General Services")
-            hr = modPatPatho.GetWardBedUseDuration($encid, res["flditem"], unitrate, res["fldfirsttime"], dtnow.Value, xTotal)
-            If hr > 0 Then
-              modBillings.EnterBillingForInterval(modBasic.$AutoBillBed, "Service", $encid, res["flddisctype"], xitem, hr, 0, xpayble, xrefer)
+        Select modBasic.$AutoBillBed
+          Case "Full", "Standard", "RefOnly", "Partial"
+            If xitem Then
+              unitrate = modNonMedical.GetBillingTargeDept(xitem, "General Services")
+              hr = modPatPatho.GetWardBedUseDuration($encid, res["flditem"], unitrate, res["fldfirsttime"], dtnow.Value, xTotal)
+              If hr > 0 Then
+                modBillings.EnterBillingForInterval(modBasic.$AutoBillBed, "Service", $encid, res["flddisctype"], xitem, hr, 0, xpayble, xrefer)
+              Endif
+            Else
+              WebForm.Exec("Toastify({text: 'Bed Charge not specified', duration: 3000}).showToast()")
             Endif
-          Else
-            WebForm.Exec("Toastify({text: 'Bed Charge not specified', duration: 3000}).showToast()")
-          Endif
-        Endif
+        End Select
 
         xidno = modPatientGeneral.AddPatientTableFirstTime($encid, "General Services", $DiscType, xdepart, "Bed", dtnow.Value, newbed)
         modDatabase.$myConn.Commit
@@ -381,17 +382,18 @@ Private Sub ReleaseBed(bedno As String)
         xitem = modNonMedical.GetIPDepartChargeRate(res["flditem"], res["flddisctype"], $bedNo)
         modPatientGeneral.UpdatePatientTableSecondTime(res["fldid"], $bedNo, xitem, dtnow.Value)
 
-        If modBasic.$AutoBillBed = "Standard" Or If modBasic.$AutoBillBed = "Full" Or If modBasic.$AutoBillBed = "Partial" Then
-          If xitem Then
-            unitrate = modNonMedical.GetBillingTargeDept(xitem, "General Services")
-            hr = modPatPatho.GetWardBedUseDuration($encid, res["flditem"], unitrate, res["fldfirsttime"], dtnow.Value, xTotal)
-            If hr > 0 Then
-              modBillings.EnterBillingForInterval(modBasic.$AutoBillBed, "Service", $encid, res["flddisctype"], xitem, hr, 0, xpayble, xrefer)
+        Select modBasic.$AutoBillBed
+          Case "Full", "Standard", "RefOnly", "Partial"
+            If xitem Then
+              unitrate = modNonMedical.GetBillingTargeDept(xitem, "General Services")
+              hr = modPatPatho.GetWardBedUseDuration($encid, res["flditem"], unitrate, res["fldfirsttime"], dtnow.Value, xTotal)
+              If hr > 0 Then
+                modBillings.EnterBillingForInterval(modBasic.$AutoBillBed, "Service", $encid, res["flddisctype"], xitem, hr, 0, xpayble, xrefer)
+              Endif
+            Else
+              WebForm.Exec("Toastify({text: 'Bed Charge not specified', duration: 3000}).showToast()")
             Endif
-          Else
-            WebForm.Exec("Toastify({text: 'Bed Charge not specified', duration: 3000}).showToast()")
-          Endif
-        Endif
+        End Select
 
         modDatabase.$myConn.Commit
       Endif

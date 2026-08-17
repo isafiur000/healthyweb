@@ -19,6 +19,7 @@ Private $rSympRes As Result
 Private $aSympFields As String[]
 Private $vidRoom As String
 Private $VidIndex As String
+Private $isAdmited As Boolean
 
 Private hPtForm As FmClinHistory
 Private hDigForm As FmDiagnosticTab
@@ -315,6 +316,9 @@ Private Sub GetEncounterValue()
               rbimproved.Visible = False
               rblama.Visible = False
               rbdeath.Visible = False
+              $isAdmited = True
+            Else
+              $isAdmited = False
             Endif
             Wait
             If modPatientSub.AllowEncIDHistory(Trim(txtencid.Text), modDatabase.$myConn) = True Then
@@ -4322,6 +4326,7 @@ Public Sub btnoutcome_Click()
       If rbadmission.Value = True Then
         xmode = "Admission"
         modPatientGeneral.AddPatientParagraph(Trim(txtencid.Text), "Notes", "Doctor Order", "", txtcomment.RichText, False, txtbedno.Text)
+        $isAdmited = True
       Else If rbfollowup.Value = True Then
         xmode = "Follow Up"
       Else If rbreferred.Value = True Then
@@ -4441,5 +4446,21 @@ End
 Public Sub chkshowhistory_Click()
 
   pnlhistory.Visible = chkshowhistory.Value
+
+End
+
+Public Sub btncardex_Click()
+
+  Dim hForm12 As FmMobileForm
+
+  If txtencid.Text Then
+    If $isAdmited = True Then
+      If modBasic.$MedRequestForm = "Separate" Then
+      Else
+        hForm12 = New FmMobileForm(Trim(txtencid.Text), "Cardex", modNonMedical.GetAutoIPBillingPack("Pharmacy", Trim(txtencid.Text)))
+        hForm12.ShowModal
+      Endif
+    Endif
+  Endif
 
 End

@@ -281,6 +281,39 @@ Public Function CheckIMISStatus(encid As String) As String
 
 End
 
+Public Function GetCheckIMISOPDValues(xnhis As String) As Variant[]
+
+  Dim hCElig As CimisAPIEligible
+  Dim xmsg As Variant[]
+
+  Dim xPatVar As Variant[]
+  Dim aColl As Collection
+  Dim xexpdate As Date
+  Dim xcredamt As Float
+  Dim xpayval As Float
+
+  If xnhis Then
+    hCElig = New CimisAPIEligible(xnhis)
+    xPatVar = hCElig.GetPatientPolicyData()
+    If xPatVar And If xPatVar.Count Then
+
+      For Each aColl In xPatVar
+        If aColl["Policy Name"] = "HIB-3500" Then
+          xexpdate = aColl["Expiry Date"]
+          xpayval = aColl["Credit Value"]
+          xcredamt = aColl["OPD Credit Limit"] * (1 - xpayval)
+
+          xmsg = [xcredamt, xexpdate, "HIB-3500"]
+          Break
+        Endif
+      Next
+
+    Endif
+  Endif
+  Return xmsg
+
+End
+
 Public Function CheckIMISValues(encid As String, DiscType As String) As Variant[]
 
   Dim hCElig As CimisAPIEligible

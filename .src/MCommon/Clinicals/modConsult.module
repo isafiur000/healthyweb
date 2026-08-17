@@ -1,5 +1,7 @@
 ' Gambas module file
 
+Public $PatQueColl As Collection
+
 ''---------------------------------------------- QUOTA (fixed parameters) ---------------------------------------------------------------
 Public Function GetPatientQuota(sDept As String, sDate As Date, sBillMode As String, sUserid As String) As Integer
 
@@ -402,10 +404,10 @@ Public Function GetPatientRegisteredCancel(sDept As String, sDate As Date, sBill
 
 End
 
-Public Function GetQueNumber(sDept As String, sDate As Date, encid As String, sBillMode As String, sUserid As String) As String
+Private Function GetQueNumberGrid(sDept As String, sDate As Date, encid As String, sBillMode As String, sUserid As String) As Integer
 
   Dim res As Result
-  Dim xx As String
+  Dim xx As Integer
   Dim xdeptmode As String
 
   xdeptmode = modGeneral.GetCategoryFromDept(sDept)
@@ -442,13 +444,135 @@ Public Function GetQueNumber(sDept As String, sDate As Date, encid As String, sB
   If res.Available Then
     For Each res
       If res["fldencounterval"] = encid Then
-        xx = CStr(res.Index + 1)
+        xx = res.Index + 1
+        Break
       Endif
     Next
-  Else
-    xx = ""
   Endif
 
   Return xx
+
+End
+
+Private Function GetQueValueDynamic(sDept As String, sQue As Integer, sColl As Collection) As Integer
+
+  Dim xList As Integer[]
+  Dim i As Integer
+  Dim xval As Integer
+
+  xList = sColl["sDept"]
+  If xList And If xList.Count Then
+    For i = sQue To (sQue + 1000)
+      If xList.Exist(i) = False Then
+        xval = i
+        Break
+      Endif
+    Next
+  Else
+    xval = sQue
+  Endif
+
+  Return xval
+
+End
+
+Public Function GetQueNumber(sDept As String, sDate As Date, encid As String, sBillMode As String, sUserid As String) As String
+
+  Dim xval As Integer
+  Dim xx As String
+  Dim xColl As Collection
+
+  xval = GetQueNumberGrid(sDept, sDate, encid, sBillMode, sUserid)
+  Message.Info(xval)
+  If $PatQueColl And If $PatQueColl.Count Then
+  Else
+    $PatQueColl = GetPatientMobileQueColl(Now())
+  Endif
+
+  If modReportVar.GetDateTimeReport(sDate, gb.MediumDate) = modReportVar.GetDateTimeReport(Now(), gb.MediumDate) Then
+    xColl = $PatQueColl
+  Else
+    xColl = GetPatientMobileQueColl(sDate)
+  Endif
+
+  xx = CStr(GetQueValueDynamic(sDept, xval, xColl))
+
+  Return xx
+
+End
+
+''====================== Mobile booking queue =============================
+Public Function GetMobileEntryQueColl(sGroup As String, sDate As Date) As Collection
+
+  Dim res As Result
+  Dim sDept As String
+  Dim deptLst As String[]
+  Dim sColl As Collection
+  Dim xVar As Collection
+
+  xVar = New Collection
+  deptLst = modGeneral.GetDepartmentsForOPDBoth()
+  For Each sDept In deptLst
+    sColl = New Collection
+    res = modDatabase.$myConn.Exec("select fldbookingval from tblonlinebook where fldgroup=&1 and fldadmitlocat=&2 and fldconsultdate>-&3 and fldconsultdate<=&4 ORDER BY fldptadmindate", sGroup, sDept, modDate.StartSqlDate(sDate), modDate.EndSqlDate(sDate))
+    If res.Available Then
+      For Each res
+        sColl.Add(res["fldbookingval"], CStr(res.Index + 1))
+      Next
+      xVar.Add(sColl, sDept)
+    Endif
+  Next
+
+  Return xVar
+
+End
+
+Public Function GetMobileSavedQueueColl(sGroup As String) As Collection
+
+  Dim res As Result
+  Dim sDept As String
+  Dim deptLst As String[]
+  Dim sColl As Collection
+  Dim xVar As Collection
+
+  xVar = New Collection
+  deptLst = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(flddepartment) as col from tblwebqueue where fldgroup=&1", sGroup))
+  For Each sDept In deptLst
+    sColl = New Collection
+    res = modDatabase.$myConn.Exec("select fldqueue from tblwebqueue where fldgroup=&1 and flddepartment=&2 ORDER BY fldqueue", sGroup, sDept)
+    If res.Available Then
+      For Each res
+        sColl.Add(res["fldqueue"], CStr(res.Index + 1))
+      Next
+      xVar.Add(sColl, sDept)
+    Endif
+  Next
+
+  Return xVar
+
+End
+
+Public Function GetPatientMobileQueColl(sDate As Date) As Collection
+
+  Dim res As Result
+  Dim sDept As String
+  Dim deptLst As String[]
+  Dim sList As Integer[]
+  Dim xVar As Collection
+
+  xVar = New Collection
+  deptLst = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldconsultname) as fldconsultname from tblconsult where fldconsulttime>=&1 and fldconsulttime<=&2 and fldqueue>&3", modDate.StartSqlDate(sDate), modDate.EndSqlDate(sDate), 0))
+  For Each sDept In deptLst
+    sList = New Integer[]
+    res = modDatabase.$myConn.Exec("select fldqueue  from tblconsult where fldconsulttime>=&1 and fldconsulttime<=&2 and fldqueue>&3 and fldconsultname=&4", modDate.StartSqlDate(sDate), modDate.EndSqlDate(sDate), 0, sDept)
+    If res.Available Then
+      For Each res
+        sList.Add(res["fldqueue"])
+      Next
+      xVar.Add(sList, sDept)
+    Endif
+  Next
+
+  Return xVar
 
 End

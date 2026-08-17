@@ -482,7 +482,7 @@ Public Sub EnterPatientImpDate(encid As String, sType As String, sComment As Str
 
 End
 
-Public Sub AddOPVisitData(encid As String, consultname As String, consulttime As Date, sBillMode As String, sComment As String, Optional sQuery As String)
+Public Sub AddOPVisitData(encid As String, consultname As String, consulttime As Date, sBillMode As String, sComment As String)
 
   Dim res As Result
   Dim xIntVal As String
@@ -496,12 +496,50 @@ Public Sub AddOPVisitData(encid As String, consultname As String, consulttime As
   res["fldbillingmode"] = sBillMode
   res["fldoutcome"] = ""
   res["fldnotice"] = ""
-  If sQuery Then
-    If modBasic.$ConvertToASCII = "Enable" Then
-      res["fldpresummary"] = modDevAll.ConvertStringToASCII(sQuery)
-    Else
-      res["fldpresummary"] = sQuery
-    Endif
+  res["fldpresummary"] = ""
+  res["flduserid"] = modBasic.$lbluser
+  res["fldtime"] = Now()
+  res["fldcomp"] = modBasic.$compID
+  res["fldsave"] = False
+  ' res["fldflag"] = null   ''keep null
+  ' res["fldflagtime"] = ""
+  If modGeneral.GetDepartCaption(consultname) = "Emergency" Then
+    res["fldemerid"] = modBillLock.GetHMISRegVal("Emergency")
+  Endif
+  res["xyz"] = False
+  If MMain.$WebEntry = True Then
+    xIntVal = modString.GetDateString(Now())
+    res["fldid"] = CLong(xIntVal)
+    res["fldrepoid"] = modMisc.GetWebIndexStr(xIntVal)
+    res["fldrepodate"] = Now()
+    res["fldrepomac"] = CGI["REMOTE_ADDR"] & ":" & CGI["REMOTE_PORT"]
+    res["fldhospcode"] = modBasic.$HospCode
+  Endif
+  res.Update
+
+  modPatientSub.AddEncounterSpecData(encid, consultname)
+  modPatientSub.EnterPatientImpDate(encid, "OP Visit", consultname)
+
+End
+
+Public Sub AddOPVisitDataInternal(encid As String, consultname As String, consulttime As Date, sBillMode As String, sComment As String, sQuery As String)
+
+  Dim res As Result
+  Dim xIntVal As String
+
+  res = modDatabase.$myConn.Create("tblopvisit")
+  res["fldencounterval"] = encid
+  res["fldconsultname"] = consultname
+  res["fldconsulttime"] = consulttime
+  res["fldcomment"] = sComment
+  res["fldstatus"] = "Planned"
+  res["fldbillingmode"] = sBillMode
+  res["fldoutcome"] = ""
+  res["fldnotice"] = ""
+  If modBasic.$ConvertToASCII = "Enable" Then
+    res["fldpresummary"] = modDevAll.ConvertStringToASCII(sQuery)
+  Else
+    res["fldpresummary"] = sQuery
   Endif
   res["flduserid"] = modBasic.$lbluser
   res["fldtime"] = Now()
@@ -528,7 +566,7 @@ Public Sub AddOPVisitData(encid As String, consultname As String, consulttime As
 
 End
 
-Public Sub AddConsultData(encid As String, consultname As String, consulttime As Date, sBillMode As String, sComment As String, Optional sUser As String, Optional sQuery As String)
+Public Sub AddConsultData(encid As String, consultname As String, consulttime As Date, sBillMode As String, sComment As String, sUser As String, Optional sRemote As Integer)
 
   Dim res As Result
   Dim xx As String
@@ -550,12 +588,52 @@ Public Sub AddConsultData(encid As String, consultname As String, consulttime As
   res["fldbillingmode"] = sBillMode
   res["fldoutcome"] = ""
   res["fldnotice"] = ""
-  If sQuery Then
-    If modBasic.$ConvertToASCII = "Enable" Then
-      res["fldpresummary"] = modDevAll.ConvertStringToASCII(sQuery)
-    Else
-      res["fldpresummary"] = sQuery
-    Endif
+  res["fldpresummary"] = ""
+  If sRemote Then
+    res["fldqueue"] = sRemote
+  Endif
+  res["fldorduserid"] = modBasic.$lbluser
+  res["fldtime"] = Now()
+  res["fldcomp"] = modBasic.$compID
+  res["fldsave"] = False
+  ' res["fldflag"] = null   ''keep null
+  ' res["fldflagtime"] = ""
+  res["fldconsultid"] = modPatient.GetPatientHMISConsult(encid)
+  res["xyz"] = False
+  If MMain.$WebEntry = True Then
+    xIntVal = modString.GetDateString(Now())
+    res["fldid"] = CLong(xIntVal)
+    res["fldrepoid"] = modMisc.GetWebIndexStr(xIntVal)
+    res["fldrepodate"] = Now()
+    res["fldrepomac"] = CGI["REMOTE_ADDR"] & ":" & CGI["REMOTE_PORT"]
+    res["fldhospcode"] = modBasic.$HospCode
+  Endif
+  res.Update
+
+  modPatientSub.AddEncounterSpecData(encid, consultname)
+  modPatientSub.EnterPatientImpDate(encid, "Consultation", consultname)
+
+End
+
+Public Sub AddConsultDataInternal(encid As String, consultname As String, consulttime As Date, sBillMode As String, sComment As String, sUser As String, sQuery As String)
+
+  Dim res As Result
+  Dim xIntVal As String
+
+  res = modDatabase.$myConn.Create("tblconsult")
+  res["fldencounterval"] = encid
+  res["fldconsultname"] = consultname
+  res["fldconsulttime"] = consulttime
+  res["fldcomment"] = sComment
+  res["fldstatus"] = "Planned"
+  res["flduserid"] = sUser
+  res["fldbillingmode"] = sBillMode
+  res["fldoutcome"] = ""
+  res["fldnotice"] = ""
+  If modBasic.$ConvertToASCII = "Enable" Then
+    res["fldpresummary"] = modDevAll.ConvertStringToASCII(sQuery)
+  Else
+    res["fldpresummary"] = sQuery
   Endif
   res["fldorduserid"] = modBasic.$lbluser
   res["fldtime"] = Now()

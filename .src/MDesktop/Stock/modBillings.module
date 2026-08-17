@@ -1180,17 +1180,18 @@ Public Function ExitPatientWithBillingOfBed(encid As String) As String
     xitem = modNonMedical.GetIPDepartChargeRate(res["flditem"], res["flddisctype"], bedno)
     modPatientGeneral.UpdatePatientTableSecondTime(res["fldid"], bedno, xitem)
 
-    If modBasic.$AutoBillBed = "Standard" Or If modBasic.$AutoBillBed = "Full" Or If modBasic.$AutoBillBed = "Partial" Then
-      If xitem Then
-        unitrate = modNonMedical.GetBillingTargeDept(xitem, "General Services")
-        hr = modPatPatho.GetWardBedUseDuration(encid, res["flditem"], unitrate, res["fldfirsttime"], Now(), xTotal)
-        If hr > 0 Then
-          modBillings.EnterBillingForInterval(modBasic.$AutoBillBed, "Service", encid, res["flddisctype"], xitem, hr, 0, xpayble, xrefer)
+    Select modBasic.$AutoBillBed
+      Case "Full", "Standard", "RefOnly", "Partial"
+        If xitem Then
+          unitrate = modNonMedical.GetBillingTargeDept(xitem, "General Services")
+          hr = modPatPatho.GetWardBedUseDuration(encid, res["flditem"], unitrate, res["fldfirsttime"], Now(), xTotal)
+          If hr > 0 Then
+            modBillings.EnterBillingForInterval(modBasic.$AutoBillBed, "Service", encid, res["flddisctype"], xitem, hr, 0, xpayble, xrefer)
+          Endif
+        Else
+          xmsg = "Bed Charge not specified."
         Endif
-      Else
-        xmsg = "Bed Charge not specified."
-      Endif
-    Endif
+    End Select
 
   Endif
 
@@ -1222,6 +1223,8 @@ Public Sub EnterBillingForInterval(autoBilling As String, sType As String, encid
     Else If autoBilling = "Full" Then
       GetAutoBillingEntry(encid, DiscType, sType, txtitem, txthr, "Done", id, True, False, xx, yy)
     Else If autoBilling = "Partial" Then
+      GetAutoBillingEntry(encid, DiscType, sType, txtitem, txthr, "Punched", id, False, False, xx, yy)
+    Else If autoBilling = "RefOnly" Then
       GetAutoBillingEntry(encid, DiscType, sType, txtitem, txthr, "Punched", id, False, False, xx, yy)
     Endif
   Endif
