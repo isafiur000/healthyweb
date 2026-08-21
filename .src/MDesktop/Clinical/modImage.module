@@ -95,7 +95,7 @@ Public Function SavePatientFileGeneral(encid As String, sType As String, sTitle 
       xblobfile = File.Load(sFIle)
     Endif
     If xblobfile Then
-      res = modDatabase.$myConn.Create("tblpatreport")
+      res = modDatabase.$logConn.Create("tblpatreport")
       res["fldcateg"] = sType
       res["fldencounterval"] = encid
       If modMisc.BlobTarget("ReadyReports") = "FTP" Then
@@ -130,9 +130,9 @@ Public Function SavePatientFileGeneral(encid As String, sType As String, sTitle 
 
       If xHash Then
         If MMain.$WebEntry = True Then
-          res1 = modDatabase.$myConn.Exec("select fldrepoid as fldfir from tblpatreport where fldhashcode=&1 and flduserid=&2 and fldcomp=&3", xHash, modBasic.$lbluser, modBasic.$compID)
+          res1 = modDatabase.$logConn.Exec("select fldrepoid as fldfir from tblpatreport where fldhashcode=&1 and flduserid=&2 and fldcomp=&3", xHash, modBasic.$lbluser, modBasic.$compID)
         Else
-          res1 = modDatabase.$myConn.Exec("select fldid as fldfir from tblpatreport where fldhashcode=&1 and flduserid=&2 and fldcomp=&3", xHash, modBasic.$lbluser, modBasic.$compID)
+          res1 = modDatabase.$logConn.Exec("select fldid as fldfir from tblpatreport where fldhashcode=&1 and flduserid=&2 and fldcomp=&3", xHash, modBasic.$lbluser, modBasic.$compID)
         Endif
         If res1.Available Then
           res1.MoveLast
@@ -156,7 +156,7 @@ Public Sub AddUserImageToDB(strType As String, xPath As String)
   Dim res As Result
   Dim xblobfile As String
 
-  If modDatabase.$myConn.Tables.Exist("tbluserimage") Then
+  If modDatabase.$logConn.Tables.Exist("tbluserimage") Then
     If xPath And If Exist(xPath) Then
       If modMisc.BlobTarget("LogIn") = "FTP" Then
         xblobfile = modFTPSub.SendBlobToFTP(xPath, modBasic.$lbluser, "LogIn")
@@ -167,7 +167,7 @@ Public Sub AddUserImageToDB(strType As String, xPath As String)
       xblobfile = ""
     Endif
 
-    res = modDatabase.$myConn.Create("tbluserimage")
+    res = modDatabase.$logConn.Create("tbluserimage")
     res["flduserid"] = modBasic.$lbluser
     If xblobfile Then
       If modMisc.BlobTarget("LogIn") = "FTP" Then
@@ -201,7 +201,7 @@ Public Sub SaveReportLog(sType As String, inputFile As String, Optional encid As
   Dim xmd5 As String
   Dim xblobfile As String
 
-  If modDatabase.$myConn.Tables.Exist("tblreportlog") Then
+  If modDatabase.$logConn.Tables.Exist("tblreportlog") Then
     If Exist(inputFile) Then
       xmd5 = modApplication.GetMD5SumFile(inputFile)
 
@@ -222,7 +222,7 @@ Public Sub SaveReportLog(sType As String, inputFile As String, Optional encid As
         xblobfile = File.Load(sFile)
       Endif
       If xblobfile Then
-        res = modDatabase.$myConn.Create("tblreportlog")
+        res = modDatabase.$logConn.Create("tblreportlog")
         res["flduserid"] = modBasic.$lbluser
         res["fldtype"] = sType
         If encid Then
@@ -259,7 +259,7 @@ Public Sub InsertPatientImage(categ As String, patno As String, sImage As String
 
   If sImage Then
     If Exist(sImage) Then
-      res = modDatabase.$myConn.Create("tblpersonimage")
+      res = modDatabase.$logConn.Create("tblpersonimage")
       res["fldcateg"] = categ
       res["fldname"] = patNo
       res["fldpic"] = File.Load(sImage)
@@ -288,7 +288,7 @@ Public Sub UpdatePatientImage(categ As String, patno As String, sImage As String
 
   Dim res As Result
 
-  res = modDatabase.$myConn.Edit("tblpersonimage", "fldcateg=&1 and fldname=&2", categ, patno)
+  res = modDatabase.$logConn.Edit("tblpersonimage", "fldcateg=&1 and fldname=&2", categ, patno)
   If res.Available = False Then
     modImage.InsertPatientImage(categ, patno, sImage)
   Else
@@ -311,7 +311,7 @@ Public Function DisplayPersonImageData(categ As String, usrname As String) As St
   Dim aFile As String
 
   sql = "select fldpic,fldlink from tblpersonimage where fldcateg=&1 and fldname=&2"
-  res = modDatabase.$myConn.Exec(sql, categ, usrname)
+  res = modDatabase.$logConn.Exec(sql, categ, usrname)
   If res.Available = True Then
     res.MoveLast
     If res["fldlink"] Then
@@ -395,9 +395,9 @@ Public Function ShowTestExamImageListString(sType As String, sid As Long, encid 
   Dim xHtmStr As String
 
   If sType = "Test" Then
-    res = modDatabase.$myConn.Exec("select fldpic,fldtitle,fldlink from tblpatserialimage where fldtestid=&1 and fldencounterval=&2 and fldcateg=&3 and fldmode=&4", sid, encid, "IMAGE", "Laboratory")                     ''
+    res = modDatabase.$logConn.Exec("select fldpic,fldtitle,fldlink from tblpatserialimage where fldtestid=&1 and fldencounterval=&2 and fldcateg=&3 and fldmode=&4", sid, encid, "IMAGE", "Laboratory")                     ''
   Else If sType = "Radio" Then
-    res = modDatabase.$myConn.Exec("select fldpic,fldtitle,fldlink from tblpatserialimage where fldtestid=&1 and fldencounterval=&2 and fldcateg=&3 and fldmode=&4", sid, encid, "DICOM", "Radiology")
+    res = modDatabase.$logConn.Exec("select fldpic,fldtitle,fldlink from tblpatserialimage where fldtestid=&1 and fldencounterval=&2 and fldcateg=&3 and fldmode=&4", sid, encid, "DICOM", "Radiology")
   Endif
   If res.Available Then
     xx = New String[]
@@ -451,7 +451,7 @@ Public Function SaveClinicScreenDraw(encid As String, sTitle As String, sPath As
     Else
       xvalue = encid & ":" & modMisc.GetWebIndexStr(modString.GetDateString(Now()))
     Endif
-    res = modDatabase.$myConn.Create("tblpatimagedata")
+    res = modDatabase.$logConn.Create("tblpatimagedata")
     res["fldcateg"] = "IMAGE"
     res["fldencounterval"] = encid
     If modMisc.BlobTarget("Patient") = "FTP" Then
@@ -496,7 +496,7 @@ Public Function GetPatScreenImageHash(encid As String, sHash As String) As Strin
   Dim hFile As Blob
   Dim aFile As String
 
-  res = modDatabase.$myConn.Exec("select fldpic,fldlink,fldcateg from tblpatimagedata where fldencounterval=&1 and fldhashcode=&2", encid, sHash)
+  res = modDatabase.$logConn.Exec("select fldpic,fldlink,fldcateg from tblpatimagedata where fldencounterval=&1 and fldhashcode=&2", encid, sHash)
   If res.Available Then
     res.MoveLast
     If res["fldlink"] Then
@@ -541,7 +541,7 @@ Public Function GetBlobFileData(serial As Variant, Optional sTable As String) As
   Else
     sql = Subst("select fldcateg,fldextension,fldpic,fldlink,fldcomp from &1", xtable) & " where fldid=&1"
   Endif
-  res = modDatabase.$syConn.Exec(sql, serial)
+  res = modDatabase.$logConn.Exec(sql, serial)
   If res.Available = True Then
 
     If res["fldlink"] Then
@@ -602,7 +602,7 @@ Public Function GetBlobFileRemoteData(serial As Variant, Optional sTable As Stri
   Else
     sql = Subst("select fldcateg,fldextension,fldpic,fldlink,fldcomp from &1", xtable) & " where fldid=&1"
   Endif
-  res = modDatabase.$syConn.Exec(sql, serial)
+  res = modDatabase.$logConn.Exec(sql, serial)
   If res.Available = True Then
 
     If res["fldlink"] Then
@@ -650,7 +650,7 @@ Public Function GetBlobHashData(encid As String, sHash As String, Optional sTabl
     xtable = "tblpatreport"
   Endif
   sql = Subst("select fldcateg,fldextension,fldpic,fldlink,fldcomp from &1", xtable) & " where fldencounterval=&1 and fldhashcode=&2"
-  res = modDatabase.$syConn.Exec(sql, encid, sHash)
+  res = modDatabase.$logConn.Exec(sql, encid, sHash)
   If res.Available = True Then
     res.MoveLast
 
@@ -702,16 +702,16 @@ Public Function GetBlobFileDataTable(serial As Variant, sTable As String) As Str
 
   If sTable = "tblpersonimage" Then
     If MMain.$WebEntry = True Then
-      res = modDatabase.$myConn.Exec("select fldpic,fldlink from tblpersonimage where fldrepoid=&1", serial)
+      res = modDatabase.$logConn.Exec("select fldpic,fldlink from tblpersonimage where fldrepoid=&1", serial)
     Else
-      res = modDatabase.$myConn.Exec("select fldpic,fldlink from tblpersonimage where fldid=&1", serial)
+      res = modDatabase.$logConn.Exec("select fldpic,fldlink from tblpersonimage where fldid=&1", serial)
     Endif
     sType = "IMAGE"
   Else If sTable = "tblpatserialimage" Then
     If MMain.$WebEntry = True Then
-      res = modDatabase.$myConn.Exec("select fldpic,fldlink,fldcateg from tblpatserialimage where fldrepoid=&1", serial)
+      res = modDatabase.$logConn.Exec("select fldpic,fldlink,fldcateg from tblpatserialimage where fldrepoid=&1", serial)
     Else
-      res = modDatabase.$myConn.Exec("select fldpic,fldlink,fldcateg from tblpatserialimage where fldid=&1", serial)
+      res = modDatabase.$logConn.Exec("select fldpic,fldlink,fldcateg from tblpatserialimage where fldid=&1", serial)
     Endif
     If res.Available And If res["fldcateg"] Then
       sType = res["fldcateg"]
@@ -720,9 +720,9 @@ Public Function GetBlobFileDataTable(serial As Variant, sTable As String) As Str
     Endif
   Else If sTable = "tblpatimagedata" Then
     If MMain.$WebEntry = True Then
-      res = modDatabase.$myConn.Exec("select fldpic,fldlink,fldcateg from tblpatimagedata where fldrepoid=&1", serial)
+      res = modDatabase.$logConn.Exec("select fldpic,fldlink,fldcateg from tblpatimagedata where fldrepoid=&1", serial)
     Else
-      res = modDatabase.$myConn.Exec("select fldpic,fldlink,fldcateg from tblpatimagedata where fldid=&1", serial)
+      res = modDatabase.$logConn.Exec("select fldpic,fldlink,fldcateg from tblpatimagedata where fldid=&1", serial)
     Endif
     If res.Available And If res["fldcateg"] Then
       sType = res["fldcateg"]
@@ -731,9 +731,9 @@ Public Function GetBlobFileDataTable(serial As Variant, sTable As String) As Str
     Endif
   Else If sTable = "tblpayimage" Then
     If MMain.$WebEntry = True Then
-      res = modDatabase.$myConn.Exec("select fldpic,fldlink from tblpayimage where fldrepoid=&1", serial)
+      res = modDatabase.$logConn.Exec("select fldpic,fldlink from tblpayimage where fldrepoid=&1", serial)
     Else
-      res = modDatabase.$myConn.Exec("select fldpic,fldlink from tblpayimage where fldid=&1", serial)
+      res = modDatabase.$logConn.Exec("select fldpic,fldlink from tblpayimage where fldid=&1", serial)
     Endif
     sType = "IMAGE"
   Endif
@@ -793,7 +793,7 @@ Public Sub SaveDocumentToPersonal(sUser As String, sComment As String, sPath As 
     xblobfile = File.Load(sPath)
   Endif
   If xblobfile Then
-    res = modDatabase.$myConn.Create("tblpersonal")
+    res = modDatabase.$logConn.Create("tblpersonal")
     res["fldcateg"] = "Document"
     If modMisc.BlobTarget("Personal") = "FTP" Then
       res["fldblob"] = ""
@@ -827,7 +827,7 @@ Public Function AddVoucherImageBook(sTarget As String, sBookID As String, sPatie
     xblobfile = File.Load(sPath)
   Endif
   If xblobfile Then
-    res = modDatabase.$myConn.Create("tblpayimage")
+    res = modDatabase.$logConn.Create("tblpayimage")
     res["fldbookid"] = sBookID
     res["fldpatient"] = sPatient
     res["fldcateg"] = sTarget
@@ -858,9 +858,9 @@ Public Function AddVoucherImageBook(sTarget As String, sBookID As String, sPatie
     res.Update()
 
     If MMain.$WebEntry = True Then
-      res1 = modDatabase.$myConn.Exec("select fldrepoid as fldfir from tblpayimage where fldbookid=&1", sBookID)
+      res1 = modDatabase.$logConn.Exec("select fldrepoid as fldfir from tblpayimage where fldbookid=&1", sBookID)
     Else
-      res1 = modDatabase.$myConn.Exec("select fldid as fldfir from tblpayimage where fldbookid=&1", sBookID)
+      res1 = modDatabase.$logConn.Exec("select fldid as fldfir from tblpayimage where fldbookid=&1", sBookID)
     Endif
     If res1.Available Then
       res1.MoveLast

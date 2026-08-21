@@ -243,6 +243,7 @@ Public Sub TransferRemoConn(patNo As String)
   Endif
   If $RepoCon.Opened = True Then
     modDatabase.$myConn = $RepoCon
+    modDatabase.$logConn = $RepoCon
     modDatabase.$syConn = $RepoCon
   Endif
 
@@ -2211,9 +2212,9 @@ Public Sub UploadOneReportToRepository(sTable As String, sLongID As Long)
         Endif
 
         If hTable.Name = "tblpatreport" Then
-          res = modDatabase.$myConn.Edit(hTable.Name, "fldid=&1 and (fldxyz=&2 or fldxyz IS NULL) and (flvisible=&3 or flvisible IS NULL)", sLongID, False, "Visible")
+          res = modDatabase.$logConn.Edit(hTable.Name, "fldid=&1 and (fldxyz=&2 or fldxyz IS NULL) and (flvisible=&3 or flvisible IS NULL)", sLongID, False, "Visible")
         Else
-          res = modDatabase.$myConn.Edit(hTable.Name, "fldid=&1 and fldxyz=&2 or fldxyz IS NULL", sLongID, False)
+          res = modDatabase.$logConn.Edit(hTable.Name, "fldid=&1 and fldxyz=&2 or fldxyz IS NULL", sLongID, False)
         Endif
         If res.Available Then
           modBasic.PrintErrorString("Starting Data Transfer to " & sTable & " . . .")
@@ -2416,9 +2417,9 @@ Public Sub UploadImageEncToRepository(encid As String)
             Endif
 
             If hTable.Name = "tblpatreport" Then
-              res = modDatabase.$myConn.Edit(hTable.Name, "(fldxyz=&1 or fldxyz IS NULL) and (flvisible=&2 or flvisible IS NULL) and fldencounterval=&3", False, "Visible", encid)
+              res = modDatabase.$logConn.Edit(hTable.Name, "(fldxyz=&1 or fldxyz IS NULL) and (flvisible=&2 or flvisible IS NULL) and fldencounterval=&3", False, "Visible", encid)
             Else
-              res = modDatabase.$myConn.Edit(hTable.Name, "(fldxyz=&1 or fldxyz IS NULL) and fldencounterval=&2", False, encid)
+              res = modDatabase.$logConn.Edit(hTable.Name, "(fldxyz=&1 or fldxyz IS NULL) and fldencounterval=&2", False, encid)
             Endif
             If res.Available Then
               modBasic.PrintErrorString("Starting Data Transfer to " & sTable & " . . .")
@@ -2630,9 +2631,9 @@ Public Sub UploadImageToRepository(xdebug As Boolean)
             Endif
 
             If hTable.Name = "tblpatreport" Then
-              res = modDatabase.$myConn.Edit(hTable.Name, "(fldxyz=&1 or fldxyz IS NULL) and (flvisible=&2 or flvisible IS NULL)", False, "Visible")
+              res = modDatabase.$logConn.Edit(hTable.Name, "(fldxyz=&1 or fldxyz IS NULL) and (flvisible=&2 or flvisible IS NULL)", False, "Visible")
             Else
-              res = modDatabase.$myConn.Edit(hTable.Name, "fldxyz=&1 or fldxyz IS NULL", False)
+              res = modDatabase.$logConn.Edit(hTable.Name, "fldxyz=&1 or fldxyz IS NULL", False)
             Endif
             If res.Available Then
               If xdebug = True Then
@@ -2846,7 +2847,7 @@ Public Sub UploadOrthancStudy(studyUID As String)
   Dim xdir As String
   Dim xfinal As String
 
-  res = modDatabase.$myConn.Exec("select fldhash from tblpacsupload where fldhash=&1", studyUID)
+  res = modDatabase.$logConn.Exec("select fldhash from tblpacsupload where fldhash=&1", studyUID)
   If res.Available = False Then
     xdir = File.Dir(Temp())
     xfinal = xdir &/ modString.GetNowString()
@@ -2856,7 +2857,7 @@ Public Sub UploadOrthancStudy(studyUID As String)
       modDevAll.GetZipExtract(xdir &/ studyUID, xfinal)
       If Exist(xfinal) Then
         modPACS.UploadDicomFolder($RepoPACSHost, $RepoPACSPort, xfinal, $RepoPACSUser, $RepoPACSPassword)
-        res1 = modDatabase.$myConn.Create("tblpacsupload")
+        res1 = modDatabase.$logConn.Create("tblpacsupload")
         res1["fldhash"] = studyUID
         res1["fldsave"] = True
         res1.Update
@@ -2873,14 +2874,14 @@ Public Sub UploadOrthancStudyArchive(studyUID As String)
   Dim res1 As Result
   Dim xdir As String
 
-  res = modDatabase.$myConn.Exec("select fldhash from tblpacsupload where fldhash=&1", studyUID)
+  res = modDatabase.$logConn.Exec("select fldhash from tblpacsupload where fldhash=&1", studyUID)
   If res.Available = False Then
     xdir = File.Dir(Temp())
     modPACS.DicomStudyDownload(xdir, "Orthanc", "Orthanc", "", studyUID)
     modBasic.PrintErrorString("Downloading . . . Study ID: " & studyUID)
     If Exist(xdir &/ studyUID) Then
       modPACS.UploadDicomArchive($RepoPACSHost, $RepoPACSPort, xdir &/ studyUID, $RepoPACSUser, $RepoPACSPassword, "Disable")
-      res1 = modDatabase.$myConn.Create("tblpacsupload")
+      res1 = modDatabase.$logConn.Create("tblpacsupload")
       res1["fldhash"] = studyUID
       res1["fldsave"] = True
       res1.Update

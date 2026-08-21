@@ -40,7 +40,7 @@ Private Sub ShowGridImage()
   Dim sql As String
 
   sql = "select fldid,fldtitle,fldlink from tblofficedocs where fldreference=&1 and fldcateg=&2"
-  $rData = modDatabase.$myConn.Exec(sql, $refno, $strType)
+  $rData = modDatabase.$logConn.Exec(sql, $refno, $strType)
   $aMyFields = New String[]
   modGridView.ReadSmallData(GridView1, $rData, $aMyFields)
 
@@ -79,7 +79,7 @@ Private Sub DisplayBlobData(serial As Long)
   Dim aFile As String
 
   sql = "select fldpic,fldtitle,flddetail,fldlink,fldextension,fldcomp from tblofficedocs where fldid=&1"
-  res = modDatabase.$myConn.Exec(sql, serial)
+  res = modDatabase.$logConn.Exec(sql, serial)
   If res.Available = True Then
     tempFile = Temp() & "." & res["fldextension"]
     If res["fldlink"] Then
@@ -144,7 +144,7 @@ Public Sub btnOK_Click()
       xblobfile = File.Load(sFIle)
     Endif
     If xblobfile Then
-      res = modDatabase.$myConn.Create("tblofficedocs")
+      res = modDatabase.$logConn.Create("tblofficedocs")
       res["fldreference"] = $refno
       res["fldcateg"] = $strType
       If modMisc.BlobTarget("OfficeDocs") = "FTP" Then
@@ -184,7 +184,7 @@ Public Sub btnChange_Click()
     $rData.MoveTo(GridView1.Selection[0])
     If txttitle.Text Then
 
-      res = modDatabase.$myConn.Edit("tblofficedocs", "fldid=&1", $rData["fldid"])
+      res = modDatabase.$logConn.Edit("tblofficedocs", "fldid=&1", $rData["fldid"])
       If res["flduserid"] = modBasic.$lbluser Then
 
         If txtpath.Text Then
@@ -241,7 +241,7 @@ Public Sub OfficeDOcsReport()
   $BillingReport.UserData.Add($strType, "PARAM1")
   $BillingReport.UserData.Add("Ref: " & $refno, "PARAM2")
 
-  res1 = modDatabase.$myConn.Exec("select fldtime,fldtitle,flddetail from tblofficedocs where fldreference=&1 and fldcateg=&2", $refno, $strType)                      ''
+  res1 = modDatabase.$logConn.Exec("select fldtime,fldtitle,flddetail from tblofficedocs where fldreference=&1 and fldcateg=&2", $refno, $strType)                      ''
   For Each res1
     With asx
       .Add(modReportVar.GetDateTimeReport(res1["fldtime"], gb.GeneralDate))
@@ -275,11 +275,11 @@ Public Sub mnudelete_Click()
         modFTPSub.DeleteBlobFIleFTP(sLink)
         xfile = modImage.GetBlobFileData($rData["fldid"])
         If Not Exist(xfile) Then
-          modDatabase.$myConn.Delete("tblofficedocs", "fldid=&1 and fldreference=&2 and fldcateg=&3", $rData["fldid"], $refno, $strType)
+          modDatabase.$logConn.Delete("tblofficedocs", "fldid=&1 and fldreference=&2 and fldcateg=&3", $rData["fldid"], $refno, $strType)
           ShowGridImage()
         Endif
       Else
-        modDatabase.$myConn.Delete("tblofficedocs", "fldid=&1 and fldreference=&2 and fldcateg=&3", $rData["fldid"], $refno, $strType)
+        modDatabase.$logConn.Delete("tblofficedocs", "fldid=&1 and fldreference=&2 and fldcateg=&3", $rData["fldid"], $refno, $strType)
         ShowGridImage()
       Endif
 

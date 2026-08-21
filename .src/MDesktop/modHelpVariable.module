@@ -60,6 +60,7 @@ Public $DownloadAdvertise As String
 Public $AutoDashUpload As String
 
 Public $SysDataBase As String
+Public $SysLogDataBase As String
 Public $SysDisableDate As String
 Public $SysDisableCharset As String
 Public $SysCollation As String
@@ -102,6 +103,7 @@ Public $SysFTPCert As String
 Private $DBType As String
 Private $DBHost As String
 Private $DBName As String
+Private $DBLog As String
 Private $UserName As String
 Private $UserPassword As String
 Private $sPort As String
@@ -324,66 +326,6 @@ Public Sub SetAppConfigFile()
 
 End
 
-Public Sub SetApplicationGUI()
-
-  Dim sCon As Connection
-
-  If modBasic.$DebugDB = True Then
-    db.Debug = True
-  Endif
-  modHelpVariable.CalenderConnection()
-  modHelpVariable.ICDTablesConnection()
-  modBasic.LoadGeneralVariables()
-  If Exist(modHelpVariable.$appetcFolder &/ "sishrepository.conf.7z") Then
-    CreateRepositoryLocal()
-  Endif
-  CreateLatestLocalDB()
-  modHelpVariable.ConnRemotePastDatabase()  ''for past db
-
-  modSettings.SaveValuesToLog("LogIn/User", modBasic.$lbluser)
-  If modBasic.$PatRepoDBase = "mysql" Then
-    If Not modDatabase.$myConn.Databases.Exist("repository") Then
-      sCon = modDBApp.OpenConnection("mysql", modDatabase.$myConn.Host, "", modDatabase.$myConn.User, modDatabase.$myConn.Password)
-      If sCon.Opened = True Then
-        sCon.Databases.Add("repository")
-        sCon.Close()
-      Endif
-      sCon = modDBApp.OpenConnection("mysql", modDatabase.$myConn.Host, "repository", modDatabase.$myConn.User, modDatabase.$myConn.Password)
-      If sCon.Opened = True Then
-        modDBTables.$DbFormat = "REP"
-        modDBTables.$DbEngine = "HEAP"
-        modDBGroup.CreateDatabaseForSish(sCon)
-        modDBTables.$DbFormat = "HIS"
-        sCon.Close()
-      Endif
-    Endif
-    modDatabase.$repoConn = modDBApp.OpenConnection("mysql", modDatabase.$myConn.Host, "repository", modDatabase.$myConn.User, modDatabase.$myConn.Password)
-
-  Else
-    If Not Exist(modHelpVariable.AppCacheDir &/ "repository") Then
-      Copy modHelpVariable.AppDirectory &/ "repository" To modHelpVariable.AppCacheDir &/ "repository"
-    Endif
-  Endif
-
-  If Not Exist(modHelpVariable.AppCacheDir &/ "current") Then
-    Copy modHelpVariable.AppDirectory &/ "current" To modHelpVariable.AppCacheDir &/ "current"
-  Endif
-  modGeneralMain.SetActiveForms()
-
-  ''new
-  modDevice.CamOnStart()
-  modAppSupport.RecordSystemLog()
-  SetLocalDirectories()
-  modGeneralMain.SetAutoCompleteTextArea()
-  modAppSupport.FindWorkProgressBar(modHelpVariable.$LogInCategory).Visible = False
-  ' modAdvertise.ConnectAdLocalDB()
-  If modHelpVariable.$UploadLoginLog = "No" Then
-  Else
-    modRepository.InsertLogToRemoteServer()
-  Endif
-
-End
-
 'NOTE: -------------------------------- General Connection -------------------------------
 Public Function GetConfigSettingFIle() As String
 
@@ -459,6 +401,10 @@ Public Sub ReadConfigFile()
   Endif
 
   $SysDataBase = modControlSub.ShowSettingValue(xfile, "System/Database")
+  $SysLogDataBase = modControlSub.ShowSettingValue(xfile, "System/LogDatabase")
+  If Not $SysLogDataBase Then
+    $SysLogDataBase = $SysDataBase
+  Endif
   $SysCollation = modControlSub.ShowSettingValue(xfile, "System/DBCollation")
   $SysInterface = modControlSub.ShowSettingValue(xfile, "System/NetInterface")
   $SysDisableDate = modControlSub.ShowSettingValue(xfile, "System/DisableDateCheck")
@@ -532,6 +478,7 @@ Public Sub ConnectionMain()
     $DBType = modSettings.ShowSettingFromFIle("SISH_Connection/RemoteService")
     $DBHost = modSettings.ShowSettingFromFIle("SISH_Connection/RemoteHost")
     $DBName = modSettings.ShowSettingFromFIle("SISH_Connection/RemoteDatabase")
+    $DBLog = modSettings.ShowSettingFromFIle("SISH_Connection/RemoteDatabase")
     $UserName = UnBase64(modSettings.ShowSettingFromFIle("SISH_Connection/RemoteUser"))
     $UserPassword = UnBase64(modSettings.ShowSettingFromFIle("SISH_Connection/RemotePass"))
     $sPort = modSettings.ShowSettingFromFIle("SISH_Connection/RemotePort")
@@ -539,6 +486,7 @@ Public Sub ConnectionMain()
     $DBType = $SysMainService
     $DBHost = $SysMainHost
     $DBName = $SysDataBase
+    $DBLog = $SysLogDataBase
     $UserName = $SysMainUser
     $UserPassword = $SysMainPassword
     $sPort = $SysMainPort
@@ -546,11 +494,13 @@ Public Sub ConnectionMain()
 
   If $sPort Then
     modDatabase.$myConn = modDBApp.OpenConnection($DBType, $DBHost, $DBName, $UserName, $UserPassword, $sPort)
+    modDatabase.$logConn = modDBApp.OpenConnection($DBType, $DBHost, $DBLog, $UserName, $UserPassword, $sPort)
   Else
     modDatabase.$myConn = modDBApp.OpenConnection($DBType, $DBHost, $DBName, $UserName, $UserPassword)
+    modDatabase.$logConn = modDBApp.OpenConnection($DBType, $DBHost, $DBLog, $UserName, $UserPassword)
   Endif
 
-  If modDatabase.$myConn.Opened = True Then
+  If modDatabase.$myConn.Opened = True And If modDatabase.$logConn.Opened = True Then
     modBasic.DebugString("App connected to " & $DBName & " on Main Server at " & $DBHost & " . Database Driver: " & CStr(modDatabase.$myConn.Version))
     ConnectionExtra()
     ConnectionSync()
@@ -571,27 +521,36 @@ Private Sub ConnectionFallBack()
   Dim UserName As String
   Dim UserPassword As String
   Dim DBName As String
+  Dim DBLog As String
   Dim DBType As String
   Dim DBHost As String
   Dim sPort As String
 
   DBName = $SysDataBase
+  DBLog = $SysLogDataBase
   DBType = $SysFallService
   DBHost = $SysFallHost
   UserName = $SysFallUser
   UserPassword = $SysFallPass
   sPort = $SysFallPort
 
-  If sPort Then
-    modDatabase.$myConn = modDBApp.OpenConnection(DBType, DBHost, DBName, UserName, UserPassword, sPort)
-  Else
-    modDatabase.$myConn = modDBApp.OpenConnection(DBType, DBHost, DBName, UserName, UserPassword)
-  Endif
+  If DBType And If DBHost Then
+    If sPort Then
+      modDatabase.$myConn = modDBApp.OpenConnection(DBType, DBHost, DBName, UserName, UserPassword, sPort)
+      modDatabase.$logConn = modDBApp.OpenConnection(DBType, DBHost, DBLog, UserName, UserPassword, sPort)
+    Else
+      modDatabase.$myConn = modDBApp.OpenConnection(DBType, DBHost, DBName, UserName, UserPassword)
+      modDatabase.$logConn = modDBApp.OpenConnection(DBType, DBHost, DBLog, UserName, UserPassword)
+    Endif
 
-  If modDatabase.$myConn.Opened = True Then
-    modBasic.DebugString("App connected to " & DBName & " on Fallback Server at " & DBHost & " . Database Driver: " & CStr(modDatabase.$myConn.Version))
-    ConnectionExtra()
-    ConnectionSync()
+    If modDatabase.$myConn.Opened = True And If modDatabase.$logConn.Opened = True Then
+      modBasic.DebugString("App connected to " & DBName & " on Fallback Server at " & DBHost & " . Database Driver: " & CStr(modDatabase.$myConn.Version))
+      ConnectionExtra()
+      ConnectionSync()
+    Else
+      Message.Error(("Please check network connections") & "<br>" & ("1. Please check network cables.") & "<br>" & ("2. Ping To Server " & modHelpVariable.$SysMainHost), ("OK"))
+    Endif
+
   Else
     Message.Error(("Please check network connections") & "<br>" & ("1. Please check network cables.") & "<br>" & ("2. Ping To Server " & modHelpVariable.$SysMainHost), ("OK"))
   Endif
@@ -603,12 +562,14 @@ Private Sub ConnectionExtra()
   Dim UserName As String
   Dim UserPassword As String
   Dim DBName As String
+  Dim DBLog As String
   Dim DBType As String
   Dim DBHost As String
   Dim sPort As String
 
   If $conTarget = "Remote" Then
     DBName = $DBName
+    DBLog = $DBName
     DBType = $DBType
     DBHost = $DBHost
     UserName = $UserName
@@ -616,6 +577,7 @@ Private Sub ConnectionExtra()
     sPort = $sPort
   Else
     DBName = $SysDataBase
+    DBLog = $SysLogDataBase
     DBType = $SysExtService
     DBHost = $SysExtHost
     UserName = $SysExtUser
@@ -623,16 +585,26 @@ Private Sub ConnectionExtra()
     sPort = $SysExtPort
   Endif
 
-  If sPort Then
-    modDatabase.$sreadConn = modDBApp.OpenConnection(DBType, DBHost, DBName, UserName, UserPassword, sPort)
+  If DBType And If DBHost Then
+    If sPort Then
+      modDatabase.$readConn = modDBApp.OpenConnection(DBType, DBHost, DBName, UserName, UserPassword, sPort)
+      modDatabase.$logreadConn = modDBApp.OpenConnection(DBType, DBHost, DBLog, UserName, UserPassword, sPort)
+    Else
+      modDatabase.$readConn = modDBApp.OpenConnection(DBType, DBHost, DBName, UserName, UserPassword)
+      modDatabase.$logreadConn = modDBApp.OpenConnection(DBType, DBHost, DBLog, UserName, UserPassword)
+    Endif
+    If modDatabase.$readConn.Opened = False Then
+      modDatabase.$readConn = modDatabase.$myConn
+      modDatabase.$logreadConn = modDatabase.$logConn
+      modBasic.DebugString("Main/Fallback Server used as Read Server")
+    Else
+      modBasic.DebugString("App connected to " & DBName & " on Read Server at " & DBHost & " . Database Driver: " & CStr(modDatabase.$readConn.Version))
+    Endif
+
   Else
-    modDatabase.$sreadConn = modDBApp.OpenConnection(DBType, DBHost, DBName, UserName, UserPassword)
-  Endif
-  If modDatabase.$sreadConn.Opened = False Then
-    modDatabase.$sreadConn = modDatabase.$myConn
+    modDatabase.$readConn = modDatabase.$myConn
+    modDatabase.$logreadConn = modDatabase.$logConn
     modBasic.DebugString("Main/Fallback Server used as Read Server")
-  Else
-    modBasic.DebugString("App connected to " & DBName & " on Read Server at " & DBHost & " . Database Driver: " & CStr(modDatabase.$sreadConn.Version))
   Endif
 
 End
@@ -642,12 +614,14 @@ Private Sub ConnectionSync()
   Dim UserName As String
   Dim UserPassword As String
   Dim DBName As String
+  Dim DBLog As String
   Dim DBType As String
   Dim DBHost As String
   Dim sPort As String
 
   If $conTarget = "Remote" Then
     DBName = $DBName
+    DBLog = $DBName
     DBType = $DBType
     DBHost = $DBHost
     UserName = $UserName
@@ -655,6 +629,7 @@ Private Sub ConnectionSync()
     sPort = $sPort
   Else
     DBName = $SysDataBase
+    DBLog = $SysLogDataBase
     DBType = $SysSyncService
     DBHost = $SysSyncHost
     UserName = $SysSyncUser
@@ -663,33 +638,38 @@ Private Sub ConnectionSync()
   Endif
 
   If sPort Then
-    modDatabase.$ssyncConn = modDBApp.OpenConnection(DBType, DBHost, DBName, UserName, UserPassword, sPort)
+    modDatabase.$slaveConn = modDBApp.OpenConnection(DBType, DBHost, DBName, UserName, UserPassword, sPort)
+    modDatabase.$slavLogConn = modDBApp.OpenConnection(DBType, DBHost, DBLog, UserName, UserPassword, sPort)
   Else
-    modDatabase.$ssyncConn = modDBApp.OpenConnection(DBType, DBHost, DBName, UserName, UserPassword)
+    modDatabase.$slaveConn = modDBApp.OpenConnection(DBType, DBHost, DBName, UserName, UserPassword)
+    modDatabase.$slavLogConn = modDBApp.OpenConnection(DBType, DBHost, DBLog, UserName, UserPassword)
   Endif
-  If modDatabase.$ssyncConn.Opened = False Then
-    If modDatabase.$sreadConn.Opened = True Then
-      modDatabase.$ssyncConn = modDatabase.$sreadConn
+
+  If modDatabase.$slaveConn.Opened = False Then
+    If modDatabase.$readConn.Opened = True Then
+      modDatabase.$slaveConn = modDatabase.$readConn
+      modDatabase.$slavLogConn = modDatabase.$logreadConn
       modBasic.DebugString("Read Server used as Sync Server")
     Else
-      modDatabase.$ssyncConn = modDatabase.$myConn
+      modDatabase.$slaveConn = modDatabase.$myConn
+      modDatabase.$slavLogConn = modDatabase.$logConn
       modBasic.DebugString("Main/Fallback Server used as Sync Server")
     Endif
   Else
-    modBasic.DebugString("App connected to " & DBName & " on Sync Server at " & DBHost & " . Database Driver: " & CStr(modDatabase.$ssyncConn.Version))
+    modBasic.DebugString("App connected to " & DBName & " on Sync Server at " & DBHost & " . Database Driver: " & CStr(modDatabase.$slaveConn.Version))
   Endif
 
 End
 
 Public Sub SetReadAsReportCon()
 
-  modDatabase.$syConn = modDatabase.$sreadConn
+  modDatabase.$syConn = modDatabase.$readConn
 
 End
 
 Public Sub SetSlaveAsReportCon()
 
-  modDatabase.$syConn = modDatabase.$ssyncConn
+  modDatabase.$syConn = modDatabase.$slaveConn
 
 End
 
@@ -767,6 +747,7 @@ Private Sub CreateRepositoryLocal()
   '     modDBTables.$DbFormat = "REP"
   '     modDBTables.$DbEngine = "HEAP"
   '     modDBGroup.CreateDatabaseForSish(qCon)
+  '     modDBGroup.CreateDatabaseForLog(qCon)
   '     Try qCon.Close()
   '   Endif
   '
@@ -778,6 +759,7 @@ Private Sub CreateRepositoryLocal()
     qCon = modDBApp.OpenConnection("sqlite3", modHelpVariable.AppDirectory, "repository", "", "")
     modDBTables.$DbFormat = "REP"
     modDBGroup.CreateDatabaseForSish(qCon)
+    modDBGroup.CreateDatabaseForLog(qCon)
     Try qCon.Close()
   Endif
 
@@ -797,6 +779,7 @@ Private Sub CreateLatestLocalDB()
     qCon = modDBApp.OpenConnection("sqlite3", modHelpVariable.AppDirectory, "current", "", "")
     modDBTables.$DbFormat = "HIS"
     modDBGroup.CreateDatabaseForSish(qCon)
+    modDBGroup.CreateDatabaseForLog(qCon)
     Try qCon.Close()
   Endif
 
@@ -841,6 +824,67 @@ Public Sub ConnectRemotePharmacy()
   xpass = modPassword.DecryptDBPass(modControlSub.ShowSettingValue(xfile, "PharmSource/Password"), False)
   xport = modControlSub.ShowSettingValue(xfile, "PharmSource/Port")
   modDatabase.$pharmConn = modDBApp.OpenConnection(xservice, xhost, xdbname, xuser, xpass, xport)
+
+End
+
+Public Sub SetApplicationGUI()
+
+  Dim sCon As Connection
+
+  If modBasic.$DebugDB = True Then
+    db.Debug = True
+  Endif
+  modHelpVariable.CalenderConnection()
+  modHelpVariable.ICDTablesConnection()
+  modBasic.LoadGeneralVariables()
+  If Exist(modHelpVariable.$appetcFolder &/ "sishrepository.conf.7z") Then
+    CreateRepositoryLocal()
+  Endif
+  CreateLatestLocalDB()
+  modHelpVariable.ConnRemotePastDatabase()  ''for past db
+
+  modSettings.SaveValuesToLog("LogIn/User", modBasic.$lbluser)
+  If modBasic.$PatRepoDBase = "mysql" Then
+    If Not modDatabase.$myConn.Databases.Exist("repository") Then
+      sCon = modDBApp.OpenConnection("mysql", modDatabase.$myConn.Host, "", modDatabase.$myConn.User, modDatabase.$myConn.Password)
+      If sCon.Opened = True Then
+        sCon.Databases.Add("repository")
+        sCon.Close()
+      Endif
+      sCon = modDBApp.OpenConnection("mysql", modDatabase.$myConn.Host, "repository", modDatabase.$myConn.User, modDatabase.$myConn.Password)
+      If sCon.Opened = True Then
+        modDBTables.$DbFormat = "REP"
+        modDBTables.$DbEngine = "HEAP"
+        modDBGroup.CreateDatabaseForSish(sCon)
+        modDBGroup.CreateDatabaseForLog(sCon)
+        modDBTables.$DbFormat = "HIS"
+        sCon.Close()
+      Endif
+    Endif
+    modDatabase.$repoConn = modDBApp.OpenConnection("mysql", modDatabase.$myConn.Host, "repository", modDatabase.$myConn.User, modDatabase.$myConn.Password)
+
+  Else
+    If Not Exist(modHelpVariable.AppCacheDir &/ "repository") Then
+      Copy modHelpVariable.AppDirectory &/ "repository" To modHelpVariable.AppCacheDir &/ "repository"
+    Endif
+  Endif
+
+  If Not Exist(modHelpVariable.AppCacheDir &/ "current") Then
+    Copy modHelpVariable.AppDirectory &/ "current" To modHelpVariable.AppCacheDir &/ "current"
+  Endif
+  modGeneralMain.SetActiveForms()
+
+  ''new
+  modDevice.CamOnStart()
+  modAppSupport.RecordSystemLog()
+  SetLocalDirectories()
+  modGeneralMain.SetAutoCompleteTextArea()
+  modAppSupport.FindWorkProgressBar(modHelpVariable.$LogInCategory).Visible = False
+  ' modAdvertise.ConnectAdLocalDB()
+  If modHelpVariable.$UploadLoginLog = "No" Then
+  Else
+    modRepository.InsertLogToRemoteServer()
+  Endif
 
 End
 

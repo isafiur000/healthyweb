@@ -111,7 +111,7 @@ Private Sub LoadGridData()
 
   Dim sql As String
 
-  sql = "select fldbookingval,fldbookingval,fldconsultdate,fldadmitlocat,fldpatientval,fldptnamefir,fldptnamelast,fldptsex,flddisctype,fldpayreference,fldencounterval,fldinvoice,fldconsultdate,fldbookingval from tblonlinebook where flddisctype like &1 and fldconsultdate>=&2 and fldconsultdate<=&3 and fldadmitlocat like &4 and fldstate=&5"
+  sql = "select fldbookingval,fldbookingval,fldconsultdate,fldadmitlocat,fldpatientno,fldptnamefir,fldptnamelast,fldptsex,flddisctype,fldpayreference,fldencounterval,fldinvoice,fldconsultdate,fldbookingval from tblonlinebook where flddisctype like &1 and fldconsultdate>=&2 and fldconsultdate<=&3 and fldadmitlocat like &4 and fldstate=&5"
   $rData = modDatabase.$myConn.Exec(sql, cmbscheme.Text, modDate.StartSqlDate(dtconsult.Value), modDate.EndSqlDate(dtconsult.Value), cmbdepart.Text, "Paid")
   $aMyFields = New String[]
   modGridView.ReadSmallData(GridView1, $rData, $aMyFields)
@@ -380,6 +380,8 @@ Private Function GetRegistration(sBookID As String) As String
   Dim xpdamt As Float
   Dim asx As String[]
   Dim xuser As String
+  Dim xoldpat As String
+  Dim rsPat As Result
 
   Dim xnhis As String
   Dim xvalid As Float
@@ -395,6 +397,29 @@ Private Function GetRegistration(sBookID As String) As String
 
   res = modDatabase.$myConn.Exec("select fldpatientval,fldconsultdate,fldadmitlocat,flduserid,flddisctype,fldbillingmode,fldencounterval,fldinvoice,fldpayreference,flditemamt,fldstate from tblonlinebook where fldbookingval=&1", sBookID)
   If res.Available Then
+    ''get Patient No
+    If res["fldpatientval"] Then
+      If IsPatientID(res["fldpatientval"]) = True Then
+        xoldpat = res["fldpatientval"]
+      Else
+        rsPat = modDatabase.$myConn.Exec("select fldpatientno from tblonlinebook where fldpatientval=&1 and fldpatientno IS NOT NULL", res["fldpatientval"])
+        If rsPat.Available Then
+          rsPat.MoveFirst
+          xoldpat = rsPat["fldpatientno"]
+        Else
+          xoldpat = ""
+        Endif
+      Endif
+    Else
+      xoldpat = ""
+    Endif
+
+    ''lock past visits
+    If xoldpat Then
+      LockPastEncounters(xoldpat)
+    Endif
+
+    ''get paid amount
     xpdamt = 0
     If res["fldstate"] = "Paid" Then
       If res["flditemamt"] Then
@@ -413,6 +438,7 @@ Private Function GetRegistration(sBookID As String) As String
       Endif
     Endif
 
+    ''get consultant booked
     If res["flduserid"] Then
       asx = Split(res["flduserid"], ":")
       If asx.Count = 2 Then
@@ -424,11 +450,11 @@ Private Function GetRegistration(sBookID As String) As String
       xuser = ""
     Endif
 
+    ''check scheme and Rate plan
     yPackGo = False
     rbilx = modDatabase.$myConn.Exec("select fldacledger,fldbillingmode,fldbilltype,fldreference from tbldiscount where fldtype=&1", res["flddisctype"])
     If rbilx Then
       xBillMode = rbilx["fldbillingmode"]
-
       If rbilx["fldbilltype"] = "Cash" Then
         xvalid = DateAdd(Now(), gb.Year, 1)
         xcrdt = 0
@@ -436,8 +462,8 @@ Private Function GetRegistration(sBookID As String) As String
         yPackGo = True
       Else If rbilx["fldbilltype"] = "Credit" Then
         xrefer = rbilx["fldreference"]
-        If res["fldpatientval"] And If IsPatientID(res["fldpatientval"]) = True Then
-          xnhis = modPatient.GetHospCodeByPatientNo(res["fldpatientval"])
+        If xoldpat Then
+          xnhis = modPatient.GetHospCodeByPatientNo(xoldpat)
 
           If xnhis Then
             If xrefer = "Medical SSF" Then
@@ -472,9 +498,9 @@ Private Function GetRegistration(sBookID As String) As String
 
         Endif
       Endif
-
     Endif
 
+    ''check if payment >=comnsulting fee
     If modBasic.$BillMobileCheckRegFee = "Enable" Then
       xtotamt = 0
       xtotamt = modBillings.GetAutoRegistCost(res["fldadmitlocat"], res["flddisctype"], xBillMode, "New")
@@ -493,9 +519,9 @@ Private Function GetRegistration(sBookID As String) As String
       If idLock = True Then
 
         modDatabase.$myConn.Begin
-        If res["fldpatientval"] And If IsPatientID(res["fldpatientval"]) = True Then
-          xvisit = modPatient.GetPatientHMISStattus(res["fldpatientval"])
-          xPatNo = res["fldpatientval"]
+        If xoldpat Then
+          xvisit = modPatient.GetPatientHMISStattus(xoldpat)
+          xPatNo = xoldpat
         Else
           xvisit = "NEW"
           xPatNo = RegisterFirstTime(sBookID)
@@ -558,10 +584,7 @@ Private Function GetRegistration(sBookID As String) As String
               Endif
 
               res2 = modDatabase.$myConn.Edit("tblonlinebook", "fldbookingval=&1", sBookID)
-              If res["fldpatientval"] And If res["fldpatientval"] Like modBasic.$PatNoPrefix & "*" Then
-              Else
-                res2["fldpatientval"] = xPatNo
-              Endif
+              res2["fldpatientno"] = xPatNo
               res2["fldencounterval"] = xEncID
               res2["fldconsultdate"] = xdate
               res2.Update
@@ -659,6 +682,26 @@ Private Function RegisterFirstTime(sBookID As String) As String
   Endif
 
   Return xPatNo
+
+End
+
+Private Sub LockPastEncounters(xPatNo As String)
+
+  Dim res As Result
+
+  If xPatNo Then
+    If modBasic.$RegistClearPast = "No" Then
+    Else
+      res = modDatabase.$myConn.Exec("select fldencounterval from tblencounter where fldpatientval=&1 and fldadmission=&2", xPatNo, "Registered")
+      For Each res
+        If modNonMedical.GetFinanceClearance(res["fldencounterval"]) = True Then
+        Else
+          modPatientSub.EnterPatientImpDate(res["fldencounterval"], "Clearance", "")
+          modPatientSub.UpdatePatOPDClearance(res["fldencounterval"])
+        Endif
+      Next
+    Endif
+  Endif
 
 End
 

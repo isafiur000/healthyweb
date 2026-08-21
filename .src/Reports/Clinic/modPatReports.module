@@ -1722,9 +1722,9 @@ Public Sub GetArchiveCurrReportEnc(sType As String, encid As String)
       xFldList[i] = "t1." & xFldList[i]
     Next
     If sType = "%" Then
-      res = modDatabase.$syConn.Exec("select " & xFldList.Join(",") & " from tblpatreport as t1 where t1.fldencounterval=&1 and (t1.fldcateg<>&2 and t1.fldcateg<>&3 and t1.fldcateg<>&4) and (t1.flvisible=&5 or t1.flvisible IS NULL) ORDER BY t1.fldtime DESC", encid, "PatientOrderSheet", "Diagnostic Tests Log", "Radio Diagnostics Log", "Visible")
+      res = modDatabase.$logConn.Exec("select " & xFldList.Join(",") & " from tblpatreport as t1 where t1.fldencounterval=&1 and (t1.fldcateg<>&2 and t1.fldcateg<>&3 and t1.fldcateg<>&4) and (t1.flvisible=&5 or t1.flvisible IS NULL) ORDER BY t1.fldtime DESC", encid, "PatientOrderSheet", "Diagnostic Tests Log", "Radio Diagnostics Log", "Visible")
     Else
-      res = modDatabase.$syConn.Exec("select " & xFldList.Join(",") & " from tblpatreport as t1 where t1.fldencounterval=&1 and t1.fldcateg like &2 and (t1.flvisible=&3 or t1.flvisible IS NULL) ORDER BY t1.fldtime DESC", encid, sType, "Visible")
+      res = modDatabase.$logConn.Exec("select " & xFldList.Join(",") & " from tblpatreport as t1 where t1.fldencounterval=&1 and t1.fldcateg like &2 and (t1.flvisible=&3 or t1.flvisible IS NULL) ORDER BY t1.fldtime DESC", encid, sType, "Visible")
     Endif
     myRes.AddResult(res)
 
@@ -1758,6 +1758,8 @@ End
 
 Public Sub GetArchiveReportResult(sType As String, xpatno As String)
 
+  Dim encLst As String[]
+  Dim k As Integer
   Dim xList As String[]
   Dim xFldList As String[]
   Dim res As Result
@@ -1767,6 +1769,11 @@ Public Sub GetArchiveReportResult(sType As String, xpatno As String)
   Dim i As Integer
 
   If xpatno Then
+    encLst = modPatient.GetEncListFromPatNo(xpatno, modDatabase.$syConn)
+    For k = 0 To encLst.Count - 1
+      encLst[k] = "'" & encLst[k] & "'"
+    Next
+
     If MMain.$WebEntry = True Then
       xList = ["fldrepoid", "fldtime", "fldencounterval", "fldtitle", "flddetail", "fldsave", "fldlink", "fldencounterval", "fldid"]
     Else
@@ -1780,9 +1787,9 @@ Public Sub GetArchiveReportResult(sType As String, xpatno As String)
       xFldList[i] = "t1." & xFldList[i]
     Next
     If sType = "%" Then
-      res = modDatabase.$syConn.Exec("select " & xFldList.Join(",") & " from tblpatreport as t1 where t1.fldencounterval in(select fldencounterval from tblencounter where fldpatientval=&1) and (t1.fldcateg<>&2 and t1.fldcateg<>&3 and t1.fldcateg<>&4) and (t1.flvisible=&5 or t1.flvisible IS NULL) ORDER BY t1.fldtime DESC", xpatno, "PatientOrderSheet", "Diagnostic Tests Log", "Radio Diagnostics Log", "Visible")
+      res = modDatabase.$logConn.Exec("select " & xFldList.Join(",") & " from tblpatreport as t1 where t1.fldencounterval in(" & encLst.Join(",") & ") and (t1.fldcateg<>&1 and t1.fldcateg<>&2 and t1.fldcateg<>&3) and (t1.flvisible=&4 or t1.flvisible IS NULL) ORDER BY t1.fldtime DESC", "PatientOrderSheet", "Diagnostic Tests Log", "Radio Diagnostics Log", "Visible")
     Else
-      res = modDatabase.$syConn.Exec("select " & xFldList.Join(",") & " from tblpatreport as t1 where t1.fldencounterval in(select fldencounterval from tblencounter where fldpatientval=&1) and t1.fldcateg like &2 and (t1.flvisible=&3 or t1.flvisible IS NULL) ORDER BY t1.fldtime DESC", xpatno, sType, "Visible")
+      res = modDatabase.$logConn.Exec("select " & xFldList.Join(",") & " from tblpatreport as t1 where t1.fldencounterval in(" & encLst.Join(",") & ") and t1.fldcateg like &1 and (t1.flvisible=&2 or t1.flvisible IS NULL) ORDER BY t1.fldtime DESC", sType, "Visible")
     Endif
     myRes.AddResult(res)
 
@@ -1798,9 +1805,9 @@ Public Sub GetArchiveReportResult(sType As String, xpatno As String)
             xFldList[i] = "t1." & xFldList[i]
           Next
           If sType = "%" Then
-            res = modDatabase.$syConn.Exec(Subst("select " & xFldList.Join(",") & " from &1", rex["fldpatreport"]) & " as t1 where t1.fldencounterval in(select fldencounterval from tblencounter where fldpatientval=&1) and (t1.fldcateg<>&2 and t1.fldcateg<>&3 and t1.fldcateg<>&4) and (t1.flvisible=&5 or t1.flvisible IS NULL) ORDER BY t1.fldtime DESC", xpatno, "PatientOrderSheet", "Diagnostic Tests Log", "Radio Diagnostics Log", "Visible")
+            res = modDatabase.$syConn.Exec(Subst("select " & xFldList.Join(",") & " from &1", rex["fldpatreport"]) & " as t1 where t1.fldencounterval in(" & encLst.Join(",") & ") and (t1.fldcateg<>&1 and t1.fldcateg<>&2 and t1.fldcateg<>&3) and (t1.flvisible=&4 or t1.flvisible IS NULL) ORDER BY t1.fldtime DESC", "PatientOrderSheet", "Diagnostic Tests Log", "Radio Diagnostics Log", "Visible")
           Else
-            res = modDatabase.$syConn.Exec(Subst("select " & xFldList.Join(",") & " from &1", rex["fldpatreport"]) & " as t1 where t1.fldencounterval in(select fldencounterval from tblencounter where fldpatientval=&1) and t1.fldcateg like &2 and (t1.flvisible=&3 or t1.flvisible IS NULL) ORDER BY t1.fldtime DESC", xpatno, sType, "Visible")
+            res = modDatabase.$syConn.Exec(Subst("select " & xFldList.Join(",") & " from &1", rex["fldpatreport"]) & " as t1 where t1.fldencounterval in(" & encLst.Join(",") & ") and t1.fldcateg like &1 and (t1.flvisible=&2 or t1.flvisible IS NULL) ORDER BY t1.fldtime DESC", sType, "Visible")
           Endif
           myRes.AddResult(res)
 
@@ -1816,32 +1823,42 @@ End
 
 Public Sub GetRepoArchiveReportResult(sType As String, xpatno As String)
 
+  Dim encLst As String[]
+  Dim k As Integer
   Dim res As Result
   Dim hForm As FRequest
   Dim sCon As Connection
   Dim xCon As Connection
+  Dim lCon As Connection
 
   If xpatno Then
     If modPatientSub.GetPatPassCheck(modDatabase.$myConn, xpatno) = True Then
       sCon = modDatabase.$myConn
+      lCon = modDatabase.$logConn
       xCon = modDatabase.$syConn
       modRepository.TransferRemoConn(xpatno)
+
+      encLst = modPatient.GetEncListFromPatNo(xpatno, modDatabase.$syConn)
+      For k = 0 To encLst.Count - 1
+        encLst[k] = "'" & encLst[k] & "'"
+      Next
       If MMain.$WebEntry = True Then
         If sType = "%" Then
-          res = modDatabase.$syConn.Exec("select fldrepoid,fldtime,fldencounterval,fldtitle,flddetail,fldsave,fldlink,fldencounterval,fldhospcode,fldrepoid from tblpatreport where fldencounterval in(select fldencounterval from tblencounter where fldpatientval=&1) and (fldcateg<>&2 and fldcateg<>&3 and fldcateg<>&4) and (flvisible=&5 or flvisible IS NULL) ORDER BY fldtime DESC", xpatno, "PatientOrderSheet", "Diagnostic Tests Log", "Radio Diagnostics Log", "Visible")
+          res = modDatabase.$logConn.Exec("select fldrepoid,fldtime,fldencounterval,fldtitle,flddetail,fldsave,fldlink,fldencounterval,fldhospcode,fldrepoid from tblpatreport where fldencounterval in(" & encLst.Join(",") & ") and (fldcateg<>&1 and fldcateg<>&2 and fldcateg<>&3) and (flvisible=&4 or flvisible IS NULL) ORDER BY fldtime DESC", "PatientOrderSheet", "Diagnostic Tests Log", "Radio Diagnostics Log", "Visible")
         Else
-          res = modDatabase.$syConn.Exec("select fldrepoid,fldtime,fldencounterval,fldtitle,flddetail,fldsave,fldlink,fldencounterval,fldhospcode,fldrepoid from tblpatreport where fldencounterval in(select fldencounterval from tblencounter where fldpatientval=&1) and fldcateg like &2 and (flvisible=&3 or flvisible IS NULL) ORDER BY fldtime DESC", xpatno, sType, "Visible")
+          res = modDatabase.$logConn.Exec("select fldrepoid,fldtime,fldencounterval,fldtitle,flddetail,fldsave,fldlink,fldencounterval,fldhospcode,fldrepoid from tblpatreport where fldencounterval in(" & encLst.Join(",") & ") and fldcateg like &1 and (flvisible=&2 or flvisible IS NULL) ORDER BY fldtime DESC", sType, "Visible")
         Endif
       Else
         If sType = "%" Then
-          res = modDatabase.$syConn.Exec("select fldid,fldtime,fldencounterval,fldtitle,flddetail,fldsave,fldlink,fldencounterval,fldcomp,fldid from tblpatreport where fldencounterval in(select fldencounterval from tblencounter where fldpatientval=&1) and (fldcateg<>&2 and fldcateg<>&3 and fldcateg<>&4) and (flvisible=&5 or flvisible IS NULL) ORDER BY fldtime DESC", xpatno, "PatientOrderSheet", "Diagnostic Tests Log", "Radio Diagnostics Log", "Visible")
+          res = modDatabase.$logConn.Exec("select fldid,fldtime,fldencounterval,fldtitle,flddetail,fldsave,fldlink,fldencounterval,fldcomp,fldid from tblpatreport where fldencounterval in(" & encLst.Join(",") & ") and (fldcateg<>&1 and fldcateg<>&2 and fldcateg<>&3) and (flvisible=&4 or flvisible IS NULL) ORDER BY fldtime DESC", "PatientOrderSheet", "Diagnostic Tests Log", "Radio Diagnostics Log", "Visible")
         Else
-          res = modDatabase.$syConn.Exec("select fldid,fldtime,fldencounterval,fldtitle,flddetail,fldsave,fldlink,fldencounterval,fldcomp,fldid from tblpatreport where fldencounterval in(select fldencounterval from tblencounter where fldpatientval=&1) and fldcateg like &2 and (flvisible=&3 or flvisible IS NULL) ORDER BY fldtime DESC", xpatno, sType, "Visible")
+          res = modDatabase.$logConn.Exec("select fldid,fldtime,fldencounterval,fldtitle,flddetail,fldsave,fldlink,fldencounterval,fldcomp,fldid from tblpatreport where fldencounterval in(" & encLst.Join(",") & ") and fldcateg like &1 and (flvisible=&2 or flvisible IS NULL) ORDER BY fldtime DESC", sType, "Visible")
         Endif
       Endif
       hForm = New FRequest(res, ("Archive History"), "ArchivedRepoReports", False)
       hForm.ShowModal
       modDatabase.$myConn = sCon
+      modDatabase.$logConn = lCon
       modDatabase.$syConn = xCon
       MMain.InitialAppMode()
     Endif
@@ -1859,7 +1876,7 @@ Public Sub GetPatHistoryLocalResult(sType As String, encid As String, sUnit As S
     xpatno = modPatient.GetPatientNoByEnc(encid)
     If modPatientSub.GetPatPassCheck(modDatabase.$myConn, xpatno) = True Then
 
-      modDatabase.$syConn = modDatabase.$ssyncConn
+      modDatabase.$syConn = modDatabase.$slaveConn
       If sType = "Laboratory" Then
         xPath = modCHTMLPatient.ShowPatientAllLaboratoryReport(encid, sUnit)
       Else If sType = "Examination" Then
@@ -1881,19 +1898,20 @@ Public Sub GetRepoHistoryLocalResult(sType As String, encid As String, sUnit As 
   Dim xpatno As String
   Dim sCon As Connection
   Dim xCon As Connection
+  Dim lCon As Connection
 
   If encid Then
     xpatno = modPatient.GetPatientNoByEnc(encid)
 
     If modPatientSub.GetPatPassCheck(modDatabase.$myConn, xpatno) = True Then
       sCon = modDatabase.$myConn
+      lCon = modDatabase.$logConn
       xCon = modDatabase.$syConn
-
       modRepository.TransferRemoConn(xpatno)
       xPath = modPatReportAll.ShowAllEncounterSpecific(encid, sUnit, sType)
-
       modControlSub.OpenHTMLPreview(encid, xPath, "ReportSize")
       modDatabase.$myConn = sCon
+      modDatabase.$logConn = lCon
       modDatabase.$syConn = xCon
       MMain.InitialAppMode()
     Endif
@@ -1915,7 +1933,7 @@ Public Sub GetSelectHistoryResult(encid As String, sUnit As String)
       xList = SelectMedBody("", "View")
       Wait
       If xList Then
-        modDatabase.$syConn = modDatabase.$ssyncConn
+        modDatabase.$syConn = modDatabase.$slaveConn
         xPath = modPatReportAll.ShowAllEncounterReport(encid, xList, sUnit, False)
         modAppSupport.SetReportServer(modHelpVariable.$LogInCategory)
         modControlSub.OpenHTMLPreview(encid, xPath, "ReportSize")
@@ -1931,7 +1949,7 @@ Public Sub GetRepoSelectHistoryResult(encid As String, sUnit As String)
   Dim xpatno As String
   Dim sCon As Connection
   Dim xCon As Connection
-
+  Dim lCon As Connection
   Dim xList As String[]
 
   If encid Then
@@ -1942,11 +1960,13 @@ Public Sub GetRepoSelectHistoryResult(encid As String, sUnit As String)
       Wait
       If xList Then
         sCon = modDatabase.$myConn
+        lCon = modDatabase.$logConn
         xCon = modDatabase.$syConn
         modRepository.TransferRemoConn(xpatno)
         xPath = modPatReportAll.ShowAllEncounterReport(encid, xList, sUnit, False)
         modControlSub.OpenHTMLPreview(encid, xPath, "ReportSize")
         modDatabase.$myConn = sCon
+        modDatabase.$logConn = lCon
         modDatabase.$syConn = xCon
         MMain.InitialAppMode()
       Endif
@@ -2014,17 +2034,20 @@ Public Sub ShowRepoExpensePatient(encid As String)
   Dim xpatno As String
   Dim sCon As Connection
   Dim xCon As Connection
+  Dim lCon As Connection
 
   If encid Then
     xpatno = modPatient.GetPatientNoByEnc(encid)
 
     sCon = modDatabase.$myConn
+    lCon = modDatabase.$logConn
     xCon = modDatabase.$syConn
     Message.Info(("Generating Report ...."), ("OK"))
     modRepository.TransferRemoConn(xpatno)
     xPath = modCHTMLInvoice.ShowTotalExpenseAllEncPatient(modDatabase.$syConn, encid)
     modControlSub.OpenHTMLPreview(encid, xPath, "ReportSize")
     modDatabase.$myConn = sCon
+    modDatabase.$logConn = lCon
     modDatabase.$syConn = xCon
     MMain.InitialAppMode()
 
@@ -2038,17 +2061,20 @@ Public Sub ShowRepoPharmExpensePatient(encid As String, sType As String)
   Dim xpatno As String
   Dim sCon As Connection
   Dim xCon As Connection
+  Dim lCon As Connection
 
   If encid Then
     xpatno = modPatient.GetPatientNoByEnc(encid)
 
     sCon = modDatabase.$myConn
+    lCon = modDatabase.$logConn
     xCon = modDatabase.$syConn
     Message.Info(("Generating Report ...."), ("OK"))
     modRepository.TransferRemoConn(xpatno)
     xPath = modCHTMLInvoice.ShowItemDispensedByPatientAllEnc(modDatabase.$syConn, encid, sType)
     modControlSub.OpenHTMLPreview(encid, xPath, "ReportSize")
     modDatabase.$myConn = sCon
+    modDatabase.$logConn = lCon
     modDatabase.$syConn = xCon
     MMain.InitialAppMode()
 
@@ -2062,17 +2088,20 @@ Public Sub ShowRepoSummExpensePatient(encid As String)
   Dim xpatno As String
   Dim sCon As Connection
   Dim xCon As Connection
+  Dim lCon As Connection
 
   If encid Then
     xpatno = modPatient.GetPatientNoByEnc(encid)
 
     sCon = modDatabase.$myConn
+    lCon = modDatabase.$logConn
     xCon = modDatabase.$syConn
     Message.Info(("Generating Report ...."), ("OK"))
     modRepository.TransferRemoConn(xpatno)
     xPath = modCHTMLInvoice.ShowSummExpenseAllEncPatient(modDatabase.$syConn, encid)
     modControlSub.OpenHTMLPreview(encid, xPath, "ReportSize")
     modDatabase.$myConn = sCon
+    modDatabase.$logConn = lCon
     modDatabase.$syConn = xCon
     MMain.InitialAppMode()
 
@@ -2102,16 +2131,19 @@ Public Sub GetRepoVisitHistoryResult(xpatno As String)
   Dim hForm As FRequest
   Dim sCon As Connection
   Dim xCon As Connection
+  Dim lCon As Connection
 
   If xpatno Then
     If modPatientSub.GetPatPassCheck(modDatabase.$myConn, xpatno) = True Then
       sCon = modDatabase.$myConn
+      lCon = modDatabase.$logConn
       xCon = modDatabase.$syConn
       modRepository.TransferRemoConn(xpatno)
       res = modDatabase.$syConn.Exec("select fldencounterval,fldregdate,fldadmission,fldcurrlocat,flduserid,fldhospcode from tblencounter where fldpatientval=&1 ORDER BY fldregdate", xpatno)
       hForm = New FRequest(res, "Patient Encounters", "PatientRemoteEncounters", False)
       hForm.ShowModal
       modDatabase.$myConn = sCon
+      modDatabase.$logConn = lCon
       modDatabase.$syConn = xCon
       MMain.InitialAppMode()
     Endif

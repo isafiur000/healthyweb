@@ -177,7 +177,7 @@ Public Sub mnudatesearch_Click()
   xdate = DoubleDates(("Select Date Range"), "Archived Reports", [Date(), Date()])
   If xdate Then
     $RepoStr = modDataRepo.GetWhereStringRepo(cmblocation.Text, cmbvalue.Text)
-    $rData = modDatabase.$syConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldtime>=&1 and fldtime<=&2" & $RepoStr, modDate.StartSqlDate(xdate[0]), modDate.EndSqlDate(xdate[1]))
+    $rData = modDatabase.$logConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldtime>=&1 and fldtime<=&2" & $RepoStr, modDate.StartSqlDate(xdate[0]), modDate.EndSqlDate(xdate[1]))
     $aMyFields = New String[]
     modGridView.ReadSmallData(GridView1, $rData, $aMyFields)
     GetGridSizes()
@@ -224,6 +224,8 @@ End
 
 Private Sub FillGridData()
 
+  Dim encLst As String[]
+  Dim k As Integer
   Dim encid As String
   Dim prt As Boolean
   Dim xflag As Boolean
@@ -253,28 +255,37 @@ Private Sub FillGridData()
     cmbdepart.Text = "%"
   Endif
 
+  encLst = New String[]
+  If cmbdepart.Text = "%" Then
+  Else
+    encLst = modControlSub.GetDirectFillresult(modDatabase.$syConn.Exec("select fldencounterval from tbldepartmentbed where flddept like &1", cmbdepart.Text))
+    For k = 0 To encLst.Count - 1
+      encLst[k] = "'" & encLst[k] & "'"
+    Next
+  Endif
+
   $RepoStr = modDataRepo.GetWhereStringRepo(cmblocation.Text, cmbvalue.Text)
   If mnushowall.Checked = True Then
 
     If rbnew.Value = True And If rbprinted.Value = True Then
       If chkdate.Value = True Then
         If cmbdepart.Text = "%" Then
-          $rData = modDatabase.$syConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and (fldflag=&4 or fldflag IS NULL) and fldtime>=&5 and fldtime<=&6" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, xflag, modDate.StartSqlDate(dtselected.Value), modDate.EndSqlDate(dtselected.Value))                                                                 ''
+          $rData = modDatabase.$logConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and (fldflag=&4 or fldflag IS NULL) and fldtime>=&5 and fldtime<=&6" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, xflag, modDate.StartSqlDate(dtselected.Value), modDate.EndSqlDate(dtselected.Value))                                                                 ''
         Else
-          $rData = modDatabase.$syConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and (fldflag=&4 or fldflag IS NULL) and fldtime>=&5 and fldtime<=&6 and fldencounterval in(select fldencounterval from tblencounter where fldcurrlocat in(select fldbed from tbldepartmentbed where flddept like &7))" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, xflag, modDate.StartSqlDate(dtselected.Value), modDate.EndSqlDate(dtselected.Value), cmbdepart.Text)                                                      ''
+          $rData = modDatabase.$logConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and (fldflag=&4 or fldflag IS NULL) and fldtime>=&5 and fldtime<=&6 and fldencounterval in(select fldencounterval from tblencounter where fldcurrlocat in(select fldbed from tbldepartmentbed where flddept like &7))" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, xflag, modDate.StartSqlDate(dtselected.Value), modDate.EndSqlDate(dtselected.Value), cmbdepart.Text)                                                      ''
         Endif
       Else
         If modBasic.$SQLDateRange = "Disable" Then
           If cmbdepart.Text = "%" Then
-            $rData = modDatabase.$syConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and (fldflag=&4 or fldflag IS NULL)" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, xflag)                                                                 ''
+            $rData = modDatabase.$logConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and (fldflag=&4 or fldflag IS NULL)" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, xflag)                                                                 ''
           Else
-            $rData = modDatabase.$syConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and (fldflag=&4 or fldflag IS NULL) and fldencounterval in(select fldencounterval from tblencounter where fldcurrlocat in(select fldbed from tbldepartmentbed where flddept like &5))" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, xflag, cmbdepart.Text)                                                      ''
+            $rData = modDatabase.$logConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and (fldflag=&4 or fldflag IS NULL) and fldencounterval in(" & encLst.Join(",") & ")" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, xflag)                                                      ''
           Endif
         Else
           If cmbdepart.Text = "%" Then
-            $rData = modDatabase.$syConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and (fldflag=&4 or fldflag IS NULL) and fldtime>=&5 and fldtime<=&6" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, xflag, modDate.StartSqlDate(DateAdd(dtselected.Value, gb.Day, 0 - 365)), modDate.EndSqlDate(dtselected.Value))                                                                 ''
+            $rData = modDatabase.$logConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and (fldflag=&4 or fldflag IS NULL) and fldtime>=&5 and fldtime<=&6" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, xflag, modDate.StartSqlDate(DateAdd(dtselected.Value, gb.Day, 0 - 365)), modDate.EndSqlDate(dtselected.Value))                                                                 ''
           Else
-            $rData = modDatabase.$syConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and (fldflag=&4 or fldflag IS NULL) and fldtime>=&5 and fldtime<=&6 and fldencounterval in(select fldencounterval from tblencounter where fldcurrlocat in(select fldbed from tbldepartmentbed where flddept like &7))" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, xflag, modDate.StartSqlDate(DateAdd(dtselected.Value, gb.Day, 0 - 365)), modDate.EndSqlDate(dtselected.Value), cmbdepart.Text)                                                      ''
+            $rData = modDatabase.$logConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and (fldflag=&4 or fldflag IS NULL) and fldtime>=&5 and fldtime<=&6 and fldencounterval in(" & encLst.Join(",") & ")" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, xflag, modDate.StartSqlDate(DateAdd(dtselected.Value, gb.Day, 0 - 365)), modDate.EndSqlDate(dtselected.Value))                                                      ''
           Endif
         Endif
       Endif
@@ -286,22 +297,22 @@ Private Sub FillGridData()
       Endif
       If chkdate.Value = True Then
         If cmbdepart.Text = "%" Then
-          $rData = modDatabase.$syConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and fldsave=&4 and (fldflag=&5 or fldflag IS NULL) and fldtime>=&6 and fldtime<=&7" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, prt, xflag, modDate.StartSqlDate(dtselected.Value), modDate.EndSqlDate(dtselected.Value))                                                                 ''
+          $rData = modDatabase.$logConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and fldsave=&4 and (fldflag=&5 or fldflag IS NULL) and fldtime>=&6 and fldtime<=&7" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, prt, xflag, modDate.StartSqlDate(dtselected.Value), modDate.EndSqlDate(dtselected.Value))                                                                 ''
         Else
-          $rData = modDatabase.$syConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and fldsave=&4 and (fldflag=&5 or fldflag IS NULL) and fldtime>=&6 and fldtime<=&7 and fldencounterval in(select fldencounterval from tblencounter where fldcurrlocat in(select fldbed from tbldepartmentbed where flddept like &8))" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, prt, xflag, modDate.StartSqlDate(dtselected.Value), modDate.EndSqlDate(dtselected.Value), cmbdepart.Text)                                                      ''
+          $rData = modDatabase.$logConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and fldsave=&4 and (fldflag=&5 or fldflag IS NULL) and fldtime>=&6 and fldtime<=&7 and fldencounterval in(" & encLst.Join(",") & ")" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, prt, xflag, modDate.StartSqlDate(dtselected.Value), modDate.EndSqlDate(dtselected.Value))                                                      ''
         Endif
       Else
         If modBasic.$SQLDateRange = "Disable" Then
           If cmbdepart.Text = "%" Then
-            $rData = modDatabase.$syConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and fldsave=&4 and (fldflag=&5 or fldflag IS NULL)" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, prt, xflag)                                                                 ''
+            $rData = modDatabase.$logConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and fldsave=&4 and (fldflag=&5 or fldflag IS NULL)" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, prt, xflag)                                                                 ''
           Else
-            $rData = modDatabase.$syConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and fldsave=&4 and (fldflag=&5 or fldflag IS NULL) and fldencounterval in(select fldencounterval from tblencounter where fldcurrlocat in(select fldbed from tbldepartmentbed where flddept like &6))" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, prt, xflag, cmbdepart.Text)                                                      ''
+            $rData = modDatabase.$logConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and fldsave=&4 and (fldflag=&5 or fldflag IS NULL) and fldencounterval in(" & encLst.Join(",") & ")" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, prt, xflag)                                                      ''
           Endif
         Else
           If cmbdepart.Text = "%" Then
-            $rData = modDatabase.$syConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and fldsave=&4 and (fldflag=&5 or fldflag IS NULL) and fldtime>=&6 and fldtime<=&7" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, prt, xflag, modDate.StartSqlDate(DateAdd(dtselected.Value, gb.Day, 0 - 365)), modDate.EndSqlDate(dtselected.Value))                                                                 ''
+            $rData = modDatabase.$logConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and fldsave=&4 and (fldflag=&5 or fldflag IS NULL) and fldtime>=&6 and fldtime<=&7" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, prt, xflag, modDate.StartSqlDate(DateAdd(dtselected.Value, gb.Day, 0 - 365)), modDate.EndSqlDate(dtselected.Value))                                                                 ''
           Else
-            $rData = modDatabase.$syConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and fldsave=&4 and (fldflag=&5 or fldflag IS NULL) and fldtime>=&6 and fldtime<=&7 and fldencounterval in(select fldencounterval from tblencounter where fldcurrlocat in(select fldbed from tbldepartmentbed where flddept like &8))" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, prt, xflag, modDate.StartSqlDate(DateAdd(dtselected.Value, gb.Day, 0 - 365)), modDate.EndSqlDate(dtselected.Value), cmbdepart.Text)                                                      ''
+            $rData = modDatabase.$logConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and fldsave=&4 and (fldflag=&5 or fldflag IS NULL) and fldtime>=&6 and fldtime<=&7 and fldencounterval in(" & encLst.Join(",") & ")" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, prt, xflag, modDate.StartSqlDate(DateAdd(dtselected.Value, gb.Day, 0 - 365)), modDate.EndSqlDate(dtselected.Value))                                                      ''
           Endif
         Endif
       Endif
@@ -312,22 +323,22 @@ Private Sub FillGridData()
     If rbnew.Value = True And If rbprinted.Value = True Then
       If chkdate.Value = True Then
         If cmbdepart.Text = "%" Then
-          $rData = modDatabase.$syConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and (fldflag=&4 or fldflag IS NULL) and fldtime>=&5 and fldtime<=&6 and (flvisible=&7 or flvisible IS NULL)" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, xflag, modDate.StartSqlDate(dtselected.Value), modDate.EndSqlDate(dtselected.Value), "Visible")                                                                 ''
+          $rData = modDatabase.$logConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and (fldflag=&4 or fldflag IS NULL) and fldtime>=&5 and fldtime<=&6 and (flvisible=&7 or flvisible IS NULL)" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, xflag, modDate.StartSqlDate(dtselected.Value), modDate.EndSqlDate(dtselected.Value), "Visible")                                                                 ''
         Else
-          $rData = modDatabase.$syConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and (fldflag=&4 or fldflag IS NULL) and fldtime>=&5 and fldtime<=&6 and (flvisible=&7 or flvisible IS NULL) and fldencounterval in(select fldencounterval from tblencounter where fldcurrlocat in(select fldbed from tbldepartmentbed where flddept like &8))" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, xflag, modDate.StartSqlDate(dtselected.Value), modDate.EndSqlDate(dtselected.Value), "Visible", cmbdepart.Text)                                                      ''
+          $rData = modDatabase.$logConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and (fldflag=&4 or fldflag IS NULL) and fldtime>=&5 and fldtime<=&6 and (flvisible=&7 or flvisible IS NULL) and fldencounterval in(" & encLst.Join(",") & ")" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, xflag, modDate.StartSqlDate(dtselected.Value), modDate.EndSqlDate(dtselected.Value), "Visible")                                                      ''
         Endif
       Else
         If modBasic.$SQLDateRange = "Disable" Then
           If cmbdepart.Text = "%" Then
-            $rData = modDatabase.$syConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and (fldflag=&4 or fldflag IS NULL) and (flvisible=&5 or flvisible IS NULL)" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, xflag, "Visible")                                                                 ''
+            $rData = modDatabase.$logConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and (fldflag=&4 or fldflag IS NULL) and (flvisible=&5 or flvisible IS NULL)" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, xflag, "Visible")                                                                 ''
           Else
-            $rData = modDatabase.$syConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and (fldflag=&4 or fldflag IS NULL) and (flvisible=&5 or flvisible IS NULL) and fldencounterval in(select fldencounterval from tblencounter where fldcurrlocat in(select fldbed from tbldepartmentbed where flddept like &6))" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, xflag, "Visible", cmbdepart.Text)                                                      ''
+            $rData = modDatabase.$logConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and (fldflag=&4 or fldflag IS NULL) and (flvisible=&5 or flvisible IS NULL) and fldencounterval in(" & encLst.Join(",") & ")" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, xflag, "Visible")                                                      ''
           Endif
         Else
           If cmbdepart.Text = "%" Then
-            $rData = modDatabase.$syConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and (fldflag=&4 or fldflag IS NULL) and fldtime>=&5 and fldtime<=&6 and (flvisible=&7 or flvisible IS NULL)" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, xflag, modDate.StartSqlDate(DateAdd(dtselected.Value, gb.Day, 0 - 365)), modDate.EndSqlDate(dtselected.Value), "Visible")                                                                 ''
+            $rData = modDatabase.$logConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and (fldflag=&4 or fldflag IS NULL) and fldtime>=&5 and fldtime<=&6 and (flvisible=&7 or flvisible IS NULL)" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, xflag, modDate.StartSqlDate(DateAdd(dtselected.Value, gb.Day, 0 - 365)), modDate.EndSqlDate(dtselected.Value), "Visible")                                                                 ''
           Else
-            $rData = modDatabase.$syConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and (fldflag=&4 or fldflag IS NULL) and fldtime>=&5 and fldtime<=&6 and (flvisible=&7 or flvisible IS NULL) and fldencounterval in(select fldencounterval from tblencounter where fldcurrlocat in(select fldbed from tbldepartmentbed where flddept like &8))" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, xflag, modDate.StartSqlDate(DateAdd(dtselected.Value, gb.Day, 0 - 365)), modDate.EndSqlDate(dtselected.Value), "Visible", cmbdepart.Text)                                                      ''
+            $rData = modDatabase.$logConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and (fldflag=&4 or fldflag IS NULL) and fldtime>=&5 and fldtime<=&6 and (flvisible=&7 or flvisible IS NULL) and fldencounterval in(" & encLst.Join(",") & ")" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, xflag, modDate.StartSqlDate(DateAdd(dtselected.Value, gb.Day, 0 - 365)), modDate.EndSqlDate(dtselected.Value), "Visible")                                                      ''
           Endif
         Endif
       Endif
@@ -339,22 +350,22 @@ Private Sub FillGridData()
       Endif
       If chkdate.Value = True Then
         If cmbdepart.Text = "%" Then
-          $rData = modDatabase.$syConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and fldsave=&4 and (fldflag=&5 or fldflag IS NULL) and fldtime>=&6 and fldtime<=&7 and (flvisible=&8 or flvisible IS NULL)" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, prt, xflag, modDate.StartSqlDate(dtselected.Value), modDate.EndSqlDate(dtselected.Value), "Visible")                                                                 ''
+          $rData = modDatabase.$logConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and fldsave=&4 and (fldflag=&5 or fldflag IS NULL) and fldtime>=&6 and fldtime<=&7 and (flvisible=&8 or flvisible IS NULL)" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, prt, xflag, modDate.StartSqlDate(dtselected.Value), modDate.EndSqlDate(dtselected.Value), "Visible")                                                                 ''
         Else
-          $rData = modDatabase.$syConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and fldsave=&4 and (fldflag=&5 or fldflag IS NULL) and fldtime>=&6 and fldtime<=&7 and (flvisible=&8 or flvisible IS NULL) and fldencounterval in(select fldencounterval from tblencounter where fldcurrlocat in(select fldbed from tbldepartmentbed where flddept like &9))" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, prt, xflag, modDate.StartSqlDate(dtselected.Value), modDate.EndSqlDate(dtselected.Value), "Visible", cmbdepart.Text)                                                      ''
+          $rData = modDatabase.$logConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and fldsave=&4 and (fldflag=&5 or fldflag IS NULL) and fldtime>=&6 and fldtime<=&7 and (flvisible=&8 or flvisible IS NULL) and fldencounterval in(" & encLst.Join(",") & ")" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, prt, xflag, modDate.StartSqlDate(dtselected.Value), modDate.EndSqlDate(dtselected.Value), "Visible")                                                      ''
         Endif
       Else
         If modBasic.$SQLDateRange = "Disable" Then
           If cmbdepart.Text = "%" Then
-            $rData = modDatabase.$syConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and fldsave=&4 and (fldflag=&5 or fldflag IS NULL) and (flvisible=&6 or flvisible IS NULL)" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, prt, xflag, "Visible")                                                                 ''
+            $rData = modDatabase.$logConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and fldsave=&4 and (fldflag=&5 or fldflag IS NULL) and (flvisible=&6 or flvisible IS NULL)" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, prt, xflag, "Visible")                                                                 ''
           Else
-            $rData = modDatabase.$syConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and fldsave=&4 and (fldflag=&5 or fldflag IS NULL) and (flvisible=&6 or flvisible IS NULL) and fldencounterval in(select fldencounterval from tblencounter where fldcurrlocat in(select fldbed from tbldepartmentbed where flddept like &7))" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, prt, xflag, "Visible", cmbdepart.Text)                                                      ''
+            $rData = modDatabase.$logConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and fldsave=&4 and (fldflag=&5 or fldflag IS NULL) and (flvisible=&6 or flvisible IS NULL) and fldencounterval in(" & encLst.Join(",") & ")" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, prt, xflag, "Visible")                                                      ''
           Endif
         Else
           If cmbdepart.Text = "%" Then
-            $rData = modDatabase.$syConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and fldsave=&4 and (fldflag=&5 or fldflag IS NULL) and fldtime>=&6 and fldtime<=&7 and (flvisible=&8 or flvisible IS NULL)" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, prt, xflag, modDate.StartSqlDate(DateAdd(dtselected.Value, gb.Day, 0 - 365)), modDate.EndSqlDate(dtselected.Value), "Visible")                                                                 ''
+            $rData = modDatabase.$logConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and fldsave=&4 and (fldflag=&5 or fldflag IS NULL) and fldtime>=&6 and fldtime<=&7 and (flvisible=&8 or flvisible IS NULL)" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, prt, xflag, modDate.StartSqlDate(DateAdd(dtselected.Value, gb.Day, 0 - 365)), modDate.EndSqlDate(dtselected.Value), "Visible")                                                                 ''
           Else
-            $rData = modDatabase.$syConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and fldsave=&4 and (fldflag=&5 or fldflag IS NULL) and fldtime>=&6 and fldtime<=&7 and (flvisible=&8 or flvisible IS NULL) and fldencounterval in(select fldencounterval from tblencounter where fldcurrlocat in(select fldbed from tbldepartmentbed where flddept like &9))" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, prt, xflag, modDate.StartSqlDate(DateAdd(dtselected.Value, gb.Day, 0 - 365)), modDate.EndSqlDate(dtselected.Value), "Visible", cmbdepart.Text)                                                      ''
+            $rData = modDatabase.$logConn.Exec("select " & $SSQLFields.Join(",") & " from " & $tblpatreport & " where fldcateg=&1 and fldencounterval like &2 and fldtitle like &3 and fldsave=&4 and (fldflag=&5 or fldflag IS NULL) and fldtime>=&6 and fldtime<=&7 and (flvisible=&8 or flvisible IS NULL) and fldencounterval in(" & encLst.Join(",") & ")" & $RepoStr & xorder, cmbcategory.Text, encid, stitle, prt, xflag, modDate.StartSqlDate(DateAdd(dtselected.Value, gb.Day, 0 - 365)), modDate.EndSqlDate(dtselected.Value), "Visible")                                                      ''
           Endif
         Endif
       Endif
@@ -459,9 +470,9 @@ Private Sub MarkPrinted(serial As Variant)
   If cmbcategory.Text = "Scanned Images" Then
   Else
     If MMain.$WebEntry = True Then
-      res = modDatabase.$myConn.Edit($tblpatreport, "fldrepoid=&1", serial)
+      res = modDatabase.$logConn.Edit($tblpatreport, "fldrepoid=&1", serial)
     Else
-      res = modDatabase.$myConn.Edit($tblpatreport, "fldid=&1", serial)
+      res = modDatabase.$logConn.Edit($tblpatreport, "fldid=&1", serial)
     Endif
     res["fldsave"] = False
     res.Update
@@ -479,9 +490,9 @@ Public Sub mnuedit_Click()
     xx = GetTextArea($rData["fldtitle"], $rData["flddetail"])
     If xx Then
       If MMain.$WebEntry = True Then
-        res = modDatabase.$myConn.Edit($tblpatreport, "fldrepoid=&1", $rData["fldrepoid"])
+        res = modDatabase.$logConn.Edit($tblpatreport, "fldrepoid=&1", $rData["fldrepoid"])
       Else
-        res = modDatabase.$myConn.Edit($tblpatreport, "fldid=&1", $rData["fldid"])
+        res = modDatabase.$logConn.Edit($tblpatreport, "fldid=&1", $rData["fldid"])
       Endif
       res["flddetail"] = xx
       res["flduptime"] = Now()
@@ -685,17 +696,17 @@ Public Sub mnudel_Click()
           Endif
           If Not Exist(xfile) Then
             If MMain.$WebEntry = True Then
-              modDatabase.$myConn.Delete($tblpatreport, "fldrepoid=&1 and fldsave=&2", $rData["fldrepoid"], True)
+              modDatabase.$logConn.Delete($tblpatreport, "fldrepoid=&1 and fldsave=&2", $rData["fldrepoid"], True)
             Else
-              modDatabase.$myConn.Delete($tblpatreport, "fldid=&1 and fldsave=&2", $rData["fldid"], True)
+              modDatabase.$logConn.Delete($tblpatreport, "fldid=&1 and fldsave=&2", $rData["fldid"], True)
             Endif
             FillGridData()
           Endif
         Else
           If MMain.$WebEntry = True Then
-            modDatabase.$myConn.Delete($tblpatreport, "fldrepoid=&1 and fldsave=&2", $rData["fldrepoid"], True)
+            modDatabase.$logConn.Delete($tblpatreport, "fldrepoid=&1 and fldsave=&2", $rData["fldrepoid"], True)
           Else
-            modDatabase.$myConn.Delete($tblpatreport, "fldid=&1 and fldsave=&2", $rData["fldid"], True)
+            modDatabase.$logConn.Delete($tblpatreport, "fldid=&1 and fldsave=&2", $rData["fldid"], True)
           Endif
           FillGridData()
         Endif
@@ -721,7 +732,7 @@ Public Sub mnubulkdel_Click()
 
       xPass = InputPassword("Provide Root Password", "Verification", "")
       If modPassword.GetSuperVerification(modBasic.$lbluser, xPass) = True Then
-        res = modDatabase.$syConn.Exec("select " & modDataRepo.SerialField() & ",fldcateg,fldtime,fldencounterval,fldencounterval,fldtitle,fldid,flddetail,fldsave,fldlink from " & $tblpatreport & " where fldcateg=&1 and fldsave=&2 and fldtime>=&3 and fldtime<=&4", cmbcategory.Text, True, modDate.StartSqlDate(xdate), modDate.EndSqlDate(xdate))                                                      ''
+        res = modDatabase.$logConn.Exec("select " & modDataRepo.SerialField() & ",fldcateg,fldtime,fldencounterval,fldencounterval,fldtitle,fldid,flddetail,fldsave,fldlink from " & $tblpatreport & " where fldcateg=&1 and fldsave=&2 and fldtime>=&3 and fldtime<=&4", cmbcategory.Text, True, modDate.StartSqlDate(xdate), modDate.EndSqlDate(xdate))                                                      ''
         If res.Available Then
           For Each res
             sLink = res["fldlink"]
@@ -734,16 +745,16 @@ Public Sub mnubulkdel_Click()
               Endif
               If Not Exist(xfile) Then
                 If MMain.$WebEntry = True Then
-                  modDatabase.$myConn.Delete($tblpatreport, "fldrepoid=&1 and fldsave=&2", res["fldrepoid"], True)
+                  modDatabase.$logConn.Delete($tblpatreport, "fldrepoid=&1 and fldsave=&2", res["fldrepoid"], True)
                 Else
-                  modDatabase.$myConn.Delete($tblpatreport, "fldid=&1 and fldsave=&2", res["fldid"], True)
+                  modDatabase.$logConn.Delete($tblpatreport, "fldid=&1 and fldsave=&2", res["fldid"], True)
                 Endif
               Endif
             Else
               If MMain.$WebEntry = True Then
-                modDatabase.$myConn.Delete($tblpatreport, "fldrepoid=&1 and fldsave=&2", res["fldrepoid"], True)
+                modDatabase.$logConn.Delete($tblpatreport, "fldrepoid=&1 and fldsave=&2", res["fldrepoid"], True)
               Else
-                modDatabase.$myConn.Delete($tblpatreport, "fldid=&1 and fldsave=&2", res["fldid"], True)
+                modDatabase.$logConn.Delete($tblpatreport, "fldid=&1 and fldsave=&2", res["fldid"], True)
               Endif
             Endif
           Next
@@ -768,7 +779,7 @@ Public Sub mnuvisible_Click()
     $rData.MoveTo(GridView1.Selection[0])
     xx = InputCombo("Set Visibility", $rData["fldtitle"], xopt, $rData["flvisible"], True)
     If xx Then
-      res = modDatabase.$myConn.Edit($tblpatreport, "fldid=&1", $rData["fldid"])
+      res = modDatabase.$logConn.Edit($tblpatreport, "fldid=&1", $rData["fldid"])
       If modGeneral.AllowClinicalEdit(res["flduserid"]) = True Then
         res["flvisible"] = xx
         res.Update

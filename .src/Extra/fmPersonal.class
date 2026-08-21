@@ -28,9 +28,9 @@ Public Sub btnrefresh_Click()
   Dim rtot As Result
 
   If rbpersonal.Value = True Then
-    rtot = modDatabase.$syConn.Exec("select perid from tblpersonal where flduserid=&1 and fldcateg=&2", modBasic.$lbluser, cmbcategory.Text)
+    rtot = modDatabase.$logConn.Exec("select perid from tblpersonal where flduserid=&1 and fldcateg=&2", modBasic.$lbluser, cmbcategory.Text)
   Else If rbshared.Value = True Then
-    rtot = modDatabase.$syConn.Exec("select perid from tblpersonal where fldcateg=&1 and perid in(select fldperid from tblfileshare where fldshared=&2 and fldstatus=&3) UNION ALL select perid from tblpersonal where fldcateg=&4", cmbcategory.Text, modBasic.$lbluser, "Shared", "Public File")                       ''
+    rtot = modDatabase.$logConn.Exec("select perid from tblpersonal where fldcateg=&1 and perid in(select fldperid from tblfileshare where fldshared=&2 and fldstatus=&3) UNION ALL select perid from tblpersonal where fldcateg=&4", cmbcategory.Text, modBasic.$lbluser, "Shared", "Public File")                       ''
   Endif
   $totalrec = rtot.Count
   SpinBox1.MaxValue = CInt(Floor($totalrec / 50))
@@ -46,10 +46,10 @@ Private Sub SHowGridData()
   stint = SpinBox1.Value * 50
   If rbpersonal.Value = True Then
     sql = "select perid,fldtime,fldcateg,flddetail,fldextension,fldlink,flduserid from tblpersonal where flduserid=&1 and fldcateg=&2 ORDER by perid DESC LIMIT 50 OFFSET &3"   '$
-    $rData = modDatabase.$syConn.Exec(sql, modBasic.$lbluser, cmbcategory.Text, stint)
+    $rData = modDatabase.$logConn.Exec(sql, modBasic.$lbluser, cmbcategory.Text, stint)
   Else If rbshared.Value = True Then
     sql = "select perid,fldtime,fldcateg,flddetail,fldextension,fldlink,flduserid from tblpersonal where fldcateg=&1 and perid in(select fldperid from tblfileshare where fldshared=&2 and fldstatus=&3) UNION ALL select perid,fldtime,fldcateg,flddetail,fldextension,fldlink,flduserid from tblpersonal where fldcateg=&4 ORDER by perid DESC LIMIT 50 OFFSET &5"   '$
-    $rData = modDatabase.$syConn.Exec(sql, cmbcategory.Text, modBasic.$lbluser, "Shared", "Public File", stint)
+    $rData = modDatabase.$logConn.Exec(sql, cmbcategory.Text, modBasic.$lbluser, "Shared", "Public File", stint)
   Endif
   lbltotal.Text = modMisc.RecordNumberLabel(SpinBox1.Value * 50, 50, $totalrec)
   FillPersonalGridImage()
@@ -66,10 +66,10 @@ Public Sub btntxtsearch_Click()
     If cmbcategory.Text Then
       If rbpersonal.Value = True Then
         sql = "select perid,fldtime,fldcateg,flddetail,fldextension,fldlink,flduserid from tblpersonal where flduserid=&1 and fldcateg=&2 and fldextension like &3 ORDER by perid"   '$
-        $rData = modDatabase.$syConn.Exec(sql, modBasic.$lbluser, cmbcategory.Text, xx)
+        $rData = modDatabase.$logConn.Exec(sql, modBasic.$lbluser, cmbcategory.Text, xx)
       Else If rbshared.Value = True Then
         sql = "select perid,fldtime,fldcateg,flddetail,fldextension,fldlink,flduserid from tblpersonal where fldcateg=&1 and perid in(select fldperid from tblfileshare where fldshared=&2 and fldstatus=&3) and fldextension like &4 UINON ALL select perid,fldtime,fldcateg,flddetail,fldextension,fldlink,flduserid from tblpersonal where fldcateg=&5 and fldextension like &4 ORDER by perid DESC"   '$
-        $rData = modDatabase.$syConn.Exec(sql, cmbcategory.Text, modBasic.$lbluser, "Shared", xx, "Public File")
+        $rData = modDatabase.$logConn.Exec(sql, cmbcategory.Text, modBasic.$lbluser, "Shared", xx, "Public File")
       Endif
       lbltotal.Text = ""
     Endif
@@ -154,7 +154,7 @@ Private Function GetPersonalFile(serial As Long) As String
 
   ' If modHelpVariable.$ApplKey < 2 Then
   sql = "select fldcateg,fldblob,flddetail,fldextension,fldlink from tblpersonal where perid=&1"
-  res = modDatabase.$myConn.Exec(sql, serial)
+  res = modDatabase.$logConn.Exec(sql, serial)
   If res.Available Then
     tempFile = Temp() & "." & res["fldextension"]
     If res["fldlink"] Then
@@ -309,7 +309,7 @@ Public Sub btnOK_Click()
       xblobfile = File.Load(hFile)
     Endif
     If xblobfile Then
-      res = modDatabase.$myConn.Create("tblpersonal")
+      res = modDatabase.$logConn.Create("tblpersonal")
       res["fldcateg"] = cmbcategory.Text
       If modMisc.BlobTarget("Personal") = "FTP" Then
         res["fldblob"] = ""
@@ -343,7 +343,7 @@ Public Sub btnChange_Click()
 
   If GridView1.Selection.Count Then
     $rData.MoveTo(GridView1.Selection[0])
-    res = modDatabase.$myConn.Edit("tblpersonal", "perid=&1", $rData["perid"])
+    res = modDatabase.$logConn.Edit("tblpersonal", "perid=&1", $rData["perid"])
     res["flddetail"] = txtdetail.Text
     res.Update()
     SHowGridData()
@@ -436,7 +436,7 @@ Public Sub btnpersonew_Click()
   If rbpersonal.Value = True Then
     If GridView1.Selection.Count Then
       $rData.MoveTo(GridView1.Selection[0])
-      modDatabase.$myConn.Delete("tblfileshare", "flduserid=&1 and fldperid=&2", modBasic.$lbluser, $rData["perid"])
+      modDatabase.$logConn.Delete("tblfileshare", "flduserid=&1 and fldperid=&2", modBasic.$lbluser, $rData["perid"])
       Message.Info(("File personalized"), ("OK"))
     Endif
   Endif
@@ -457,11 +457,11 @@ Public Sub btndeletenew_Click()
         modFTPSub.DeleteBlobFIleFTP(sLink)
         xfile = GetPersonalFile($rData["perid"])
         If Not Exist(xfile) Then
-          modDatabase.$myConn.Delete("tblpersonal", "perid=&1 and flduserid=&2", $rData["perid"], modBasic.$lbluser)
+          modDatabase.$logConn.Delete("tblpersonal", "perid=&1 and flduserid=&2", $rData["perid"], modBasic.$lbluser)
           SHowGridData()
         Endif
       Else
-        modDatabase.$myConn.Delete("tblpersonal", "perid=&1 and flduserid=&2", $rData["perid"], modBasic.$lbluser)
+        modDatabase.$logConn.Delete("tblpersonal", "perid=&1 and flduserid=&2", $rData["perid"], modBasic.$lbluser)
         SHowGridData()
       Endif
 

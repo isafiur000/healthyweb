@@ -245,7 +245,7 @@ Private Sub SaveSysSettingsToFile(strSetting As String, strVal As String)
 
 End
 
-Private Sub UpdateConfFile(dbFile As String)
+Private Sub UpdateConfFile(dbFile As String, dbLog As String)
 
   Dim xssl As String
   Dim xird As String
@@ -272,6 +272,7 @@ Private Sub UpdateConfFile(dbFile As String)
     SaveSysSettingsToFile("Hospital/VATRegistration", xvat)
 
     SaveSysSettingsToFile("System/Database", dbFile)
+    SaveSysSettingsToFile("System/LogDatabase", dbLog)
     SaveSysSettingsToFile("System/DBCollation", cmbcollation.Text)
     SaveSysSettingsToFile("System/DBEngine", cmbengine.Text)
     SaveSysSettingsToFile("System/NetInterface", cmbinterface.Text)
@@ -361,7 +362,7 @@ End
 Public Sub btnhospudate_Click()
 
   If txthospitalname.Text And If cmbcomp.Text Then
-    UpdateConfFile(txtdbcreate.Text)
+    UpdateConfFile(txtdbcreate.Text, txtlogcreate.Text)
     btnsave.Enabled = True
     SHowFormLoad()
   Endif
@@ -388,14 +389,19 @@ Public Sub btndbcreate_Click()
     Else
       If modDatabase.$myConn.Opened = False Then
         modDatabase.$myConn = modDBApp.OpenConnection(cmbtype.Text, txtserver.Text, "", txtuser.Text, txtpass.text)
-        If Not modDatabase.$myConn.Databases.Exist(txtdbcreate.Text) Then
-          modDatabase.$myConn.Databases.Add(txtdbcreate.Text)
-          Me.Exec("Toastify({text: 'Database creation completed. Wait ....', duration: 3000}).showToast()")
+      Endif
+      If modDatabase.$myConn.Opened = True Then
+        If txtdbcreate.Text Then
+          If Not modDatabase.$myConn.Databases.Exist(txtdbcreate.Text) Then
+            modDatabase.$myConn.Databases.Add(txtdbcreate.Text)
+            Me.Exec("Toastify({text: 'Main Database creation completed.', duration: 3000}).showToast()")
+          Endif
         Endif
-      Else If modDatabase.$myConn.Opened = True Then
-        If Not modDatabase.$myConn.Databases.Exist(txtdbcreate.Text) Then
-          modDatabase.$myConn.Databases.Add(txtdbcreate.Text)
-          Me.Exec("Toastify({text: 'Database creation completed. Wait ....', duration: 3000}).showToast()")
+        If txtlogcreate.Text Then
+          If Not modDatabase.$myConn.Databases.Exist(txtlogcreate.Text) Then
+            modDatabase.$myConn.Databases.Add(txtlogcreate.Text)
+            Me.Exec("Toastify({text: 'Log Database creation completed.', duration: 3000}).showToast()")
+          Endif
         Endif
       Endif
       Try modDatabase.$myConn.Close()
@@ -442,8 +448,18 @@ Private Sub CreateDBTables()
         modDBGroup.CreateDatabaseForComplaints(modDatabase.$myConn)
       Else If cmbformat.Text = "REP" Then
         modDBGroup.CreateDatabaseForSish(modDatabase.$myConn)
+        If txtlogcreate.Text Then
+          modDBGroup.CreateDatabaseForLog(modDatabase.$logConn)
+        Else
+          modDBGroup.CreateDatabaseForLog(modDatabase.$myConn)
+        Endif
       Else
         modDBGroup.CreateDatabaseForSish(modDatabase.$myConn)
+        If txtlogcreate.Text Then
+          modDBGroup.CreateDatabaseForLog(modDatabase.$logConn)
+        Else
+          modDBGroup.CreateDatabaseForLog(modDatabase.$myConn)
+        Endif
         If chkird.Value = True Then
           modDatabase.CreateIRDTriggerBilling(modDatabase.$myConn)
           modDatabase.CreateIRDTriggerLockEvent(modDatabase.$myConn)
@@ -463,7 +479,7 @@ End
 '''-=================== back up db ================================
 ' ' Public Sub btnhospudate2_Click()
 ' '
-' '   UpdateConfFile(txtdbrestore.Text)
+' '   UpdateConfFile(txtdbrestore.Text, txtlogcreate.Text)
 ' '   btnsave2.Enabled = True
 ' '
 ' ' End
@@ -518,7 +534,7 @@ End
 '''-=================== client Access =================================
 ' ' Public Sub btnhospudate3_Click()
 ' '
-' '   UpdateConfFile(cmbdbclient.Text)
+' '   UpdateConfFile(cmbdbclient.Text, txtlogcreate.Text)
 ' '   btnsave3.Enabled = True
 ' '
 ' ' End
