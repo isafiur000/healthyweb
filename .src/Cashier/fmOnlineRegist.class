@@ -394,6 +394,9 @@ Private Function GetRegistration(sBookID As String) As String
 
   Dim xallow As Boolean
   Dim xque As Integer
+  Dim lstencDate As Date
+  Dim xday As Integer
+  Dim xfollow As String
 
   res = modDatabase.$myConn.Exec("select fldpatientval,fldconsultdate,fldadmitlocat,flduserid,flddisctype,fldbillingmode,fldencounterval,fldinvoice,fldpayreference,flditemamt,fldstate from tblonlinebook where fldbookingval=&1", sBookID)
   If res.Available Then
@@ -417,6 +420,37 @@ Private Function GetRegistration(sBookID As String) As String
     ''lock past visits
     If xoldpat Then
       LockPastEncounters(xoldpat)
+    Endif
+
+    ''check followup
+    If modBasic.$BillMobileCheckFollowup = "Enable" Then
+      If xoldpat Then
+
+        lstencDate = modPatient.GetLastPaidConsultDate(xoldpat)
+        If lstencDate Then
+          If modBasic.$AutoRegistNoBillHour Then
+            xday = CInt(modBasic.$AutoRegistNoBillHour)
+          Else
+            xday = 0
+          Endif
+          If xday Then
+            If DateDiff(lstencDate, Now(), gb.Hour) < xday Then
+              xfollow = "Follow-up"
+            Else
+              xfollow = "New"
+            Endif
+          Else
+            xfollow = "New"
+          Endif
+        Else
+          xfollow = "New"
+        Endif
+
+      Else
+        xfollow = "New"
+      Endif
+    Else
+      xfollow = "New"
     Endif
 
     ''get paid amount
@@ -540,7 +574,7 @@ Private Function GetRegistration(sBookID As String) As String
             res1["fldregdate"] = Now()
             res1["fldcomp"] = modBasic.$compID
             res1["fldvisit"] = xvisit
-            res1["fldfollow"] = "New"
+            res1["fldfollow"] = xfollow
 
             res1["fldcurrlocat"] = ""
             res1["flddoa"] = ""
@@ -570,9 +604,13 @@ Private Function GetRegistration(sBookID As String) As String
               Endif
             Endif
 
-            autobil = modBillings.InsertRegistrationBilling("Full", xEncID, res["fldadmitlocat"], res["flddisctype"], xBillMode, "New", xuser)
+            autobil = modBillings.InsertRegistrationBilling("Full", xEncID, res["fldadmitlocat"], res["flddisctype"], xBillMode, xfollow, xuser)
             If autobil = True Then
-              xcomm = "Paid Consultation"
+              If xfollow = "Follow-up" Then
+                xcomm = "Follow-up Consultation"
+              Else If xfollow = "New" Then
+                xcomm = "Paid Consultation"
+              Endif
               xque = GetWebQueueNum(res["fldadmitlocat"], sBookID)
 
               xformat = modGeneral.GetCategoryFromDept(res["fldadmitlocat"])

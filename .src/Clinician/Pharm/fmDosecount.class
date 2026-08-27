@@ -215,6 +215,7 @@ Private Sub ShowSelectedCardex()
   Dim xpos As Boolean
 
   chkuselocal.Value = False
+  txtcomment.Text = ""
   If GridView2.Selection.Count Then
     $rData1.MoveTo(GridView2.Selection[0])
     If $rData1["fldid"] Then
@@ -239,6 +240,7 @@ Private Sub ShowSelectedCardex()
     If xpos = False Then
       chkdisp.Value = False
       pnlocal.Visible = True
+      txttransqty.MaxValue = $rData1["fldqtyorder"]
       txttransqty.Value = $rData1["fldqtyorder"]
     Else
       chkdisp.Value = True
@@ -284,6 +286,11 @@ Private Sub ShowSelectedCardex()
     Else
       btnsave.Enabled = False
     Endif
+    If modBasic.$ClinAdminComment = "Enable" Then
+      pnlcomment.Visible = True
+    Else
+      pnlcomment.Visible = False
+    Endif
     If modBasic.$TabletModeEnable = "Yes" Then
     Else
       ' txtdose.SetFocus
@@ -296,6 +303,7 @@ End
 Private Sub ShowSelectedDosing()
 
   chkuselocal.Value = False
+  txtcomment.Text = ""
   If GridView2.Selection.Count Then
     $rData1.MoveTo(GridView2.Selection[0])
     If $rData1["fldid"] Then
@@ -315,6 +323,7 @@ Private Sub ShowSelectedDosing()
     If $rData1["fldsave_order"] = False Then
       chkdisp.Value = False
       pnlocal.Visible = True
+      txttransqty.MaxValue = $rData1["fldqtydisp"]
       txttransqty.Value = $rData1["fldqtydisp"]
     Else
       chkdisp.Value = True
@@ -360,6 +369,11 @@ Private Sub ShowSelectedDosing()
     Else
       btnsave.Enabled = False
     Endif
+    If modBasic.$ClinAdminComment = "Enable" Then
+      pnlcomment.Visible = True
+    Else
+      pnlcomment.Visible = False
+    Endif
     If modBasic.$TabletModeEnable = "Yes" Then
     Else
       ' txtdose.SetFocus
@@ -372,9 +386,9 @@ End
 Private Sub FillGridView(dosno As Long)
 
   If $useCardex = True Then
-    $rData = modDatabase.$syConn.Exec("select fldid,fldtime,fldid,fldvalue,fldunit,fldid,fldvalue,flduserid from tblnurdosing where fldencounterval=&1 and fldcardex=&2 ORDER BY fldtime DESC", $encid, dosno)
+    $rData = modDatabase.$syConn.Exec("select fldid,fldtime,fldid,fldvalue,fldunit,fldid,fldvalue,flduserid,fldcomment from tblnurdosing where fldencounterval=&1 and fldcardex=&2 ORDER BY fldtime DESC", $encid, dosno)
   Else
-    $rData = modDatabase.$syConn.Exec("select fldid,fldtime,fldid,fldvalue,fldunit,fldid,fldvalue,flduserid from tblnurdosing where fldencounterval=&1 and flddoseno=&2 ORDER BY fldtime DESC", $encid, dosno)
+    $rData = modDatabase.$syConn.Exec("select fldid,fldtime,fldid,fldvalue,fldunit,fldid,fldvalue,flduserid,fldcomment from tblnurdosing where fldencounterval=&1 and flddoseno=&2 ORDER BY fldtime DESC", $encid, dosno)
   Endif
   $aMyFields = New String[]
   modGridView.ReadSmallData(GridView1, $rData, $aMyFields)
@@ -388,6 +402,7 @@ Private Sub FillGridView(dosno As Long)
     .Columns[5].Width = CStr(25 * modBasic.$AppWidthRatio) & "px"
     .Columns[6].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
     .Columns[7].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
+    .Columns[8].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
 
     .Columns[1].Text = "DateTime"
     .Columns[2].Text = "Particulars"
@@ -395,6 +410,7 @@ Private Sub FillGridView(dosno As Long)
     .Columns[4].Text = "Unit"
     .Columns[6].Text = "Dose"
     .Columns[7].Text = "Medicator"
+    .Columns[8].Text = "Comment"
   End With
 
   If $rData.Count Then
@@ -471,7 +487,7 @@ Public Sub btnsave_Click()
 
   If txtid.Value And If txtdose.Value Then
     If chkdisp.Value = True Then
-      modPharmSub.InsertNurDosingIndoor($encid, txtid.Value, txtcardex.Value, txtdose.Value, lblunit.Text, lblmedicine.Text, txtordose.Value, txtorfreq.Text)
+      modPharmSub.InsertNurDosingIndoor($encid, txtid.Value, txtcardex.Value, txtdose.Value, lblunit.Text, lblmedicine.Text, txtordose.Value, txtorfreq.Text, Trim(txtcomment.Text))
       If lblregimen.Tag = "stat" Then
         res = modDatabase.$myConn.Edit("tblpatdosing", "fldid=&1", txtid.Value)
         res["fldcurval"] = "Completed"

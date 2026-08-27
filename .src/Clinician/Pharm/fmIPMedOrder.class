@@ -213,7 +213,7 @@ Private Sub LoadMedicineGrid()
   Dim sFieldLst As String[]
   Dim sql As String
 
-  sFieldLst = ["fldid", "fldroute", "CONCAT(flditem, '|', COALESCE(fldmixing, ''))", "CONCAT(flditem, '|', flddose)", "fldfreq", "flddays", "fldcurval", "fldqtyorder", "fldid", "flduserid", "fldstarttime", "fldid", "flddirection", "fldadminsite", "fldmixing", "flduserid", "flditem", "fldmixvolume", "fldmixrate", "flddose", "CONCAT(fldroute, '|', flditem, '|', flddose, '|', fldmixvolume, '|', fldmixrate)"]
+  sFieldLst = ["fldid", "fldroute", "CONCAT(flditem, '|', COALESCE(fldmixing, ''))", "CONCAT(flditem, '|', flddose)", "fldfreq", "flddays", "fldcurval", "fldqtyorder", "fldid", "flduserid", "fldstarttime", "flditem", "flddirection", "fldadminsite", "fldmixing", "flduserid", "flditem", "fldmixvolume", "fldmixrate", "flddose", "CONCAT(fldroute, '|', flditem, '|', flddose, '|', fldmixvolume, '|', fldmixrate)"]
   If cmbstatus.Text = "%" Then
     sql = "select " & sFieldLst.Join(",") & " from tblinpatdosing where fldencounterval=&1 and (fldmixing IS NULL or fldmixing NOT LIKE &2) ORDER BY fldstarttime DESC"
   Else
@@ -235,7 +235,7 @@ Private Sub LoadMedicineGrid()
     .Columns[8].Hidden = True
     .Columns[9].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
     .Columns[10].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
-    .Columns[11].Width = CStr(50 * modBasic.$AppWidthRatio) & "px"
+    .Columns[11].Width = CStr(30 * modBasic.$AppWidthRatio) & "px"
     .Columns[12].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
     .Columns[13].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
     .Columns[14].Width = CStr(250 * modBasic.$AppWidthRatio) & "px"
@@ -279,12 +279,34 @@ Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableDat
   Else If Column = 10 Then
     Data.Text = modReportVar.GetDateTimeReport($rData[$aMyFields[Column]], gb.GeneralDate)
   Else If Column = 11 Then
-    Data.Text = ""
+    Data.Html = modString.GetImageForHTMLGrid(GetMedCardex($encid, $rData[$aMyFields[Column]]), "75%", "auto")
   Else If Column = 20 Then
     Data.Text = GetDosingTarget($rData[$aMyFields[Column]])
   Else
     Data.Text = $rData[$aMyFields[Column]]
   Endif
+
+End
+
+Private Function GetMedCardex(encid As String, xStockId As String) As String
+
+  Dim xtot As Float
+  Dim xadmn As Float
+  Dim xicon As String
+
+  If xStockId Then
+    xtot = modPharmacy.GetCardexDispensedQTY(encid, xStockId)
+    xadmn = modPharmacy.GetCardexAdministerQTY(encid, xStockId)
+    If xtot > xadmn Then
+      xicon = "/" &/ Application.Root &/ "icons/coll4.png"
+    Else
+      xicon = "/" &/ Application.Root &/ "icons/coll5.png"
+    Endif
+  Else
+    xicon = ""
+  Endif
+
+  Return xicon
 
 End
 

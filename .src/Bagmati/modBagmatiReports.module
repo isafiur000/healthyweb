@@ -201,3 +201,47 @@ Public Function GetOutdoorDetails(dtfir As Date, dtlast As Date, cmblocation As 
   Return xVar
 
 End
+
+Public Function GetSocialDetails(dtfir As Date, dtlast As Date, charityLst As String[], cmblocation As String, cmbvalue As String) As Variant[]
+
+  Dim xList As String[]
+  Dim i As Integer
+  Dim res As Result
+  Dim res1 As Result
+  Dim xVar As New Variant[]
+  Dim aColl As JSONCollection
+  Dim xstate As String
+
+  xList = charityLst.Copy()
+  For i = 0 To xList.Count - 1
+    xList[i] = "'" & xList[i] & "'"
+  Next
+
+  res = modDatabase.$syConn.Exec("select fldencounterval,fldbankname,fldchequeno from tblpatbilldetail where fldtime>=&1 and fldtime<=&2 and fldbankname in(" & xList.Join(",") & ")" & modDataRepo.GetWhereStringRepo(cmblocation, cmbvalue) & " GROUP BY fldencounterval", modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast))
+  If res.Available Then
+    For Each res
+      res1 = modDatabase.$myConn.Exec("select fldpatientval,fldptnamefir,fldptnamelast,fldptaddvill,fldptadddist,fldptbirday,fldptcontact,fldptcode from tblpatientinfo where fldpatientval in(select fldpatientval from tblencounter where fldencounterval=&1)", res["fldencounterval"])
+      If res1.Available Then
+        xstate = ""
+        aColl = New JSONCollection
+        aColl.Add(res1["fldpatientval"], "pid")
+        aColl.Add(res1["fldptnamefir"] & Space(1) & res1["fldptnamelast"], "p_name")
+        aColl.Add(DateDiff(res1["fldptbirday"], Now(), gb.Year), "age")
+        aColl.Add(res1["fldptaddvill"] & Space(1) & res1["fldptadddist"], "p_address")
+        aColl.Add(res1["fldptcontact"], "telephone")
+        aColl.Add(res1["fldptcode"], "policy_id")
+        aColl.Add(res["fldchequeno"], "claim_id")
+        xstate = modClaim.GetHIClaimState(res["fldchequeno"])
+        If xstate Then
+          aColl.Add(True, "is_hib")
+        Else
+          aColl.Add(False, "is_hib")
+        Endif
+        xVar.Add(aColl)
+      Endif
+    Next
+  Endif
+
+  Return xVar
+
+End

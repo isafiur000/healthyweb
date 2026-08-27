@@ -1158,6 +1158,8 @@ Public Function ExitPatientWithBillingOfBed(encid As String) As String
   Dim bedno As String
   Dim xitem As String
   Dim unitrate As String
+  Dim xReference As String
+  Dim xallow As Boolean
 
   Dim xrefer As String
   Dim xpayble As String
@@ -1172,7 +1174,7 @@ Public Function ExitPatientWithBillingOfBed(encid As String) As String
   If res.Available = True Then
     res.MoveLast
 
-    If modBasic.$AutoBedChargeMode = "Daily" Then   ''done before update
+    If modBasic.$AutoBedChargeMode = "Daily" Then  ''done before update
       xTotal = modBillings.GetSavedBedChargesTotal(encid)
     Else
       xTotal = 0
@@ -1180,18 +1182,28 @@ Public Function ExitPatientWithBillingOfBed(encid As String) As String
     xitem = modNonMedical.GetIPDepartChargeRate(res["flditem"], res["flddisctype"], bedno)
     modPatientGeneral.UpdatePatientTableSecondTime(res["fldid"], bedno, xitem)
 
-    Select modBasic.$AutoBillBed
-      Case "Full", "Standard", "RefOnly", "Partial"
-        If xitem Then
-          unitrate = modNonMedical.GetBillingTargeDept(xitem, "General Services")
-          hr = modPatPatho.GetWardBedUseDuration(encid, res["flditem"], unitrate, res["fldfirsttime"], Now(), xTotal)
-          If hr > 0 Then
-            modBillings.EnterBillingForInterval(modBasic.$AutoBillBed, "Service", encid, res["flddisctype"], xitem, hr, 0, xpayble, xrefer)
+    If xitem Then
+      xallow = False
+      xReference = modNonMedical.GetFixedReferenceScheme(res["flddisctype"])
+      Select modBasic.$AutoBillBed
+        Case "Full", "Standard", "Partial"
+          xallow = True
+        Case "RefOnly"
+          If xReference Then
+            xallow = True
           Endif
-        Else
-          xmsg = "Bed Charge not specified."
+      End Select
+      If xallow = True Then
+        unitrate = modNonMedical.GetBillingTargeDept(xitem, "General Services")
+        hr = modPatPatho.GetWardBedUseDuration(encid, res["flditem"], unitrate, res["fldfirsttime"], Now(), xTotal)
+        If hr > 0 Then
+          modBillings.EnterBillingForInterval(modBasic.$AutoBillBed, "Service", encid, res["flddisctype"], xitem, hr, 0, xpayble, xrefer)
         Endif
-    End Select
+      Endif
+
+    Else
+      xmsg = "Bed Charge not specified."
+    Endif
 
   Endif
 
@@ -1222,9 +1234,9 @@ Public Sub EnterBillingForInterval(autoBilling As String, sType As String, encid
     If autoBilling = "Standard" Then
     Else If autoBilling = "Full" Then
       GetAutoBillingEntry(encid, DiscType, sType, txtitem, txthr, "Done", id, True, False, xx, yy)
-    Else If autoBilling = "Partial" Then
-      GetAutoBillingEntry(encid, DiscType, sType, txtitem, txthr, "Punched", id, False, False, xx, yy)
     Else If autoBilling = "RefOnly" Then
+      GetAutoBillingEntry(encid, DiscType, sType, txtitem, txthr, "Done", id, True, False, xx, yy)
+    Else If autoBilling = "Partial" Then
       GetAutoBillingEntry(encid, DiscType, sType, txtitem, txthr, "Punched", id, False, False, xx, yy)
     Endif
   Endif
