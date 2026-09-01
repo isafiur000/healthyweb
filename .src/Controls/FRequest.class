@@ -37,10 +37,6 @@ Public Sub SetMenuListGrid()
     mnuimages.Visible = True
     mnubill.Visible = True
     mnumovement.Visible = True
-  Else If $strType = "ArchivedReports" Then
-    mnudoreport.Visible = True
-  Else If $strType = "ArchivedRepoReports" Then
-    mnudoreport.Visible = True
   Endif
   ShowGridView()
 
@@ -215,22 +211,6 @@ Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableDat
   Else If $strType = "Invoice/Receipt"
     If Column = 0 Then
       Try Data.Text = modReportVar.GetDateTimeReport($rData[$aMyFields[Column]], gb.GeneralDate)
-    Else
-      Data.Text = $rData[$aMyFields[Column]]
-    Endif
-
-  Else If $strType = "ArchivedReports" Then
-    If Column = 1 Then
-      Data.Text = modReportVar.GetDateTimeReport($rData[$aMyFields[Column]], gb.GeneralDate)
-    Else
-      Data.Text = $rData[$aMyFields[Column]]
-    Endif
-
-  Else If $strType = "ArchivedRepoReports" Then
-    If Column = 1 Then
-      Data.Text = modReportVar.GetDateTimeReport($rData[$aMyFields[Column]], gb.GeneralDate)
-    Else If Column = 9 Then
-      Data.Control = btnattach
     Else
       Data.Text = $rData[$aMyFields[Column]]
     Endif
@@ -561,39 +541,6 @@ Private Sub ResizeGridView()
       .Columns[5].Text = "TotalAMT"
       .Columns[6].Text = "Received"
 
-    Else If $strType = "ArchivedReports" Then
-      .Columns[0].Hidden = True
-      .Columns[1].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
-      .Columns[2].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
-      .Columns[3].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
-      .Columns[4].Width = CStr(250 * modBasic.$AppWidthRatio) & "px"
-      .Columns[5].Hidden = True
-      .Columns[6].Hidden = True
-      .Columns[7].Hidden = True
-
-      .Columns[1].Text = "DateTime"
-      .Columns[2].Text = "Encounter"
-      .Columns[3].Text = "Title"
-      .Columns[4].Text = "Comment"
-
-    Else If $strType = "ArchivedRepoReports" Then
-      .Columns[0].Hidden = True
-      .Columns[1].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
-      .Columns[2].Width = CStr(125 * modBasic.$AppWidthRatio) & "px"
-      .Columns[3].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
-      .Columns[4].Width = CStr(200 * modBasic.$AppWidthRatio) & "px"
-      .Columns[5].Hidden = True
-      .Columns[6].Hidden = True
-      .Columns[7].Hidden = True
-      .Columns[8].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
-      .Columns[9].Width = CStr(25 * modBasic.$AppWidthRatio) & "px"
-
-      .Columns[1].Text = "DateTime"
-      .Columns[2].Text = "Encounter"
-      .Columns[3].Text = "Title"
-      .Columns[4].Text = "Comment"
-      .Columns[8].Text = "HF"
-
     Else If $strType = "Pharmacy:Cancelled" Then
       .Columns[0].Hidden = True
       .Columns[1].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
@@ -807,138 +754,3 @@ Public Sub mnupacs_Click()
 End
 
 ''================== Activity =============================
-Public Sub mnuopenfile_Click()
-
-  Dim hForm As FmPDFView
-  Dim xLink As String
-
-  If GridView1.Selection.Count Then
-    $rData.MoveTo(GridView1.Selection[0])
-
-    If $strType = "ArchivedRepoReports" Then
-      If MMain.$WebEntry = True Then
-        xLink = modImage.GetBlobFileRemoteData($rData["fldrepoid"])
-      Else
-        xLink = modImage.GetBlobFileRemoteData($rData["fldid"])
-      Endif
-    Else
-      xLink = modImage.GetBlobFileData($rData["fldid"])
-    Endif
-    If xLink Then
-      hForm = New FmPDFView(xLink, False, $rData["fldencounterval"])
-      hForm.ShowModal
-    Endif
-
-  Endif
-
-End
-
-Public Sub mnuprint_Click()
-
-  Dim xLink As String
-
-  If GridView1.Selection.Count Then
-    $rData.MoveTo(GridView1.Selection[0])
-
-    If $strType = "ArchivedRepoReports" Then
-      If MMain.$WebEntry = True Then
-        xLink = modImage.GetBlobFileRemoteData($rData["fldrepoid"])
-      Else
-        xLink = modImage.GetBlobFileRemoteData($rData["fldid"])
-      Endif
-    Else
-      xLink = modImage.GetBlobFileData($rData["fldid"])
-    Endif
-    If xLink Then
-      Me.Exec("printJS('" & modPrint.GetFileWebURL(xLink) & "')")
-    Endif
-
-  Endif
-
-End
-
-Public Sub mnuemail_Click()
-
-  Dim xLink As String
-  Dim hForm As FmRemoteMail
-  Dim xx As String
-
-  If GridView1.Selection.Count Then
-    $rData.MoveTo(GridView1.Selection[0])
-
-    If $strType = "ArchivedRepoReports" Then
-      If MMain.$WebEntry = True Then
-        xLink = modImage.GetBlobFileRemoteData($rData["fldrepoid"])
-      Else
-        xLink = modImage.GetBlobFileRemoteData($rData["fldid"])
-      Endif
-    Else
-      xLink = modImage.GetBlobFileData($rData["fldid"])
-    Endif
-    If xLink Then
-      xx = modPatient.GetPatientEmail($rData["fldencounterval"])
-      hForm = New FmRemoteMail(xx, xLink, "Report", $rData["fldtitle"])
-      hForm.ShowModal()
-    Endif
-
-  Endif
-
-End
-
-Public Sub mnuftp_Click()
-
-  Dim xx As String
-  Dim xpath As String
-  Dim xLink As String
-
-  If GridView1.Selection.Count Then
-    $rData.MoveTo(GridView1.Selection[0])
-
-    If modBasic.$RepoManHost And If modBasic.$RepoManFolder And If modBasic.$RepoManUser Then
-
-      If $strType = "ArchivedRepoReports" Then
-        If MMain.$WebEntry = True Then
-          xLink = modImage.GetBlobFileRemoteData($rData["fldrepoid"])
-        Else
-          xLink = modImage.GetBlobFileRemoteData($rData["fldid"])
-        Endif
-      Else
-        xLink = modImage.GetBlobFileData($rData["fldid"])
-      Endif
-      If xLink Then
-        xpath = modString.GetNowString() & ".pdf"
-        xx = modDevAll.SendFileToFTP(modBasic.$RepoManHost, modBasic.$RepoManFolder &/ modBasic.$lbluser, modBasic.$RepoManUser, modBasic.$RepoManPass, xpath, xLink)
-        If xx Then
-          Message.Warning(xx, ("OK"))
-        Else
-          Message.Info("Upload file is" & "<br>" & xpath, ("OK"))
-        Endif
-      Endif
-
-    Endif
-
-  Endif
-
-End
-
-Public Sub GridView1_Click(Row As Integer, Column As Integer)
-
-  Dim hForm As FmPDFView
-  Dim xLink As String
-
-  If Column = 9 Then
-    If $strType = "ArchivedRepoReports" Then
-      $rData.MoveTo(Row)
-      If MMain.$WebEntry = True Then
-        xLink = modImage.GetBlobFileRemoteData($rData["fldrepoid"])
-      Else
-        xLink = modImage.GetBlobFileRemoteData($rData["fldid"])
-      Endif
-      If xLink Then
-        hForm = New FmPDFView(xLink, False, $rData["fldencounterval"])
-        hForm.Show
-      Endif
-    Endif
-  Endif
-
-End

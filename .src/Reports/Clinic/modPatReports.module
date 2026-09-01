@@ -1823,10 +1823,12 @@ End
 
 Public Sub GetRepoArchiveReportResult(sType As String, xpatno As String)
 
+  Dim xList As String[]
+  Dim myRes As New MyResult
   Dim encLst As String[]
   Dim k As Integer
   Dim res As Result
-  Dim hForm As FRequest
+  Dim hForm As FMyRequest
   Dim sCon As Connection
   Dim xCon As Connection
   Dim lCon As Connection
@@ -1843,20 +1845,28 @@ Public Sub GetRepoArchiveReportResult(sType As String, xpatno As String)
         encLst[k] = "'" & encLst[k] & "'"
       Next
       If MMain.$WebEntry = True Then
+        xList = ["fldrepoid", "fldtime", "fldencounterval", "fldtitle", "flddetail", "fldsave", "fldlink", "fldencounterval", "fldhospcode", "fldrepoid"]
+      Else
+        xList = ["fldid", "fldtime", "fldencounterval", "fldtitle", "flddetail", "fldsave", "fldlink", "fldencounterval", "fldcomp", "fldid"]
+      Endif
+      If MMain.$WebEntry = True Then
         If sType = "%" Then
-          res = modDatabase.$logConn.Exec("select fldrepoid,fldtime,fldencounterval,fldtitle,flddetail,fldsave,fldlink,fldencounterval,fldhospcode,fldrepoid from tblpatreport where fldencounterval in(" & encLst.Join(",") & ") and (fldcateg<>&1 and fldcateg<>&2 and fldcateg<>&3) and (flvisible=&4 or flvisible IS NULL) ORDER BY fldtime DESC", "PatientOrderSheet", "Diagnostic Tests Log", "Radio Diagnostics Log", "Visible")
+          res = modDatabase.$logConn.Exec("select " & xList.Join(",") & " from tblpatreport where fldencounterval in(" & encLst.Join(",") & ") and (fldcateg<>&1 and fldcateg<>&2 and fldcateg<>&3) and (flvisible=&4 or flvisible IS NULL) ORDER BY fldtime DESC", "PatientOrderSheet", "Diagnostic Tests Log", "Radio Diagnostics Log", "Visible")
         Else
-          res = modDatabase.$logConn.Exec("select fldrepoid,fldtime,fldencounterval,fldtitle,flddetail,fldsave,fldlink,fldencounterval,fldhospcode,fldrepoid from tblpatreport where fldencounterval in(" & encLst.Join(",") & ") and fldcateg like &1 and (flvisible=&2 or flvisible IS NULL) ORDER BY fldtime DESC", sType, "Visible")
+          res = modDatabase.$logConn.Exec("select " & xList.Join(",") & " from tblpatreport where fldencounterval in(" & encLst.Join(",") & ") and fldcateg like &1 and (flvisible=&2 or flvisible IS NULL) ORDER BY fldtime DESC", sType, "Visible")
         Endif
       Else
         If sType = "%" Then
-          res = modDatabase.$logConn.Exec("select fldid,fldtime,fldencounterval,fldtitle,flddetail,fldsave,fldlink,fldencounterval,fldcomp,fldid from tblpatreport where fldencounterval in(" & encLst.Join(",") & ") and (fldcateg<>&1 and fldcateg<>&2 and fldcateg<>&3) and (flvisible=&4 or flvisible IS NULL) ORDER BY fldtime DESC", "PatientOrderSheet", "Diagnostic Tests Log", "Radio Diagnostics Log", "Visible")
+          res = modDatabase.$logConn.Exec("select " & xList.Join(",") & " from tblpatreport where fldencounterval in(" & encLst.Join(",") & ") and (fldcateg<>&1 and fldcateg<>&2 and fldcateg<>&3) and (flvisible=&4 or flvisible IS NULL) ORDER BY fldtime DESC", "PatientOrderSheet", "Diagnostic Tests Log", "Radio Diagnostics Log", "Visible")
         Else
-          res = modDatabase.$logConn.Exec("select fldid,fldtime,fldencounterval,fldtitle,flddetail,fldsave,fldlink,fldencounterval,fldcomp,fldid from tblpatreport where fldencounterval in(" & encLst.Join(",") & ") and fldcateg like &1 and (flvisible=&2 or flvisible IS NULL) ORDER BY fldtime DESC", sType, "Visible")
+          res = modDatabase.$logConn.Exec("select " & xList.Join(",") & " from tblpatreport where fldencounterval in(" & encLst.Join(",") & ") and fldcateg like &1 and (flvisible=&2 or flvisible IS NULL) ORDER BY fldtime DESC", sType, "Visible")
         Endif
       Endif
-      hForm = New FRequest(res, ("Archive History"), "ArchivedRepoReports", False)
-      hForm.ShowModal
+      If res.Available Then
+        myRes.AddResult(res)
+        hForm = New FMyRequest(myRes, ("Archive History"), "ArchivedRepoReports", False, xList.Count)
+        hForm.ShowModal
+      Endif
       modDatabase.$myConn = sCon
       modDatabase.$logConn = lCon
       modDatabase.$syConn = xCon

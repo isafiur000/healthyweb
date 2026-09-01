@@ -644,16 +644,16 @@ End
 
 Private Sub LockBillingOption()
 
-  If $BillingOption = "All" Then
+  ' If $BillingOption = "All" Then
+  ' Else
+  If modBasic.$BillDischargeOption = "Mixed" Then
   Else
-    If modBasic.$BillDischargeOption = "Mixed" Then
-    Else
-      Select $sTatus
-        Case "Discharged", "LAMA", "Death", "Refer", "Absconder"
-          hPatient.Enabled = False
-      End Select
-    Endif
+    Select $sTatus
+      Case "Discharged", "LAMA", "Death", "Refer", "Absconder"
+        hPatient.Enabled = False
+    End Select
   Endif
+  ' Endif
 
 End
 
@@ -5360,13 +5360,22 @@ End
 
 Public Sub mnugenreport_Click()
 
+  Dim xList As String[] = ["fldid", "fldtime", "fldencounterval", "fldtitle", "flddetail", "fldsave", "fldlink", "fldencounterval", "fldid"]
+  Dim xFldList As String[]
+  Dim myRes As New MyResult
   Dim res As Result
-  Dim hForm As FRequest
+  Dim hForm As FMyRequest
 
   If txtencid.Text Then
-    res = modDatabase.$logConn.Exec("select fldid,fldtime,fldencounterval,fldtitle,flddetail,fldsave,fldlink,fldencounterval from tblpatreport where fldcateg=&1 and fldencounterval like &2 and (flvisible=&3 or flvisible IS NULL) ORDER BY fldid DESC", "General Reports", Trim(txtencid.Text), "Visible")
-    hForm = New FRequest(res, ("General Documents"), "ArchivedReports", False)
-    hForm.ShowModal
+    xFldList = New String[]
+    xFldList.Insert(xList)
+    xFldList.Add(Quote("tblpatreport") & " as tblname")
+    res = modDatabase.$logConn.Exec("select " & xFldList.Join(",") & " from tblpatreport where fldcateg=&1 and fldencounterval like &2 and (flvisible=&3 or flvisible IS NULL) ORDER BY fldid DESC", "General Reports", Trim(txtencid.Text), "Visible")
+    If res.Available Then
+      myRes.AddResult(res)
+      hForm = New FMyRequest(myRes, ("General Reports"), "ArchivedReports", False, xList.Count)
+      hForm.ShowModal
+    Endif
   Endif
 
 End

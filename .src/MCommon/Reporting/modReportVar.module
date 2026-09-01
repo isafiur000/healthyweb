@@ -2814,6 +2814,9 @@ Public Function GetPatientSMSVAr($encid As String, $Line As String) As String
   If (String.InStr($Line, "PortalQRLogin") > 0) Then
     $Line = Replace($Line, "{PortalQRLogin}", modReportVar.GetPortalLinkQRCode($encid, "Invoice"))
   Endif
+  If (String.InStr($Line, "PortalQRLogURL") > 0) Then
+    $Line = Replace($Line, "{PortalQRLogURL}", modReportVar.GetPortalLinkQRString($encid, "Invoice"))
+  Endif
   If (String.InStr($Line, "WebPatPassword") > 0) Then
     $Line = Replace($Line, "{WebPatPassword}", modPassword.GetPatientWebPassword(modPatient.GetPatientNoByEnc($encid), True))
   Endif
@@ -3037,6 +3040,30 @@ Public Function GetReportVarImages($encid As String, $Line As String) As String
 End
 
 ''--------------------------------------------- Barcode option ---------------------------
+Public Function GetPortalLinkQRString($encid As String, sType As String) As String
+
+  Dim xurLink As String
+  Dim xval As String
+
+  xurLink = modSettings.ShowSettingFromFIle(sType & "/QRCodeLink")
+  If xurLink Then
+    If xurLink = "Archive:All Categories" Then
+      xval = modGeneral.GetQRCodeRemoteURL($encid, modBasic.$PatPortalURL, "direct")
+    Else If xurLink = "Archive:Diagnostic Tests" Then
+      xval = modGeneral.GetQRCodeRemoteURL($encid, modBasic.$PatPortalURL, "test")
+    Else If xurLink = "Archive:Radio Diagnostics" Then
+      xval = modGeneral.GetQRCodeRemoteURL($encid, modBasic.$PatPortalURL, "radio")
+    Else If xurLink = "Archive:General Reports" Then
+      xval = modGeneral.GetQRCodeRemoteURL($encid, modBasic.$PatPortalURL, "general")
+    Else If xurLink = "Archive:Patient Portal" Then
+      xval = modGeneral.GetQRCodeRemoteURL($encid, modBasic.$PatPortalURL, "portal")
+    Endif
+  Endif
+
+  Return xval
+
+End
+
 Public Function GetPortalLinkQRCode($encid As String, sType As String) As String
 
   Dim xurLink As String

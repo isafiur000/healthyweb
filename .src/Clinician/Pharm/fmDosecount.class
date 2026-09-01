@@ -116,12 +116,12 @@ Private Sub FillMedicineList()
   Dim sql2 As String
 
   If $useCardex = True Then
-    sql1 = "select flditem,fldid,fldroute,flditem,flddose,fldfreq,flddays,fldcurval,flddirection,fldmixing,flddosecount,fldqtyorder,flduserid,fldid from tblinpatdosing where fldencounterval=&1 and fldstarttime<=&2 and fldendtime>=&3 and fldroute<>&4 and fldcurval=&5 and flddose>&6 and flddays>&6"                    ''
-    sql2 = "select flditem,fldid,fldroute,flditem,flddose,fldfreq,flddays,fldcurval,flddirection,fldmixing,flddosecount,fldqtyorder,flduserid,fldid from tblinpatdosing where fldencounterval=&1 and fldroute<>&4 and fldcurval=&5 and flddose>&6 and flddays=&6"
+    sql1 = "select flditem,fldid,fldroute,flditem,flddose,fldfreq,flddays,fldcurval,flddirection,fldmixing,flddosecount,fldqtyorder,flduserid,fldid,fldmixvolume from tblinpatdosing where fldencounterval=&1 and fldstarttime<=&2 and fldendtime>=&3 and fldroute<>&4 and fldcurval=&5 and flddose>&6 and flddays>&6"                    ''
+    sql2 = "select flditem,fldid,fldroute,flditem,flddose,fldfreq,flddays,fldcurval,flddirection,fldmixing,flddosecount,fldqtyorder,flduserid,fldid,fldmixvolume from tblinpatdosing where fldencounterval=&1 and fldroute<>&4 and fldcurval=&5 and flddose>&6 and flddays=&6"
     $rData1 = modDatabase.$myConn.Exec(sql1 & " UNION ALL " & sql2, $encid, Now(), DateAdd(Now(), gb.Hour, -3), "fluid", "Continue", 0)
   Else
-    sql1 = "select fldsave_order,fldid,fldroute,flditem,flddose,fldfreq,flddays,fldstatus,flddirection,fldmixing,flddosecount,fldqtydisp,flduserid_order,flditemno from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldstarttime<=&3 and fldendtime>=&4 and fldroute<>&5 and flditemtype=&6 and fldcurval=&7 and flddose>&8 and fldqtydisp>fldqtyret"                    ''
-    sql2 = "select fldsave_order,fldid,fldroute,flditem,flddose,fldfreq,flddays,fldstatus,flddirection,fldmixing,flddosecount,fldqtydisp,flduserid_order,flditemno from tblpatdosing where fldencounterval=&1 and fldsave_order=&9 and fldstarttime<=&3 and DATE_ADD(fldstarttime, INTERVAL flddays DAY)>=&4 and fldroute<>&5 and flditemtype=&6 and fldcurval=&7 and flddose>&8 and fldqtydisp>fldqtyret"
+    sql1 = "select fldsave_order,fldid,fldroute,flditem,flddose,fldfreq,flddays,fldstatus,flddirection,fldmixing,flddosecount,fldqtydisp,flduserid_order,flditemno,fldmixvolume from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldstarttime<=&3 and fldendtime>=&4 and fldroute<>&5 and flditemtype=&6 and fldcurval=&7 and flddose>&8 and fldqtydisp>fldqtyret"                    ''
+    sql2 = "select fldsave_order,fldid,fldroute,flditem,flddose,fldfreq,flddays,fldstatus,flddirection,fldmixing,flddosecount,fldqtydisp,flduserid_order,flditemno,fldmixvolume from tblpatdosing where fldencounterval=&1 and fldsave_order=&9 and fldstarttime<=&3 and DATE_ADD(fldstarttime, INTERVAL flddays DAY)>=&4 and fldroute<>&5 and flditemtype=&6 and fldcurval=&7 and flddose>&8 and fldqtydisp>fldqtyret"
     $rData1 = modDatabase.$myConn.Exec(sql1 & " UNION ALL " & sql2, $encid, True, Now(), DateAdd(Now(), gb.Hour, -3), "fluid", "Medicines", "Continue", 0, False)
   Endif
   $aMyFields1 = New String[]
@@ -141,6 +141,7 @@ Private Sub FillMedicineList()
     .Columns[11].Hidden = True
     .Columns[12].Hidden = True
     .Columns[13].Hidden = True
+    .Columns[14].Hidden = True
   End With
 
 End
@@ -261,7 +262,11 @@ Private Sub ShowSelectedCardex()
     Endif
     If $rData1["fldmixing"] Then
       pnlmixture.Visible = True
-      txtmixture.Html = $rData1["fldmixing"]
+      If $rData1["fldmixvolume"] Then
+        txtmixture.Html = $rData1["fldmixing"] & " (" & $rData1["fldmixvolume"] & " mL)"
+      Else
+        txtmixture.Html = $rData1["fldmixing"]
+      Endif
     Else
       pnlmixture.Visible = False
     Endif
