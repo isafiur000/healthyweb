@@ -23,6 +23,10 @@ Public Const $FootImageEnd As String = "<!-- FOOTIMAGE END -->"
 Public Const $AbnStart As String = "<!-- ABNORMAL -->"
 Public Const $AbnEnd As String = "<!-- /ABNORMAL -->"
 
+Public $FirstExamColl As Collection
+Public $FirstRadioColl As Collection
+Public $FirstLabColl As Collection
+
 Public Function SQLAllowTableList() As String[]
 
   Dim hTable As Table
@@ -2190,11 +2194,16 @@ Public Function GetReporExamFirstVal($encid As String, $Line As String) As Strin
 
   If (String.InStr($Line, "$First_Exam:") > 0) Then
     xx = modString.GetSelectedTextBetween($Line, "$First_Exam:", "$")
-    xval = modClinic.GetCurrExamValueSysConst($encid, UnQuote(xx), "First")
-    If xval Then
-      $Line = Replace($Line, "{$First_Exam:" & xx & "$}", xval)
+    If $FirstExamColl[$encid & "|" & xx] Then
+      $Line = Replace($Line, "{$First_Exam:" & xx & "$}", $FirstExamColl[$encid & "|" & xx])
     Else
-      $Line = Replace($Line, "{$First_Exam:" & xx & "$}", "__")
+      xval = modClinic.GetCurrExamValueSysConst($encid, UnQuote(xx), "First")
+      If xval Then
+        $Line = Replace($Line, "{$First_Exam:" & xx & "$}", xval)
+        $FirstExamColl.Add(xval, $encid & "|" & xx)
+      Else
+        $Line = Replace($Line, "{$First_Exam:" & xx & "$}", "__")
+      Endif
     Endif
   Endif
   Return $Line
@@ -2280,11 +2289,16 @@ Public Function GetReportTestFirstVal($encid As String, $Line As String) As Stri
 
   If (String.InStr($Line, "$First_Test:") > 0) Then
     xx = modString.GetSelectedTextBetween($Line, "$First_Test:", "$")
-    xval = modLabTest.GetCurrTesValuePos("First", $encid, modFixLab.GetLabTestIDFromSysConst(Trim(xx)), MMain.$defUnit)
-    If xval Then
-      $Line = Replace($Line, "{$First_Test:" & xx & "$}", xval)
+    If $FirstLabColl[$encid & "|" & xx] Then
+      $Line = Replace($Line, "{$First_Test:" & xx & "$}", $FirstLabColl[$encid & "|" & xx])
     Else
-      $Line = Replace($Line, "{$First_Test:" & xx & "$}", "__")
+      xval = modLabTest.GetCurrTesValuePos("First", $encid, modFixLab.GetLabTestIDFromSysConst(Trim(xx)), MMain.$defUnit)
+      If xval Then
+        $Line = Replace($Line, "{$First_Test:" & xx & "$}", xval)
+        $FirstLabColl.Add(xval, $encid & "|" & xx)
+      Else
+        $Line = Replace($Line, "{$First_Test:" & xx & "$}", "__")
+      Endif
     Endif
   Endif
   Return $Line
@@ -2316,11 +2330,16 @@ Public Function GetReporRadioFirstVal($encid As String, $Line As String) As Stri
 
   If (String.InStr($Line, "$First_Radio:") > 0) Then
     xx = modString.GetSelectedTextBetween($Line, "$First_Radio:", "$")
-    xval = modRadioTest.GetCurrRadioValueSysConst($encid, UnQuote(xx), "First")
-    If xval Then
-      $Line = Replace($Line, "{$First_Radio:" & xx & "$}", xval)
+    If $FirstRadioColl[$encid & "|" & xx] Then
+      $Line = Replace($Line, "{$First_Radio:" & xx & "$}", $FirstRadioColl[$encid & "|" & xx])
     Else
-      $Line = Replace($Line, "{$First_Radio:" & xx & "$}", "__")
+      xval = modRadioTest.GetCurrRadioValueSysConst($encid, UnQuote(xx), "First")
+      If xval Then
+        $Line = Replace($Line, "{$First_Radio:" & xx & "$}", xval)
+        $FirstRadioColl.Add(xval, $encid & "|" & xx)
+      Else
+        $Line = Replace($Line, "{$First_Radio:" & xx & "$}", "__")
+      Endif
     Endif
   Endif
   Return $Line

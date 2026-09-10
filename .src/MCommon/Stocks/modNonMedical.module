@@ -4734,6 +4734,26 @@ Public Function GetTotalCreditInvoice($conn As Connection, encid As String) As F
 
 End
 
+Public Function TotalSavedOnlyCreditExpensebyPatient($conn As Connection, encid As String) As Float
+
+  Dim amt As Float
+  Dim res As Result
+
+  res = $conn.Exec("select SUM((REPLACE(REPLACE(fldbilltype , 'Cash', 0), 'Credit', 100) - COALESCE(fldcashincredit, 0)) * (fldditemamt - fldtaxamt) / 100) as tot from tblpatbilling where fldencounterval=&1 and fldsave=&2 and fldprint=&3 and fldbilltype=&3", encid, True, False, "Credit")
+  If res.Available Then
+    If res["tot"] Then
+      amt = res["tot"]
+    Else
+      amt = 0
+    Endif
+  Else
+    amt = 0
+  Endif
+
+  Return amt
+
+End
+
 Public Function TotalSavedCreditExpensebyPatient($conn As Connection, encid As String) As Float
 
   Dim amt As Float

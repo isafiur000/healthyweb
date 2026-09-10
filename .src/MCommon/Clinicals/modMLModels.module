@@ -1,6 +1,8 @@
 ' Gambas module file
 
-Public Function GetMLModelsList() As String[]
+Public $MLModelOutputColl As Collection
+
+Public Function GetMLModelsList(sType As String) As String[]
 
   Dim i As Integer
   Dim xxx As String[]
@@ -8,7 +10,9 @@ Public Function GetMLModelsList() As String[]
   xxx = New String[]
   For i = 1 To 20
     If modSettings.ShowModelsSettingFromFIle("Model" & CStr(i) & "/" & "Name") Then
-      xxx.Add(modSettings.ShowModelsSettingFromFIle("Model" & CStr(i) & "/" & "Name"))
+      If modSettings.ShowModelsSettingFromFIle("Model" & CStr(i) & "/" & "Role") = sType Then
+        xxx.Add(modSettings.ShowModelsSettingFromFIle("Model" & CStr(i) & "/" & "Name"))
+      Endif
     Endif
   Next
   Return xxx
@@ -20,6 +24,7 @@ Public Function GetModelValueArguments(xModel As String, xArgs As String[], Opti
   Dim i As Integer
   Dim j As Integer
   Dim xurl As String
+  Dim xexec As String
   Dim xcmd As String
 
   Dim aData As String[]
@@ -28,12 +33,14 @@ Public Function GetModelValueArguments(xModel As String, xArgs As String[], Opti
   For i = 1 To 20
     If modSettings.ShowModelsSettingFromFIle("Model" & CStr(i) & "/" & "Name") = xModel Then
       xurl = modSettings.ShowModelsSettingFromFIle("Model" & CStr(i) & "/" & "URL")
+      xexec = modSettings.ShowModelsSettingFromFIle("Model" & CStr(i) & "/" & "Shell")
       Break
     Endif
   Next
 
   aData = New String[]
   aData.Add("--form 'model=" & Quote(xModel) & "'")
+  aData.Add("--form 'exec=" & Quote(xexec) & "'")
 
   For j = 0 To xArgs.Count - 1
     If IsNumber(xArgs[j]) Then
@@ -48,59 +55,112 @@ Public Function GetModelValueArguments(xModel As String, xArgs As String[], Opti
   Endif
 
   If xurl Then
-    xcmd = "curl --no-buffer --location " & xurl & "?upload" & Space(1) & aData.Join(Space(1))
-    modBasic.DebugAPIString(xcmd)
-    Shell xcmd To xval
+    If $MLModelOutputColl[JSON.Encode(aData)] Then
+      xval = $MLModelOutputColl[JSON.Encode(aData)]
+    Else
+      xcmd = "curl --no-buffer --location " & xurl & "?upload" & Space(1) & aData.Join(Space(1))
+      modBasic.DebugAPIString(xcmd)
+      Shell xcmd To xval
+      $MLModelOutputColl.Add(xval, JSON.Encode(aData))
+    Endif
   Endif
 
   Return xval
 
 End
 
-Public Function GetModelValue(encid As String, xModel As String) As String
+''------------------ For encounter -------------------------------
+Public Function GetModelValue(encid As String, xModel As String, Optional sFile As String) As String
 
   Dim i As Integer
-  Dim xargs As String
+  Dim xstrargs As String
+  Dim xnumargs As String
   Dim xurl As String
+  Dim xcmd As String
+  Dim xexec As String
+  Dim j As Integer
+  Dim k As Integer
 
   Dim asx As String[]
-  Dim xx As String
+  Dim asy As String[]
   Dim xvar As Variant
-  Dim xVarLst As String[]
 
-  Dim xcoll As Collection
+  Dim aData As String[]
   Dim xval As String
+  Dim strCount As Integer
+  Dim numCount As Integer
+  Dim strAllow As Boolean
+  Dim numAllow As Boolean
 
   For i = 1 To 20
     If modSettings.ShowModelsSettingFromFIle("Model" & CStr(i) & "/" & "Name") = xModel Then
-      xargs = modSettings.ShowModelsSettingFromFIle("Model" & CStr(i) & "/" & "Arguments")
       xurl = modSettings.ShowModelsSettingFromFIle("Model" & CStr(i) & "/" & "URL")
+      xexec = modSettings.ShowModelsSettingFromFIle("Model" & CStr(i) & "/" & "Shell")
+      xstrargs = modSettings.ShowModelsSettingFromFIle("Model" & CStr(i) & "/" & "StrArgument")
+      xnumargs = modSettings.ShowModelsSettingFromFIle("Model" & CStr(i) & "/" & "NumArgument")
       Break
     Endif
   Next
 
-  If xargs Then
-    asx = Split(xargs, ";")
-    xVarLst = New Variant[]
-    For Each xx In asx
-      xvar = modReportVar.GetPatientVariableValue(xx, encid)
+  aData = New String[]
+  aData.Add("--form 'model=" & Quote(xModel) & "'")
+  aData.Add("--form 'exec=" & Quote(xexec) & "'")
+
+  strAllow = True
+  If xstrargs Then
+    asx = Split(xstrargs, ";")
+    strCount = 0
+    For j = 0 To asx.Count - 1
+      xvar = ""
+      xvar = modReportVar.GetPatientVariableValue(Trim(asx[j]), encid)
       If xvar Then
         If xvar = "__" Then
+          Break
         Else
-          xVarLst.Add(CStr(xvar))
+          aData.Add("--form 'strargs" & CStr(j + 1) & "=" & Quote(xvar) & "'")
+          strCount = strCount + 1
         Endif
       Endif
     Next
+    If asx.Count > strCount Then
+      strAllow = False
+    Endif
+  Endif
 
-    If asx.Count = xVarLst.Count Then
-      xcoll = New Collection
-      xcoll.Add(xModel, "model")
-      xcoll.Add(xVarLst.Join(","), "args")
+  numAllow = True
+  If xnumargs Then
+    asy = Split(xnumargs, ";")
+    numCount = 0
+    For k = 0 To asy.Count - 1
+      xvar = ""
+      xvar = modReportVar.GetPatientVariableValue(Trim(asy[k]), encid)
+      If xvar Then
+        If xvar = "__" Then
+          Break
+        Else
+          aData.Add("--form 'numargs" & CStr(k + 1) & "=" & Quote(xvar) & "'")
+          numCount = numCount + 1
+        Endif
+      Endif
+    Next
+    If asy.Count > numCount Then
+      numAllow = False
+    Endif
+  Endif
 
-      If xurl Then
-        modBasic.DebugAPIString("Parameters:" & JSON.Encode(xcoll))
-        modBasic.DebugAPIString("curl " & xurl & "?" & Base64(JSON.Encode(xcoll)))
-        Shell "curl " & xurl & "?" & Base64(JSON.Encode(xcoll)) To xval
+  If sFile Then
+    aData.Add("--form 'files=@" & Quote(sFile) & "'")
+  Endif
+
+  If strAllow = True And If numAllow = True Then
+    If xurl Then
+      If $MLModelOutputColl[JSON.Encode(aData)] Then
+        xval = $MLModelOutputColl[JSON.Encode(aData)]
+      Else
+        xcmd = "curl --no-buffer --location " & xurl & "?upload" & Space(1) & aData.Join(Space(1))
+        modBasic.DebugAPIString(xcmd)
+        Shell xcmd To xval
+        $MLModelOutputColl.Add(xval, JSON.Encode(aData))
       Endif
     Endif
   Endif

@@ -599,6 +599,9 @@ Public Sub FillNewCOlumnCollection($FormName As String)
     $newColumnColl.Add(modSettings.ShowSettingFromFIle($FormName & "_" & "NewColumn" & CStr(j) & "/" & "FormatShell"), $FormName & "_" & "NewColumn" & CStr(j) & "/" & "FormatShell")
     $newColumnColl.Add(modSettings.ShowSettingFromFIle($FormName & "_" & "NewColumn" & CStr(j) & "/" & "Translate"), $FormName & "_" & "NewColumn" & CStr(j) & "/" & "Translate")
     $newColumnColl.Add(modSettings.ShowSettingFromFIle($FormName & "_" & "NewColumn" & CStr(j) & "/" & "RichTextFormat"), $FormName & "_" & "NewColumn" & CStr(j) & "/" & "RichTextFormat")
+    $newColumnColl.Add(modSettings.ShowSettingFromFIle($FormName & "_" & "NewColumn" & CStr(j) & "/" & "GreenIcon"), $FormName & "_" & "NewColumn" & CStr(j) & "/" & "GreenIcon")
+    $newColumnColl.Add(modSettings.ShowSettingFromFIle($FormName & "_" & "NewColumn" & CStr(j) & "/" & "RedIcon"), $FormName & "_" & "NewColumn" & CStr(j) & "/" & "RedIcon")
+
     If modSettings.ShowSettingFromFIle($FormName & "_" & "NewColumn" & CStr(j) & "/" & "Translate") = "Yes" Then
       $newColumnColl.Add(modString.GetCollectionFromCSV(modSettings.ShowSettingFromFIle($FormName & "_" & "NewColumn" & CStr(j) & "/" & "FormatScript")), $FormName & "_" & "NewColumn" & CStr(j) & "/" & "TranslateList")
     Endif
@@ -617,6 +620,30 @@ Public Function CustomNewColumnsTitle($FormName As String) As String[]
     xcol = modSettings.ShowSettingFromFIle($FormName & "_" & "NewColumn" & CStr(i) & "/" & "Title")
     If xcol Then
       xx.Add(xcol)
+    Endif
+  Next
+  Return xx
+
+End
+
+Public Function CustomColumnWithIcons($FormName As String) As String[]
+
+  Dim i As Integer
+  Dim xx As String[]
+  Dim xcol As String
+
+  Dim xgreen As String
+  Dim xred As String
+
+  xx = New String[]
+  For i = 1 To 99
+    xgreen = modSettings.ShowSettingFromFIle($FormName & "_" & "NewColumn" & CStr(i) & "/" & "GreenIcon")
+    xred = modSettings.ShowSettingFromFIle($FormName & "_" & "NewColumn" & CStr(i) & "/" & "RedIcon")
+    If xgreen Or If xred Then
+      xcol = modSettings.ShowSettingFromFIle($FormName & "_" & "NewColumn" & CStr(i) & "/" & "Title")
+      If xcol Then
+        xx.Add(xcol)
+      Endif
     Endif
   Next
   Return xx
@@ -737,12 +764,8 @@ Public Function NewColValue($FormName As String, xTitle As String, encid As Stri
 
     Endif
 
+    ''scripting or translate
     If modCustPatient.$newColumnColl[$FormName & "_" & "NewColumn" & CStr(i) & "/" & "Translate"] = "Yes" Then
-      ' If modCustPatient.$newColumnColl[$FormName & "_" & "NewColumn" & CStr(j) & "/" & "TranslateList"][xx] Then
-      '   xfinal = modCustPatient.$newColumnColl[$FormName & "_" & "NewColumn" & CStr(j) & "/" & "TranslateList"][xx]
-      ' Else
-      '   xfinal = modCustPatient.$newColumnColl[$FormName & "_" & "NewColumn" & CStr(i) & "/" & "FormatShell"]
-      ' Endif
       For Each xval In modCustPatient.$newColumnColl[$FormName & "_" & "NewColumn" & CStr(j) & "/" & "TranslateList"]
         If xx Like modCustPatient.$newColumnColl[$FormName & "_" & "NewColumn" & CStr(j) & "/" & "TranslateList"].Key Then
           xfinal = xval
@@ -760,6 +783,7 @@ Public Function NewColValue($FormName As String, xTitle As String, encid As Stri
     Endif
   Endif
 
+  ''Rich Text format
   If xfinal Then
     If modCustPatient.$newColumnColl[$FormName & "_" & "NewColumn" & CStr(i) & "/" & "RichTextFormat"] = "Yes" Then
       xout = modString.TextToHTML(xfinal)
@@ -768,6 +792,21 @@ Public Function NewColValue($FormName As String, xTitle As String, encid As Stri
     Endif
   Else
     xout = ""
+  Endif
+
+  ''color icons
+  If modCustPatient.$newColumnColl[$FormName & "_" & "NewColumn" & CStr(i) & "/" & "GreenIcon"] Or If modCustPatient.$newColumnColl[$FormName & "_" & "NewColumn" & CStr(i) & "/" & "RedIcon"] Then
+    If xout Then
+      If xout = modCustPatient.$newColumnColl[$FormName & "_" & "NewColumn" & CStr(i) & "/" & "GreenIcon"] Then
+        xout = "$green.svg"
+      Else If xout = modCustPatient.$newColumnColl[$FormName & "_" & "NewColumn" & CStr(i) & "/" & "RedIcon"] Then
+        xout = "$red.svg"
+      Else
+        xout = "$none.svg"
+      Endif
+    Else
+      xout = "$null.svg"
+    Endif
   Endif
 
   Return xout
