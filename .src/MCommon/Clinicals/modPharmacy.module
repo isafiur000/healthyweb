@@ -639,25 +639,31 @@ Public Function GetTotalFluidMedicine(nurid As Long, sField As String) As Float
   Dim txtroute As String
   Dim totfld As Float
 
-  res = modDatabase.$myConn.Exec("select flddoseno,fldcardex,fldvalue,fldunit,fldfromtime,fldtotime from tblnurdosing where fldid=&1", nurid)
+  res = modDatabase.$myConn.Exec("select flddoseno,fldcardex,fldvalue,fldunit,fldfromtime,fldtotime,fldused from tblnurdosing where fldid=&1", nurid)
   If res.Available Then
-    If sField = "flddoseno" Then
-      txtroute = GetRouteFromDosing(res["flddoseno"])
-    Else If sField = "fldcardex" Then
-      txtroute = GetRouteFromCardex(res["fldcardex"])
-    Endif
-    If txtroute = "CIV" Or txtroute = "IIV" Then
-      '     totfld = (res["flddose"] * modPharmLabel.ConvertFrequencyToNumber(res["fldfreq"])) / modPharmLabel.GetDrugFinalStrength(res["flditem"], txtroute)
-      totfld = 0
-    Else If txtroute = "fluid" Then
-      If res["fldtotime"] Then
-        totfld = Round(DateDiff(res["fldfromtime"], res["fldtotime"], gb.Minute) * res["fldvalue"] / 60, 0)
-      Else
-        totfld = Round(DateDiff(res["fldfromtime"], Now(), gb.Minute) * res["fldvalue"] / 60, 0)
-      Endif
+    If res["fldused"] Then
+      totfld = res["fldused"]
     Else
-      totfld = 0
+
+      If sField = "flddoseno" Then
+        txtroute = GetRouteFromDosing(res["flddoseno"])
+      Else If sField = "fldcardex" Then
+        txtroute = GetRouteFromCardex(res["fldcardex"])
+      Endif
+      If txtroute = "CIV" Or txtroute = "IIV" Then
+        '     totfld = (res["flddose"] * modPharmLabel.ConvertFrequencyToNumber(res["fldfreq"])) / modPharmLabel.GetDrugFinalStrength(res["flditem"], txtroute)
+        totfld = 0
+      Else If txtroute = "fluid" Then
+        If res["fldtotime"] Then
+          totfld = Round(DateDiff(res["fldfromtime"], res["fldtotime"], gb.Minute) * res["fldvalue"] / 60, 0)
+        Else
+          totfld = Round(DateDiff(res["fldfromtime"], Now(), gb.Minute) * res["fldvalue"] / 60, 0)
+        Endif
+      Else
+        totfld = 0
+      Endif
     Endif
+
     totfld = Round(totfld, -2)
   Endif
   Return totfld

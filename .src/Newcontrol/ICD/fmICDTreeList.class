@@ -12,6 +12,8 @@ Private $opdList As String[]
 Private $erList As String[]
 Private $sValue As String[]
 
+Private $ModelLst As String[]
+
 ' Public Sub Run(sConn As Connection, sType As String, selList As String[], erList As String[], allList As String[], sDefGroup As String) As String[]
 Public Sub Run(sConn As Connection, sType As String, allList As String[], sDefOPDGroup As String, sDefERGroup As String, OPList As String[], erList As String[]) As String[]
 
@@ -31,6 +33,7 @@ Public Sub Run(sConn As Connection, sType As String, allList As String[], sDefOP
   Else If $sType = "Procedure" Then
   Endif
 
+  $ModelLst = modMLModels.GetAIModelsList("text-similarity")
   chkleftsub.Value = modBasic.$SearchBothSide
   modSettings.ShowCheckBox(chkgroup, "ClinicForms/ICDGroups")
   $SubListView = New Variant[]
@@ -363,12 +366,14 @@ Public Sub btnadd_Click()
   Dim xx As String[]
 
   If txtcode.Text And If txtname.Text Then
-    xx = New String[]
-    xx.Add(Trim(txtname.Text))
-    xx.Add(txtcode.Text)
-    xx.Add(txtoldcode.Text)
-    $sValue = xx
-    Me.Close(True)
+    If GetProceedDiagnosis() = True Then
+      xx = New String[]
+      xx.Add(Trim(txtname.Text))
+      xx.Add(txtcode.Text)
+      xx.Add(txtoldcode.Text)
+      $sValue = xx
+      Me.Close(True)
+    Endif
   Endif
 
 End
@@ -382,5 +387,40 @@ End
 Public Sub btnclose_Click()
 
   Me.Close()
+
+End
+
+Private Function GetProceedDiagnosis() As Boolean
+
+  Dim xper As Float
+  Dim xreply As Integer
+  Dim xallow As Boolean
+
+  xallow = True
+  If modSettings.ShowSettingFromFIle("MLClinic/Pre-Match_Diagnosis") = "Yes" Then
+    If txtfixed.Text = txtname.Text Then
+      xper = 100
+    Else
+      If $ModelLst.Count Then
+        xper = modClinic.GetDiagnosisMatch($ModelLst[0], txtname.Text, txtfixed.Text)
+      Else
+        xper = 100
+        Message.Warning("No Text Similarity Model specified", "OK")
+      Endif
+
+    Endif
+
+    If xper And If xper < 75 Then
+      xreply = Message.Question(CStr(xper) & " % matched. Do you want to proceed ?", ("Recheck"), ("Ignore"))
+      If xreply = 1 Then
+        xallow = False
+      Else If xreply = 2 Then
+        xallow = True
+      Endif
+    Endif
+
+  Endif
+
+  Return xallow
 
 End

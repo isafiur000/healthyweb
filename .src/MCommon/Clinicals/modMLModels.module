@@ -2,6 +2,79 @@
 
 Public $MLModelOutputColl As Collection
 
+''---------------------- Integration -------------------------
+Public Function GetAIModelsList(sType As String) As String[]
+
+  Dim i As Integer
+  Dim xxx As String[]
+
+  xxx = New String[]
+  For i = 1 To 20
+    If modSettings.ShowModelsSettingFromFIle("AIModel" & CStr(i) & "/" & "Name") Then
+      If modSettings.ShowModelsSettingFromFIle("AIModel" & CStr(i) & "/" & "Role") = sType Then
+        xxx.Add(modSettings.ShowModelsSettingFromFIle("AIModel" & CStr(i) & "/" & "Name"))
+      Endif
+    Endif
+  Next
+  Return xxx
+
+End
+
+Public Function GeAItModelValueArguments(xModel As String, xArgs As String[], Optional sFile As String) As String
+
+  Dim i As Integer
+  Dim xurl As String
+  Dim xexec As String
+  Dim xval As String
+
+  For i = 1 To 20
+    If modSettings.ShowModelsSettingFromFIle("AIModel" & CStr(i) & "/" & "Name") = xModel Then
+      xurl = modSettings.ShowModelsSettingFromFIle("AIModel" & CStr(i) & "/" & "URL")
+      xexec = modSettings.ShowModelsSettingFromFIle("AIModel" & CStr(i) & "/" & "Shell")
+      Break
+    Endif
+  Next
+
+  If sFile Then
+    xval = ModelValueArguments(xModel, xurl, xexec, xArgs, sFile)
+  Else
+    xval = ModelValueArguments(xModel, xurl, xexec, xArgs)
+  Endif
+
+  Return xval
+
+End
+
+Public Function GetAIModelValue(encid As String, xModel As String, Optional sFile As String) As String
+
+  Dim i As Integer
+  Dim xstrargs As String
+  Dim xnumargs As String
+  Dim xurl As String
+  Dim xexec As String
+  Dim xval As String
+
+  For i = 1 To 20
+    If modSettings.ShowModelsSettingFromFIle("AIModel" & CStr(i) & "/" & "Name") = xModel Then
+      xurl = modSettings.ShowModelsSettingFromFIle("AIModel" & CStr(i) & "/" & "URL")
+      xexec = modSettings.ShowModelsSettingFromFIle("AIModel" & CStr(i) & "/" & "Shell")
+      xstrargs = modSettings.ShowModelsSettingFromFIle("AIModel" & CStr(i) & "/" & "StrArgument")
+      xnumargs = modSettings.ShowModelsSettingFromFIle("AIModel" & CStr(i) & "/" & "NumArgument")
+      Break
+    Endif
+  Next
+
+  If sFile Then
+    xval = ModelValue(encid, xModel, xurl, xexec, xstrargs, xnumargs, sFile)
+  Else
+    xval = ModelValue(encid, xModel, xurl, xexec, xstrargs, xnumargs)
+  Endif
+
+  Return xval
+
+End
+
+''------------------------ local ----------------------------
 Public Function GetMLModelsList(sType As String) As String[]
 
   Dim i As Integer
@@ -22,12 +95,8 @@ End
 Public Function GetModelValueArguments(xModel As String, xArgs As String[], Optional sFile As String) As String
 
   Dim i As Integer
-  Dim j As Integer
   Dim xurl As String
   Dim xexec As String
-  Dim xcmd As String
-
-  Dim aData As String[]
   Dim xval As String
 
   For i = 1 To 20
@@ -37,6 +106,54 @@ Public Function GetModelValueArguments(xModel As String, xArgs As String[], Opti
       Break
     Endif
   Next
+
+  If sFile Then
+    xval = ModelValueArguments(xModel, xurl, xexec, xArgs, sFile)
+  Else
+    xval = ModelValueArguments(xModel, xurl, xexec, xArgs)
+  Endif
+
+  Return xval
+
+End
+
+Public Function GetModelValue(encid As String, xModel As String, Optional sFile As String) As String
+
+  Dim i As Integer
+  Dim xstrargs As String
+  Dim xnumargs As String
+  Dim xurl As String
+  Dim xexec As String
+  Dim xval As String
+
+  For i = 1 To 20
+    If modSettings.ShowModelsSettingFromFIle("Model" & CStr(i) & "/" & "Name") = xModel Then
+      xurl = modSettings.ShowModelsSettingFromFIle("Model" & CStr(i) & "/" & "URL")
+      xexec = modSettings.ShowModelsSettingFromFIle("Model" & CStr(i) & "/" & "Shell")
+      xstrargs = modSettings.ShowModelsSettingFromFIle("Model" & CStr(i) & "/" & "StrArgument")
+      xnumargs = modSettings.ShowModelsSettingFromFIle("Model" & CStr(i) & "/" & "NumArgument")
+      Break
+    Endif
+  Next
+
+  If sFile Then
+    xval = ModelValue(encid, xModel, xurl, xexec, xstrargs, xnumargs, sFile)
+  Else
+    xval = ModelValue(encid, xModel, xurl, xexec, xstrargs, xnumargs)
+  Endif
+
+  Return xval
+
+End
+
+''---------------------- Procedures ------------------------------------
+Private Function ModelValueArguments(xModel As String, xurl As String, xexec As String, xArgs As String[], Optional sFile As String) As String
+
+  Dim j As Integer
+  Dim xcmd As String
+
+  Dim aData As String[]
+  Dim xval As String
 
   aData = New String[]
   aData.Add("--form 'model=" & Quote(xModel) & "'")
@@ -69,15 +186,9 @@ Public Function GetModelValueArguments(xModel As String, xArgs As String[], Opti
 
 End
 
-''------------------ For encounter -------------------------------
-Public Function GetModelValue(encid As String, xModel As String, Optional sFile As String) As String
+Private Function ModelValue(encid As String, xModel As String, xurl As String, xexec As String, xstrargs As String, xnumargs As String, Optional sFile As String) As String
 
-  Dim i As Integer
-  Dim xstrargs As String
-  Dim xnumargs As String
-  Dim xurl As String
   Dim xcmd As String
-  Dim xexec As String
   Dim j As Integer
   Dim k As Integer
 
@@ -91,16 +202,6 @@ Public Function GetModelValue(encid As String, xModel As String, Optional sFile 
   Dim numCount As Integer
   Dim strAllow As Boolean
   Dim numAllow As Boolean
-
-  For i = 1 To 20
-    If modSettings.ShowModelsSettingFromFIle("Model" & CStr(i) & "/" & "Name") = xModel Then
-      xurl = modSettings.ShowModelsSettingFromFIle("Model" & CStr(i) & "/" & "URL")
-      xexec = modSettings.ShowModelsSettingFromFIle("Model" & CStr(i) & "/" & "Shell")
-      xstrargs = modSettings.ShowModelsSettingFromFIle("Model" & CStr(i) & "/" & "StrArgument")
-      xnumargs = modSettings.ShowModelsSettingFromFIle("Model" & CStr(i) & "/" & "NumArgument")
-      Break
-    Endif
-  Next
 
   aData = New String[]
   aData.Add("--form 'model=" & Quote(xModel) & "'")

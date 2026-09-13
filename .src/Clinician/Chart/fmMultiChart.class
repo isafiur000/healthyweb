@@ -369,29 +369,33 @@ Private Function InfusionEstimateVolByDate(patNo As String, xMedicine As String,
     xx = ""
   Else
     xvol = 0
-    res = modDatabase.$myConn.Exec("select tblnurdosing.fldvalue as fldvalue,tblnurdosing.fldfromtime as fldfromtime,tblnurdosing.fldtotime as fldtotime from tblnurdosing inner join tblencounter on tblnurdosing.fldencounterval=tblencounter.fldencounterval where tblencounter.fldpatientval=&1 and tblnurdosing.fldsave=&2 and tblnurdosing.fldfromtime<&3 and (tblnurdosing.fldtotime IS NULL or tblnurdosing.fldtotime>&4) and tblnurdosing.fldmedicine=&5", patNo, True, xlast, xfir, xMedicine)
+    res = modDatabase.$myConn.Exec("select tblnurdosing.fldvalue as fldvalue,tblnurdosing.fldfromtime as fldfromtime,tblnurdosing.fldtotime as fldtotime,tblnurdosing.fldused as fldused from tblnurdosing inner join tblencounter on tblnurdosing.fldencounterval=tblencounter.fldencounterval where tblencounter.fldpatientval=&1 and tblnurdosing.fldsave=&2 and tblnurdosing.fldfromtime<&3 and (tblnurdosing.fldtotime IS NULL or tblnurdosing.fldtotime>&4) and tblnurdosing.fldmedicine=&5", patNo, True, xlast, xfir, xMedicine)
     If res.Available Then
       For Each res
-        If res["fldfromtime"] <= xfir Then
-          xstart = xfir
-        Else
-          xstart = res["fldfromtime"]
-        Endif
+        If res["fldused"] Then
+          xvol = Round(res["fldused"], 0)
 
-        If res["fldtotime"] Then
-          If res["fldtotime"] >= xlast Then
-            xend = xlast
+        Else
+          If res["fldfromtime"] <= xfir Then
+            xstart = xfir
           Else
-            xend = res["fldtotime"]
+            xstart = res["fldfromtime"]
           Endif
-        Else
-          xend = xlast
-        Endif
-        If xend > Now() Then
-          xend = Now()
-        Endif
+          If res["fldtotime"] Then
+            If res["fldtotime"] >= xlast Then
+              xend = xlast
+            Else
+              xend = res["fldtotime"]
+            Endif
+          Else
+            xend = xlast
+          Endif
+          If xend > Now() Then
+            xend = Now()
+          Endif
+          xvol = xvol + Round(DateDiff(xstart, xend, gb.Minute) * res["fldvalue"] / 60, 0)
 
-        xvol = xvol + Round(DateDiff(xstart, xend, gb.Minute) * res["fldvalue"] / 60, 0)
+        Endif
       Next
       xx = CStr(xvol)
     Else

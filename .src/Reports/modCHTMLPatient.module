@@ -1638,7 +1638,7 @@ Public Function ShowNursingDosing(encid As String, useCardex As Boolean) As Stri
   Dim xroute As String
   Dim xdiff As Integer
 
-  $BillingReport = New CReportHTML([("Time"), ("Medicine"), ("Regimen"), ("Dose"), ("Comment")], "PatientReport", encid)
+  $BillingReport = New CReportHTML([("Time"), ("Medicine"), ("Regimen"), ("Dose"), ("Comment"), ("User")], "PatientReport", encid)
   $BillingReport.UserData.Add("REPORT", "Report")
   $BillingReport.UserData.Add("Dosing Report", "PARAM1")
 
@@ -1648,7 +1648,7 @@ Public Function ShowNursingDosing(encid As String, useCardex As Boolean) As Stri
       xdt = red1["fldtime"]
       $BillingReport.AddSection(modReportVar.GetDateTimeReport(xdt, gb.MediumDate), True)
 
-      res = modDatabase.$syConn.Exec("select fldtime,fldmedicine,fldrecdose,fldrecfreq,flddoseno,fldcardex,fldvalue,fldunit,fldfromtime,fldtotime,fldcomment from tblnurdosing where fldencounterval=&1 and fldtime>=&2 and fldtime<=&3", encid, modDate.StartSqlDate(xdt), modDate.EndSqlDate(xdt))
+      res = modDatabase.$syConn.Exec("select fldtime,fldmedicine,fldrecdose,fldrecfreq,flddoseno,fldcardex,fldvalue,fldunit,fldfromtime,fldtotime,fldcomment,flduserid,fldcomp from tblnurdosing where fldencounterval=&1 and fldtime>=&2 and fldtime<=&3", encid, modDate.StartSqlDate(xdt), modDate.EndSqlDate(xdt))
       If res.Available Then
         For Each res
           xdiff = 0
@@ -1670,6 +1670,7 @@ Public Function ShowNursingDosing(encid As String, useCardex As Boolean) As Stri
                 .Add(CStr(res["fldvalue"]) & Space(1) & res["fldunit"])
               Endif
               .Add(res["fldcomment"])
+              .Add(res["flduserid"] & "@" & res["fldcomp"])
             End With
             $BillingReport.Add(asx)
             asx.Clear()
@@ -1696,7 +1697,7 @@ Public Function ShowInfusionDosing(encid As String, useCardex As Boolean) As Str
   Dim xrouLst As String[] = ["fluid", "CIV", "CIn(Epid)", "CIn(Block)"]
   Dim xroute As String
 
-  $BillingReport = New CReportHTML([("Medicine"), ("Route"), ("Rate"), ("Start"), ("Close")], "PatientReport", encid)
+  $BillingReport = New CReportHTML([("Medicine"), ("Route"), ("Rate"), ("Start"), ("Close"), ("Volume"), ("User")], "PatientReport", encid)
   $BillingReport.UserData.Add("REPORT", "Report")
   $BillingReport.UserData.Add("Dosing Report", "PARAM1")
 
@@ -1706,7 +1707,7 @@ Public Function ShowInfusionDosing(encid As String, useCardex As Boolean) As Str
       xdt = red1["fldtime"]
       $BillingReport.AddSection(modReportVar.GetDateTimeReport(xdt, gb.MediumDate), True)
 
-      res = modDatabase.$syConn.Exec("select fldtime,fldmedicine,fldrecdose,fldrecfreq,flddoseno,fldcardex,fldvalue,fldunit,fldfromtime,fldtotime from tblnurdosing where fldencounterval=&1 and fldtime>=&2 and fldtime<=&3", encid, modDate.StartSqlDate(xdt), modDate.EndSqlDate(xdt))
+      res = modDatabase.$syConn.Exec("select fldtime,fldmedicine,fldrecdose,fldrecfreq,flddoseno,fldcardex,fldvalue,fldunit,fldfromtime,fldtotime,fldused,flduserid,fldcomp from tblnurdosing where fldencounterval=&1 and fldtime>=&2 and fldtime<=&3", encid, modDate.StartSqlDate(xdt), modDate.EndSqlDate(xdt))
       If res.Available Then
         For Each res
           If useCardex = True Then
@@ -1722,6 +1723,12 @@ Public Function ShowInfusionDosing(encid As String, useCardex As Boolean) As Str
               .Add(CStr(res["fldvalue"]) & Space(1) & res["fldunit"])
               .Add(modReportVar.GetDateTimeReport(res["fldfromtime"], gb.GeneralDate))
               .Add(modReportVar.GetDateTimeReport(res["fldtotime"], gb.GeneralDate))
+              If res["fldused"] Then
+                .Add(CStr(res["fldused"]) & " mL")
+              Else
+                .Add("")
+              Endif
+              .Add(res["flduserid"] & "@" & res["fldcomp"])
             End With
             $BillingReport.Add(asx)
             asx.Clear()

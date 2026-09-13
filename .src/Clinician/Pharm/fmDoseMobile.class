@@ -20,6 +20,7 @@ Private aDoseVal As New Object[50]
 Private aFreqVal As New Object[50]
 Private aCardex As New Object[50]
 Private aCommBox As New Object[50]
+Private aMesgBox As New Object[50]
 Private aBlankFrame As New Object[50]
 
 Private $useCardex As Boolean
@@ -125,12 +126,12 @@ Private Sub LoadControlsWeb()
   i = 0
   $sColl = New Collection
   If $useCardex = True Then
-    sql1 = "select fldid,fldroute,flditem,flddose,fldfreq,flddays,fldcurval,fldstarttime,fldendtime,flddosecount,flddirection,fldsave,fldid as flditemno from tblinpatdosing where fldencounterval=&1 and fldstarttime<=&2 and fldendtime>=&3 and fldroute NOT IN(" & xrouLst.Join(",") & ") and fldcurval=&4 and flddose>&5 and flddays>&5"
-    sql2 = "select fldid,fldroute,flditem,flddose,fldfreq,flddays,fldcurval,fldstarttime,fldendtime,flddosecount,flddirection,fldsave,fldid as flditemno from tblinpatdosing where fldencounterval=&1 and fldroute NOT IN(" & xrouLst.Join(",") & ") and fldcurval=&4 and flddose>&5 and flddays=&5"                      ''
+    sql1 = "select fldid,fldroute,flditem,flddose,fldfreq,flddays,fldcurval,fldstarttime,fldendtime,flddosecount,flddirection,fldsave,fldid as flditemno,fldcomment from tblinpatdosing where fldencounterval=&1 and fldstarttime<=&2 and fldendtime>=&3 and fldroute NOT IN(" & xrouLst.Join(",") & ") and fldcurval=&4 and flddose>&5 and flddays>&5"
+    sql2 = "select fldid,fldroute,flditem,flddose,fldfreq,flddays,fldcurval,fldstarttime,fldendtime,flddosecount,flddirection,fldsave,fldid as flditemno,fldcomment from tblinpatdosing where fldencounterval=&1 and fldroute NOT IN(" & xrouLst.Join(",") & ") and fldcurval=&4 and flddose>&5 and flddays=&5"                      ''
     $rData = modDatabase.$myConn.Exec(sql1 & " UNION " & sql2, Trim(txtencid.Text), Now(), DateAdd(Now(), gb.Hour, -3), "Continue", 0)
   Else
-    sql1 = "select fldid,fldroute,flditem,flddose,fldfreq,flddays,fldstatus,fldstarttime,fldendtime,flddosecount,flddirection,fldsave_order,flditemno from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldstarttime<=&3 and fldendtime>=&4 and fldroute NOT IN(" & xrouLst.Join(",") & ") and flditemtype=&5 and fldcurval=&6 and flddose>&7 and fldqtydisp>fldqtyret"
-    sql2 = "select fldid,fldroute,flditem,flddose,fldfreq,flddays,fldstatus,fldstarttime,fldendtime,flddosecount,flddirection,fldsave_order,flditemno from tblpatdosing where fldencounterval=&1 and fldsave_order=&8 and fldstarttime<=&3 and DATE_ADD(fldstarttime, INTERVAL flddays DAY)>=&4 and fldroute NOT IN(" & xrouLst.Join(",") & ") and flditemtype=&5 and fldcurval=&6 and flddose>&7 and fldqtydisp>fldqtyret"                      ''
+    sql1 = "select fldid,fldroute,flditem,flddose,fldfreq,flddays,fldstatus,fldstarttime,fldendtime,flddosecount,flddirection,fldsave_order,flditemno,fldcomment from tblpatdosing where fldencounterval=&1 and fldsave_order=&2 and fldstarttime<=&3 and fldendtime>=&4 and fldroute NOT IN(" & xrouLst.Join(",") & ") and flditemtype=&5 and fldcurval=&6 and flddose>&7 and fldqtydisp>fldqtyret"
+    sql2 = "select fldid,fldroute,flditem,flddose,fldfreq,flddays,fldstatus,fldstarttime,fldendtime,flddosecount,flddirection,fldsave_order,flditemno,fldcomment from tblpatdosing where fldencounterval=&1 and fldsave_order=&8 and fldstarttime<=&3 and DATE_ADD(fldstarttime, INTERVAL flddays DAY)>=&4 and fldroute NOT IN(" & xrouLst.Join(",") & ") and flditemtype=&5 and fldcurval=&6 and flddose>&7 and fldqtydisp>fldqtyret"                      ''
     $rData = modDatabase.$myConn.Exec(sql1 & " UNION " & sql2, Trim(txtencid.Text), True, Now(), DateAdd(Now(), gb.Hour, -3), "Medicines", "Continue", 0, False)
   Endif
   If $rData.Available Then
@@ -142,7 +143,11 @@ Private Sub LoadControlsWeb()
           Case Else
             xtime = GetCurrentTime($rData["fldid"], $rData["fldfreq"], $rData["fldstarttime"])
         End Select
-        $sColl.Add($rData["flddirection"], CStr(i))
+        If $rData["fldcomment"] Then
+          $sColl.Add($rData["flddirection"] & " [" & $rData["fldcomment"] & "]", CStr(i))
+        Else
+          $sColl.Add($rData["flddirection"], CStr(i))
+        Endif
         If xtime Then
 
           aWebFrame[i] = New WebContainer(Frame1)
@@ -167,6 +172,7 @@ Private Sub LoadControlsWeb()
           aFreqVal[i] = New WebLabel(aRightPanel[i])
           aCardex[i] = New WebValueBox(aRightPanel[i])
           aCommBox[i] = New WebTextBox(aWebFrame[i])
+          aMesgBox[i] = New WebLabel(aWebFrame[i])
           aBlankFrame[i] = New WebSeparator(Frame1)
 
           With aWebFrame[i]
@@ -304,6 +310,20 @@ Private Sub LoadControlsWeb()
             .Tag = i
           End With
 
+          With aMesgBox[i]
+            If $rData["fldcomment"] Then
+              .Text = $rData["flddirection"] & " [" & $rData["fldcomment"] & "]"
+            Else
+              .Text = $rData["flddirection"]
+            Endif
+            If modBasic.$ClinAdminDirection = "Enable" Then
+              .Visible = True
+            Else
+              .Visible = False
+            Endif
+            .Tag = i
+          End With
+
           With aBlankFrame[i]
             .Height = "1em"
           End With
@@ -344,7 +364,9 @@ Public Sub infoButton_Click()
 
   i = Last.Tag
 
-  $hKeyBoard.SetValueBox(aQuantiBox[i])
+  If modBasic.$TabletModeEnable = "Yes" Then
+    $hKeyBoard.SetValueBox(aQuantiBox[i])
+  Endif
   If $sColl[CStr(i)] Then
     Message.Info($sColl[CStr(i)], "OK")
   Endif

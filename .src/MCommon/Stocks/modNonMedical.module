@@ -2650,6 +2650,30 @@ Public Function GetPatientItemSelMonthSalesPackage(encid As String, sItem As Str
 
 End
 
+Public Function GetPatientItemSelDaysSalesPackage(encid As String, sItem As String, sPackage As String, sDays As Integer) As Float
+
+  Dim res As Result
+  Dim xpatno As String
+  Dim xstart As Date
+  Dim xval As Float
+
+  xpatno = modPatient.GetPatientNoByEnc(encid)
+  xstart = DateAdd(Now(), gb.Day, 0 - sDays)
+  res = modDatabase.$myConn.Exec("select sum(tblpatbilling.flditemqty) as flditemqty from tblpatbilling inner join tblencounter ON tblpatbilling.fldencounterval=tblencounter.fldencounterval where tblencounter.fldpatientval=&1 and tblpatbilling.flditemname=&2 and tblpatbilling.fldsave=&3 and tblpatbilling.flddisctype like &4 and tblpatbilling.fldtime>=&5", xpatno, sItem, True, sPackage, xstart)
+  If res.Available Then
+    If res["flditemqty"] Then
+      xval = res["flditemqty"]
+    Else
+      xval = 0
+    Endif
+  Else
+    xval = 0
+  Endif
+
+  Return xval
+
+End
+
 Public Function GetPatientPharmSelMonthSalesPackage(encid As String, sDrug As String, sType As String, sPackage As String, sMonth As Integer) As Float
 
   Dim res As Result
@@ -2659,6 +2683,38 @@ Public Function GetPatientPharmSelMonthSalesPackage(encid As String, sDrug As St
 
   xpatno = modPatient.GetPatientNoByEnc(encid)
   xstart = DateAdd(Now(), gb.Month, 0 - sMonth)
+  Select sType
+    Case "Medicines"
+      res = modDatabase.$myConn.Exec("select sum(tblpatbilling.flditemqty) as flditemqty from tblpatbilling inner join tblencounter ON tblpatbilling.fldencounterval=tblencounter.fldencounterval where tblencounter.fldpatientval=&1 and tblpatbilling.flditemname in(select fldbrandid from tblmedbrand where flddrug=&2) and tblpatbilling.fldsave=&3 and tblpatbilling.flddisctype like &4 and tblpatbilling.fldtime>=&5 and tblpatbilling.flditemtype=&6", xpatno, sDrug, True, sPackage, xstart, sType)
+    Case "Surgicals"
+      res = modDatabase.$myConn.Exec("select sum(tblpatbilling.flditemqty) as flditemqty from tblpatbilling inner join tblencounter ON tblpatbilling.fldencounterval=tblencounter.fldencounterval where tblencounter.fldpatientval=&1 and tblpatbilling.flditemname in(select fldbrandid from tblsurgbrand where fldsurgid=&2) and tblpatbilling.fldsave=&3 and tblpatbilling.flddisctype like &4 and tblpatbilling.fldtime>=&5 and tblpatbilling.flditemtype=&6", xpatno, sDrug, True, sPackage, xstart, sType)
+    Case "Extra Items"
+      res = modDatabase.$myConn.Exec("select sum(tblpatbilling.flditemqty) as flditemqty from tblpatbilling inner join tblencounter ON tblpatbilling.fldencounterval=tblencounter.fldencounterval where tblencounter.fldpatientval=&1 and tblpatbilling.flditemname=&2 in(select fldbrandid from tblextrabrand where fldextraid) and tblpatbilling.fldsave=&3 and tblpatbilling.flddisctype like &4 and tblpatbilling.fldtime>=&5 and tblpatbilling.flditemtype=&6", xpatno, sDrug, True, sPackage, xstart, sType)
+  End Select
+
+  If res.Available Then
+    If res["flditemqty"] Then
+      xval = res["flditemqty"]
+    Else
+      xval = 0
+    Endif
+  Else
+    xval = 0
+  Endif
+
+  Return xval
+
+End
+
+Public Function GetPatientPharmSelDaysSalesPackage(encid As String, sDrug As String, sType As String, sPackage As String, sDays As Integer) As Float
+
+  Dim res As Result
+  Dim xpatno As String
+  Dim xstart As Date
+  Dim xval As Float
+
+  xpatno = modPatient.GetPatientNoByEnc(encid)
+  xstart = DateAdd(Now(), gb.Day, 0 - sDays)
   Select sType
     Case "Medicines"
       res = modDatabase.$myConn.Exec("select sum(tblpatbilling.flditemqty) as flditemqty from tblpatbilling inner join tblencounter ON tblpatbilling.fldencounterval=tblencounter.fldencounterval where tblencounter.fldpatientval=&1 and tblpatbilling.flditemname in(select fldbrandid from tblmedbrand where flddrug=&2) and tblpatbilling.fldsave=&3 and tblpatbilling.flddisctype like &4 and tblpatbilling.fldtime>=&5 and tblpatbilling.flditemtype=&6", xpatno, sDrug, True, sPackage, xstart, sType)
@@ -4011,7 +4067,7 @@ Public Function AllowProceedBilling(encid As String, DiscType As String, DiscAmt
   End Select
 
   xmsg = New String[]
-  resx = modDatabase.$myConn.Exec("select fldbilltype,fldbillingmode,fldamount,fldcredit,fldreference,fldlimit,fldyear,fldqtylimit,fldqtylab,fldqtyradio,fldqtyproc,fldqtyequip,fldqtyservice,fldqtyother,fldqtymedicine,fldqtysurgical,fldqtyextra from tbldiscount where fldtype=&1", DiscType)
+  resx = modDatabase.$myConn.Exec("select fldbilltype,fldbillingmode,fldamount,fldcredit,fldreference,fldlimit,fldyear,fldqtylimit,fldqtylimitday,fldqtylab,fldqtyradio,fldqtyproc,fldqtyequip,fldqtyservice,fldqtyother,fldqtymedicine,fldqtysurgical,fldqtyextra from tbldiscount where fldtype=&1", DiscType)
   If resx.Available Then
     ''qty check
     If resx["fldqtylimit"] Then
@@ -4044,6 +4100,12 @@ Public Function AllowProceedBilling(encid As String, DiscType As String, DiscAmt
           If fixName = False Then
             If resx["fldqtylimit"] = "Encounter" Then
               xusedQty = modNonMedical.GetPatientPharmAllSalesPackage(encid, aItem, xItemType, DiscType)
+            Else If resx["fldqtylimit"] = "Custom Days" Then
+              If resx["fldqtylimitday"] Then
+                xusedQty = modNonMedical.GetPatientPharmSelDaysSalesPackage(encid, aItem, xItemType, DiscType, resx["fldqtylimitday"])
+              Else
+                xusedQty = modNonMedical.GetPatientPharmSelDaysSalesPackage(encid, aItem, xItemType, DiscType, 0)
+              Endif
             Else If resx["fldqtylimit"] = "Month Interval" Then
               xusedQty = modNonMedical.GetPatientPharmSelMonthSalesPackage(encid, aItem, xItemType, DiscType, 1)
             Else If resx["fldqtylimit"] = "Quarter Interval" Then
@@ -4058,6 +4120,12 @@ Public Function AllowProceedBilling(encid As String, DiscType As String, DiscAmt
           Else
             If resx["fldqtylimit"] = "Encounter" Then
               xusedQty = modNonMedical.GetPatientItemAllSalesPackage(encid, aItem, DiscType)
+            Else If resx["fldqtylimit"] = "Custom Days" Then
+              If resx["fldqtylimitday"] Then
+                xusedQty = modNonMedical.GetPatientItemSelDaysSalesPackage(encid, aItem, DiscType, resx["fldqtylimitday"])
+              Else
+                xusedQty = modNonMedical.GetPatientItemSelDaysSalesPackage(encid, aItem, DiscType, 1)
+              Endif
             Else If resx["fldqtylimit"] = "Month Interval" Then
               xusedQty = modNonMedical.GetPatientItemSelMonthSalesPackage(encid, aItem, DiscType, 1)
             Else If resx["fldqtylimit"] = "Quarter Interval" Then

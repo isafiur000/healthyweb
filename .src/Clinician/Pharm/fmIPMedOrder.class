@@ -213,7 +213,7 @@ Private Sub LoadMedicineGrid()
   Dim sFieldLst As String[]
   Dim sql As String
 
-  sFieldLst = ["fldid", "fldroute", "CONCAT(flditem, '|', COALESCE(fldmixing, ''))", "CONCAT(flditem, '|', flddose)", "fldfreq", "flddays", "fldcurval", "fldqtyorder", "fldid", "flduserid", "fldstarttime", "flditem", "flddirection", "fldadminsite", "fldmixing", "flduserid", "flditem", "fldmixvolume", "fldmixrate", "flddose", "CONCAT(fldroute, '|', flditem, '|', flddose, '|', fldmixvolume, '|', fldmixrate)"]
+  sFieldLst = ["fldid", "fldroute", "CONCAT(flditem, '|', COALESCE(fldmixing, ''))", "CONCAT(flditem, '|', flddose)", "fldfreq", "flddays", "fldcurval", "fldqtyorder", "fldid", "flduserid", "fldstarttime", "flditem", "flddirection", "fldadminsite", "fldmixing", "flduserid", "flditem", "fldmixvolume", "fldmixrate", "flddose", "CONCAT(fldroute, '|', flditem, '|', flddose, '|', fldmixvolume, '|', fldmixrate)", "fldcomment"]
   If cmbstatus.Text = "%" Then
     sql = "select " & sFieldLst.Join(",") & " from tblinpatdosing where fldencounterval=&1 and (fldmixing IS NULL or fldmixing NOT LIKE &2) ORDER BY fldstarttime DESC"
   Else
@@ -245,6 +245,7 @@ Private Sub LoadMedicineGrid()
     .Columns[18].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
     .Columns[19].Hidden = True  ''Dose in number
     .Columns[20].Width = CStr(100 * modBasic.$AppWidthRatio) & "px"
+    .Columns[21].Width = CStr(150 * modBasic.$AppWidthRatio) & "px"
 
     .Columns[1].Text = "Route"
     .Columns[2].Text = "Medicine"
@@ -262,6 +263,7 @@ Private Sub LoadMedicineGrid()
     .Columns[17].Text = "Vol(mL)"
     .Columns[18].Text = "Rate"
     .Columns[20].Text = "Target"
+    .Columns[21].Text = "Comment"
   End With
 
 End
@@ -515,6 +517,25 @@ Public Sub mnumixture_Click()
       yval = InputBox($rData["flditem"], "Dilution Fluid", $rData["fldmixing"])
       res = modDatabase.$myConn.Edit("tblinpatdosing", "fldid=&1 and fldencounterval=&2", $rData["fldid"], $encid)
       res["fldmixing"] = Trim(yval)
+      res["xyz"] = False
+      res.Update
+      LoadMedicineGrid()
+    Endif
+  Endif
+
+End
+
+Public Sub mnucomment_Click()
+
+  Dim yval As String
+  Dim res As Result
+
+  If GridView1.Selection.Count Then
+    $rData.MoveTo(GridView1.Selection[0])
+    yval = InputBox($rData["flditem"], "Comment", $rData["fldcomment"])
+    If yval Then
+      res = modDatabase.$myConn.Edit("tblinpatdosing", "fldid=&1 and fldencounterval=&2", $rData["fldid"], $encid)
+      res["fldcomment"] = Trim(yval)
       res["xyz"] = False
       res.Update
       LoadMedicineGrid()
