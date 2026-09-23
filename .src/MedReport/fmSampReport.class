@@ -10,6 +10,7 @@ Private $ColCount As Integer
 Private $newColumn As String[]
 Private $RepoStr As String
 Private $MapColl As Collection
+Private $GridVarData As Collection
 
 Private $tblpatlabtest As String
 Private $tblpatlabsubtest As String
@@ -438,73 +439,80 @@ Private Function GetGridViewValue(Column As Integer, xVariable As Variant) As Va
   Dim xxx As Variant
   Dim i As Integer
 
-  If Column = 2 Then
-    xxx = modPatient.GetPatientNameByEnc(xVariable, modDatabase.$syConn)
-  Else If Column = 3 Then
-    xxx = modMedReports.GetPatientPastAgeString($tblpatlabtest, xVariable)
-  Else If Column = 4 Then
-    xxx = modPatient.GetPatientSex(xVariable, modDatabase.$syConn)
-  Else If Column = 5 Then
-    If $MapColl And If $MapColl.Count Then
-      If $MapColl[xVariable] Then
-        xxx = $MapColl[xVariable]
+  If $GridVarData.Exist(CStr(Column) & "|" & xVariable) Then
+    xxx = $GridVarData[CStr(Column) & "|" & xVariable]
+  Else
+
+    If Column = 2 Then
+      xxx = modPatient.GetPatientNameByEnc(xVariable, modDatabase.$syConn)
+    Else If Column = 3 Then
+      xxx = modMedReports.GetPatientPastAgeString($tblpatlabtest, xVariable)
+    Else If Column = 4 Then
+      xxx = modPatient.GetPatientSex(xVariable, modDatabase.$syConn)
+    Else If Column = 5 Then
+      If $MapColl And If $MapColl.Count Then
+        If $MapColl[xVariable] Then
+          xxx = $MapColl[xVariable]
+        Else
+          xxx = xVariable
+        Endif
       Else
         xxx = xVariable
       Endif
+    Else If Column = 8 Then
+      xxx = modReportVar.GetDateTimeReport(xVariable, gb.GeneralDate)
+    Else If Column = 9 Then
+      xxx = modReportVar.GetDateTimeReport(xVariable, gb.GeneralDate)
+    Else If Column = 11 Then
+      If cmbsubtest.Text Then
+        If chkquanti.Value = True Then
+          xxx = GetSubTestValue(xVariable, cmbsubtest.Text)
+        Else
+          xxx = modString.TextToHTML(GetSubTestValue(xVariable, cmbsubtest.Text))
+        Endif
+      Else
+        If chksubtest.Value = True Then
+          xxx = modString.TextToHTML(modLabTest.GetLabTestValueSubString(xVariable, LabUnit(), True, $tblpatlabtest, $tblpatlabsubtest))
+        Else
+          If chkquanti.Value = True Then
+            xxx = modLabTest.GetLabTestValueSubString(xVariable, LabUnit(), False, $tblpatlabtest, $tblpatlabsubtest)
+          Else
+            xxx = modString.TextToHTML(modLabTest.GetLabTestValueSubString(xVariable, LabUnit(), False, $tblpatlabtest, $tblpatlabsubtest))
+          Endif
+        Endif
+      Endif
+    Else If Column = 14 Then
+      xxx = modMisc.GetGridIcon(xVariable)
+    Else If Column = 16 Then
+      xxx = modLabTest.GetLabTATHours(xVariable, $tblpatlabtest)
+    Else If Column = 17 Then
+      xxx = modReportVar.GetDateTimeReport(xVariable, gb.GeneralDate)
+    Else If Column = 18 Then
+      xxx = modReportVar.GetDateTimeReport(xVariable, gb.GeneralDate)
+    Else If Column = 19 Then
+      xxx = modReportVar.GetDateTimeReport(xVariable, gb.GeneralDate)
+    Else If Column = 20 Then
+      xxx = modGeneral.GetUserFullName(xVariable)
+    Else If Column = 21 Then
+      xxx = modGeneral.GetUserFullName(xVariable)
+    Else If Column = 22 Then
+      xxx = modGeneral.GetUserFullName(xVariable)
+    Else If Column = 25 Then
+      xxx = modDataRepo.GetHospitalTextLabel(xVariable)
     Else
       xxx = xVariable
     Endif
-  Else If Column = 8 Then
-    xxx = modReportVar.GetDateTimeReport(xVariable, gb.GeneralDate)
-  Else If Column = 9 Then
-    xxx = modReportVar.GetDateTimeReport(xVariable, gb.GeneralDate)
-  Else If Column = 11 Then
-    If cmbsubtest.Text Then
-      If chkquanti.Value = True Then
-        xxx = GetSubTestValue(xVariable, cmbsubtest.Text)
-      Else
-        xxx = modString.TextToHTML(GetSubTestValue(xVariable, cmbsubtest.Text))
-      Endif
-    Else
-      If chksubtest.Value = True Then
-        xxx = modString.TextToHTML(modLabTest.GetLabTestValueSubString(xVariable, LabUnit(), True, $tblpatlabtest, $tblpatlabsubtest))
-      Else
-        If chkquanti.Value = True Then
-          xxx = modLabTest.GetLabTestValueSubString(xVariable, LabUnit(), False, $tblpatlabtest, $tblpatlabsubtest)
-        Else
-          xxx = modString.TextToHTML(modLabTest.GetLabTestValueSubString(xVariable, LabUnit(), False, $tblpatlabtest, $tblpatlabsubtest))
+
+    If $newColumn.Count Then
+      For i = 0 To $newColumn.Count - 1
+        If Column = $ColCount + i Then
+          xxx = modCustPatient.NewColValue(Me.Tag, $newColumn[i], xVariable)
         Endif
-      Endif
+      Next
     Endif
-  Else If Column = 14 Then
-    xxx = modMisc.GetGridIcon(xVariable)
-  Else If Column = 16 Then
-    xxx = modLabTest.GetLabTATHours(xVariable, $tblpatlabtest)
-  Else If Column = 17 Then
-    xxx = modReportVar.GetDateTimeReport(xVariable, gb.GeneralDate)
-  Else If Column = 18 Then
-    xxx = modReportVar.GetDateTimeReport(xVariable, gb.GeneralDate)
-  Else If Column = 19 Then
-    xxx = modReportVar.GetDateTimeReport(xVariable, gb.GeneralDate)
-  Else If Column = 20 Then
-    xxx = modGeneral.GetUserFullName(xVariable)
-  Else If Column = 21 Then
-    xxx = modGeneral.GetUserFullName(xVariable)
-  Else If Column = 22 Then
-    xxx = modGeneral.GetUserFullName(xVariable)
-  Else If Column = 25 Then
-    xxx = modDataRepo.GetHospitalTextLabel(xVariable)
-  Else
-    xxx = xVariable
+    $GridVarData.Add(xxx, CStr(Column) & "|" & xVariable)
   Endif
 
-  If $newColumn.Count Then
-    For i = 0 To $newColumn.Count - 1
-      If Column = $ColCount + i Then
-        xxx = modCustPatient.NewColValue(Me.Tag, $newColumn[i], xVariable)
-      Endif
-    Next
-  Endif
   Return xxx
 
 End
@@ -520,6 +528,7 @@ Public Sub btnrefresh_Click()
     $chartLimit = InputDoubleVal(("Select Limits for Frequency Chart"), ["Lower Value", "Upper Value"], [0, 0])
   Endif
 
+  $GridVarData = New Collection
   If chkgrid.Value = True Or If chkchart.Value = True Or If chkchfreq.Value = True Then
     xFldList = GetSQLColumns()
     $rData = ExecuteQuery(xFldList)

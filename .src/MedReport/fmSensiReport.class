@@ -8,6 +8,7 @@ Private $SSQLFields As String[]
 Private $ColCount As Integer
 Private $newColumn As String[]
 Private $RepoStr As String
+Private $GridVarData As Collection
 
 Private $tblpatlabtest As String
 Private $tblpatlabsubtest As String
@@ -314,27 +315,34 @@ Private Function GetGridViewValue(Column As Integer, xVariable As Variant) As Va
   Dim xxx As Variant
   Dim i As Integer
 
-  If Column = 0 Then
-    xxx = modReportVar.GetDateTimeReport(xVariable, gb.GeneralDate)
-  Else If Column = 2 Then
-    xxx = modPatient.GetPatientNameByEnc(xVariable, modDatabase.$syConn)
-  Else If Column = 3 Then
-    xxx = modPatient.GetPatientSex(xVariable, modDatabase.$syConn)
-  Else If Column = 4 Then
-    xxx = modMedReports.GetPatientPastAgeString($tblpatlabtest, xVariable)
-  Else If Column = 10 Then
-    xxx = modDataRepo.GetHospitalTextLabel(xVariable)
+  If $GridVarData.Exist(CStr(Column) & "|" & xVariable) Then
+    xxx = $GridVarData[CStr(Column) & "|" & xVariable]
   Else
-    xxx = xVariable
+
+    If Column = 0 Then
+      xxx = modReportVar.GetDateTimeReport(xVariable, gb.GeneralDate)
+    Else If Column = 2 Then
+      xxx = modPatient.GetPatientNameByEnc(xVariable, modDatabase.$syConn)
+    Else If Column = 3 Then
+      xxx = modPatient.GetPatientSex(xVariable, modDatabase.$syConn)
+    Else If Column = 4 Then
+      xxx = modMedReports.GetPatientPastAgeString($tblpatlabtest, xVariable)
+    Else If Column = 10 Then
+      xxx = modDataRepo.GetHospitalTextLabel(xVariable)
+    Else
+      xxx = xVariable
+    Endif
+
+    If $newColumn.Count Then
+      For i = 0 To $newColumn.Count - 1
+        If Column = $ColCount + i Then
+          xxx = modCustPatient.NewColValue(Me.Tag, $newColumn[i], xVariable)
+        Endif
+      Next
+    Endif
+    $GridVarData.Add(xxx, CStr(Column) & "|" & xVariable)
   Endif
 
-  If $newColumn.Count Then
-    For i = 0 To $newColumn.Count - 1
-      If Column = $ColCount + i Then
-        xxx = modCustPatient.NewColValue(Me.Tag, $newColumn[i], xVariable)
-      Endif
-    Next
-  Endif
   Return xxx
 
 End
@@ -346,6 +354,7 @@ Public Sub btnrefresh_Click()
   TabStrip1.Index = 0
   modMisc.GetDateRangeSetting(dtfir, dtlast)
 
+  $GridVarData = New Collection
   xFldList = GetSQLColumns()
   $rData = ExecuteQuery(xFldList)
   If $rData.Available Then

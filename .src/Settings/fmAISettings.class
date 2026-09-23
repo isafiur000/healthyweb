@@ -2,14 +2,28 @@
 
 Public Sub _new()
 
-  cmbAIgenurl.List = ["https://api.groq.com/openai/v1/chat/completions"]
-  cmbAItranscurl.List = ["https://api.groq.com/openai/v1/audio/transcriptions"]
-  cmbAItransmodel.List = ["whisper-large-v3-turbo", "whisper-large-v3"]
+  CloudAIList()
   DisplayCloudAI()
+
+  cmbmodel.List = modMisc.LocalModelList()
+  cmbmodelrole.List = ["Clinicial", "PACS Image", "Audio/Video"]
+  cmbshell.List = ["python", "sh"]
+
+  cmbaimodel.List = modMisc.LocalAIModelList()
+  cmbaimodelrole.List = ["voice-to-text", "text-similarity", "text-comparison", "text-correction", "dicom-prediction", "image-comparison"]
+  cmbaishell.List = ["python", "sh"]
 
 End
 
 ''------------------------- Cloud AI -------------------
+Private Sub CloudAIList()
+
+  cmbAIgenurl.List = ["https://api.groq.com/openai/v1/chat/completions"]
+  cmbAItranscurl.List = ["https://api.groq.com/openai/v1/audio/transcriptions"]
+  cmbAItransmodel.List = ["whisper-large-v3-turbo", "whisper-large-v3"]
+
+End
+
 Private Sub DisplayCloudAI()
 
   cmbAIgenurl.Text = modSettings.ShowSettingFromFIle("CloudAI/GenerativeAPI_URL")
@@ -115,7 +129,151 @@ Public Sub btnaddAIquerydrug_Click()
 
 End
 
+''----------------- Local model ------------------
+Public Sub cmbmodel_Select()
+
+  If cmbmodel.Text Then
+    ShowLocalModel(cmbmodel.Text)
+  Endif
+
+End
+
+Private Sub ShowLocalModel(xmodel As String)
+
+  txtmodelname.Text = modSettings.ShowModelsSettingFromFIle(xmodel & "/" & "Name")
+  cmbmodelrole.Text = modSettings.ShowModelsSettingFromFIle(xmodel & "/" & "Role")
+  cmbshell.Text = modSettings.ShowModelsSettingFromFIle(xmodel & "/" & "Shell")
+  txtmodelhost.Text = modSettings.ShowModelsSettingFromFIle(xmodel & "/" & "URL")
+  txtstrargs.Text = modSettings.ShowModelsSettingFromFIle(xmodel & "/" & "StrArgument")
+  txtnumargs.Text = modSettings.ShowModelsSettingFromFIle(xmodel & "/" & "NumArgument")
+
+End
+
+Public Sub btnmodelname_Click()
+
+  If cmbmodel.Text Then
+    modSettings.SaveModelSettingToFile(cmbmodel.Text & "/" & "Name", txtmodelname.Text)
+    modSettings.SaveModelSettingToFile(cmbmodel.Text & "/" & "Role", cmbmodelrole.Text)
+    modSettings.SaveModelSettingToFile(cmbmodel.Text & "/" & "Shell", cmbshell.Text)
+    modSettings.SaveModelSettingToFile(cmbmodel.Text & "/" & "URL", txtmodelhost.Text)
+    modSettings.SaveModelSettingToFile(cmbmodel.Text & "/" & "StrArgument", txtstrargs.Text)
+    modSettings.SaveModelSettingToFile(cmbmodel.Text & "/" & "NumArgument", txtnumargs.Text)
+    Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+  Endif
+
+End
+
+Public Sub btnrefresh_Click()
+
+  Dim xval As String
+  Dim xcmd As String
+  Dim xList As String[]
+  Dim i As Integer
+
+  If txtmodelhost.Text Then
+    xcmd = "curl " & txtmodelhost.Text & "?models_list"
+    modBasic.DebugAPIString(xcmd)
+    Shell xcmd To xval
+  Endif
+
+  If Trim(xval) Then
+    xList = Split(xval, ";")
+    For i = 0 To xList.Count - 1
+      xList[i] = Trim(xList[i])
+    Next
+    txtmodelname.List = xList
+  Endif
+
+End
+
+Public Sub btnclear_Click()
+
+  txtmodelname.Text = ""
+  cmbmodelrole.Text = ""
+  cmbshell.Text = ""
+  txtmodelhost.Text = ""
+  txtstrargs.Text = ""
+  txtnumargs.Text = ""
+
+End
+
+''----------------- internal model ------------------
+Public Sub cmbaimodel_Select()
+
+  If cmbaimodel.Text Then
+    ShowAILocalModel(cmbaimodel.Text)
+  Endif
+
+End
+
+Private Sub ShowAILocalModel(xmodel As String)
+
+  txtaimodelname.Text = modSettings.ShowModelsSettingFromFIle(xmodel & "/" & "Name")
+  cmbaimodelrole.Text = modSettings.ShowModelsSettingFromFIle(xmodel & "/" & "Role")
+  cmbaishell.Text = modSettings.ShowModelsSettingFromFIle(xmodel & "/" & "Shell")
+  txtaimodelhost.Text = modSettings.ShowModelsSettingFromFIle(xmodel & "/" & "URL")
+  txtaistrargs.Text = modSettings.ShowModelsSettingFromFIle(xmodel & "/" & "StrArgument")
+  txtainumargs.Text = modSettings.ShowModelsSettingFromFIle(xmodel & "/" & "NumArgument")
+
+End
+
+Public Sub btnaimodelname_Click()
+
+  If cmbaimodel.Text Then
+    modSettings.SaveModelSettingToFile(cmbaimodel.Text & "/" & "Name", txtaimodelname.Text)
+    modSettings.SaveModelSettingToFile(cmbaimodel.Text & "/" & "Role", cmbaimodelrole.Text)
+    modSettings.SaveModelSettingToFile(cmbaimodel.Text & "/" & "Shell", cmbaishell.Text)
+    modSettings.SaveModelSettingToFile(cmbaimodel.Text & "/" & "URL", txtaimodelhost.Text)
+    modSettings.SaveModelSettingToFile(cmbaimodel.Text & "/" & "StrArgument", txtaistrargs.Text)
+    modSettings.SaveModelSettingToFile(cmbaimodel.Text & "/" & "NumArgument", txtainumargs.Text)
+    Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+  Endif
+
+End
+
+Public Sub btnairefresh_Click()
+
+  Dim xval As String
+  Dim xcmd As String
+  Dim xList As String[]
+  Dim i As Integer
+
+  If txtaimodelhost.Text Then
+    xcmd = "curl " & txtaimodelhost.Text & "?models_list"
+    modBasic.DebugAPIString(xcmd)
+    Shell xcmd To xval
+  Endif
+
+  If Trim(xval) Then
+    xList = Split(xval, ";")
+    For i = 0 To xList.Count - 1
+      xList[i] = Trim(xList[i])
+    Next
+    txtaimodelname.List = xList
+  Endif
+
+End
+
+Public Sub btnaiclear_Click()
+
+  txtaimodelname.Text = ""
+  cmbaimodelrole.Text = ""
+  cmbaishell.Text = ""
+  txtaimodelhost.Text = ""
+  txtaistrargs.Text = ""
+  txtainumargs.Text = ""
+
+End
+
 ''---------------- Buttons ---------------------------
+Private Sub GetNormalButtons()
+
+  WebButtonL1.Background = Color.Default
+  WebButtonL2.Background = Color.Default
+  WebButtonL3.Background = Color.Default
+
+End
+
 Public Sub WebButtonL1_Click()
 
   GetNormalButtons()
@@ -124,14 +282,31 @@ Public Sub WebButtonL1_Click()
 
 End
 
-Private Sub GetNormalButtons()
+Public Sub WebButtonL2_Click()
 
-  WebButtonL1.Background = Color.Default
+  GetNormalButtons()
+  IconPanel1.Index = 1
+  WebButtonL2.Background = Color.LightGray
+
+End
+
+Public Sub WebButtonL3_Click()
+
+  GetNormalButtons()
+  IconPanel1.Index = 2
+  WebButtonL3.Background = Color.LightGray
 
 End
 
 Public Sub btnclose_Click()
 
   Me.Close()
+
+End
+
+''=========================== device testing ==================
+Public Sub btnaudio_Click()
+
+  fmAudioRecord.ShowModal
 
 End

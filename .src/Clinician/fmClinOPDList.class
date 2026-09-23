@@ -11,6 +11,7 @@ Private $newColumn As String[]
 Private $iconColumn As String[]
 Private $RepoStr As String
 Private $showList As String
+Private $GridVarData As Collection
 
 Private $sTable As String
 Private $sComp As String
@@ -60,15 +61,11 @@ Public Sub _new(sTable As String)
       mnudata.Visible = True
       mnuhistoryall.Visible = True
       mnuarchives.Visible = True
-      mnucustreport.Visible = True
     Case "Clinician"
       mnudata.Visible = True
       mnuhistoryall.Visible = True
       mnuarchives.Visible = True
-      mnucustreport.Visible = True
       mnuservices.Visible = True
-      mnucustchartall.Visible = True
-      mnuformatexams.Visible = True
       mnugoto.Visible = True
   End Select
   $UserRestrict = modBasic.$ClinicDisableCompo
@@ -348,6 +345,7 @@ Private Sub FillBedGrid()
 
   Dim xFldList As String[]
 
+  $GridVarData = New Collection
   xFldList = GetSQLColumns()
   $rData = ExecuteQuery(xFldList)
   ResizeGrid()
@@ -504,97 +502,103 @@ Private Function GetGridViewValue(Column As Integer, xVariable As Variant) As Va
   Dim xxx As Variant
   Dim i As Integer
 
-  If Column = 1 Then
-    xxx = modPatient.GetPatientColor(xVariable)
-  Else If Column = 3 Then
-    xxx = modPatient.GetPatientNameByEnc(xVariable, modDatabase.$syConn) & "<br>" & "<small>" & modPatient.ShowDiscountCategEnc(xVariable) & "</small>"
-  Else If Column = 4 Then
-    xxx = modPatient.GetPatientAgeString(xVariable, Now()) & modString.HTMLBlankSpace(1) & modPatient.GetPatientSex(xVariable, modDatabase.$syConn)    ''
-  Else If Column = 5 Then
-    If IsNull(xVariable) = True Then
-      xxx = "icons/unchecked.png"
-    Else
-      If xVariable = True Then
-        xxx = "icons/checked.png"
-      Else If xVariable = False Then
-        xxx = "icons/coll5.png"
-      Endif
-    Endif
-  Else If Column = 6 Then
-    xxx = modPatient.PatientDiagnoCurrentList(xVariable).Join(gb.NewLine)
-  Else If Column = 7 Then
-    If chkshowdepart.Value = True Then
-      xxx = modGeneral.GetUserFullName(xVariable)
-    Else
-      xxx = ""
-    Endif
-  Else If Column = 9 Then
-    If chkshowdepart.Value = True Then
-      If chkdate.Value = True Then
-        xxx = modReportVar.GetDateTimeReport(xVariable, gb.MediumTime)
-      Else
-        xxx = modReportVar.GetDateTimeReport(xVariable, gb.MediumDate)
-      Endif
-    Else
-      xxx = ""
-    Endif
-
-  Else If Column = 11 Then
-    If chkshowstatus.Value = True Then
-      xxx = GetClinStatusIcon(modClinSub.GetMedicineClinStaus(xVariable))
-    Else
-      xxx = ""
-    Endif
-  Else If Column = 12 Then
-    If chkshowstatus.Value = True Then
-      xxx = GetClinStatusIcon(modClinSub.GetLabClinStaus(xVariable))
-    Else
-      xxx = ""
-    Endif
-  Else If Column = 13 Then
-    If chkshowstatus.Value = True Then
-      xxx = GetClinStatusIcon(modClinSub.GetRadioClinStaus(xVariable))
-    Else
-      xxx = ""
-    Endif
-  Else If Column = 14 Then
-    If chkshowstatus.Value = True Then
-      xxx = GetClinStatusIcon(modClinSub.GetEquipClinStaus(xVariable))
-    Else
-      xxx = ""
-    Endif
-  Else If Column = 15 Then
-    If chkshowstatus.Value = True Then
-      xxx = GetClinStatusIcon(modClinSub.GetFluidsClinStaus(xVariable))
-    Else
-      xxx = ""
-    Endif
-  Else If Column = 16 Then
-    If chkshowstatus.Value = True Then
-      xxx = GetClinStatusIcon(modClinSub.GetDeviceClinStaus(xVariable))
-    Else
-      xxx = ""
-    Endif
-
+  If $GridVarData.Exist(CStr(Column) & "|" & xVariable) Then
+    xxx = $GridVarData[CStr(Column) & "|" & xVariable]
   Else
-    xxx = xVariable
-  Endif
 
-  If $newColumn.Count Then
-    For i = 0 To $newColumn.Count - 1
-      If Column = $ColCount + i Then
-        xxx = modCustPatient.NewColValue(Me.Tag, $newColumn[i], xVariable)
-        If xxx = "$green.svg" Then
-          xxx = modMisc.GetWebIconPath("icons/false.svg")
-        Else If xxx = "$red.svg" Then
-          xxx = modMisc.GetWebIconPath("icons/true.svg")
-        Else If xxx = "$none.svg" Then
-          xxx = modMisc.GetWebIconPath("icons/null.svg")
-        Else If xxx = "$null.svg" Then
-          xxx = ""
+    If Column = 1 Then
+      xxx = modPatient.GetPatientColor(xVariable)
+    Else If Column = 3 Then
+      xxx = modPatient.GetPatientNameByEnc(xVariable, modDatabase.$syConn) & "<br>" & "<small>" & modPatient.ShowDiscountCategEnc(xVariable) & "</small>"
+    Else If Column = 4 Then
+      xxx = modPatient.GetPatientAgeString(xVariable, Now()) & modString.HTMLBlankSpace(1) & modPatient.GetPatientSex(xVariable, modDatabase.$syConn)    ''
+    Else If Column = 5 Then
+      If IsNull(xVariable) = True Then
+        xxx = "icons/unchecked.png"
+      Else
+        If xVariable = True Then
+          xxx = "icons/checked.png"
+        Else If xVariable = False Then
+          xxx = "icons/coll5.png"
         Endif
       Endif
-    Next
+    Else If Column = 6 Then
+      xxx = modPatient.PatientDiagnoCurrentList(xVariable).Join(gb.NewLine)
+    Else If Column = 7 Then
+      If chkshowdepart.Value = True Then
+        xxx = modGeneral.GetUserFullName(xVariable)
+      Else
+        xxx = ""
+      Endif
+    Else If Column = 9 Then
+      If chkshowdepart.Value = True Then
+        If chkdate.Value = True Then
+          xxx = modReportVar.GetDateTimeReport(xVariable, gb.MediumTime)
+        Else
+          xxx = modReportVar.GetDateTimeReport(xVariable, gb.MediumDate)
+        Endif
+      Else
+        xxx = ""
+      Endif
+
+    Else If Column = 11 Then
+      If chkshowstatus.Value = True Then
+        xxx = GetClinStatusIcon(modClinSub.GetMedicineClinStaus(xVariable))
+      Else
+        xxx = ""
+      Endif
+    Else If Column = 12 Then
+      If chkshowstatus.Value = True Then
+        xxx = GetClinStatusIcon(modClinSub.GetLabClinStaus(xVariable))
+      Else
+        xxx = ""
+      Endif
+    Else If Column = 13 Then
+      If chkshowstatus.Value = True Then
+        xxx = GetClinStatusIcon(modClinSub.GetRadioClinStaus(xVariable))
+      Else
+        xxx = ""
+      Endif
+    Else If Column = 14 Then
+      If chkshowstatus.Value = True Then
+        xxx = GetClinStatusIcon(modClinSub.GetEquipClinStaus(xVariable))
+      Else
+        xxx = ""
+      Endif
+    Else If Column = 15 Then
+      If chkshowstatus.Value = True Then
+        xxx = GetClinStatusIcon(modClinSub.GetFluidsClinStaus(xVariable))
+      Else
+        xxx = ""
+      Endif
+    Else If Column = 16 Then
+      If chkshowstatus.Value = True Then
+        xxx = GetClinStatusIcon(modClinSub.GetDeviceClinStaus(xVariable))
+      Else
+        xxx = ""
+      Endif
+
+    Else
+      xxx = xVariable
+    Endif
+
+    If $newColumn.Count Then
+      For i = 0 To $newColumn.Count - 1
+        If Column = $ColCount + i Then
+          xxx = modCustPatient.NewColValue(Me.Tag, $newColumn[i], xVariable)
+          If xxx = "$green.svg" Then
+            xxx = modMisc.GetWebIconPath("icons/false.svg")
+          Else If xxx = "$red.svg" Then
+            xxx = modMisc.GetWebIconPath("icons/true.svg")
+          Else If xxx = "$none.svg" Then
+            xxx = modMisc.GetWebIconPath("icons/null.svg")
+          Else If xxx = "$null.svg" Then
+            xxx = ""
+          Endif
+        Endif
+      Next
+    Endif
+    $GridVarData.Add(xxx, CStr(Column) & "|" & xVariable)
   Endif
 
   Return xxx
@@ -1370,7 +1374,9 @@ Private Sub FillCustomMenu()
   Dim xform8 As String
   Dim xform9 As String
   Dim xform10 As String
+  Dim xshow As Boolean
 
+  xshow = False
   xform1 = modSettings.ShowSettingFromFIle("CustomReport1/Name")
   xform2 = modSettings.ShowSettingFromFIle("CustomReport2/Name")
   xform3 = modSettings.ShowSettingFromFIle("CustomReport3/Name")
@@ -1386,60 +1392,74 @@ Private Sub FillCustomMenu()
     mnucust1.Title = xform1
     mnucust1.Tag = "CustomReport1"
     mnucust1.Visible = True
+    xshow = True
   Endif
 
   If xform2 Then
     mnucust2.Title = xform2
     mnucust2.Tag = "CustomReport2"
     mnucust2.Visible = True
+    xshow = True
   Endif
 
   If xform3 Then
     mnucust3.Title = xform3
     mnucust3.Tag = "CustomReport3"
     mnucust3.Visible = True
+    xshow = True
   Endif
 
   If xform4 Then
     mnucust4.Title = xform4
     mnucust4.Tag = "CustomReport4"
     mnucust4.Visible = True
+    xshow = True
   Endif
 
   If xform5 Then
     mnucust5.Title = xform5
     mnucust5.Tag = "CustomReport5"
     mnucust5.Visible = True
+    xshow = True
   Endif
 
   If xform6 Then
     mnucust6.Title = xform6
     mnucust6.Tag = "CustomReport6"
     mnucust6.Visible = True
+    xshow = True
   Endif
 
   If xform7 Then
     mnucust7.Title = xform7
     mnucust7.Tag = "CustomReport7"
     mnucust7.Visible = True
+    xshow = True
   Endif
 
   If xform8 Then
     mnucust8.Text = xform8
     mnucust8.Tag = "CustomReport8"
     mnucust8.Visible = True
+    xshow = True
   Endif
 
   If xform9 Then
     mnucust9.Title = xform9
     mnucust9.Tag = "CustomReport9"
     mnucust9.Visible = True
+    xshow = True
   Endif
 
   If xform10 Then
     mnucust10.Title = xform10
     mnucust10.Tag = "CustomReport10"
     mnucust10.Visible = True
+    xshow = True
+  Endif
+
+  If xshow = True Then
+    mnucustreport.Visible = True
   Endif
 
 End
@@ -1571,6 +1591,9 @@ Private Sub FillCustomFormMenu()
   Dim xList As String[]
 
   xList = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldtitle) as col from tbldepartchart where (fldcomp=&1 or fldcomp=&2)", modBasic.$compID, "%"))
+  If xList.Count Then
+    mnucustchartall.Visible = True
+  Endif
 
   If xList.Count > 0 Then
     mnucustform1.Text = xList[0]
@@ -1933,73 +1956,77 @@ End
 
 Private Sub GetComboItemList()
 
-  If $UserRestrict.Exist("Initial Planning") = False Then
-    btnadvice.Visible = True
+  If $UserRestrict.Exist("Initial Planning") = True Then
+    btnadvice.Visible = False
   Endif
-  If $UserRestrict.Exist("Demographics") = False Then
-    mnudemographic.Visible = True
+  If $UserRestrict.Exist("Demographics") = True Then
+    mnudemographic.Visible = False
   Endif
-  If $UserRestrict.Exist("Consultation Plan") = False Then
-    mnureqconsult.Visible = True
+  If $UserRestrict.Exist("Consultation Plan") = True Then
+    mnureqconsult.Visible = False
   Endif
-  If $UserRestrict.Exist("Essential Examinations") = False Then
-    btnmobilevital.Visible = True
-    btntriage.Visible = True
+  If $UserRestrict.Exist("Essential Examinations") = True Then
+    btnmobilevital.Visible = False
+    btntriage.Visible = False
   Endif
-  If $UserRestrict.Exist("Medicine Dosing") = False Then
-    btndosing.Visible = True
+  If $UserRestrict.Exist("Medicine Dosing") = True Then
+    btndosing.Visible = False
   Endif
-  If $UserRestrict.Exist("IV Infusion") = False Then
-    btnmobivfl.Visible = True
+  If $UserRestrict.Exist("IV Infusion") = True Then
+    btnmobivfl.Visible = False
   Endif
-  If $UserRestrict.Exist("General Services") = False Then
-    btnbilling.Visible = True
+  If $UserRestrict.Exist("General Services") = True Then
+    btnbilling.Visible = False
   Endif
-  If $UserRestrict.Exist("Products Request") = False Then
-    btnmobprogress.Visible = True
+  If $UserRestrict.Exist("Products Request") = True Then
+    btnmobprogress.Visible = False
   Endif
-  If $UserRestrict.Exist("Minor Procedure") = False Then
-    btnmobminor.Visible = True
+  If $UserRestrict.Exist("Minor Procedure") = True Then
+    btnmobminor.Visible = False
   Endif
-  If $UserRestrict.Exist("Equipments Used") = False Then
-    btnmobequip.Visible = True
+  If $UserRestrict.Exist("Equipments Used") = True Then
+    btnmobequip.Visible = False
   Endif
-  If $UserRestrict.Exist("General Images") = False Then
-    btnmobimage.Visible = True
-    btndraw.Visible = True ''''(incomplete)
+  If $UserRestrict.Exist("General Images") = True Then
+    btnmobimage.Visible = False
+    btndraw.Visible = False ''''(incomplete)
   Endif
-  If $UserRestrict.Exist("Video Data") = False Then
-    btnvideo.Visible = True
+  If $UserRestrict.Exist("Video Data") = True Then
+    btnvideo.Visible = False
   Endif
-  If $UserRestrict.Exist("PACS Images") = False Then
-    btnmobpacs.Visible = True
+  If $UserRestrict.Exist("PACS Images") = True Then
+    btnmobpacs.Visible = False
   Endif
-  If $UserRestrict.Exist("Devices Used") = False Then
-    btnmobevent.Visible = True
+  If $UserRestrict.Exist("Devices Used") = True Then
+    btnmobevent.Visible = False
   Endif
-  If $UserRestrict.Exist("Clinical Findings") = False Then
-    btnmobexam.Visible = True
-    btnmobexamall.Visible = True
+  If $UserRestrict.Exist("Clinical Findings") = True Then
+    btnmobexam.Visible = False
+    btnmobexamall.Visible = False
   Endif
 
-  If $UserRestrict.Exist("Laboratory Request") = False Then
-    btnlabs.Visible = True
+  If $UserRestrict.Exist("Laboratory Request") = True Then
+    btnlabs.Visible = False
   Endif
-  If $UserRestrict.Exist("Radiology Request") = False Then
-    btnradio.Visible = True
+  If $UserRestrict.Exist("Radiology Request") = True Then
+    btnradio.Visible = False
   Endif
-  If $UserRestrict.Exist("Pharmacy Request") = False Then
-    btnpharm.Visible = True
+  If $UserRestrict.Exist("Pharmacy Request") = True Then
+    btnpharm.Visible = False
   Endif
-  If $UserRestrict.Exist("Provisional Diagnosis") = False Then
-    btnmobilediagno.Visible = True
-    btnobsdiagno.Visible = True
+  If $UserRestrict.Exist("Provisional Diagnosis") = True Then
+    btnmobilediagno.Visible = False
+    btnobsdiagno.Visible = False
   Endif
 
 End
 
 ''===================== Structured exams==========================
 Private Sub FillExamMenu()
+
+  If $structExamList.Count Then
+    mnuformatexams.Visible = True
+  Endif
 
   If $structExamList.Count > 0 Then
     mnurec1.Text = $structExamList[0]

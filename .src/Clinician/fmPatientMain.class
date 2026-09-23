@@ -14,6 +14,7 @@ Private $PatientNum As String
 Private $xFinClear As Boolean
 Private $SyndroType As String
 
+Private hPatCalc As FmPatCalculate
 Private hInOutForm As FmIntakeOut
 Private hDigForm As FmDiagnosticTab
 Private hSoapPlan As FmSoapPlan
@@ -80,16 +81,7 @@ Public Sub _new(encid As String)
     btnshowexpert.Visible = False
   Endif
 
-  ' txthistory.DictionaryPath = modBasic.$dictPathList
-  ' txtnote.DictionaryPath = modBasic.$dictPathList
-  ' txtsubject.DictionaryPath = modBasic.$dictPathList
-  ' txtobject.DictionaryPath = modBasic.$dictPathList
-  ' txtmanage.DictionaryPath = modBasic.$dictPathList
-  ' txtplan.DictionaryPath = modBasic.$dictPathList
-  ' txtmonproblem.DictionaryPath = modBasic.$dictPathList
-  ' txtmontreatment.DictionaryPath = modBasic.$dictPathList
-  ' txtmoninout.DictionaryPath = modBasic.$dictPathList
-  ' txtmonplan.DictionaryPath = modBasic.$dictPathList
+  rbgeneralcompl.Value = True
   If $UserRestrictPat Then
     RestrictUserAccessPat()
   Endif
@@ -602,15 +594,15 @@ Private Sub BasicInfoPatient()
     lstallergy.List = modPathoSub.GetAllergyMedicineList(Trim(txtencid.Text), chkallergy.Value)
     lsticdisease.List = modPathoSub.GetSelectedDiagnosisList("Final Diagnosis", Trim(txtencid.Text))
     lstsyndrome.List = modPathoSub.GetSelectedDiagnosisList("Provisional Diagnosis", Trim(txtencid.Text))
-    txtlongirecord.Text = modPatient.GetPatientCommentByEnc(Trim(txtencid.Text))
     ''first tab
     ShowChiefSymptomData()
-    ShowGeneralComplaints()
+    ShowSelectedHistory(GetHistoryLabel())
     $dtFinding = Now()
     FillExamtable()
     ShowTelemedSaved()
 
     $EBMDiagnosis = ""
+    hPatCalc = New FmPatCalculate(Trim(txtencid.Text), pnlcalculate)
     hInOutForm = New FmIntakeOut(Trim(txtencid.Text), "height-tablet", pnlintakeout)
     hDigForm = New FmDiagnosticTab(Trim(txtencid.Text), "height-tablet", pnldiagnostic)
     hSoapPlan = New FmSoapPlan(Trim(txtencid.Text), $patDepart, "height-tablet", pnlplanning)
@@ -640,6 +632,7 @@ Private Sub ButtonControl()
   Endif
 
   btnsavelongrecord.Enabled = xx
+  hPatCalc.SetEntryControls(xx)
   hIpCardex.SetEntryOrder(xx)
   hIpCardex.SetDosingOrder(xx)
   hOwnStockForm.SetEntryControls(xx)
@@ -1138,26 +1131,6 @@ End
 Public Sub lstsyndrome_Click()
 
   $EBMDiagnosis = modPathoSub.GetDiagnosisCodePatient(Trim(txtencid.Text), lstsyndrome.Text)
-
-End
-
-Public Sub btnsavelongrecord_Click()
-
-  Dim res As Result
-
-  If $PatientNum Then
-    res = modDatabase.$myConn.Edit("tblpatientinfo", "fldpatientval=&1", $PatientNum)
-    If res.Available Then
-      If txtlongirecord.Text Then
-        res["fldcomment"] = txtlongirecord.Text
-        res["fldupuser"] = modBasic.$lbluser
-        res["flduptime"] = Now()
-        res.Update
-        Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
-        modPatient.$PatProfileData.Remove(Trim(txtencid.Text))
-      Endif
-    Endif
-  Endif
 
 End
 
@@ -2033,7 +2006,7 @@ End
 
 Public Sub mnudiscrollback_Click()
 
-  If Message.Question("Are you sure to rollback the outcome ?", ("No"), ("Yes")) = 2 Then
+  If Message.Question("Are you sure to rollback outcome ?", ("No"), ("Yes")) = 2 Then
     If $xFinClear = False Then
       modPatientSub.RollbackDischarge(Trim(txtencid.Text))
       Message.Info("Outcome rollback completed", "OK")
@@ -2586,14 +2559,94 @@ Public Sub mnucomprep_Click()
 End
 
 '''======================== General Complaints ========================
-Private Sub ShowGeneralComplaints()
+Public Sub btnsavelongrecord_Click()
+
+  Dim res As Result
+
+  If $PatientNum Then
+    res = modDatabase.$myConn.Edit("tblpatientinfo", "fldpatientval=&1", $PatientNum)
+    If res.Available Then
+      If txtlongirecord.Text Then
+        res["fldcomment"] = txtlongirecord.Text
+        res["fldupuser"] = modBasic.$lbluser
+        res["flduptime"] = Now()
+        res.Update
+        Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
+        modPatient.$PatProfileData.Remove(Trim(txtencid.Text))
+      Endif
+    Endif
+  Endif
+
+End
+
+Private Function GetHistoryLabel() As String
+
+  Dim xx As String
+
+  If rbgeneralcompl.Value = True Then
+    xx = "General Complaints"
+  Else If rbhistoryill.Value = True Then
+    xx = "History of Illness"
+  Endif
+  Return xx
+
+End
+
+Public Sub rbgeneralcompl_Click()
+
+  lbldualhistory.Text = "General Complaints"
+  If txtencid.Text Then
+    ShowSelectedHistory("General Complaints")
+  Endif
+  pnldualhistory.Visible = True
+  txtgencomplaint.Visible = True
+  pnldualuser.Visible = True
+
+  pnllongrecord.Visible = False
+  txtlongirecord.Visible = False
+
+End
+
+Public Sub rbhistoryill_Click()
+
+  lbldualhistory.Text = "History of Illness"
+  If txtencid.Text Then
+    ShowSelectedHistory("History of Illness")
+  Endif
+  pnldualhistory.Visible = True
+  txtgencomplaint.Visible = True
+  pnldualuser.Visible = True
+
+  pnllongrecord.Visible = False
+  txtlongirecord.Visible = False
+
+End
+
+Public Sub rblongrecord_Click()
+
+  If txtencid.Text Then
+    txtlongirecord.Text = modPatient.GetPatientCommentByEnc(Trim(txtencid.Text))
+  Endif
+  pnldualhistory.Visible = False
+  txtgencomplaint.Visible = False
+  pnldualuser.Visible = False
+
+  pnllongrecord.Visible = True
+  txtlongirecord.Visible = True
+
+End
+
+Private Sub ShowSelectedHistory(sType As String)
 
   Dim xcomplAr As String[]
 
-  xcomplAr = modPatPatho.ShowSelectedHistoryUser(Trim(txtencid.Text), "General Complaints")
+  xcomplAr = modPatPatho.ShowSelectedHistoryUser(Trim(txtencid.Text), sType)
   If xcomplAr And If xcomplAr.Count Then
     txtgencomplaint.RichText = xcomplAr[0]
     lblcomplaintuser.Text = xcomplAr[1]
+  Else
+    txtgencomplaint.RichText = ""
+    lblcomplaintuser.Text = ""
   Endif
 
 End
@@ -2609,7 +2662,7 @@ Public Sub btngencompln_Click()
   Endif
 
   If txtgencomplaint.Text Then
-    modPatientGeneral.AddPatientParagraph(Trim(txtencid.Text), "History", "General Complaints", txtgencomplaint.KeyList.Join(";"), txtgencomplaint.RichText, xboolean, $patDepart)
+    modPatientGeneral.AddPatientParagraph(Trim(txtencid.Text), "History", GetHistoryLabel(), txtgencomplaint.KeyList.Join(";"), txtgencomplaint.RichText, xboolean, $patDepart)
     Me.Exec(Subst("Toastify({text: '&1', duration: &2}).showToast()", "Information saved", modBasic.$BalloonDelay))
   Endif
   modSettings.SaveSettingsToFile("OPDForm/Complaints", "General")
@@ -2618,7 +2671,7 @@ End
 
 Public Sub btnpancompl_Click()
 
-  txtgencomplaint.RichText = txtgencomplaint.RichText & Space(1) & modFillContainer.GetExtraTextArea("General Complaints", txtgencomplaint.Text)
+  txtgencomplaint.RichText = txtgencomplaint.RichText & Space(1) & modFillContainer.GetExtraTextArea(GetHistoryLabel(), txtgencomplaint.Text)
 
 End
 
@@ -2630,7 +2683,7 @@ End
 
 Public Sub btnattcompl_Click()
 
-  txtgencomplaint.RichText = txtgencomplaint.RichText & DictionaryVIew("General Complaints")
+  txtgencomplaint.RichText = txtgencomplaint.RichText & DictionaryVIew(GetHistoryLabel())
 
 End
 
@@ -3041,6 +3094,20 @@ Public Sub btntriage_Click()
 
 End
 
+Public Sub btnaddchart_Click()
+
+  Dim sPath As String
+  Dim xval As String
+
+  If txtencid.Text Then
+    sPath = CustomDraw()
+    If sPath Then
+      xval = modImage.SaveClinicScreenDraw(Trim(txtencid.Text), modString.GetDateString(Now()), sPath)
+    Endif
+  Endif
+
+End
+
 Public Sub mnutriage_Click()
 
   Dim hForm As FmTriage
@@ -3421,7 +3488,7 @@ Public Sub btnfindflag_Click()
 
   If GridView1.Selection.Count Then
     $rExamRes.MoveTo(GridView1.Selection[0])
-    xx = InputCombo("Select Flag for the observation", "Change Flag", ["Normal", "Abnormal"], modMisc.GetIconValue($rExamRes["fldabnormal"]), True)
+    xx = InputCombo("Select Flag for observation", "Change Flag", ["Normal", "Abnormal"], modMisc.GetIconValue($rExamRes["fldabnormal"]), True)
     If xx Then
       modClinSub.UpdateExamFlag($rExamRes["fldid"], xx)
       FillExamtable()
@@ -3780,7 +3847,9 @@ Private Sub FillCustomMenu()
   Dim xform8 As String
   Dim xform9 As String
   Dim xform10 As String
+  Dim xshow As Boolean
 
+  xshow = False
   xform1 = modSettings.ShowSettingFromFIle("CustomReport1/Name")
   xform2 = modSettings.ShowSettingFromFIle("CustomReport2/Name")
   xform3 = modSettings.ShowSettingFromFIle("CustomReport3/Name")
@@ -3796,60 +3865,74 @@ Private Sub FillCustomMenu()
     mnucust1.Title = xform1
     mnucust1.Tag = "CustomReport1"
     mnucust1.Visible = True
+    xshow = True
   Endif
 
   If xform2 Then
     mnucust2.Title = xform2
     mnucust2.Tag = "CustomReport2"
     mnucust2.Visible = True
+    xshow = True
   Endif
 
   If xform3 Then
     mnucust3.Title = xform3
     mnucust3.Tag = "CustomReport3"
     mnucust3.Visible = True
+    xshow = True
   Endif
 
   If xform4 Then
     mnucust4.Title = xform4
     mnucust4.Tag = "CustomReport4"
     mnucust4.Visible = True
+    xshow = True
   Endif
 
   If xform5 Then
     mnucust5.Title = xform5
     mnucust5.Tag = "CustomReport5"
     mnucust5.Visible = True
+    xshow = True
   Endif
 
   If xform6 Then
     mnucust6.Title = xform6
     mnucust6.Tag = "CustomReport6"
     mnucust6.Visible = True
+    xshow = True
   Endif
 
   If xform7 Then
     mnucust7.Title = xform7
     mnucust7.Tag = "CustomReport7"
     mnucust7.Visible = True
+    xshow = True
   Endif
 
   If xform8 Then
     mnucust8.Text = xform8
     mnucust8.Tag = "CustomReport8"
     mnucust8.Visible = True
+    xshow = True
   Endif
 
   If xform9 Then
     mnucust9.Title = xform9
     mnucust9.Tag = "CustomReport9"
     mnucust9.Visible = True
+    xshow = True
   Endif
 
   If xform10 Then
     mnucust10.Title = xform10
     mnucust10.Tag = "CustomReport10"
     mnucust10.Visible = True
+    xshow = True
+  Endif
+
+  If xshow = True Then
+    mnucustomrepo.Visible = True
   Endif
 
 End
@@ -3970,6 +4053,9 @@ Private Sub FillCustomFormMenu()
   Dim xList As String[]
 
   xList = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldtitle) as col from tbldepartchart where (fldcomp=&1 or fldcomp=&2)", modBasic.$compID, "%"))
+  If xList.Count Then
+    mnucustform.Visible = True
+  Endif
 
   If xList.Count > 0 Then
     mnucustform1.Text = xList[0]
@@ -4166,6 +4252,7 @@ Private Sub SHowALgorithmList()
   If txtencid.Text Then
     $RuleChartLst = modClinChart.GetClinicalChartsList(Trim(txtencid.Text))
     If $RuleChartLst And If $RuleChartLst.Count Then
+      mnucustrule.Visible = True
 
       If $RuleChartLst.Count > 0 Then
         asx1 = Split($RuleChartLst[0], "|")
@@ -4249,6 +4336,10 @@ End
 
 ''===================== Structured exams==========================
 Private Sub FillExamMenu()
+
+  If $structExamList.Count Then
+    mnustruct.Visible = True
+  Endif
 
   If $structExamList.Count > 0 Then
     mnurec1.Text = $structExamList[0]

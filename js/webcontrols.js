@@ -175,20 +175,22 @@ function changeScreenMode() {
 }
 
 //upload blob
-function sendImageData(key, sData) {
+async function sendImageData(key, blob) {
+  const form = new FormData();
 
-  var xhr = new XMLHttpRequest();
-  var form = new FormData();
+  console.log('Blob size:', blob.size, 'type:', blob.type);
+  /* form.append('data', blob, 'sketch-' + key + '.png');
+  form.append('targetPath', serverPath);
+  form.append('filename', key); */
+  form.append('file', blob);
+  form.append('name', blob.name);
 
-  form.append('data', sData);
-
-  xhr.upload.onload = function() {
-    alert('Upload finished successfully.');
-  };
-
-  xhr.open('POST', $root + '/upload:' + key, true);
-  xhr.send(form);
-
+  console.log('$root =', $root);
+  const url = $root + '/upload:' + key;
+  console.log('POSTing to:', url);
+  const res = await fetch(url, { method: 'POST', body: form });
+  if (!res.ok) throw new Error('Upload failed: ' + res.status);
+  return key;
 }
 
 //skecthpad
@@ -201,12 +203,20 @@ function downloadSketchPadAsImage() {
   download(adata, "PenDrawing.png", "image/png");
 }
 
-function uploadSketchPadAsImage() {
-  var xdata = drawPad.canvas.toDataURL("image/png");
-  var r = (Math.random() + 1).toString(36).substring(2);
-  sendImageData(r, xdata);
+function uploadSketchPadAsImage(key) {
+  return new Promise((resolve, reject) => {
+      drawPad.canvas.toBlob(blob => {
+          if (!blob) return reject(new Error('Blob creation failed'));
+          sendImageData(key, blob).then(resolve, reject);
+      }, 'image/png');
+  });
+}
 
-  return r
+async function handleUpload(key) {
+  const key1 = await uploadSketchPadAsImage(key);
+  console.log(key1);   // ← now it's the real key string,
+  return key1;
+  // use key here
 }
 
 //QR Scan
