@@ -2,6 +2,43 @@ var $AutoTextComoleteList = [];
 var drawPad;
 var qrvalue;
 
+/* //Audio Record
+var chunkList = [];
+let mediaRecorder;
+let audioChunks = [];
+let recordingTimer;
+let isRecording = false;
+let chunkIndex = 0; */
+
+function openFullscreen() {
+  var elem = document.documentElement;
+  if (elem.requestFullscreen) {
+    elem.requestFullscreen();
+    } else if (elem.webkitRequestFullscreen) { /* Safari */
+    elem.webkitRequestFullscreen();
+    } else if (elem.msRequestFullscreen) { /* IE11 */
+    elem.msRequestFullscreen();
+  }
+}
+
+function closeFullscreen() {
+  if (document.exitFullscreen) {
+    document.exitFullscreen();
+    } else if (document.webkitExitFullscreen) { /* Safari */
+    document.webkitExitFullscreen();
+    } else if (document.msExitFullscreen) { /* IE11 */
+    document.msExitFullscreen();
+  }
+}
+
+function changeScreenMode() {
+  if( $( "body" ).hasClass( "dark" )) {
+    $( "body" ).removeClass( "dark" );
+    } else {
+    $( "body" ).addClass( "dark" );
+  }
+}
+
 function richtextformat(command, value) {
   document.execCommand(command, false, value);
 }
@@ -24,6 +61,7 @@ function setCookie(name,value,days) {
   document.cookie = name + "=" + (value || "")  + expires + "; path=/";
 }
 
+// Conversion
 function ExportToExcel(TableID,type, fn, dl) {
   var elt = document.getElementById(TableID);
   var wb = XLSX.utils.table_to_book(elt, { sheet: "sheet1" });
@@ -108,27 +146,7 @@ function htmlautocomplete(id, idx) {
 
 }
 
-function openFullscreen() {
-  var elem = document.documentElement;
-  if (elem.requestFullscreen) {
-    elem.requestFullscreen();
-    } else if (elem.webkitRequestFullscreen) { /* Safari */
-    elem.webkitRequestFullscreen();
-    } else if (elem.msRequestFullscreen) { /* IE11 */
-    elem.msRequestFullscreen();
-  }
-}
-
-function closeFullscreen() {
-  if (document.exitFullscreen) {
-    document.exitFullscreen();
-    } else if (document.webkitExitFullscreen) { /* Safari */
-    document.webkitExitFullscreen();
-    } else if (document.msExitFullscreen) { /* IE11 */
-    document.msExitFullscreen();
-  }
-}
-
+//Download canvas chart
 function canvasDownload (target, type) {
   let canvas = document.getElementById(target);
   let anchor = document.createElement("a");
@@ -138,50 +156,11 @@ function canvasDownload (target, type) {
   anchor.remove();
 }
 
-/*
- *  Copyright (c) 2015 The WebRTC project authors. All Rights Reserved.
- *
- *  Use of this source code is governed by a BSD-style license
- *  that can be found in the LICENSE file in the root of the source
- *  tree.
-*/
-
-function StartVideoCapture() {
-  var constraints = { audio: false, video:true };
-  navigator.mediaDevices.getUserMedia(constraints).then(function(mediaStream) {
-      var video = document.querySelector('video');
-      video.srcObject = mediaStream;
-      video.onloadedmetadata = function(e) {
-        video.play();
-      };
-  })
-  .catch(function(err) { console.log(err.name + ": " + err.message); });
-}
-
-function TakeCamShot() {
-  var video = document.querySelector('video');
-  var canvas = window.canvas = document.querySelector('canvas');
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-  canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-}
-
-function changeScreenMode() {
-  if( $( "body" ).hasClass( "dark" )) {
-    $( "body" ).removeClass( "dark" );
-    } else {
-    $( "body" ).addClass( "dark" );
-  }
-}
-
 //upload blob
-async function sendImageData(key, blob) {
+async function sendBlobData(key, blob) {
   const form = new FormData();
 
   console.log('Blob size:', blob.size, 'type:', blob.type);
-  /* form.append('data', blob, 'sketch-' + key + '.png');
-  form.append('targetPath', serverPath);
-  form.append('filename', key); */
   form.append('file', blob);
   form.append('name', blob.name);
 
@@ -193,7 +172,7 @@ async function sendImageData(key, blob) {
   return key;
 }
 
-//skecthpad
+//skecthpad drawing
 function clearSketchPad() {
   drawPad.clear();
 }
@@ -207,7 +186,7 @@ function uploadSketchPadAsImage(key) {
   return new Promise((resolve, reject) => {
       drawPad.canvas.toBlob(blob => {
           if (!blob) return reject(new Error('Blob creation failed'));
-          sendImageData(key, blob).then(resolve, reject);
+          sendBlobData(key, blob).then(resolve, reject);
       }, 'image/png');
   });
 }
@@ -244,3 +223,79 @@ domReady(function () {
     );
     htmlscanner.render(onScanSuccess);
 });
+
+/* //Record audio and upload every 15 sec
+async function startAudioRecording() {
+  if (isRecording) {
+    console.warn("Recording already in progress.");
+    return;
+  }
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const mimeType = 'audio/webm';
+
+    mediaRecorder = new MediaRecorder(stream, { mimeType });
+
+    audioChunks = [];
+    chunkIndex = 0;
+    isRecording = true;
+
+    // Not async — don't await inside the event handler
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data && event.data.size > 0) {
+        audioChunks.push(event.data);
+        chunkIndex++;
+        const index = chunkIndex;
+        const chunkKey = chunkList[index];
+        handleNewChunk(event.data, chunkKey, mimeType);
+      }
+    };
+
+    mediaRecorder.onstop = () => {
+      console.log("Recording stopped.");
+      isRecording = false;
+      stream.getTracks().forEach(track => track.stop());
+      audioChunks = [];
+    };
+
+    mediaRecorder.onerror = (event) => {
+      console.error("MediaRecorder error:", event.error);
+      isRecording = false;
+    };
+
+    // Emit a chunk every 15 seconds
+    mediaRecorder.start(15000);
+    console.log("Recording started... (chunk every 15s)");
+
+    } catch (err) {
+    console.error("Failed to start recording:", err);
+    isRecording = false;
+  }
+}
+
+async function handleNewChunk(chunk, key, mimeType) {
+  try {
+    const namedBlob = new File([chunk], key, {
+        type: mimeType || 'audio/webm',
+    });
+
+    await sendBlobData(key, namedBlob);
+    console.log(`Uploaded ${key}`);
+    } catch (err) {
+    console.error(`Failed to upload chunk ${key}:`, err);
+  }
+}
+
+function stopAudioRecording() {
+  if (recordingTimer) {
+    clearTimeout(recordingTimer);
+    recordingTimer = null;
+  }
+
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+    } else {
+    console.warn("No active recording to stop.");
+  }
+} */

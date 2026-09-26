@@ -2,6 +2,8 @@
 
 Private $sDevice As String
 Private $sValue As String
+Private $Path As String
+Private $sKey As String
 
 Public Sub Run(Optional sDevice As String) As String
 
@@ -9,42 +11,48 @@ Public Sub Run(Optional sDevice As String) As String
     $sDevice = sDevice
   Endif
   modGeneralMain.GetOpenModalForm(Me)
+  $sKey = CreateServerKey()
+  mnupload_Click()
+  WebForm._AddJavascript("videokey = " & JS($sKey) & ";")
 
   If Me.ShowModal() Then Return $sValue
 
 End
 
-Public Sub WebForm_Open()
-
-  Dim sfile As String
-
-  sfile = GetWebRTCScript()
-  Me.Exec(sfile)
-
-End
-
-Private Function GetWebRTCScript() As String
+Public Sub mnupload_Click()
 
   Dim sfile As String
 
   sfile = File.Load("jv/VideoRecord.js")
-  sfile = Replace(sfile, "sGumVideo", sGumVideo.Name)
-  sfile = Replace(sfile, "sRecVideo", sRecVideo.Name)
-  sfile = Replace(sfile, "btnStart", btnStart.Name)
-  sfile = Replace(sfile, "btnRecord", btnRecord.Name)
-  sfile = Replace(sfile, "btnPlay", btnPlay.Name)
-  sfile = Replace(sfile, "btnDown", btnDown.Name)
-  sfile = Replace(sfile, "cmbCodec", cmbCodec.Name)
-  sfile = Replace(sfile, "chkEcho", chkEcho.Name)
+  Me.Exec(sfile)
 
-  Return sfile
+End
+
+Private Function CreateServerKey() As String
+
+  Dim I As Integer
+  Dim sKey As String
+  Dim sPath As String
+
+  $Path = File.Dir(File.Dir(Temp())) &/ "upload"
+  Try Mkdir $Path
+
+  For I = 1 To 4
+    sKey &= Hex$(Rand(0, 65535), 4)
+  Next
+
+  sPath = $Path &/ sKey
+  Try Kill sPath
+  File.Save(sPath, "")
+
+  Return sKey
 
 End
 
 Public Sub btnclose_Click()
 
-  If WebButtonBox1.Text Then
-    $sValue = WebButtonBox1.Text
+  If Exist($Path &/ $sKey) Then
+    $sValue = $Path &/ $sKey
     Me.Close(True)
   Else
     Me.Close()

@@ -477,6 +477,31 @@ Public Function AddPlannedProcedures(Optional sTitle As String) As String[]
 
 End
 
+Public Function AddInvestigationAdvised(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+
+  Dim stChapter As String
+  Dim stObservation As String
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Investigation Advised"
+  Endif
+
+  If modPatReportAll.$patReportColl.Exist($encid & "|" & stChapter) Then
+    stObservation = modPatReportAll.$patReportColl[$encid & "|" & stChapter]
+  Else
+    stObservation = modString.GetHTMLListFormat(modPatReports.OPDOrderLabRequest($encid))
+    AddPatReportColl(stChapter, stObservation)
+  Endif
+
+  asx = AddCustomReport(stChapter, stObservation)
+  Return asx
+
+End
+
 ''------------------ Attached: Lab/Radio/Exam
 Public Function AddExaminationsAll(Optional sTitle As String) As String[]
 
@@ -1606,6 +1631,36 @@ Public Function MultiAddPlannedProcedures(Optional sTitle As String) As String[]
       stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
     Else
       stObservation = modString.GetHTMLListFormat(modPatReports.GetPatProcedureList(encid, "Procedures", "Planned"))
+      AddPatReportCollEnc(encid, stChapter, stObservation)
+    Endif
+    observList.Add(encid & "|" & stObservation)
+  Next
+
+  asx = AddCustomReport(stChapter, GetTextPara(observList))
+  Return asx
+
+End
+
+Public Function MultiAddInvestigationAdvised(Optional sTitle As String) As String[]
+
+  Dim asx As New String[0]
+  Dim encid As String
+  Dim stChapter As String
+  Dim stObservation As String
+  Dim observList As String[]
+
+  If sTitle Then
+    stChapter = sTitle
+  Else
+    stChapter = "Investigation Advised"
+  Endif
+
+  observList = New String[]
+  For Each encid In $encList
+    If modPatReportAll.$patReportColl.Exist(encid & "|" & stChapter) Then
+      stObservation = modPatReportAll.$patReportColl[encid & "|" & stChapter]
+    Else
+      stObservation = modString.GetHTMLListFormat(modPatReports.OPDOrderLabRequest(encid))
       AddPatReportCollEnc(encid, stChapter, stObservation)
     Endif
     observList.Add(encid & "|" & stObservation)

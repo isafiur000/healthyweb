@@ -1,139 +1,171 @@
 
-let mediaRecorder;
-let recordedBlobs;
+var videokey;
+let mediaStream   = null;
+let mediaRecorder = null;
+let chunks        = [];       // raw data chunks during recording
+let blob          = null;     // final combined blob
 
-const codecPreferences = document.getElementById('cmbCodec');
+// ---------- 2. DOM ----------
+const preview     = document.querySelector('.preview');      // <video>
+const playback    = document.querySelector('.playback');     // <video>
+const startBtn    = document.querySelector('.startBtn');     // <button>
+const recordBtn   = document.querySelector('.recordBtn');    // <button>
+const downloadBtn = document.querySelector('.downloadBtn');  // <button>
+const uploadBtn   = document.querySelector('.uploadBtn');    // <button>
+const statusEl    = document.querySelector('.statusBar');       // <div>
 
-const errorMsgElement = document.getElementById('pnlError');
-const recordedVideo = document.getElementById('sRecVideo');
-const recordButton = document.getElementById('btnRecord');
-function initiateVideo() {
-  if (recordButton.textContent === 'Start Recording') {
-    startRecording();
-    } else {
-    stopRecording();
-    recordButton.textContent = 'Start Recording';
-    playButton.disabled = false;
-    downloadButton.disabled = false;
-    codecPreferences.disabled = false;
-  }
-};
-
-recordButton.onclick = initiateVideo;
-
-const playButton = document.getElementById('btnPlay');
-playButton.addEventListener('click', () => {
-    const mimeType = 'video/webm;codecs=vp8,opus'; /*! codecPreferences.options[codecPreferences.selectedIndex].value.split(';', 1)[0];*/
-    const superBuffer = new Blob(recordedBlobs, {type: mimeType});
-    recordedVideo.src = null;
-    recordedVideo.srcObject = null;
-    recordedVideo.src = window.URL.createObjectURL(superBuffer);
-    recordedVideo.controls = true;
-    recordedVideo.play();
-});
-
-const downloadButton = document.getElementById('btnDown');
-downloadButton.addEventListener('click', () => {
-    const blob = new Blob(recordedBlobs, {type: 'video/webm'});
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.style.display = 'none';
-    a.href = url;
-    a.download = 'test.webm';
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => {
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-    }, 100);
-});
-
-function handleDataAvailable(event) {
-  console.log('handleDataAvailable', event);
-  if (event.data && event.data.size > 0) {
-    recordedBlobs.push(event.data);
-  }
-}
-
-function getSupportedMimeTypes() {
-  const possibleTypes = [
+// ---------- 4. Pick a supported mime type ----------
+function pickMimeType() {
+  const types = [
     'video/webm;codecs=vp9,opus',
     'video/webm;codecs=vp8,opus',
-    'video/webm;codecs=h264,opus',
-    'video/mp4;codecs=h264,aac',
+    'video/webm',
+    'video/mp4'
   ];
-  return possibleTypes.filter(mimeType => {
-      return MediaRecorder.isTypeSupported(mimeType);
-  });
+  return types.find(t => MediaRecorder.isTypeSupported(t)) || '';
 }
 
+// ---------- 5. Start camera ----------
+startBtn.addEventListener('click', async () => {
+    try {
+      mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: { width: 1280, height: 720 },
+          audio: true
+      });
+      preview.srcObject = mediaStream;
+      recordBtn.disabled = false;
+      startBtn.disabled  = true;
+      setStatus('Camera ready.');
+      } catch (err) {
+      setStatus('❌ Camera error: ' + err.message);
+    }
+});
+
+// ---------- 6. Toggle recording ----------
+recordBtn.addEventListener('click', () => {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+      stopRecording();
+      } else {
+      startRecording();
+    }
+});
+
 function startRecording() {
-  recordedBlobs = [];
-  /*! const mimeType = codecPreferences.options[codecPreferences.selectedIndex].value;  */
-  const mimeType = 'video/webm;codecs=vp8,opus'
-  const options = {mimeType};
+  if (!mediaStream) return;
+
+  chunks = [];
+  blob   = null;
+  playback.style.display = 'none';
+  playback.src = '';
+  downloadBtn.disabled = true;
+  uploadBtn.disabled   = true;
+
+  const mimeType = pickMimeType();
+  const options  = mimeType ? { mimeType } : {};
 
   try {
-    mediaRecorder = new MediaRecorder(window.stream, options);
+    mediaRecorder = new MediaRecorder(mediaStream, options);
     } catch (e) {
-    console.error('Exception while creating MediaRecorder:', e);
+    setStatus('❌ MediaRecorder error: ' + e.message);
     return;
   }
 
-  console.log('Created MediaRecorder', mediaRecorder, 'with options', options);
-  recordButton.textContent = 'Stop Recording';
-  playButton.disabled = true;
-  downloadButton.disabled = true;
-  codecPreferences.disabled = true;
-  mediaRecorder.onstop = (event) => {
-    console.log('Recorder stopped: ', event);
-    console.log('Recorded Blobs: ', recordedBlobs);
+  // Collect chunks during recording
+  mediaRecorder.ondataavailable = (e) => {
+    if (e.data && e.data.size > 0) chunks.push(e.data);
   };
-  mediaRecorder.ondataavailable = handleDataAvailable;
-  mediaRecorder.start();
-  console.log('MediaRecorder started', mediaRecorder);
+
+  // Fired when we call .stop()
+  // Inside startRecording(), replace onstop with:
+  mediaRecorder.onstop = () => {
+    const actualType = mediaRecorder.mimeType || 'video/webm';
+    blob = new Blob(chunks, { type: actualType });
+
+    playback.src = URL.createObjectURL(blob);
+    playback.style.display = 'block';
+    playback.load();
+
+    downloadBtn.disabled = false;
+    uploadBtn.disabled   = false;
+
+    recordBtn.textContent = 'Start Recording';
+    recordBtn.classList.remove('stop');
+
+    stopCamera();   // <── closes camera
+
+    setStatus(`✅ Recording done (${(blob.size / 1024).toFixed(1)} KB)`);
+  };
+
+  mediaRecorder.start(1000);          // emit a chunk every second
+  recordBtn.textContent = 'Stop Recording';
+  recordBtn.classList.add('stop');
+  setStatus('🔴 Recording…');
+}
+
+function stopCamera() {
+  if (mediaStream) {
+    mediaStream.getTracks().forEach(t => t.stop());
+    mediaStream = null;
+  }
+  preview.srcObject = null;
+  startBtn.disabled  = false;
+  recordBtn.disabled = true;
 }
 
 function stopRecording() {
-  mediaRecorder.stop();
-}
-
-function handleSuccess(stream) {
-  recordButton.disabled = false;
-  console.log('getUserMedia() got stream:', stream);
-  window.stream = stream;
-
-  const gumVideo = document.getElementById('sGumVideo');
-  gumVideo.srcObject = stream;
-
-  getSupportedMimeTypes().forEach(mimeType => {
-      const option = document.createElement('option');
-      option.value = mimeType;
-      option.innerText = option.value;
-      codecPreferences.appendChild(option);
-  });
-  codecPreferences.disabled = false;
-}
-
-async function init(constraints) {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia(constraints);
-    handleSuccess(stream);
-    } catch (e) {
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
   }
 }
 
-document.getElementById('btnStart').addEventListener('click', async () => {
-    document.getElementById('btnStart').disabled = true;
-    const hasEchoCancellation = document.getElementById('chkEcho').checked;
-    const constraints = {
-      audio: {
-        echoCancellation: {exact: hasEchoCancellation}
-      },
-      video: {
-        width: 1280, height: 720
-      }
-    };
-    console.log('Using media constraints:', constraints);
-    await init(constraints);
+// ---------- 7. Download locally ----------
+downloadBtn.addEventListener('click', () => {
+    if (!blob) return;
+
+    const url = URL.createObjectURL(blob);
+    const a   = document.createElement('a');
+    a.href     = url;
+    a.download = `recording-${Date.now()}.webm`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+});
+
+// ---------- 8. Upload to backend ----------
+uploadBtn.addEventListener('click', async () => {
+    if (!blob) return;
+
+    const formData = new FormData();
+    console.log('Blob size:', blob.size, 'type:', blob.type);
+    formData.append('file', blob);
+    formData.append('name', blob.name);
+
+    uploadBtn.disabled = true;
+    setStatus('⏫ Uploading…');
+
+    try {
+      console.log('$root =', $root);
+      const url = $root + '/upload:' + videokey;
+      console.log('POSTing to:', url);
+      const response = await fetch(url, { method: 'POST', body: formData });
+      if (!response.ok) throw new Error('Upload failed: ' + response.status);
+      setStatus('✅ Upload successful');
+
+      } catch (err) {
+      console.error(err);
+      setStatus('❌ Upload failed: ' + err.message);
+      } finally {
+      uploadBtn.disabled = false;
+    }
+});
+
+// ---------- 9. Helpers ----------
+function setStatus(msg) {
+  if (statusEl) statusEl.textContent = msg;
+}
+
+// Release camera when leaving the page
+window.addEventListener('beforeunload', () => {
+    if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
 });

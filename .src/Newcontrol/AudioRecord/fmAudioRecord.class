@@ -1,22 +1,100 @@
 ' Gambas class file
 
-Public Sub _new()
+Private $sMode As String
+Private $sValue As String
+Private $Path As String
+Private $sKey As String
 
-  WebMenu2_Click()
+Public Sub Run(sMode As String) As String
+
+  $sMode = sMode
+  modGeneralMain.GetOpenModalForm(Me)
+  $sKey = CreateServerKey()
+  mnupload_Click()
+  WebForm._AddJavascript("audiokey = " & JS($sKey) & ";")
+
+  If $sMode = "Text" Then
+    btntranscribe.Visible = True
+  Else If $sMode = "Audio" Then
+    btntranscribe.Visible = False
+  Endif
+
+  If Me.ShowModal() Then Return $sValue
 
 End
 
-Public Sub WebMenu2_Click()
+Public Sub mnupload_Click()
 
-  Dim xStr As String
+  Dim xx As String
 
-  xStr = File.Load("jv/recorder.js")
-  Me.Exec(xStr)
+  xx = File.Load("jv/AudioRecorder.js")
+  Me.Exec(xx)
+
+End
+
+Private Function CreateServerKey() As String
+
+  Dim I As Integer
+  Dim sKey As String
+  Dim sPath As String
+
+  $Path = File.Dir(File.Dir(Temp())) &/ "upload"
+  Try Mkdir $Path
+
+  For I = 1 To 4
+    sKey &= Hex$(Rand(0, 65535), 4)
+  Next
+
+  sPath = $Path &/ sKey
+  Try Kill sPath
+  File.Save(sPath, "")
+
+  Return sKey
 
 End
 
 Public Sub btnclose_Click()
 
-  Me.Close()
+  If $sMode = "Text" Then
+    $sValue = WebTextArea1.Text
+  Else If $sMode = "Audio" Then
+    $sValue = $Path &/ $sKey
+  Endif
+
+  If $sValue Then
+    Me.Close(True)
+  Else
+    Me.Close()
+  Endif
+
+End
+
+Private Function GetAudioModelName() As String
+
+  Dim xmodel As String
+  Dim xList As String[]
+
+  If modBasic.$CloudAIURL_Trans And If modBasic.$CloudAIModel_Trans Then
+    xmodel = modBasic.$CloudAIModel_Trans
+  Else
+    xList = modMLModels.GetAIModelsList("voice-to-text")
+    xmodel = xList[0]
+  Endif
+
+  Return xmodel
+
+End
+
+Public Sub btntranscribe_Click()
+
+  Dim xFile As String
+  Dim xxx As String[]
+  Dim xval As String
+
+  xFile = modDevAll.GetAudioWebmToWav($Path &/ $sKey)
+  If Exist(xFile) Then
+    xxx = New String[]
+    WebTextArea1.Text = Trim(modMLModels.GeAItModelValueArguments(GetAudioModelName(), xxx, xFile))
+  Endif
 
 End

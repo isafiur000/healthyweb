@@ -2,6 +2,7 @@
 
 Private $patId As String
 Private $sType As String
+Private $gender As String
 
 Private $xFinList As String[]
 Private $PatNum As String
@@ -33,7 +34,17 @@ Public Sub _new(patId As String, sType As String, HideList As Boolean, PanelClas
     If MMain.$SISHAppMode = "Portal" Then
       $xFinList = ["Provisional Diagnosis", "Final Diagnosis", "Laboratory Tests", "Radiological Findings", "Treatment Advised", "Outpatient Advice", "Glass Prescription", "Orders for New Visit", "Unavailable Medicines"]         ''
     Else
-      $xFinList = modMedicine.GetAttachReportVariables()
+      If $sType = "PatientID" Then
+        $gender = modPatient.PatientGenderByPatNo($patId)
+      Else If $sType = "Encounter" Then
+        $gender = modPatient.GetPatientSex($patId)
+      Endif
+
+      If $gender = "Female" Then
+        $xFinList = modMedicine.GetAttachReportVariables(True)
+      Else
+        $xFinList = modMedicine.GetAttachReportVariables(False)
+      Endif
     Endif
   Endif
   rbmetric.Value = True
@@ -105,7 +116,11 @@ End
 
 Public Sub chkselect_Click()
 
-  $xFinList = modMedicine.GetAttachReportVariables()
+  If $gender = "Female" Then
+    $xFinList = modMedicine.GetAttachReportVariables(True)
+  Else
+    $xFinList = modMedicine.GetAttachReportVariables(False)
+  Endif
   AddListBiewContent($xFinList)
 
 End

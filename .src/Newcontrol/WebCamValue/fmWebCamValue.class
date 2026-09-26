@@ -2,6 +2,8 @@
 
 Private $sDevice As String
 Private $sValue As String
+Private $Path As String
+Private $sKey As String
 
 Public Sub Run(Optional sDevice As String) As String
 
@@ -9,33 +11,48 @@ Public Sub Run(Optional sDevice As String) As String
     $sDevice = sDevice
   Endif
   modGeneralMain.GetOpenModalForm(Me)
+  $sKey = CreateServerKey()
+  mnuload_Click()
+  WebForm._AddJavascript("imagekey = " & JS($sKey) & ";")
 
   If Me.ShowModal() Then Return $sValue
 
 End
 
-Public Sub WebForm_Open()
+Public Sub mnuload_Click()
 
-  WebForm.Exec("StartVideoCapture();")
+  Dim sfile As String
 
-End
-
-Public Sub btnshot_Click()
-
-  WebForm.Exec("TakeCamShot();")
+  sfile = File.Load("jv/ImageRecord.js")
+  Me.Exec(sfile)
 
 End
 
-Public Sub btnsave_Click()
+Private Function CreateServerKey() As String
 
-  Me.Exec("canvasDownload('" & WebCanvas1.Name & "', 'png')")
+  Dim I As Integer
+  Dim sKey As String
+  Dim sPath As String
+
+  $Path = File.Dir(File.Dir(Temp())) &/ "upload"
+  Try Mkdir $Path
+
+  For I = 1 To 4
+    sKey &= Hex$(Rand(0, 65535), 4)
+  Next
+
+  sPath = $Path &/ sKey
+  Try Kill sPath
+  File.Save(sPath, "")
+
+  Return sKey
 
 End
 
 Public Sub btnclose_Click()
 
-  If WebButtonBox1.Text Then
-    $sValue = WebButtonBox1.Text
+  If Exist($Path &/ $sKey) Then
+    $sValue = $Path &/ $sKey
     Me.Close(True)
   Else
     Me.Close()
