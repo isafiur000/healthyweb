@@ -3019,6 +3019,7 @@ Public Function GetReportVarImages($encid As String, $Line As String) As String
 
   Dim xpatimage As String
   Dim xpatbar As String
+  Dim xbase64 As String
 
   If (String.InStr($Line, "PatientImage") > 0) Then
     If $encid Then
@@ -3037,7 +3038,18 @@ Public Function GetReportVarImages($encid As String, $Line As String) As String
     If $encid Then
       xpatbar = modDevAll.GetBarCodeWithOptions($encid)
       If xpatbar Then
-        $Line = Replace($Line, "{PatientBarCode}", modPrint.GetFileWebURL(xpatbar))
+
+        If modBasic.$BarCodeBase64Img = "Yes" Then
+          xbase64 = modDevAll.GetFileToBase64Str(xpatbar)
+          If xbase64 Then
+            $Line = Replace($Line, "{PatientBarCode}", "data:image/png;base64," & xbase64)
+          Else
+            $Line = Replace($Line, "{PatientBarCode}", modPrint.GetFileWebURL(xpatbar))
+          Endif
+        Else
+          $Line = Replace($Line, "{PatientBarCode}", modPrint.GetFileWebURL(xpatbar))
+        Endif
+
       Else
         $Line = Replace($Line, "{PatientBarCode}", "")
       Endif
@@ -3050,7 +3062,18 @@ Public Function GetReportVarImages($encid As String, $Line As String) As String
     If $encid Then
       xpatbar = modDevAll.MakeQRCode($encid)
       If xpatbar Then
-        $Line = Replace($Line, "{PatientQRCode}", modPrint.GetFileWebURL(xpatbar))
+
+        If modBasic.$BarCodeBase64Img = "Yes" Then
+          xbase64 = modDevAll.GetFileToBase64Str(xpatbar)
+          If xbase64 Then
+            $Line = Replace($Line, "{PatientQRCode}", "data:image/png;base64," & xbase64)
+          Else
+            $Line = Replace($Line, "{PatientQRCode}", modPrint.GetFileWebURL(xpatbar))
+          Endif
+        Else
+          $Line = Replace($Line, "{PatientQRCode}", modPrint.GetFileWebURL(xpatbar))
+        Endif
+
       Else
         $Line = Replace($Line, "{PatientQRCode}", "")
       Endif
@@ -3093,6 +3116,13 @@ Public Function GetPortalLinkQRCode($encid As String, sType As String) As String
   Dim xurLink As String
   Dim xval As String
   Dim xfinal As String
+  Dim xbase64 As String
+
+  If modBasic.$BarCodeBase64Img = "Yes" Then
+    xfinal = ""
+  Else
+    xfinal = modBasic.$BlankImage
+  Endif
 
   xurLink = modSettings.ShowSettingFromFIle(sType & "/QRCodeLink")
   If xurLink Then
@@ -3108,13 +3138,19 @@ Public Function GetPortalLinkQRCode($encid As String, sType As String) As String
       xval = modGeneral.GetQRCodeRemoteReport($encid, modBasic.$PatPortalURL, "portal")
     Endif
     If xval Then
-      xfinal = modPrint.GetFileWebURL(xval)
-    Else
-      xfinal = modBasic.$BlankImage
-    Endif
 
-  Else
-    xfinal = modBasic.$BlankImage
+      If modBasic.$BarCodeBase64Img = "Yes" Then
+        xbase64 = modDevAll.GetFileToBase64Str(xval)
+        If xbase64 Then
+          xfinal = "data:image/png;base64," & xbase64
+        Else
+          xfinal = modPrint.GetFileWebURL(xval)
+        Endif
+      Else
+        xfinal = modPrint.GetFileWebURL(xval)
+      Endif
+
+    Endif
   Endif
 
   Return xfinal
@@ -3126,59 +3162,79 @@ Public Function GetBarcodeImage($encid As String, Optional sHash As String) As S
   Dim barcode As String
   Dim xval As String
   Dim xpatimg As String
+  Dim xbase64 As String
+
+  If modBasic.$BarCodeBase64Img = "Yes" Then
+    barcode = ""
+  Else
+    barcode = modBasic.$BlankImage
+  Endif
 
   xpatimg = modSettings.ShowSettingFromFIle("ReportFormat/PatientImage")
   If xpatimg = "No Image" Then
-    barcode = modBasic.$BlankImage
-
-  Else If xpatimg = "Portal QR" Then
-    If sHash Then
-      If $encid Then
-        xval = modGeneral.GetQRCodeRemoteReport($encid, modBasic.$PatPortalURL, $encid & "@" & sHash)
-        If xval Then
-          barcode = modPrint.GetFileWebURL(xval)
-        Else
-          barcode = modBasic.$BlankImage
-        Endif
-      Endif
-    Else
-      barcode = modBasic.$BlankImage
-    Endif
-
   Else If xpatimg = "Photograph" Then
     If $encid Then
       xval = modImage.DisplayPersonImageData("Patient", modPatient.GetPatientNoByEnc($encid))
       If xval Then
         barcode = modPrint.GetFileWebURL(xval)
-      Else
-        barcode = modBasic.$BlankImage
       Endif
-    Else
-      barcode = modBasic.$BlankImage
+    Endif
+
+  Else If xpatimg = "Portal QR" Then
+    If $encid And If sHash Then
+      xval = modGeneral.GetQRCodeRemoteReport($encid, modBasic.$PatPortalURL, $encid & "@" & sHash)
+      If xval Then
+
+        If modBasic.$BarCodeBase64Img = "Yes" Then
+          xbase64 = modDevAll.GetFileToBase64Str(xval)
+          If xbase64 Then
+            barcode = "data:image/png;base64," & xbase64
+          Else
+            barcode = modPrint.GetFileWebURL(xval)
+          Endif
+        Else
+          barcode = modPrint.GetFileWebURL(xval)
+        Endif
+
+      Endif
     Endif
 
   Else If xpatimg = "Bar Code" Then
     If $encid Then
       xval = modDevAll.GetBarCodeWithOptions($encid)
       If xval Then
-        barcode = modPrint.GetFileWebURL(xval)
-      Else
-        barcode = modBasic.$BlankImage
+
+        If modBasic.$BarCodeBase64Img = "Yes" Then
+          xbase64 = modDevAll.GetFileToBase64Str(xval)
+          If xbase64 Then
+            barcode = "data:image/png;base64," & xbase64
+          Else
+            barcode = modPrint.GetFileWebURL(xval)
+          Endif
+        Else
+          barcode = modPrint.GetFileWebURL(xval)
+        Endif
+
       Endif
-    Else
-      barcode = modBasic.$BlankImage
     Endif
 
   Else
     If $encid Then
       xval = modDevAll.MakeQRCode($encid)
       If xval Then
-        barcode = modPrint.GetFileWebURL(xval)
-      Else
-        barcode = modBasic.$BlankImage
+
+        If modBasic.$BarCodeBase64Img = "Yes" Then
+          xbase64 = modDevAll.GetFileToBase64Str(xval)
+          If xbase64 Then
+            barcode = "data:image/png;base64," & xbase64
+          Else
+            barcode = modPrint.GetFileWebURL(xval)
+          Endif
+        Else
+          barcode = modPrint.GetFileWebURL(xval)
+        Endif
+
       Endif
-    Else
-      barcode = modBasic.$BlankImage
     Endif
 
   Endif
@@ -3192,12 +3248,24 @@ Public Function GetBarCodeCustom($Line As String) As String
 
   Dim xx As String
   Dim xval As String
+  Dim xbase64 As String
 
   If (String.InStr($Line, "$BarCode[") > 0) Then
     xx = modString.GetSelectedTextBetween($Line, "$BarCode[", "]")
     xval = modDevAll.GetBarCodeWithOptions(xx)
     If xval Then
-      $Line = Replace($Line, "$BarCode[" & xx & "]", modPrint.GetFileWebURL(Trim(xval)))
+
+      If modBasic.$BarCodeBase64Img = "Yes" Then
+        xbase64 = modDevAll.GetFileToBase64Str(xval)
+        If xbase64 Then
+          $Line = Replace($Line, "$BarCode[" & xx & "]", "data:image/png;base64," & xbase64)
+        Else
+          $Line = Replace($Line, "$BarCode[" & xx & "]", modPrint.GetFileWebURL(xval))
+        Endif
+      Else
+        $Line = Replace($Line, "$BarCode[" & xx & "]", modPrint.GetFileWebURL(xval))
+      Endif
+
     Else
       $Line = Replace($Line, "$BarCode[" & xx & "]", "")
     Endif
@@ -3210,12 +3278,24 @@ Public Function GetQRCodeCustom($Line As String) As String
 
   Dim xx As String
   Dim xval As String
+  Dim xbase64 As String
 
   If (String.InStr($Line, "$QRCode[") > 0) Then
     xx = modString.GetSelectedTextBetween($Line, "$QRCode[", "]")
     xval = modDevAll.MakeQRCode(xx)
     If xval Then
-      $Line = Replace($Line, "$QRCode[" & xx & "]", modPrint.GetFileWebURL(Trim(xval)))
+
+      If modBasic.$BarCodeBase64Img = "Yes" Then
+        xbase64 = modDevAll.GetFileToBase64Str(xval)
+        If xbase64 Then
+          $Line = Replace($Line, "$QRCode[" & xx & "]", "data:image/png;base64," & xbase64)
+        Else
+          $Line = Replace($Line, "$QRCode[" & xx & "]", modPrint.GetFileWebURL(xval))
+        Endif
+      Else
+        $Line = Replace($Line, "$QRCode[" & xx & "]", modPrint.GetFileWebURL(xval))
+      Endif
+
     Else
       $Line = Replace($Line, "$QRCode[" & xx & "]", "")
     Endif

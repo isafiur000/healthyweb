@@ -1589,3 +1589,72 @@ Catch
   modHelpVariable.CreateErrorReport()
 
 End
+
+Public Sub AlterServiceScheme(xIndex As Long, xNewpack As String)
+
+  Dim res As Result
+  Dim xitem As String
+  Dim res1 As Result
+
+  Dim rte As Float
+  Dim disc As Float
+  Dim tax As Float
+  Dim xdue As Float
+  Dim xdscamt As Float
+  Dim xtaxamt As Float
+  Dim xtotamt As Float
+
+  res1 = modDatabase.$myConn.Exec("select fldbillingmode,fldacledger,fldreference,fldbilltype from tbldiscount where fldtype=&1", xNewpack)
+  If res1.Available Then
+    res = modDatabase.$myConn.Edit("tblpatbilling", "fldid=&1", xIndex)
+    If res.Available Then
+
+      xitem = modNonMedical.GetMappedService(res["fldbillingmode"], res["flditemname"], res1["fldbillingmode"])
+      If xitem Then
+        rte = modNonMedical.GetCashBillItemCost(xitem, res["flditemtype"])
+        If res["flddiscper"] Then
+          disc = res["flddiscper"]
+        Else
+          disc = 0
+        Endif
+        If res["fldtaxper"] Then
+          tax = res["fldtaxper"]
+        Else
+          tax = 0
+        Endif
+        xdue = rte * res["flditemqty"]
+        xdscamt = xdue * (disc / 100)
+        xtaxamt = xdue * (1 - disc / 100) * (tax / 100)
+        xtotamt = xdue * (1 - disc / 100) * (1 + tax / 100)
+
+        res["flditemname"] = xitem
+        res["flditemrate"] = rte
+        res["fldtaxamt"] = xtaxamt
+        res["flddiscamt"] = xdscamt
+        If modBasic.$BillSubsidyMode = "Enable" Then
+          res["fldsubsidy"] = xdscamt
+        Endif
+        res["fldditemamt"] = xtotamt
+
+        res["flddisctype"] = xNewpack
+        If res1["fldbilltype"] Then
+          res["fldbilltype"] = res1["fldbilltype"]
+        Endif
+        If res1["fldbillingmode"] Then
+          res["fldbillingmode"] = res1["fldbillingmode"]
+        Endif
+        If res1["fldacledger"] Then
+          res["fldacledger"] = res1["fldacledger"]
+        Endif
+        If res1["fldbilltype"] = "Cash" Then
+          res["fldcashincredit"] = 0
+        Else
+          res["fldcashincredit"] = modNonMedical.CashInCreditPerForCategory(xNewpack, res["flditemtype"], res["flditemname"], res1["fldbillingmode"])
+        Endif
+        res.Update
+      Endif
+
+    Endif
+  Endif
+
+End

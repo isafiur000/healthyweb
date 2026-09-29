@@ -3,6 +3,7 @@
 Private $sLink As String
 Private $encid As String
 Private $sType As String
+Private $pageOpt As String[]
 
 Private $exportPath As String
 
@@ -26,6 +27,7 @@ Public Sub _new(sLink As String, sLock As Boolean, encid As String, sType As Str
   Endif
 
   xfile = File.Load($sLink)
+  ' xfile = Replace(xfile, "<style>", "<style>" & gb.NewLine & GetPageDesign())
   If InStr(xfile, modReportVar.$HTMLStart) > 0 Then
     WebView1.Html = modString.GetSelectedText(xfile, modReportVar.$HTMLStart, modReportVar.$HTMLEnd)
   Else
@@ -44,6 +46,63 @@ End
 Public Sub btnclose_Click()
 
   Me.Close()
+
+End
+
+Private Function GetPageDesign() As String
+
+  Dim sPrt As String
+  Dim xleftmargin As String
+  Dim xrightmargin As String
+  Dim xtopmargin As String
+  Dim xbottommargin As String
+  Dim xpapsize As String
+  Dim xorient As String
+  Dim xList As String[]
+  Dim xpage As String
+
+  xList = New String[]
+  sPrt = "Report"
+  xleftmargin = modSettings.ShowSettingFromFIle(sPrt & "/PDF_LeftMargin")
+  If xleftmargin Then
+    xList.Add("margin-left: " & CStr(xleftmargin) & "mm;")
+  Else
+    xList.Add("margin-left: 10mm;")
+  Endif
+  xrightmargin = modSettings.ShowSettingFromFIle(sPrt & "/PDF_RightMargin")
+  If xrightmargin Then
+    xList.Add("margin-right: " & CStr(xrightmargin) & "mm;")
+  Else
+    xList.Add("margin-right: 10mm;")
+  Endif
+  xtopmargin = modSettings.ShowSettingFromFIle(sPrt & "/PDF_TopMargin")
+  If xtopmargin Then
+    xList.Add("margin-top: " & CStr(xtopmargin) & "mm;")
+  Else
+    xList.Add("margin-top: 10mm;")
+  Endif
+  xbottommargin = modSettings.ShowSettingFromFIle(sPrt & "/PDF_BottomMargin")
+  If xbottommargin Then
+    xList.Add("margin-top: " & CStr(xbottommargin) & "mm;")
+  Else
+    xList.Add("margin-top: 10mm;")
+  Endif
+
+  xpapsize = modSettings.ShowSettingFromFIle(sPrt & "/PDF_PaperSize")
+  If Not xpapsize Then
+    xpapsize = "A4"
+  Endif
+  xorient = modSettings.ShowSettingFromFIle(sPrt & "/PDF_Orientation")
+  If Not xorient Then
+    xorient = "portrait"
+  Endif
+  If xpapsize And If xorient Then
+    xList.Add("size: " & xpapsize & " " & xorient & ";")
+  Endif
+
+  xpage = "@page {" & xList.Join(gb.NewLine) & "}"
+
+  Return xpage
 
 End
 
@@ -146,52 +205,10 @@ End
 
 Public Sub mnupdfsave_Click()
 
-  Dim sPrt As String
-  Dim xleftmargin As String
-  Dim xrightmargin As String
-  Dim xtopmargin As String
-  Dim xbottommargin As String
-  Dim xpapsize As String
-  Dim xorient As String
-  Dim xout As String
-  Dim aList As String
-
-  sPrt = "Report"
-  xleftmargin = modSettings.ShowSettingFromFIle(sPrt & "/PDF_LeftMargin")
-  If Not xleftmargin Then
-    xleftmargin = "10"
-  Endif
-  xrightmargin = modSettings.ShowSettingFromFIle(sPrt & "/PDF_RightMargin")
-  If Not xrightmargin Then
-    xrightmargin = "10"
-  Endif
-  xtopmargin = modSettings.ShowSettingFromFIle(sPrt & "/PDF_TopMargin")
-  If Not xtopmargin Then
-    xtopmargin = "10"
-  Endif
-  xbottommargin = modSettings.ShowSettingFromFIle(sPrt & "/PDF_BottomMargin")
-  If Not xbottommargin Then
-    xbottommargin = "10"
-  Endif
-
-  xpapsize = modSettings.ShowSettingFromFIle(sPrt & "/PDF_PaperSize")
-  If Not xpapsize Then
-    xpapsize = "a4"
-  Else
-    xpapsize = LCase(xpapsize)
-  Endif
-  xorient = modSettings.ShowSettingFromFIle(sPrt & "/PDF_Orientation")
-  If Not xorient Then
-    xorient = "portrait"
-  Else
-    xorient = LCase(xorient)
-  Endif
-  xout = modString.GetDateString(Now()) & ".pdf"
-
-  aList = "'" & xout & "', '" & xpapsize & "', '" & xorient & "', " & xtopmargin & ", " & xleftmargin & ", " & xbottommargin & ", " & xrightmargin
-
   If $sLink Then
-    Me.Exec("html2pdfdocs( " & aList & " )")
+    ' Me.Exec("convertHtmlToPdf('.content', 'report');")
+    ' Me.Exec("convertHtmlToPdf('.content', 'report', {format: 'a4', pagination: true, compress: true, marginPt: [36, 24, 36, 36], watermark: {imageUrl: ''},})")
+    Me.Exec("convertHtmlToPdf('.content', 'report', {" & $pageOpt.Join(", ") & "},);")
   Endif
 
 End
@@ -219,6 +236,13 @@ Public Sub btnsavepdf_Click()
     If modBasic.$ReportLogSave = "Yes" Then
       modImage.SaveReportLog("Save", $sLink, $encid)
     Endif
+    $pageOpt = New String[]
+    $pageOpt.Add("format: 'a4'")
+    $pageOpt.Add("pagination: true")
+    $pageOpt.Add("compress: true")
+    $pageOpt.Add("marginPt: [36, 24, 36, 36]")
+    $pageOpt.Add("watermark: {imageUrl: ''}")
+
     mnupdfsave_Click()
   Endif
 

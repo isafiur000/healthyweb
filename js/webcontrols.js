@@ -70,17 +70,67 @@ function ExportToExcel(TableID,type, fn, dl) {
   XLSX.writeFile(wb, fn || ('MySheetName.' + (type || 'xlsx')));
 }
 
-function html2pdfdocs(xoutput, xpapsize, xorient, xtopmargin, xleftmargin, xbottommargin, xrightmargin) {
-  // Get the element.
-  var element = document.getElementById('printable@report');
+/**
+* Converts an HTML element to a PDF and downloads it with a unique filename.
+*
+* @param {string} elementSelector - CSS selector for the HTML element to convert.
+* @param {string} baseName         - Base name for the downloaded file (without extension).
+* @param {Object} [options]        - Optional dompdf.js options.
+* @param {string}  [options.format='a4']       - Page size: 'a4', 'a3', 'letter', etc.
+* @param {boolean} [options.pagination=true]   - Enable automatic page breaks.
+* @param {boolean} [options.compress=true]     - Compress the output PDF.
+* @param {string}  [options.filenamePrefix=''] - Optional prefix added before baseName.
+* @param {boolean} [options.uniqueFilename=true] - Append timestamp + random suffix.
+* @returns {Promise<string>} - Resolves with the final filename used.
+*/
+async function convertHtmlToPdf(elementSelector, baseName = 'document', options = {}) {
+  const {
+    format         = 'a4',
+    pagination     = true,
+    useCORS        = true,
+    compress       = true,
+    marginPt       = [36, 36, 36, 36], // [top, right, bottom, left] in points
+    filenamePrefix = '',
+    uniqueFilename = true,
+    watermark      = {imageUrl: '/favicon.png', imageWidth: 595, opacity: 0.1, spacing: [0, 0], layer: 'over'},
+  } = options;
 
-  // Generate the PDF.
-  html2pdf().from(element).set({
-      margin: [xtopmargin, xleftmargin, xbottommargin, xrightmargin],
-      filename: xoutput,
-      html2canvas: { scale: 1 },
-      jsPDF: {orientation: xorient, unit: 'mm', format: xpapsize, compressPDF: false}
-  }).save();
+  const element = document.querySelector(elementSelector);
+  if (!element) {
+    throw new Error(`Element not found: ${elementSelector}`);
+  }
+
+  // Generate the PDF using dompdf.js
+  const blob = await dompdf(element, {
+      format: format,
+      useCORS: useCORS,
+      pagination: pagination,
+      marginPt: marginPt, // pass through if the library version supports it
+      compress: compress,
+      watermark: watermark,
+  });
+
+  // Build a unique filename
+  let filename;
+  if (uniqueFilename) {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const random = Math.random().toString(36).substring(2, 7);
+    filename = `${filenamePrefix}${baseName}-${timestamp}-${random}.pdf`;
+    } else {
+    filename = `${filenamePrefix}${baseName}.pdf`;
+  }
+
+  // Trigger download
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  return filename;
 }
 
 // autocomplete for textarea
@@ -197,32 +247,6 @@ async function handleUpload(key) {
   return key1;
   // use key here
 }
-
-//QR Scan
-function domReady(fn) {
-  if (
-      document.readyState === "complete" ||
-    document.readyState === "interactive"
-    ) {
-    setTimeout(fn, 1000);
-    } else {
-    document.addEventListener("DOMContentLoaded", fn);
-  }
-}
-
-domReady(function () {
-    // If found you qr code
-    function onScanSuccess(decodeText, decodeResult) {
-      qrvalue = decodeText, decodeResult;
-      //alert("You QR String is : " + qrvalue);
-    }
-
-    let htmlscanner = new Html5QrcodeScanner(
-      "my-qr-reader",
-      { fps: 10, qrbos: 250, supportedScanTypes: [ Html5QrcodeScanType.SCAN_TYPE_CAMERA ] }
-    );
-    htmlscanner.render(onScanSuccess);
-});
 
 /* //Record audio and upload every 15 sec
 async function startAudioRecording() {

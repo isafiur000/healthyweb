@@ -7,7 +7,7 @@ const PHOTO_QUALITY = 0.92;               // 0..1, only for image/jpeg
 const preview     = document.querySelector('.preview');      // <video>
 const snapshot    = document.querySelector('.snapshot');     // <img>
 const startBtn    = document.querySelector('.startBtn');
-const stopBtn     = document.querySelector('.stopBtn');
+// const stopBtn     = document.querySelector('.stopBtn');
 const captureBtn  = document.querySelector('.captureBtn');
 const downloadBtn = document.querySelector('.downloadBtn');
 const uploadBtn   = document.querySelector('.uploadBtn');
@@ -34,7 +34,7 @@ startBtn.addEventListener('click', async () => {
       await preview.play();
 
       startBtn.disabled   = true;
-      stopBtn.disabled    = false;
+      /* stopBtn.disabled    = false; */
       captureBtn.disabled = false;
       setStatus('Camera ready.');
       } catch (err) {
@@ -44,10 +44,10 @@ startBtn.addEventListener('click', async () => {
 });
 
 // ---------- 5. Stop camera ----------
-stopBtn.addEventListener('click', () => {
+/* stopBtn.addEventListener('click', () => {
     stopCamera();
     setStatus('Camera stopped.');
-});
+}); */
 
 function stopCamera() {
   if (mediaStream) {
@@ -57,7 +57,7 @@ function stopCamera() {
   preview.srcObject = null;
 
   startBtn.disabled   = false;
-  stopBtn.disabled    = true;
+  /* stopBtn.disabled    = true; */
   captureBtn.disabled = true;
 }
 
@@ -80,6 +80,10 @@ captureBtn.addEventListener('click', () => {
 
     const ctx = canvas.getContext('2d');
     ctx.drawImage(preview, 0, 0, w, h);
+    
+    //stop camera
+    stopCamera();
+    setStatus('Camera stopped.');
 
     // Convert canvas → blob (async)
     canvas.toBlob(
@@ -102,7 +106,7 @@ captureBtn.addEventListener('click', () => {
         uploadBtn.disabled   = false;
 
         setStatus(` Photo captured (${(blob.size / 1024).toFixed(1)} KB)`);
-        },
+      },
       PHOTO_FORMAT,
       PHOTO_QUALITY
     );
@@ -110,53 +114,53 @@ captureBtn.addEventListener('click', () => {
 
 // ---------- 7. Download locally ----------
 downloadBtn.addEventListener('click', () => {
-  if (!photoBlob) return;
+    if (!photoBlob) return;
 
-  const ext = PHOTO_FORMAT.includes('png') ? 'png' : 'jpg';
-  const url = URL.createObjectURL(photoBlob);
-  const a   = document.createElement('a');
+    const ext = PHOTO_FORMAT.includes('png') ? 'png' : 'jpg';
+    const url = URL.createObjectURL(photoBlob);
+    const a   = document.createElement('a');
 
-  a.href     = url;
-  a.download = `photo-${Date.now()}.${ext}`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+    a.href     = url;
+    a.download = `photo-${Date.now()}.${ext}`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
 });
 
 // ---------- 8. Upload to backend ----------
 uploadBtn.addEventListener('click', async () => {
-  if (!photoBlob) return;
+    if (!photoBlob) return;
 
-  const formData = new FormData();
-  console.log('Blob size:', photoBlob.size, 'type:', photoBlob.type);
-  formData.append('file', photoBlob);
-  formData.append('name', photoBlob.name);
+    const formData = new FormData();
+    console.log('Blob size:', photoBlob.size, 'type:', photoBlob.type);
+    formData.append('file', photoBlob);
+    formData.append('name', photoBlob.name);
 
-  uploadBtn.disabled = true;
-  setStatus('⏫ Uploading…');
+    uploadBtn.disabled = true;
+    setStatus('⏫ Uploading…');
 
-  try {
-     console.log('$root =', $root);
-     const url = $root + '/upload:' + imagekey;
-     console.log('POSTing to:', url);
-     const response = await fetch(url, { method: 'POST', body: formData });
-     if (!response.ok) throw new Error('Upload failed: ' + response.status);
-     setStatus('✅ Upload successful');
-     } catch (err) {
-        console.error(err);
-        setStatus('❌ Upload failed: ' + err.message);
-     } finally {
-          uploadBtn.disabled = false;
+    try {
+      console.log('$root =', $root);
+      const url = $root + '/upload:' + imagekey;
+      console.log('POSTing to:', url);
+      const response = await fetch(url, { method: 'POST', body: formData });
+      if (!response.ok) throw new Error('Upload failed: ' + response.status);
+      setStatus('✅ Upload successful');
+      } catch (err) {
+      console.error(err);
+      setStatus('❌ Upload failed: ' + err.message);
+      } finally {
+      uploadBtn.disabled = false;
     }
 });
 
 // ---------- 9. Helpers ----------
 function setStatus(msg) {
-   if (statusEl) statusEl.textContent = msg;
+  if (statusEl) statusEl.textContent = msg;
 }
 
 // Release the camera when the page unloads
 window.addEventListener('beforeunload', () => {
-   if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
+    if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
 });

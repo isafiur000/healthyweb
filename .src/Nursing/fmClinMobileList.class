@@ -14,48 +14,46 @@ Public Sub _new(sInput As String)
   If $sInput = "Location" Then
     txtlabel.Text = "BedNo"
     wbqrcodescan.Visible = True
-    WebHBox1.Visible = True
+    wbscanpanel.Visible = True
     wbward.Visible = False
   Else If $sInput = "Encounter" Then
     txtlabel.Text = "EncID"
-    WebHBox1.Visible = True
+    wbscanpanel.Visible = True
     wbqrcodescan.Visible = True
     wbward.Visible = False
   Else
     wbqrcodescan.Visible = False
-    WebHBox1.Visible = False
+    wbscanpanel.Visible = False
     wbward.Visible = True
     FillBedGrid()
   Endif
+
   modBasic.$TabletModeEnable = "Yes"
   $UserRestrict = modBasic.$ClinicDisableCompo
   If modHelpVariable.$LogInCategory = "Clinician" Then
     GetComboItemList()
     WebContainer2.Visible = True
   Endif
+  mnupload_Click()
 
 End
 
-Public Sub wbqrcodescan_Render()
+Public Sub mnupload_Click()
 
-  Print "<div id='my-qr-reader'></div>"
+  Dim sfile As String
 
-End
-
-Public Sub WebTimer1_Timer()
-
-  WebTimer1.Enabled = False
-  Select $sInput
-    Case "Location", "Encounter"
-      WebForm.Current.Reload()
-  End Select
+  sfile = File.Load("jv/qr-scanner.js")
+  Me.Exec(sfile)
 
 End
 
 Public Sub btncopy_Click()
 
+  Dim asx As String
+
   txtvalue.SetFocus
-  asx = "$_(" & JS(txtvalue.Name & ":entry") & ").value = qrvalue;"
+  asx = "qrvalue = " & "$_(" & JS(WebLabel1.Name) & ").innerHTML;"
+  asx = asx & "$_(" & JS(txtvalue.Name & ":entry") & ").value = qrvalue;"
   asx = asx & " gw.update(" & JS(txtvalue.Name) & ", 'text', qrvalue);"
   Me.Exec(asx)
 
