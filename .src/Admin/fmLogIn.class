@@ -5,6 +5,8 @@ Export
 ''NEED TO DO: $ sudo mkdir /var/www/html/docs
 ''NEED TO DO: $ sudo chmod -R a+rwx /var/www/html/docs
 
+Private hCaptcha As FmCheckCaptcha
+
 Static Public Sub _init()
 
   Env["GB_WEB_GUI_DEBUG"] = "1"
@@ -123,6 +125,20 @@ Public Sub btnChange_Click()
 
 End
 
+Private Sub LoadCaptchaImage()
+
+  If wbCaptcha.Children.Count Then
+    wbCaptcha.DeleteChildren()
+  Endif
+  If modHelpVariable.$CaptchaVerify = "Yes" Then
+    hCaptcha = New FmCheckCaptcha(wbCaptcha)
+    hCaptcha.SetCaptchaImage()
+  Else
+    wbCaptcha.Visible = False
+  Endif
+
+End
+
 Public Sub btnOK_Click()
 
   Dim res2 As Result
@@ -141,6 +157,7 @@ Public Sub btnOK_Click()
   modHelpVariable.ConnectionMain()
   modGeneralMain.EnableCollectionCache()
   modTableCache.InitializeTableCache()
+  LoadCaptchaImage()
   If modDatabase.$myConn.Opened = True Then
 
     xgo = modDBApp.DateTimeDiffChecking()
@@ -256,100 +273,111 @@ Public Sub btnselect_Click()
 
   Dim res As Result
   Dim rs1 As Result
+  Dim xgo As Boolean
 
-  If Not modBasic.$compID Then
-    modBasic.$compID = Trim(cmbtarget.Text)
+  If modHelpVariable.$CaptchaVerify = "Yes" Then
+    xgo = hCaptcha.CaptchaValue()
+  Else
+    xgo = True
   Endif
-  If modBasic.$compID Then
-    If modPassword.GetLoginAuthentication(Trim(txtuser.text), modBasic.$compID) = True Then
-      rs1 = modDatabase.$myConn.Exec("select fldid,fldcomp from tblcompaccess where flduserid=&1 and fldcomp=&2", Trim(txtuser.text), modBasic.$compID)
-      If rs1.Available = False Then
-        Me.Exec("Toastify({text: 'Access to this Computer not granted', duration: 3000}).showToast()")
-      Else
-        rs1.MoveFirst
-        modBasic.$compID = rs1["fldcomp"]
 
-        res = modDatabase.$myConn.Exec("select fldaccess from tbluseraccess where flduserid=&1 and fldaccess=&2", Trim(txtuser.text), Base64(cmbusname.Text))
-        If res.Available = False Then
-          Me.Exec("Toastify({text: 'Access not granted for one/all department', duration: 3000}).showToast()")
-        Else If res.Available = True Then
-          res.MoveFirst
-          modBasic.DebugString("Log In User is " & Trim(txtuser.Text) & "@" & cmbusname.Text)
+  If xgo = True Then
+    If Not modBasic.$compID Then
+      modBasic.$compID = Trim(cmbtarget.Text)
+    Endif
+    If modBasic.$compID Then
+      If modPassword.GetLoginAuthentication(Trim(txtuser.text), modBasic.$compID) = True Then
+        rs1 = modDatabase.$myConn.Exec("select fldid,fldcomp from tblcompaccess where flduserid=&1 and fldcomp=&2", Trim(txtuser.text), modBasic.$compID)
+        If rs1.Available = False Then
+          Me.Exec("Toastify({text: 'Access to this Computer not granted', duration: 3000}).showToast()")
+        Else
+          rs1.MoveFirst
+          modBasic.$compID = rs1["fldcomp"]
 
-          If MMain.$SISHAppMode = "Nursing" Then
-            modHelpVariable.$ApplKey = 0
-          Else
-            If optadmin.Value = True And If cmbusname.Text = "Admin" Then
-              modHelpVariable.$ApplKey = 0
-            Else
-              modHelpVariable.$ApplKey = modPassword.ValidateKey()
-            Endif
-          Endif
-          If modHelpVariable.$ApplKey = 3 Then
-            Return
-          Else
+          res = modDatabase.$myConn.Exec("select fldaccess from tbluseraccess where flduserid=&1 and fldaccess=&2", Trim(txtuser.text), Base64(cmbusname.Text))
+          If res.Available = False Then
+            Me.Exec("Toastify({text: 'Access not granted for one/all department', duration: 3000}).showToast()")
+          Else If res.Available = True Then
+            res.MoveFirst
+            modBasic.DebugString("Log In User is " & Trim(txtuser.Text) & "@" & cmbusname.Text)
 
             If MMain.$SISHAppMode = "Nursing" Then
-              WebForm.Current = fmNursingMain
+              modHelpVariable.$ApplKey = 0
             Else
-              If optadmin.Value = True Then
-                If cmbusname.Text = "Medical" Then
-                  WebForm.Current = fmMedical
-                Else If cmbusname.Text = "Record" Then
-                  WebForm.Current = fmRecord
-                Else If cmbusname.Text = "Admin" Then
-                  WebForm.Current = fmAdmin
-                Endif
+              If optadmin.Value = True And If cmbusname.Text = "Admin" Then
+                modHelpVariable.$ApplKey = 0
+              Else
+                modHelpVariable.$ApplKey = modPassword.ValidateKey()
+              Endif
+            Endif
+            If modHelpVariable.$ApplKey = 3 Then
+              Return
+            Else
 
-              Else If optcash.Value = True Then
-                If cmbusname.Text = "Cashier" Then
-                  WebForm.Current = fmCashier
-                Else If cmbusname.Text = "Account" Then
-                  WebForm.Current = fmAccount
-                Endif
+              If MMain.$SISHAppMode = "Nursing" Then
+                WebForm.Current = fmNursingMain
+              Else
+                If optadmin.Value = True Then
+                  If cmbusname.Text = "Medical" Then
+                    WebForm.Current = fmMedical
+                  Else If cmbusname.Text = "Record" Then
+                    WebForm.Current = fmRecord
+                  Else If cmbusname.Text = "Admin" Then
+                    WebForm.Current = fmAdmin
+                  Endif
 
-              Else If optlab.Value = True Then
-                If cmbusname.Text = "Technologist" Then
-                  WebForm.Current = fmTechnologist
-                Else If cmbusname.Text = "Technician" Then
-                  WebForm.Current = fmTechnician
-                Endif
+                Else If optcash.Value = True Then
+                  If cmbusname.Text = "Cashier" Then
+                    WebForm.Current = fmCashier
+                  Else If cmbusname.Text = "Account" Then
+                    WebForm.Current = fmAccount
+                  Endif
 
-              Else If optclinic.Value = True Then
-                If cmbusname.Text = "Consultant" Then
-                  WebForm.Current = fmConsultant
-                Else If cmbusname.Text = "Clinician" Then
-                  WebForm.Current = fmOfficer
-                Else If cmbusname.Text = "Research" Then
-                  WebForm.Current = fmResearch
-                Endif
+                Else If optlab.Value = True Then
+                  If cmbusname.Text = "Technologist" Then
+                    WebForm.Current = fmTechnologist
+                  Else If cmbusname.Text = "Technician" Then
+                    WebForm.Current = fmTechnician
+                  Endif
 
-              Else If optstore.Value = True Then
-                If cmbusname.Text = "Purchase" Then
-                  WebForm.Current = fmPurchase
-                Else If cmbusname.Text = "Store" Then
-                  WebForm.Current = fmStore
-                Endif
+                Else If optclinic.Value = True Then
+                  If cmbusname.Text = "Consultant" Then
+                    WebForm.Current = fmConsultant
+                  Else If cmbusname.Text = "Clinician" Then
+                    WebForm.Current = fmOfficer
+                  Else If cmbusname.Text = "Research" Then
+                    WebForm.Current = fmResearch
+                  Endif
 
-              Else If optphm.Value = True Then
-                If cmbusname.Text = "Pharmacist" Then
-                  WebForm.Current = fmPharmacist
-                Else If cmbusname.Text = "Dispensar" Then
-                  WebForm.Current = fmDispensar
+                Else If optstore.Value = True Then
+                  If cmbusname.Text = "Purchase" Then
+                    WebForm.Current = fmPurchase
+                  Else If cmbusname.Text = "Store" Then
+                    WebForm.Current = fmStore
+                  Endif
+
+                Else If optphm.Value = True Then
+                  If cmbusname.Text = "Pharmacist" Then
+                    WebForm.Current = fmPharmacist
+                  Else If cmbusname.Text = "Dispensar" Then
+                    WebForm.Current = fmDispensar
+                  Endif
                 Endif
               Endif
+
             Endif
 
           Endif
 
         Endif
 
+      Else
+        Me.Exec("Toastify({text: 'Authentication Error', duration: 3000}).showToast()")
       Endif
-
-    Else
-      Me.Exec("Toastify({text: 'Authentication Error', duration: 3000}).showToast()")
-    Endif
-  Endif  ''comp
+    Endif  ''comp
+  Else
+    Me.Exec("Toastify({text: 'Incorrect Captcha', duration: 3000}).showToast()")
+  Endif
 
 End
 

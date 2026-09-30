@@ -1,0 +1,171 @@
+' Gambas class file
+
+'------------------------------------------------------------------
+' Génère une image CAPTCHA de 6 caractères (lettres ou chiffres)
+' Taille et orientation du texte sont aléatoires
+'------------------------------------------------------------------
+
+Private $imgWidth As Integer = 250                  ' largeur de l’image
+Private $imgHeight As Integer = 100                 ' hauteur de l’image
+Private $CharCount As Integer = 6                   ' nombre de caractères du CAPTCHA
+Private $FontList As String[] = ["Arial", "Verdana", "Times New Roman", "Courier New", "cursive", "fantasy"]
+Private $NbreLigne As Integer = 50                  ' Nombre de lignes de bruit
+Private $NbrePoint As Integer = 400                  ' Nombre de points de bruit
+'
+' Jeu de caractères autorisés (lettres majuscules + chiffres)
+Private $CHARS As String = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+Private $imgFolder As String
+
+Public Sub _new(ImageFolder As String)
+
+  $imgFolder = ImageFolder
+
+End
+
+Public Function GetCaptchaCollection() As Collection
+
+  Dim sColl As Collection
+
+  sColl = Generate_Captcha()
+  Return sColl
+
+End
+
+Private Function Generate_Captcha() As Collection
+
+  Dim Result As Collection
+  ' ' Dim NewPicture As Image
+  ' Dim CharPicture As Image
+  ' Dim ImageChar As Image
+  ' Dim ImageTemp As Image
+  '
+  ' Dim img As Image
+  Dim captcha As String
+  Dim xPos As Integer = 20
+  Dim ch As String
+  Dim size As Integer
+  Dim fontName As String
+  ' Dim txtColor As Integer
+  Dim angle As Float
+  ' Dim tmpImage As Image
+  Dim i As Integer
+
+  Dim OriginY As Float
+
+  Dim PointX As Float
+  Dim PointY As Float
+
+  Dim ImageTest As CairoSvgSurface
+  Dim FichierPNG As String
+
+  FichierPNG = $imgFolder &/ "image-" & Replace(Str(Timer), ",", "") & ".png"
+
+  ImageTest = New CairoSvgSurface(Null, $imgWidth, $imgHeight)
+
+  ' Creation de l'image Captcha
+  Cairo.Begin(ImageTest)
+
+  Cairo.Scale(1, 1)
+
+  Cairo.Source = Cairo.SolidPattern(0, 0, 0)
+
+  Cairo.AntiAlias = Cairo.AntiAliasDefault
+
+  'Cairo.LineWidth = 0.5
+  'Cairo.Rectangle(0, 1, $imgWidth, $imgHeight)
+  'Cairo.Stroke()
+
+  '--- Générer le texte du CAPTCHA ---------------------------------
+  For i = 1 To $CharCount
+    captcha &= Mid$($CHARS, Rnd(1, $CHARS.Len), 1)
+  Next
+
+  '--- Dessiner chaque caractère avec taille et rotation aléatoires ---
+  For i = 1 To $CharCount
+    ch = Mid$(captcha, i, 1)
+
+    Cairo.Save()
+
+    ' Taille aléatoire entre 24 et 36 points
+    size = Rnd(32, 46)
+
+    '--- Police aléatoire parmi la liste ------------------------------
+    fontName = $FontList[Rnd(1, $FontList.Max)]
+
+    ' Angle de rotation entre -30° et +30°
+    'angle = (Rnd(-15, 15) * Pi) / 180
+
+    angle = Rad(Rnd(-10, 10))
+
+    '--- Créer une image temporaire contenant le caractère -----------
+    'CharPicture = New Image(size * 2, size * 2, True)
+
+    Cairo.LineWidth = 1
+
+    Cairo.Font.Name = fontName                ' Set the Font
+    'Cairo.Font.Slant = Cairo.FontSlantItalic     ' Make it Italic
+    Cairo.Font.Weight = Cairo.FontWeightBold      ' Make it Bold
+    Cairo.Font.Size = size                        ' Set the font size in points
+
+    '--- Couleur du texte (contraste avec le fond) --------------------
+    Cairo.Source = Cairo.SolidPattern(Rnd(0, 120) / 255, Rnd(0, 120) / 255, Rnd(0, 120) / 255)
+
+    OriginY = Rnd(20 + size, $imgHeight - size) + 1
+
+    '--- Rotation de l'image Caractère ----------------
+    Cairo.Translate(0, 0)
+    Cairo.Rotate(angle)
+
+    Cairo.MoveTo(xPos, OriginY)
+    Cairo.DrawText(ch)
+
+    Cairo.Stroke()
+
+    Cairo.Restore()
+
+    ' Avancer la position horizontale (espacement aléatoire)
+    xPos += (size * 0.8) + Rnd(2, 7)
+  Next
+
+  '--- Dessiner du bruit de fond (lignes et points) -----------------
+  Cairo.Save()
+
+  For i = 1 To $NbreLigne
+    Cairo.LineWidth = 1
+    Cairo.Source = Cairo.SolidPattern(Rnd(150, 255) / 255, Rnd(150, 255) / 255, Rnd(150, 255) / 255, 1)
+
+    Cairo.MoveTo(Rnd(0, $imgWidth), Rnd(0, $imgHeight) + 1)
+    Cairo.LineTo(Rnd(0, $imgWidth), Rnd(0, $imgHeight) + 1)
+    Cairo.Stroke()
+  Next
+
+  For i = 1 To $NbrePoint
+    PointX = Rnd(0, $imgWidth)
+    PointY = Rnd(0, $imgHeight) + 1
+
+    Cairo.LineWidth = 1
+    Cairo.Source = Cairo.SolidPattern(Rnd(0, 120) / 255, Rnd(0, 120) / 255, Rnd(0, 120) / 255, 1)
+    Cairo.MoveTo(PointX, PointY)
+    Cairo.LineTo(PointX + 1, PointY + 1)
+    Cairo.Stroke()
+  Next
+
+  Cairo.Restore()
+
+  Cairo.End
+
+  ImageTest.Resolution = 75
+  ImageTest.Save(FichierPNG)
+
+  ImageTest.Finish()
+
+  Result = New Collection
+  Result["image"] = FichierPNG
+  Result["captcha"] = captcha
+
+  ' Afficher le texte généré dans la console (pour vérification)
+  'Print "CAPTCHA généré : "; captcha
+
+  Return Result
+
+End

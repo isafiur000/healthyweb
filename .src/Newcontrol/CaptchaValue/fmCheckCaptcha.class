@@ -1,0 +1,64 @@
+' Gambas class file
+
+Private $CaptchaText As String
+Private $CaptchaImg As String
+Private $ListSuppImage As New String[]
+
+Public Sub SetCaptchaImage()
+
+  Generate_Captcha_Image()
+
+End
+
+Public Sub WebButtonNewCaptcha_Click()
+
+  Generate_Captcha_Image()
+
+End
+
+Public Sub Generate_Captcha_Image()
+
+  Dim hCaptcha As CCaptcha
+  Dim ResultCaptcha As Collection
+  Dim ImagePath As String
+
+  hCaptcha = New CCaptcha(modHelpVariable.AppCacheDir)
+  ResultCaptcha = hCaptcha.GetCaptchaCollection()
+  $CaptchaImg = ResultCaptcha["image"]
+  $CaptchaText = ResultCaptcha["captcha"]
+  ImagePath = modPrint.GetFileWebURL($CaptchaImg)
+  WebHtmlCaptcha.Text = "<img src=\"" & ImagePath & "\" class=\"\"/>"
+
+  $ListSuppImage.Add($CaptchaImg)
+  WebTimerDeletePNG.Start()
+  WebTimerDeletePNG.Enabled = True
+
+End
+
+Public Sub WebTimerDeletePNG_Timer()
+
+  Dim PathImage As String
+
+  WebTimerDeletePNG.stop()
+  WebTimerDeletePNG.Enabled = False
+
+  For Each PathImage In $ListSuppImage
+    Try Kill PathImage
+    If Error Then
+      Debug "Erreur: " & Error.Text
+    Endif
+  Next
+
+  $CaptchaImg = ""
+
+End
+
+Public Function CaptchaValue() As Boolean
+
+  If WebTextBox1.Text = $CaptchaText Then
+    Return True
+  Else
+    Return False
+  Endif
+
+End

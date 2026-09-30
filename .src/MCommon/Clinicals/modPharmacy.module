@@ -81,15 +81,74 @@ End
 
 Public Function GetCardexAdministerQTY(encid As String, xStockId As String) As Float
 
-  Dim res As Result
+  Dim xroute As String
   Dim xval As Float
 
+  xroute = modMedicine.GetRouteFromItem(xStockId, "Medicines")
+  Select xroute
+    Case "injection"
+      xval = GetDoseAdminQtyInjection(encid, xStockId)
+    Case Else
+      xval = GetDoseAdminQtyNonInj(encid, xStockId, xroute)
+  End Select
+
+  Return xval
+
+End
+
+Private Function GetDoseAdminQtyNonInj(encid As String, xStockId As String, xroute As String) As Float
+
+  Dim xval As Float
+  Dim res As Result
+
   xval = 0
-  res = modDatabase.$myConn.Exec("select SUM(fldvalue) as xtot from tblnurdosing where fldencounterval=&1 and fldmedicine=&2", encid, xStockId)
+  Select xroute
+    Case "fluid"
+      res = modDatabase.$myConn.Exec("select SUM(COALESCE(fldused, 0) + COALESCE(fldwaste, 0)) as xtot from tblnurdosing where fldencounterval=&1 and fldmedicine=&2", encid, xStockId)
+    Case Else
+      res = modDatabase.$myConn.Exec("select SUM(fldvalue) as xtot from tblnurdosing where fldencounterval=&1 and fldmedicine=&2", encid, xStockId)
+  End Select
+
   If res.Available Then
     If res["xtot"] Then
       xval = res["xtot"]
     Endif
+  Endif
+
+  Return xval
+
+End
+
+Private Function GetDoseAdminQtyInjection(encid As String, xStockId As String) As Float
+
+  Dim xval As Float
+  Dim res As Result
+  Dim xroute As String
+
+  xval = 0
+  res = modDatabase.$myConn.Exec("select fldid,fldvalue,fldused,fldwaste,flddoseno,fldcardex from tblnurdosing where fldencounterval=&1 and fldmedicine=&2", encid, xStockId)
+  If res.Available Then
+    For Each res
+      If res["fldcardex"] Then
+        xroute = modPharmacy.GetRouteFromCardex(res["fldcardex"])
+      Else If res["flddoseno"] Then
+        xroute = modPharmacy.GetRouteFromDosing(res["flddoseno"])
+      Endif
+
+      Select xroute
+        Case "CIV", "CIn(Epid)", "CIn(Block)"
+          If res["fldused"] Then
+            xval = xval + res["fldused"]
+          Endif
+          If res["fldwaste"] Then
+            xval = xval + res["fldwaste"]
+          Endif
+
+        Case Else
+          xval = xval + res["fldvalue"]
+      End Select
+
+    Next
   Endif
 
   Return xval
@@ -168,6 +227,25 @@ Public Function GetDailyDoseFromDosing(dosid As Long) As Float
     Endif
   Else
     xx = 0
+  Endif
+  Return xx
+
+End
+
+Public Function GetDirectionFromDosing(dosid As Long) As String
+
+  Dim res As Result
+  Dim xx As String
+
+  res = modDatabase.$myConn.Exec("select flddirection from tblpatdosing where fldid=&1", dosid)
+  If res.Available Then
+    If res["flddirection"] Then
+      xx = res["flddirection"]
+    Else
+      xx = ""
+    Endif
+  Else
+    xx = ""
   Endif
   Return xx
 

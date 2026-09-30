@@ -241,20 +241,61 @@ Public Sub UpdateCurrentStatus(encid As String, status As String, sComment As Va
 
 End
 
-Public Sub RollbackDischarge(encid As String)
+Public Function RollbackDischarge(encid As String) As String
+
+  Dim rsx As Result
+  Dim xallow As Boolean
+  Dim xcurr As String
+  Dim xbed As String
 
   Dim res As Result
+  Dim res1 As Result
+  Dim xmsg As String
 
-  modDatabase.$myConn.Begin
-  res = modDatabase.$myConn.Edit("tblencounter", "fldencounterval=&1", encid)
-  res["fldadmission"] = "Admitted"
-  res["flddod"] = ""
-  res["fldreferto"] = ""
-  res["xyz"] = False
-  res.Update
+  xcurr = modPatient.GetPatientLocation(encid)
+  xbed = ""
+  rsx = modDatabase.$myConn.Exec("select fldbed,fldencounterval from tbldepartmentbed where fldbed=&1", xcurr)
+  If rsx.Available Then
+    If rsx["fldencounterval"] Then
+      If rsx["fldencounterval"] = encid Then
+        xallow = True
+      Else
+        xallow = False
+      Endif
+    Else
+      xallow = True
+      xbed = rsx["fldbed"]
+    Endif
+  Else
+    xallow = True
+  Endif
 
-  modPatientSub.EnterPatientImpDate(encid, "Admitted", "Discharge Rollback")
-  modDatabase.$myConn.Commit
+  If xallow = True Then
+    modDatabase.$myConn.Begin
+    res = modDatabase.$myConn.Edit("tblencounter", "fldencounterval=&1", encid)
+    res["fldadmission"] = "Admitted"
+    res["flddod"] = ""
+    res["fldreferto"] = ""
+    res["xyz"] = False
+    res.Update
+
+    If xbed Then
+      res1 = modDatabase.$myConn.Edit("tbldepartmentbed", "fldbed=&1", xbed)
+      If res1.Available Then
+        res1["fldencounterval"] = encid
+        res1["fldfreedate"] = ""
+        res1.Update
+      Endif
+    Endif
+
+    modPatientSub.EnterPatientImpDate(encid, "Admitted", "Discharge Rollback")
+    modDatabase.$myConn.Commit
+    xmsg = "Outcome Rollback Completed"
+  Else
+    xmsg = "Outcome Rollback Not Allowed"
+  Endif
+
+  Return xmsg
 
 Catch
   modDatabase.$myConn.Rollback

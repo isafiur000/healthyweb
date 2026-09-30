@@ -213,7 +213,7 @@ Private Sub LoadMedicineGrid()
   Dim sFieldLst As String[]
   Dim sql As String
 
-  sFieldLst = ["fldid", "fldroute", "CONCAT(flditem, '|', COALESCE(fldmixing, ''))", "CONCAT(flditem, '|', flddose)", "fldfreq", "flddays", "fldcurval", "fldqtyorder", "fldid", "flduserid", "fldstarttime", "flditem", "flddirection", "fldadminsite", "fldmixing", "flduserid", "flditem", "fldmixvolume", "fldmixrate", "flddose", "CONCAT(fldroute, '|', flditem, '|', flddose, '|', fldmixvolume, '|', fldmixrate)", "fldcomment"]
+  sFieldLst = ["fldid", "fldroute", "CONCAT(flditem, '|', COALESCE(fldmixing, ''))", "CONCAT(flditem, '|', flddose)", "fldfreq", "flddays", "fldcurval", "fldqtyorder", "fldid", "flduserid", "fldstarttime", "CONCAT(flditem, '|', fldroute)", "flddirection", "fldadminsite", "fldmixing", "flduserid", "flditem", "fldmixvolume", "fldmixrate", "flddose", "CONCAT(fldroute, '|', flditem, '|', flddose, '|', fldmixvolume, '|', fldmixrate)", "fldcomment"]
   If cmbstatus.Text = "%" Then
     sql = "select " & sFieldLst.Join(",") & " from tblinpatdosing where fldencounterval=&1 and (fldmixing IS NULL or fldmixing NOT LIKE &2) ORDER BY fldstarttime DESC"
   Else
@@ -256,7 +256,7 @@ Private Sub LoadMedicineGrid()
     .Columns[7].Text = "QTY"
     .Columns[9].Text = "Doctor"
     .Columns[10].Text = "Start"
-    .Columns[11].Text = "N"
+    .Columns[11].Text = "Q"
     .Columns[12].Text = "Direction"
     .Columns[13].Text = "Admin"
     .Columns[14].Text = "Dilution"
@@ -295,18 +295,26 @@ Private Function GetMedCardex(encid As String, xStockId As String) As String
   Dim xtot As Float
   Dim xadmn As Float
   Dim xicon As String
+  Dim asx As String[]
 
-  If xStockId Then
-    xtot = modPharmacy.GetCardexDispensedQTY(encid, xStockId)
-    xadmn = modPharmacy.GetCardexAdministerQTY(encid, xStockId)
-    If xtot > xadmn Then
-      xicon = "/" &/ Application.Root &/ "icons/coll4.png"
-    Else
-      xicon = "/" &/ Application.Root &/ "icons/coll5.png"
-    Endif
-  Else
-    xicon = ""
-  Endif
+  asx = Split(xStockId, "|")
+  Select asx[1]
+    Case "CIV", "CIn(Epid)", "CIn(Block)"
+      xicon = ""
+
+    Case Else
+      If asx[0] Then
+        xtot = modPharmacy.GetCardexDispensedQTY(encid, asx[0])
+        xadmn = modPharmacy.GetCardexAdministerQTY(encid, asx[0])
+        If xtot > xadmn Then
+          xicon = "/" &/ Application.Root &/ "icons/coll4.png"
+        Else
+          xicon = "/" &/ Application.Root &/ "icons/coll5.png"
+        Endif
+      Else
+        xicon = ""
+      Endif
+  End Select
 
   Return xicon
 
