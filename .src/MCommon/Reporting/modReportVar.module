@@ -27,13 +27,35 @@ Public $FirstExamColl As Collection
 Public $FirstRadioColl As Collection
 Public $FirstLabColl As Collection
 
+Public Function SQLHideTableList() As String[]
+
+  Dim xx As String[]
+  Dim xList As String[]
+
+  xx = New String[]
+  ''application private tables
+  xx.Insert(modLongVar.$PrivSystemTable)
+  ''table made private in setting
+  xList = modGlobalSetting.GetDBTableList("DisableSQLQuery/TableList")
+  If xList And If xList.Count Then
+    xx.Insert(xList)
+  Endif
+  ''Patient privacy in research
+  If modHelpVariable.$LogInCategory = "Student" Then
+    xx.Add("tblpatientinfo")
+  Endif
+
+  Return xx
+
+End
+
 Public Function SQLAllowTableList() As String[]
 
   Dim hTable As Table
   Dim xx As String[]
   Dim xPrivAccTable As String[]
 
-  xPrivAccTable = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select fldvalue as col from tbltabsettings where fldcomp=&1 and fldcategory=&2", modBasic.$compID, "DisableSQLQuery/TableList"))
+  xPrivAccTable = modGlobalSetting.GetDBTableList("DisableSQLQuery/TableList")
   xx = New String[]
   For Each hTable In modDatabase.$myConn.Tables
     If hTable.System = True Then
@@ -2446,7 +2468,7 @@ Public Function GetReporQueryCustom($Line As String) As String
   Dim xval As String
 
   Dim asx As String[]
-  Dim xallowtab As String[]
+  Dim xhidetab As String[]
   Dim xselect As String[]
   Dim xtable As String[]
   Dim xwhere As String[]
@@ -2465,8 +2487,8 @@ Public Function GetReporQueryCustom($Line As String) As String
       xtable = Split(asx[1], "=")
       xwhere = Split(asx[2], "=")
 
-      xallowtab = modBasic.$RepQuerytable
-      If xallowtab.Exist(UnQuote(xtable[1])) = True Then
+      xhidetab = modBasic.$RepHideTables
+      If xhidetab.Exist(UnQuote(xtable[1])) = False Then
         If xselect[0] = "SELECT" And If xtable[0] = "TABLE" And If xwhere[0] = "WHERE" Then
           sql = Subst("SELECT &1 FROM &2 WHERE ", modDBApp.GetSecureSQL(UnQuote(xselect[1])), UnQuote(xtable[1])) & UnQuote(xwhere.Extract(1, xwhere.Count - 1).Join("="))
           res = modDatabase.$myConn.Exec(sql)
@@ -2500,7 +2522,7 @@ Public Function GetReporQueryArrayCustom($Line As String) As String
   Dim xval As String[]
 
   Dim asx As String[]
-  Dim xallowtab As String[]
+  Dim xhidetab As String[]
   Dim xselect As String[]
   Dim xtable As String[]
   Dim xwhere As String[]
@@ -2519,8 +2541,8 @@ Public Function GetReporQueryArrayCustom($Line As String) As String
       xtable = Split(asx[1], "=")
       xwhere = Split(asx[2], "=")
 
-      xallowtab = modBasic.$RepQuerytable
-      If xallowtab.Exist(UnQuote(xtable[1])) = True Then
+      xhidetab = modBasic.$RepHideTables
+      If xhidetab.Exist(UnQuote(xtable[1])) = False Then
         If xselect[0] = "SELECT" And If xtable[0] = "TABLE" And If xwhere[0] = "WHERE" Then
           sql = Subst("SELECT &1 FROM &2 WHERE ", modDBApp.GetSecureSQL(UnQuote(xselect[1])), UnQuote(xtable[1])) & UnQuote(xwhere.Extract(1, xwhere.Count - 1).Join("="))
           xval = New String[]
@@ -2555,7 +2577,7 @@ Public Function GetReporQueryTableCustom($Line As String) As String
   Dim xval As String
 
   Dim asx As String[]
-  Dim xallowtab As String[]
+  Dim xhidetab As String[]
   Dim xselect As String[]
   Dim xtable As String[]
   Dim xwhere As String[]
@@ -2574,8 +2596,8 @@ Public Function GetReporQueryTableCustom($Line As String) As String
       xtable = Split(asx[1], "=")
       xwhere = Split(asx[2], "=")
 
-      xallowtab = modBasic.$RepQuerytable
-      If xallowtab.Exist(UnQuote(xtable[1])) = True Then
+      xhidetab = modBasic.$RepHideTables
+      If xhidetab.Exist(UnQuote(xtable[1])) = False Then
         If xselect[0] = "SELECT" And If xtable[0] = "TABLE" And If xwhere[0] = "WHERE" Then
           sql = Subst("SELECT &1 FROM &2 WHERE ", modDBApp.GetSecureSQL(UnQuote(xselect[1])), UnQuote(xtable[1])) & UnQuote(xwhere.Extract(1, xwhere.Count - 1).Join("="))
           res = modDatabase.$myConn.Exec(sql)
@@ -2622,7 +2644,7 @@ Public Function GetReporQuerySerialTableCustom($Line As String) As String
   Dim xval As String
 
   Dim asx As String[]
-  Dim xallowtab As String[]
+  Dim xhidetab As String[]
   Dim xselect As String[]
   Dim xtable As String[]
   Dim xwhere As String[]
@@ -2642,8 +2664,8 @@ Public Function GetReporQuerySerialTableCustom($Line As String) As String
       xtable = Split(asx[1], "=")
       xwhere = Split(asx[2], "=")
 
-      xallowtab = modBasic.$RepQuerytable
-      If xallowtab.Exist(UnQuote(xtable[1])) = True Then
+      xhidetab = modBasic.$RepHideTables
+      If xhidetab.Exist(UnQuote(xtable[1])) = False Then
         If xselect[0] = "SELECT" And If xtable[0] = "TABLE" And If xwhere[0] = "WHERE" Then
           sql = Subst("SELECT &1 FROM &2 WHERE ", modDBApp.GetSecureSQL(UnQuote(xselect[1])), UnQuote(xtable[1])) & UnQuote(xwhere.Extract(1, xwhere.Count - 1).Join("="))
           res = modDatabase.$myConn.Exec(sql)

@@ -390,89 +390,95 @@ Public Function PatientFullNameByPatID(patno As String, Optional sCon As Connect
   Else
     $con = modDatabase.$myConn
   Endif
-  If modBasic.$PatNameModification Then
-    res = $con.Exec("select fldptnamefir,fldptnamelast,fldencrypt,fldrank,fldcategory from tblpatientinfo where fldpatientval=&1", patno)
+
+  If modBasic.$PatNameFormat = "Encrypted" Then
+    xx = "***"
   Else
-    res = $con.Exec("select fldptnamefir,fldptnamelast,fldencrypt from tblpatientinfo where fldpatientval=&1", patno)
-  Endif
-  If res.Available Then
-
-    If res["fldptnamefir"] Then
-      If modBasic.$PatNameFormat = "***SurName" Then
-        firname = "***"
-      Else
-        If MMain.$RepoReportMode = True Then
-          firname = modPassword.DecryptPatData(res["fldptnamefir"], res["fldencrypt"])
-        Else
-          If modBasic.$SuperUser = True Then
-            firname = modPassword.DecryptPatData(res["fldptnamefir"], res["fldencrypt"])
-          Else
-            firname = res["fldptnamefir"]
-          Endif
-        Endif
-      Endif
-    Else
-      firname = ""
-    Endif
-
-    If res["fldptnamelast"] Then
-      If MMain.$RepoReportMode = True Then
-        lstname = modPassword.DecryptPatData(res["fldptnamelast"], res["fldencrypt"])
-      Else
-        If modBasic.$SuperUser = True Then
-          lstname = modPassword.DecryptPatData(res["fldptnamelast"], res["fldencrypt"])
-        Else
-          lstname = res["fldptnamelast"]
-        Endif
-      Endif
-    Else
-      lstname = ""
-    Endif
-
-    If modBasic.$PatNameFormat = "FirstName+SurName" Then
-      xx = firname & Space(1) & lstname
-    Else If modBasic.$PatNameFormat = "SurName+FirstName" Then
-      xx = lstname & Space(1) & firname
-    Else If modBasic.$PatNameFormat = "FirstName+SURNAME" Then
-      xx = firname & Space(1) & UCase(lstname)
-    Else If modBasic.$PatNameFormat = "SURNAME+FirstName" Then
-      xx = UCase(lstname) & Space(1) & firname
-    Else If modBasic.$PatNameFormat = "FirstName Only" Then
-      xx = firname
-    Else If modBasic.$PatNameFormat = "***SurName" Then
-      xx = "***" & Space(1) & lstname
-    Else
-      xx = firname & Space(1) & lstname
-    Endif
 
     If modBasic.$PatNameModification Then
-      If res["fldrank"] Then
-        xrank = res["fldrank"]
+      res = $con.Exec("select fldptnamefir,fldptnamelast,fldencrypt,fldrank,fldcategory from tblpatientinfo where fldpatientval=&1", patno)
+    Else
+      res = $con.Exec("select fldptnamefir,fldptnamelast,fldencrypt from tblpatientinfo where fldpatientval=&1", patno)
+    Endif
+    If res.Available Then
+
+      If res["fldptnamefir"] Then
+        If modBasic.$PatNameFormat = "***SurName" Then
+          firname = "***"
+        Else
+          If MMain.$RepoReportMode = True Then
+            firname = modPassword.DecryptPatData(res["fldptnamefir"], res["fldencrypt"])
+          Else
+            If modBasic.$SuperUser = True Then
+              firname = modPassword.DecryptPatData(res["fldptnamefir"], res["fldencrypt"])
+            Else
+              firname = res["fldptnamefir"]
+            Endif
+          Endif
+        Endif
       Else
-        xrank = ""
+        firname = ""
       Endif
-      If res["fldcategory"] Then
-        xservice = res["fldcategory"]
+
+      If res["fldptnamelast"] Then
+        If MMain.$RepoReportMode = True Then
+          lstname = modPassword.DecryptPatData(res["fldptnamelast"], res["fldencrypt"])
+        Else
+          If modBasic.$SuperUser = True Then
+            lstname = modPassword.DecryptPatData(res["fldptnamelast"], res["fldencrypt"])
+          Else
+            lstname = res["fldptnamelast"]
+          Endif
+        Endif
       Else
-        xservice = ""
+        lstname = ""
       Endif
-      If modBasic.$PatNameModification = "Rank+Name" Then
-        xx = xrank & Space(1) & xx
-      Else If modBasic.$PatNameModification = "Name+Category" Then
-        xx = xx & Space(1) & "(" & xservice & ")"
-      Else If modBasic.$PatNameModification = "Rank+Name+Category" Then
-        xx = xrank & Space(1) & xx & Space(1) & "(" & xservice & ")"
-      Else If modBasic.$PatNameModification = "Rank+Name+Category+Scheme" Then
-        xx = xrank & Space(1) & xx & Space(1) & "(" & xservice & ")"
+
+      If modBasic.$PatNameFormat = "FirstName+SurName" Then
+        xx = firname & Space(1) & lstname
+      Else If modBasic.$PatNameFormat = "SurName+FirstName" Then
+        xx = lstname & Space(1) & firname
+      Else If modBasic.$PatNameFormat = "FirstName+SURNAME" Then
+        xx = firname & Space(1) & UCase(lstname)
+      Else If modBasic.$PatNameFormat = "SURNAME+FirstName" Then
+        xx = UCase(lstname) & Space(1) & firname
+      Else If modBasic.$PatNameFormat = "FirstName Only" Then
+        xx = firname
+      Else If modBasic.$PatNameFormat = "***SurName" Then
+        xx = "***" & Space(1) & lstname
+      Else
+        xx = firname & Space(1) & lstname
       Endif
+
+      If modBasic.$PatNameModification Then
+        If res["fldrank"] Then
+          xrank = res["fldrank"]
+        Else
+          xrank = ""
+        Endif
+        If res["fldcategory"] Then
+          xservice = res["fldcategory"]
+        Else
+          xservice = ""
+        Endif
+        If modBasic.$PatNameModification = "Rank+Name" Then
+          xx = xrank & Space(1) & xx
+        Else If modBasic.$PatNameModification = "Name+Category" Then
+          xx = xx & Space(1) & "(" & xservice & ")"
+        Else If modBasic.$PatNameModification = "Rank+Name+Category" Then
+          xx = xrank & Space(1) & xx & Space(1) & "(" & xservice & ")"
+        Else If modBasic.$PatNameModification = "Rank+Name+Category+Scheme" Then
+          xx = xrank & Space(1) & xx & Space(1) & "(" & xservice & ")"
+        Endif
+      Endif
+
+    Else
+      xx = ""
     Endif
 
-  Else
-    xx = ""
-  Endif
-
-  If modBasic.$PatNameUCase = "Yes" Then
-    xx = UCase(xx)
+    If modBasic.$PatNameUCase = "Yes" Then
+      xx = UCase(xx)
+    Endif
   Endif
 
   Return xx
@@ -989,43 +995,48 @@ Public Function GetPatientNameByEnc(encid As String, Optional sCon As Connection
     xformat = modBasic.$PatNameFormat
   Endif
 
-  firname = GetPatientFirstNameEnc(encid, $con)
-  lstname = GetPatientLastNameEnc(encid, $con)
-
-  If xformat = "FirstName+SurName" Then
-    xx = firname & Space(1) & lstname
-  Else If xformat = "SurName+FirstName" Then
-    xx = lstname & Space(1) & firname
-  Else If xformat = "FirstName+SURNAME" Then
-    xx = firname & Space(1) & UCase(lstname)
-  Else If xformat = "SURNAME+FirstName" Then
-    xx = UCase(lstname) & Space(1) & firname
-  Else If xformat = "FirstName Only" Then
-    xx = firname
-  Else If xformat = "***SurName" Then
-    xx = "***" & Space(1) & lstname
-  Else If xformat = "HMISFormat" Then
-    xx = firname & gb.NewLine & lstname
+  If xformat = "Encrypted" Then
+    xx = "***"
   Else
-    xx = firname & Space(1) & lstname
-  Endif
 
-  If modBasic.$PatNameModification Then
-    xrank = GetPatServiceRank(encid, $con)
-    xservice = GetPatServiceType(encid, $con)
-    If modBasic.$PatNameModification = "Rank+Name" Then
-      xx = xrank & Space(1) & xx
-    Else If modBasic.$PatNameModification = "Name+Category" Then
-      xx = xx & Space(1) & "(" & xservice & ")"
-    Else If modBasic.$PatNameModification = "Rank+Name+Category" Then
-      xx = xrank & Space(1) & xx & Space(1) & "(" & xservice & ")"
-    Else If modBasic.$PatNameModification = "Rank+Name+Category+Scheme" Then
-      xx = xrank & Space(1) & xx & Space(1) & "(" & xservice & " : " & ShowDiscountCategEnc(encid, $con) & ")"
+    firname = GetPatientFirstNameEnc(encid, $con)
+    lstname = GetPatientLastNameEnc(encid, $con)
+
+    If xformat = "FirstName+SurName" Then
+      xx = firname & Space(1) & lstname
+    Else If xformat = "SurName+FirstName" Then
+      xx = lstname & Space(1) & firname
+    Else If xformat = "FirstName+SURNAME" Then
+      xx = firname & Space(1) & UCase(lstname)
+    Else If xformat = "SURNAME+FirstName" Then
+      xx = UCase(lstname) & Space(1) & firname
+    Else If xformat = "FirstName Only" Then
+      xx = firname
+    Else If xformat = "***SurName" Then
+      xx = "***" & Space(1) & lstname
+    Else If xformat = "HMISFormat" Then
+      xx = firname & gb.NewLine & lstname
+    Else
+      xx = firname & Space(1) & lstname
     Endif
-  Endif
 
-  If modBasic.$PatNameUCase = "Yes" Then
-    xx = UCase(xx)
+    If modBasic.$PatNameModification Then
+      xrank = GetPatServiceRank(encid, $con)
+      xservice = GetPatServiceType(encid, $con)
+      If modBasic.$PatNameModification = "Rank+Name" Then
+        xx = xrank & Space(1) & xx
+      Else If modBasic.$PatNameModification = "Name+Category" Then
+        xx = xx & Space(1) & "(" & xservice & ")"
+      Else If modBasic.$PatNameModification = "Rank+Name+Category" Then
+        xx = xrank & Space(1) & xx & Space(1) & "(" & xservice & ")"
+      Else If modBasic.$PatNameModification = "Rank+Name+Category+Scheme" Then
+        xx = xrank & Space(1) & xx & Space(1) & "(" & xservice & " : " & ShowDiscountCategEnc(encid, $con) & ")"
+      Endif
+    Endif
+
+    If modBasic.$PatNameUCase = "Yes" Then
+      xx = UCase(xx)
+    Endif
   Endif
 
   Return xx

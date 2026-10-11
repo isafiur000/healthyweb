@@ -80,6 +80,7 @@ Public Sub _new(encid As String, packService As String, packProced As String, pa
     btnrefer.Enabled = False
   Endif
   rbcategory.Value = True
+  chkallpharm.Value = True
   GetFirstList()
   $cashPack = modControlSub.GetDirectFillresult(modDatabase.$myConn.Exec("select distinct(fldgroup) as col from tblcostgroup where fldcomp=&1 or fldcomp=&2", modBasic.$compID, "%"))
   If $cashPack.Count Then
@@ -898,8 +899,8 @@ End
 Public Sub btnaddgrp_Click()
 
   If lstgroup.Text Then
-    AddPackageItems(lstgroup.Text)
-    AddMedProtocols(lstgroup.Text)
+    AddPackageItems(lstgroup.Text, chkselallpack.Value)
+    AddMedProtocols(lstgroup.Text, chkallpharm.Value)
   Endif
 
 End
@@ -948,13 +949,14 @@ Private Function GetSchemeName(xform As String) As String
 
 End
 
-Private Sub AddMedProtocols(sProtocol As String)
+Private Sub AddMedProtocols(sProtocol As String, selAll As Boolean)
 
   Dim xtypLst As String[] = ["suture", "msurg", "ortho", "extra"]
   Dim xbilMode As String
   Dim xLedger As String
   Dim xBillType As String
 
+  Dim rsx As Result
   Dim res As Result
   Dim xtax As Float
   Dim xdisc As Float
@@ -968,9 +970,8 @@ Private Sub AddMedProtocols(sProtocol As String)
   Dim xgo As Boolean
   Dim i As Integer
 
-  For i = 0 To xtypLst.Count - 1
-    xtypLst[i] = "'" & xtypLst[i] & "'"
-  Next
+  Dim itmLst As String[]
+  Dim j As Integer
 
   If chknextvisit.Value = True Then
     xcurVal = "Planned"
@@ -986,89 +987,129 @@ Private Sub AddMedProtocols(sProtocol As String)
   xLedger = modNonMedical.GetLedgerFromDiscount($billModePharmacy)
   xBillType = modNonMedical.GetFixedInvType($billModePharmacy)
 
-  res = modDatabase.$myConn.Exec("select flditemname,flditemtype,fldqty from tblcostgroup where fldgroup=&1 and flditemtype in(" & xtypLst.Join(",") & ")", sProtocol)
-  If res.Available Then
-    For Each res
-      itemtype = modNonMedical.GetBillItemCategoryFromCombo(res["flditemtype"])
+  For i = 0 To xtypLst.Count - 1
+    xtypLst[i] = "'" & xtypLst[i] & "'"
+  Next
+  rsx = modDatabase.$myConn.Exec("select flditemname from tblcostgroup where fldgroup=&1 and flditemtype in(" & xtypLst.Join(",") & ")", sProtocol)
+  If rsx.Available Then
+    If selAll = True Then
+      itmLst = rsx.All("flditemname")
+    Else
+      itmLst = GridListView("Select Particulars", rsx.All("flditemname"))
+    Endif
 
-      xgo = False
-      If modBasic.$BillPharmFixedModes.Exist(xbilMode) = True Then
-        CPharmFix = New CFixRatePharmacy(itemtype, res["flditemname"], xbilMode)
-        xfixrate = CPharmFix.GetFixRate()
-        xfixname = CPharmFix.GetFixItem()
-        If xfixname Then
-          xgo = True
-        Else
+    If itmLst And If itmLst.Count Then
+      For j = 0 To itmLst.Count - 1
+        itmLst[j] = "'" & itmLst[j] & "'"
+      Next
+      res = modDatabase.$myConn.Exec("select flditemname,flditemtype,fldqty from tblcostgroup where flditemname in(" & itmLst.Join(",") & ")", sProtocol)
+      If res.Available Then
+        For Each res
+          itemtype = modNonMedical.GetBillItemCategoryFromCombo(res["flditemtype"])
+
           xgo = False
-        Endif
-      Else
-        xgo = True
-      Endif
-      If xgo = True Then
-        itemmode = xbilMode
-        xtax = modNonMedical.ShowTaxValues(itemtype, res["flditemname"])
-        xdisc = modNonMedical.DiscPercentForCategoryValue($encid, $billModePharmacy, itemtype, res["flditemname"], itemmode)
-        Select res["flditemtype"]
-          Case "suture", "msurg", "ortho"
-            modPharmSub.InsertNonMedDosingEntry("Surgicals", $encid, xBillType, xbilMode, $billModePharmacy, xBillType, res["flditemtype"], res["flditemname"], res["fldqty"], $status, 0, xtax, xdisc, xfixname, xfixrate, "Request", $Dept, "", False, xcurVal)
-          Case "extra"
-            modPharmSub.InsertNonMedDosingEntry("Extra Items", $encid, xBillType, xbilMode, $billModePharmacy, xBillType, res["flditemtype"], res["flditemname"], res["fldqty"], $status, 0, xtax, xdisc, xfixname, xfixrate, "Request", $Dept, "", False, xcurVal)
-        End Select
-      Endif
+          If modBasic.$BillPharmFixedModes.Exist(xbilMode) = True Then
+            CPharmFix = New CFixRatePharmacy(itemtype, res["flditemname"], xbilMode)
+            xfixrate = CPharmFix.GetFixRate()
+            xfixname = CPharmFix.GetFixItem()
+            If xfixname Then
+              xgo = True
+            Else
+              xgo = False
+            Endif
+          Else
+            xgo = True
+          Endif
+          If xgo = True Then
+            itemmode = xbilMode
+            xtax = modNonMedical.ShowTaxValues(itemtype, res["flditemname"])
+            xdisc = modNonMedical.DiscPercentForCategoryValue($encid, $billModePharmacy, itemtype, res["flditemname"], itemmode)
+            Select res["flditemtype"]
+              Case "suture", "msurg", "ortho"
+                modPharmSub.InsertNonMedDosingEntry("Surgicals", $encid, xBillType, xbilMode, $billModePharmacy, xBillType, res["flditemtype"], res["flditemname"], res["fldqty"], $status, 0, xtax, xdisc, xfixname, xfixrate, "Request", $Dept, "", False, xcurVal)
+              Case "extra"
+                modPharmSub.InsertNonMedDosingEntry("Extra Items", $encid, xBillType, xbilMode, $billModePharmacy, xBillType, res["flditemtype"], res["flditemname"], res["fldqty"], $status, 0, xtax, xdisc, xfixname, xfixrate, "Request", $Dept, "", False, xcurVal)
+            End Select
+          Endif
 
-    Next
-    FillDosingGrid()
+        Next
+        FillDosingGrid()
+      Endif
+    Endif
   Endif
 
 End
 
-Private Sub AddPackageItems(sGroup As String)
+Private Sub AddPackageItems(sGroup As String, selAll As Boolean)
 
-  Dim xList As String[]
   Dim xtypLst As String[] = ["Test", "Radio", "Equipment", "Service", "Procedure", "Others"]
   Dim xform As String
+  Dim itmFull As String[]
+  Dim xbilMode As String
+  Dim rsx As Result
+  Dim itmLst As String[]
+
+  Dim xList As String[]
   Dim res As Result
   Dim xauto As String
   Dim xpackg As String
-  Dim xbilMode As String
   Dim xrefer As String
   Dim xpayble As String
+  Dim j As Integer
 
   xList = New String[]
   For Each $rData4
     xList.Add($rData4["flditemname"])
   Next
 
+  itmFull = New String[]
   For Each xform In xtypLst
-    xauto = GetAutoStatus(xform)
-    xpackg = GetSchemeName(xform)
-    If btnrefer.Tag Then
-      xrefer = btnrefer.Tag
-    Else
-      xrefer = modBillings.GetReferralUserSetting(xform, $encid)
-    Endif
-    xpayble = modBillings.GetPayableUserSetting(xform, $encid)
-    If xpackg And If xauto Then
-      xbilMode = modNonMedical.GetDiscBindBillMode(xpackg)
-      res = modDatabase.$myConn.Exec("select flditemname,flditemtype from tblcostgroup where fldgroup=&1 and flditemtype=&2 and flditemname in(select flditemname from tblservicecost where fldgroup=&2 or fldgroup=&3)", sGroup, xform, xbilMode, "%")
-      If res.Available Then
-
-        For Each res
-          If xauto = "Standard" Or If xauto = "Full" Or If xauto = "Partial" Then
-            If chknextvisitgrp.Value = True Then
-              modBillings.GetAutoBillingClinic($encid, xpackg, xform, res["flditemname"], 1, "Planned", 0, False, False, xpayble, xrefer)
-            Else
-              If modMisc.GetDuplicationAllow(xList, res["flditemname"]) = True Then
-                modBillings.GetAutoBillingClinic($encid, xpackg, xform, res["flditemname"], 1, "Punched", 0, False, False, xpayble, xrefer)
-              Endif
-            Endif
-          Endif
-        Next
-
+    xbilMode = modNonMedical.GetDiscBindBillMode(GetSchemeName(xform))
+    If xbilMode Then
+      rsx = modDatabase.$myConn.Exec("select flditemname from tblcostgroup where fldgroup=&1 and flditemtype=&2 and flditemname in(select flditemname from tblservicecost where fldgroup=&2 or fldgroup=&3)", sGroup, xform, xbilMode, "%")
+      If rsx.Available Then
+        itmFull.Insert(rsx.All("flditemname"))
       Endif
     Endif
   Next
-  ShowGroupGrid()
+  If selAll = True Then
+    itmLst = itmFull
+  Else
+    itmLst = GridListView("Select Particulars", itmFull)
+  Endif
+
+  If itmLst And If itmLst.Count Then
+    For j = 0 To itmLst.Count - 1
+      itmLst[j] = "'" & itmLst[j] & "'"
+    Next
+    res = modDatabase.$myConn.Exec("select flditemname,flditemtype from tblcostgroup where flditemname in(" & itmLst.Join(",") & ") and fldgroup=&1", sGroup)
+    If res.Available Then
+
+      For Each res
+        xauto = GetAutoStatus(res["flditemtype"])
+        xpackg = GetSchemeName(res["flditemtype"])
+        If btnrefer.Tag Then
+          xrefer = btnrefer.Tag
+        Else
+          xrefer = modBillings.GetReferralUserSetting(res["flditemtype"], $encid)
+        Endif
+        xpayble = modBillings.GetPayableUserSetting(res["flditemtype"], $encid)
+        If xpackg And If xauto Then
+          If xauto = "Standard" Or If xauto = "Full" Or If xauto = "Partial" Then
+            If chknextvisitgrp.Value = True Then
+              modBillings.GetAutoBillingClinic($encid, xpackg, res["flditemtype"], res["flditemname"], 1, "Planned", 0, False, False, xpayble, xrefer)
+            Else
+              If modMisc.GetDuplicationAllow(xList, res["flditemname"]) = True Then
+                modBillings.GetAutoBillingClinic($encid, xpackg, res["flditemtype"], res["flditemname"], 1, "Punched", 0, False, False, xpayble, xrefer)
+              Endif
+            Endif
+          Endif
+        Endif
+      Next
+
+      ShowGroupGrid()
+    Endif
+  Endif
 
 End
 
@@ -1234,6 +1275,28 @@ Public Sub btngrpdelete_Click()
     If Message.Question(("Are you sure?"), ("No"), ("Yes")) = 2 Then
       modDatabase.$myConn.Delete("tblpatbilling", "fldid=&1 and fldsave=&2", $rData4["fldid"], False)
       ShowGroupGrid()
+    Endif
+  Endif
+
+End
+
+Public Sub btngrpdelphm_Click()
+
+  Dim res As Result
+
+  If GridView5.Selection.Count Then
+    $rDataM.MoveTo(GridView5.Selection[0])
+    If Message.Question(("Are you sure?"), ("No"), ("Yes")) = 2 Then
+      res = modDatabase.$myConn.Edit("tblpatdosing", "fldid=&1 and fldsave_order=&2", $rDataM["fldid"], False)
+      If modGeneral.AllowClinicalEdit(res["flduserid_order"]) = True Then
+        modDatabase.$myConn.Delete("tblpatdosing", "fldid=&1 and fldsave_order=&2", $rDataM["fldid"], False)
+      Else
+        res["fldcurval"] = "Cancelled"
+        res["flduserid_order"] = modBasic.$lbluser
+        res["xyz"] = False
+        res.Update
+      Endif
+      FillDosingGrid()
     Endif
   Endif
 
