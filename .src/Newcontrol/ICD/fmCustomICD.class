@@ -1,0 +1,114 @@
+' Gambas class file
+
+Private $Conn As Connection
+Private $sValue As String[]
+
+Private $ModelLst As String[]
+Private $xVar As Variant[]
+
+Private $rData As Result
+Private $aMyFields As String[]
+
+Public Sub Run(sConn As Connection) As String[]
+
+  $Conn = sConn
+  modGeneralMain.GetOpenModalForm(Me)
+  $ModelLst = modMLModels.GetAIModelsList("search_diagnosis")
+  $sValue = New String[]
+  If Me.ShowModal() Then Return $sValue
+
+End
+
+Public Sub btnload_Click()
+
+  Dim xinput As String
+  Dim xout As String
+  Dim xVar As Variant[]
+  Dim xList As String[]
+
+  Dim asx As String[]
+  Dim bsx As String[]
+  Dim Row As Integer
+
+  Dim sCode As String
+  Dim xprob As String
+  Dim xname As String
+
+  If txtname.Text Then
+    xinput = Trim(txtname.Text)
+
+    If $ModelLst.Count Then
+      xout = Trim(modMLModels.GeAItModelValueArguments($ModelLst[0], [xinput]))
+
+      xVar = New Variant[]
+      If xout Then
+        asx = Split(xout, gb.NewLine)
+        For Row = 0 To asx.Count - 1
+          bsx = Split(asx[Row], ":")
+          If bsx.Count = 3 Then
+            xname = Trim(bsx[0])
+            sCode = Trim(Replace(bsx[1], "Score", ""))
+            xprob = Trim(bsx[2])
+            xVar.Add([xname, sCode, xprob])
+          Endif
+        Next
+      Endif
+
+      $xVar = xVar
+      FillICDGrid()
+
+    Else
+      xList = [xinput, "Other"]
+      $sValue = xList
+      Me.Close(True)
+    Endif
+  Endif
+
+End
+
+Private Sub FillICDGrid()
+
+  GridView1.Clear()
+  GridView1.Count = $xVar.Count
+  GridView1.Columns.Count = 3
+
+  With GridView1
+    .Columns[1].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
+    .Columns[2].Width = CStr(75 * modBasic.$AppWidthRatio) & "px"
+    .Columns[0].Expand = True
+
+    .Columns[0].Text = "Particulars"
+    .Columns[1].Text = "Code"
+    .Columns[2].Text = "Prob"
+  End With
+
+End
+
+Public Sub GridView1_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  modGridView.GridViewDecoration(Data, Row)
+  Data.Text = $xVar[Row][Column]
+
+End
+
+Public Sub btnsave_Click()
+
+  Dim xxx As String[]
+
+  If txtname.Text Then
+    If GridView1.Selection.Count Then
+      xxx = New String[]
+      If chkusecustom.Value = True Then
+        xxx.Add(Trim(txtname.Text))
+      Else
+        xxx.Add($xVar[GridView1.Selection[0]][0])
+      Endif
+      xxx.Add($xVar[GridView1.Selection[0]][1])
+      $sValue = xxx
+      Me.Close(True)
+    Endif
+  Else
+    Me.Close
+  Endif
+
+End
