@@ -1,15 +1,18 @@
 ' Gambas class file
 
+Private $dPanel As String
 Private $rData As Result
 Private $aMyFields As String[]
 
 Private $sValue As String[]
 
-Public Sub Run(sTitle As String) As String[]
+Public Sub Run(sTitle As String, sPanel As String) As String[]
 
   Me.Title = sTitle
+  $dPanel = sPanel
   modGeneralMain.GetOpenModalForm(Me)
   chkleftmain.Value = modBasic.$SearchBothSide
+
   modSettings.ShowCheckBox(chkgroup, "ClinicForms/ICDGroups")
   modSettings.ShowCheckBox(chkboth, "ClinicForms/ICDBothCodes")
 
@@ -47,6 +50,8 @@ Public Sub FillICDGrid()
 
   Dim xstr As String
   Dim xgrp As String
+  Dim xpanel As String
+  Dim xpanel1 As String
 
   If chkboth.Value = True Then
     xstr = " and fldoldcode IS NOT NULL"
@@ -59,27 +64,35 @@ Public Sub FillICDGrid()
     xgrp = ""
   Endif
 
+  If $dPanel Then
+    xpanel = db.Subst(" and fldscheme=&1", $dPanel)
+    xpanel1 = db.Subst(" where fldscheme=&1", $dPanel)
+  Else
+    xpanel = ""
+    xpanel1 = ""
+  Endif
+
   If txtcode.Text Then
-    $rData = modDatabase.$icdConn.Exec("select fldicdnme,fldicdcode,fldoldcode from tblicddisease where lower(fldicdcode) like &1" & xstr & xgrp, LCase(txtcode.Text) & "%", "%.%")
+    $rData = modDatabase.$icdConn.Exec("select fldicdnme,fldicdcode,fldoldcode from tblicddisease where lower(fldicdcode) like &1" & xstr & xgrp & xpanel, LCase(txtcode.Text) & "%", "%.%")
   Else If txtname.Text Then
     If chkleftmain.Value = True Then
-      $rData = modDatabase.$icdConn.Exec("select fldicdnme,fldicdcode,fldoldcode from tblicddisease where lower(fldicdnme) like &1" & xstr & xgrp, "%" & LCase(txtname.Text) & "%", "%.%")
+      $rData = modDatabase.$icdConn.Exec("select fldicdnme,fldicdcode,fldoldcode from tblicddisease where lower(fldicdnme) like &1" & xstr & xgrp & xpanel, "%" & LCase(txtname.Text) & "%", "%.%")
     Else
-      $rData = modDatabase.$icdConn.Exec("select fldicdnme,fldicdcode,fldoldcode from tblicddisease where lower(fldicdnme) like &1" & xstr & xgrp, LCase(txtname.Text) & "%", "%.%")
+      $rData = modDatabase.$icdConn.Exec("select fldicdnme,fldicdcode,fldoldcode from tblicddisease where lower(fldicdnme) like &1" & xstr & xgrp & xpanel, LCase(txtname.Text) & "%", "%.%")
     Endif
 
   Else
     If chkgroup.Value = True Then
       If chkboth.Value = True Then
-        $rData = modDatabase.$icdConn.Exec("select fldicdnme,fldicdcode,fldoldcode from tblicddisease where fldoldcode IS NOT NULL and fldicdcode NOT LIKE &1", "%.%")
+        $rData = modDatabase.$icdConn.Exec("select fldicdnme,fldicdcode,fldoldcode from tblicddisease where fldoldcode IS NOT NULL and fldicdcode NOT LIKE &1" & xpanel, "%.%")
       Else
-        $rData = modDatabase.$icdConn.Exec("select fldicdnme,fldicdcode,fldoldcode from tblicddisease where fldicdcode NOT LIKE &1", "%.%")
+        $rData = modDatabase.$icdConn.Exec("select fldicdnme,fldicdcode,fldoldcode from tblicddisease where fldicdcode NOT LIKE &1" & xpanel, "%.%")
       Endif
     Else
       If chkboth.Value = True Then
-        $rData = modDatabase.$icdConn.Exec("select fldicdnme,fldicdcode,fldoldcode from tblicddisease where fldoldcode IS NOT NULL")
+        $rData = modDatabase.$icdConn.Exec("select fldicdnme,fldicdcode,fldoldcode from tblicddisease where fldoldcode IS NOT NULL" & xpanel)
       Else
-        $rData = modDatabase.$icdConn.Exec("select fldicdnme,fldicdcode,fldoldcode from tblicddisease")
+        $rData = modDatabase.$icdConn.Exec("select fldicdnme,fldicdcode,fldoldcode from tblicddisease" & xpanel1)
       Endif
     Endif
 

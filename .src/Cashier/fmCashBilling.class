@@ -10,6 +10,7 @@ Private $F12Lock As Boolean
 Private $MiniCalc As String
 Private resServ As Result
 Private resPharm As Result
+Private $diagnoPanel As String
 
 Private hPatient As FmBillingEntry
 Private $ShowAutoPay As String
@@ -257,8 +258,10 @@ Public Sub btnshow_Click()
         $frmshow = True
         $refShow = True
         xlock = False
-        resx = modDatabase.$myConn.Exec("select fldmode,fldbillingmode,fldacledger,fldbilltype,fldreference,fldlimit,fldlockstate,fldtaxsource from tbldiscount where fldtype=&1", $DiscPackage)
+        resx = modDatabase.$myConn.Exec("select fldmode,fldbillingmode,fldacledger,fldbilltype,fldreference,fldlimit,fldlockstate,fldtaxsource,flddiagnosis from tbldiscount where fldtype=&1", $DiscPackage)
         If resx.Available Then
+          ''diagnosis
+          $diagnoPanel = resx["flddiagnosis"]
           ''billingmode
           If resx["fldbillingmode"] Then
             cmbmode.Text = resx["fldbillingmode"]
@@ -489,8 +492,10 @@ Private Sub ShowBillingParam(sPack As String)
 
     $refShow = True
     xlock = False
-    resx = modDatabase.$myConn.Exec("select fldmode,fldbillingmode,fldacledger,fldbilltype,fldreference,fldlimit,fldlockstate,fldtaxsource from tbldiscount where fldtype=&1", sPack)
+    resx = modDatabase.$myConn.Exec("select fldmode,fldbillingmode,fldacledger,fldbilltype,fldreference,fldlimit,fldlockstate,fldtaxsource,flddiagnosis from tbldiscount where fldtype=&1", sPack)
     If resx.Available Then
+      ''diagnosis
+      $diagnoPanel = resx["flddiagnosis"]
       ''billingmode
       If resx["fldbillingmode"] Then
         cmbmode.Text = resx["fldbillingmode"]
@@ -5386,7 +5391,7 @@ Public Sub btnaddicd_Click()
 
   If txtencid.Text Then
     If btndiuser.Tag Then
-      sName = ICDGridView("Select Diseases")
+      sName = ICDGridView("Select Diseases", $diagnoPanel)
       If sName Then
         txtsearch.Text = sName[0]
         txtcode.Text = sName[1]
@@ -5410,31 +5415,57 @@ Public Sub btnaddicd_Click()
 
 End
 
+Private Function GetDiagnoVarMsg(sVar As Variant[]) As String
+
+  Dim Row As Integer
+  Dim xxx As String
+
+  xxx = ""
+  For Row = 0 To sVar.Count - 1
+    xxx = xxx & sVar[Row][0] & " : " & sVar[Row][1] & "<br>"
+  Next
+
+  Return xxx
+
+End
+
 Public Sub btnaddicdold_Click()
 
   Dim res As Result
-  Dim xxx As String[]
+  Dim rsx As Result
+  Dim xVar As Variant[]
   Dim xuser As String
+
+  Dim Row As Integer
 
   res = modDatabase.$myConn.Exec("select fldcode,fldcodenew,flduserid from tblpatfindings where fldencounterval=&1 and (fldtype=&2 or fldtype=&3) and fldsave=&4", $lstEncid, "Provisional Diagnosis", "Final Diagnosis", True)
   If res.Available Then
-    xxx = New String[]
+
+    xVar = New Variant[]
     For Each res
       If res["fldcodenew"] = "Other" Then
       Else
-        xxx.Add("[" & res["fldcodenew"] & "] " & res["fldcode"])
+        If $diagnoPanel Then
+          rsx = modDatabase.$icdConn.Exec("select fldicdnme from tblicddisease where fldicdcode=&1 and fldscheme=&2", res["fldcodenew"], $diagnoPanel)
+          If rsx.Available Then
+            xVar.Add([res["fldcodenew"], res["fldcode"]])
+            xuser = res["flduserid"]
+          Endif
+        Else
+          xVar.Add([res["fldcodenew"], res["fldcode"]])
+          xuser = res["flduserid"]
+        Endif
       Endif
-      xuser = res["flduserid"]
     Next
     btndiuser.Tag = xuser
     btndiuser.Text = modGeneral.GetUserFullName(xuser)
 
-    If Message.Question("<b>Add following diagnosis from past visit ?</b><br>" & xxx.Join("<br>"), ("No"), ("Yes")) = 2 Then
-      For Each res
+    If Message.Question("<b>Add following diagnosis from past visit ?</b><br>" & GetDiagnoVarMsg(xVar), ("No"), ("Yes")) = 2 Then
+      For Row = 0 To xVar.Count - 1
         If xuser Then
-          modPatientGeneral.AddPatientFindingsUser("Provisional Diagnosis", Trim(txtencid.Text), res["fldcode"], res["fldcodenew"], "", xuser)
+          modPatientGeneral.AddPatientFindingsUser("Provisional Diagnosis", Trim(txtencid.Text), xVar[Row][1], xVar[Row][0], "", xuser)
         Else
-          modPatientGeneral.AddPatientFindings("Provisional Diagnosis", Trim(txtencid.Text), res["fldcode"], res["fldcodenew"], "")
+          modPatientGeneral.AddPatientFindings("Provisional Diagnosis", Trim(txtencid.Text), xVar[Row][1], xVar[Row][0], "")
         Endif
       Next
       SHowDiagnosis()

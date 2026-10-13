@@ -1490,6 +1490,34 @@ Public Function GetTaxCollectSource(sPackage As String) As String
 
 End
 
+Public Function GetDiagnosisPanel(sPackage As String) As String
+
+  Dim xx As String
+  Dim res As Result
+
+  If modTableCache.$DiscSchemeVar.Exist(sPackage) Then
+    xx = modTableCache.$DiscSchemeVar[sPackage]["flddiagnosis"]
+    If Not xx Then
+      xx = ""
+    Endif
+
+  Else
+    res = modDatabase.$myConn.Exec("select flddiagnosis from tbldiscount where fldtype=&1", sPackage)
+    If res.Available Then
+      If res["flddiagnosis"] Then
+        xx = res["flddiagnosis"]
+      Else
+        xx = ""
+      Endif
+    Else
+      xx = ""
+    Endif
+  Endif
+
+  Return xx
+
+End
+
 Public Function GetMappedService(sCurPlan As String, sCurItem As String, sTargPlan As String) As String
 
   Dim res As Result
@@ -1500,6 +1528,27 @@ Public Function GetMappedService(sCurPlan As String, sCurItem As String, sTargPl
     res.MoveFirst
     If res["fldtoitemname"] Then
       xx = res["fldtoitemname"]
+    Else
+      xx = ""
+    Endif
+  Else
+    xx = ""
+  Endif
+
+  Return xx
+
+End
+
+Public Function GetDiagnosisByAccount(sBillMode As String) As String
+
+  Dim res As Result
+  Dim xx As String
+
+  res = modDatabase.$myConn.Exec("select flddiagnosis from tbldiscount where fldbillingmode=&1 and flddiagnosis like &2", sBillMode, "%")
+  If res.Available Then
+    res.MoveFirst
+    If res["flddiagnosis"] Then
+      xx = res["flddiagnosis"]
     Else
       xx = ""
     Endif

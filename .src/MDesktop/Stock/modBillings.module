@@ -1604,6 +1604,11 @@ Public Sub AlterServiceScheme(xIndex As Long, xNewpack As String)
   Dim xtaxamt As Float
   Dim xtotamt As Float
 
+  Dim xfixrate As Float
+  Dim xfixname As String
+  Dim xname As String
+  Dim CPharmFix As CFixRatePharmacy
+
   res1 = modDatabase.$myConn.Exec("select fldbillingmode,fldacledger,fldreference,fldbilltype from tbldiscount where fldtype=&1", xNewpack)
   If res1.Available Then
     res = modDatabase.$myConn.Edit("tblpatbilling", "fldid=&1", xIndex)
@@ -1628,9 +1633,25 @@ Public Sub AlterServiceScheme(xIndex As Long, xNewpack As String)
         res.Update
 
       Else
-        xitem = modNonMedical.GetMappedService(res["fldbillingmode"], res["flditemname"], res1["fldbillingmode"])
+        Select res["flditemtype"]
+          Case "Medicines", "Surgicals", "Extra Items"
+            xname = modStock.GetStockNameFromStockno(res["flditemno"])
+            CPharmFix = New CFixRatePharmacy(res["flditemtype"], xname, res1["fldbillingmode"])
+            xfixrate = CPharmFix.GetFixRate()
+            xfixname = CPharmFix.GetFixItem()
+            If xfixname Then
+              xitem = xfixname
+              rte = xfixrate
+            Else
+              xitem = xname
+              rte = modStock.GetCurrSellingPriceByStockNo(res["flditemno"])
+            Endif
+          Case Else
+            xitem = modNonMedical.GetMappedService(res["fldbillingmode"], res["flditemname"], res1["fldbillingmode"])
+            rte = modNonMedical.GetCashBillItemCost(xitem, res["flditemtype"])
+        End Select
+
         If xitem Then
-          rte = modNonMedical.GetCashBillItemCost(xitem, res["flditemtype"])
           If res["flddiscper"] Then
             disc = res["flddiscper"]
           Else
