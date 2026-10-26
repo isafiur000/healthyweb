@@ -2601,6 +2601,52 @@ Public Function GetCurrTesValuePos(sPos As String, encid As String, strTest As S
 
 End
 
+Public Function GetCurrSubTesValuePos(sPos As String, encid As String, strTest As String, strSubTest As String) As Variant
+
+  Dim sql As String
+  Dim res1 As Result
+  Dim metr As Variant
+  Dim xcaption As String
+
+  xcaption = modFixLab.GetLabTestCaption(strTest)
+  If modBasic.$SuperUser = False And If xcaption = "$Encryption" Then
+    metr = "****"
+  Else
+
+    sql = "select fldsubtest,fldreport,fldid,fldtestid,fldtanswertype,fldindex from tblpatlabsubtest where fldencounterval=&1 and fldparent=&2 and fldsubtest=&3" '' and fldreport IS NOT &4
+    res1 = modDatabase.$myConn.Exec(sql, encid, strTest, strSubTest, Null)
+    If res1.Available = True Then
+      If sPos = "First" Then
+        res1.MoveFirst
+      Else
+        res1.MoveLast
+      Endif
+
+      If res1["fldtanswertype"] = "Multiple Selection" Or If res1["fldtanswertype"] = "Single Column" Then
+        metr = GetSubTestTableReportString(res1["fldtestid"], res1["fldid"], False, res1["fldindex"])
+      Else If res1["fldtanswertype"] = "Drug Sensitivity" Then
+        metr = GetSubSensiTableReportString(res1["fldtanswertype"], res1["fldtestid"], res1["fldid"], res1["fldindex"], False)
+      Else If res1["fldtanswertype"] = "WHO Sensitivity" Then
+        metr = GetSubSensiTableReportString(res1["fldtanswertype"], res1["fldtestid"], res1["fldid"], res1["fldindex"], False)
+      Else If res1["fldtanswertype"] = "Text Table" Then
+        metr = GetSubTestTableReportString(res1["fldtestid"], res1["fldid"], False, res1["fldindex"])
+      Else If res1["fldtanswertype"] = "Dual Columns" Then
+        metr = GetSubTestDualTableString(res1["fldtestid"], res1["fldid"], False, res1["fldindex"])
+      Else If res1["fldtanswertype"] = "Triple Columns" Then
+        metr = GetSubTestTriTableString(res1["fldtestid"], res1["fldid"], False, res1["fldindex"])
+      Else
+        metr = Trim(res1["fldreport"])
+      Endif
+
+    Else
+      metr = ""
+    Endif
+  Endif
+
+  Return metr
+
+End
+
 Public Function GetResistantAntibiotics(encid As String) As Collection
 
   Dim res As Result

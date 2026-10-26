@@ -1184,6 +1184,52 @@ Public Function GetCurrRadioValuePos(sPos As String, encid As String, strExam As
 
 End
 
+Public Function GetCurrSubRadioValuePos(sPos As String, encid As String, strExam As String, strSubExam As String) As Variant
+
+  Dim sql As String
+  Dim res As Result
+  Dim xquali As Variant
+  Dim xcaption As String
+
+  xcaption = modFixRadio.GetRadiotestCaption(strExam)
+  If modBasic.$SuperUser = False And If xcaption = "$Encryption" Then
+    xquali = ""
+  Else
+
+    sql = "select fldsubtest,fldreport,fldid,fldtestid,fldtanswertype,fldindex from tblpatradiosubtest where fldencounterval=&1 and fldparent=&2 and fldsubtest=&3"'' and fldreport IS NOT &4
+    res = modDatabase.$myConn.Exec(sql, encid, strExam, strSubExam, Null)
+    If res.Available = True Then
+      If sPos = "First" Then
+        res.MoveFirst
+      Else
+        res.MoveLast
+      Endif
+
+      If res["fldtanswertype"] = "Label Only" Then
+        xquali = res["fldsubtest"]
+      Else
+        If res["fldtanswertype"] = "Multiple Selection" Or If res["fldtanswertype"] = "Single Column" Then
+          xquali = GetSubRadioTableReportString(res["fldtestid"], res["fldid"], True, res["fldindex"])
+        Else If res["fldtanswertype"] = "Text Table" Then
+          xquali = GetSubRadioTableReportString(res["fldtestid"], res["fldid"], True, res["fldindex"])
+        Else If res["fldtanswertype"] = "Dual Columns" Then
+          xquali = GetSubRadioDualTableString(res["fldtestid"], res["fldid"], True, res["fldindex"])
+        Else If res["fldtanswertype"] = "Triple Columns" Then
+          xquali = GetSubRadioTriTableString(res["fldtestid"], res["fldid"], True, res["fldindex"])
+        Else
+          xquali = Trim(res["fldreport"])
+        Endif
+      Endif
+
+    Else
+      xquali = ""
+    Endif
+  Endif
+
+  Return xquali
+
+End
+
 ''only for last quantitative test (used for calculation)
 Public Function GetCurrRadioValueSysConst(encid As String, xSysConst As String, sPos As String) As String
 

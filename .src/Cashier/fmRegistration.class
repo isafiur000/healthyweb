@@ -458,6 +458,11 @@ End
 Public Sub btnshowrefr_Click()
 
   If cmbconsult.Text And If cmbbillmode.Text Then
+    If txtpatno.Text Then
+      If chkfollow.Enabled = True Then
+        GetFollowStatus(cmbconsult.Text)
+      Endif
+    Endif
     If modBasic.$RegistAutoWebcam = "Yes" Then
       If Not $ImgPath Then
         $ImgPath = modImage.GetWebCamValue()
@@ -753,16 +758,28 @@ Catch
 
 End
 
-Private Sub GetFollowStatus()
+Private Sub GetFollowStatus(sDepart As String)
 
   Dim xday As Integer
 
   If $lstencDate Then
-    If modBasic.$AutoRegistNoBillHour Then
-      xday = CInt(modBasic.$AutoRegistNoBillHour)
+    If sDepart Then
+      xday = modGeneral.GetDepartFollowup(sDepart)
+      If Not xday Then
+        If modBasic.$AutoRegistNoBillHour Then
+          xday = CInt(modBasic.$AutoRegistNoBillHour)
+        Else
+          xday = 0
+        Endif
+      Endif
     Else
-      xday = 0
+      If modBasic.$AutoRegistNoBillHour Then
+        xday = CInt(modBasic.$AutoRegistNoBillHour)
+      Else
+        xday = 0
+      Endif
     Endif
+
     If xday Then
       If DateDiff($lstencDate, Now(), gb.Hour) < xday Then
         chkfollow.Value = True
@@ -1088,7 +1105,7 @@ Private Sub GetPatientInfoAll()
         lstdat = modPatient.GetRecordDate(modPatient.GetLastEncoutnerFromPatNo(Trim(txtpatno.Text)))
         $lstencDate = modPatient.GetLastPaidConsultDate(Trim(txtpatno.Text))
         If chkfollow.Enabled = True Then
-          GetFollowStatus()
+          GetFollowStatus("")
         Endif
         If lstdat Then
           If lstdat >= modDate.StartSqlDate(Date()) And If lstdat <= modDate.EndSqlDate(Date()) Then

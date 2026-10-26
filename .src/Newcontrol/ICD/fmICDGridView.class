@@ -3,6 +3,7 @@
 Private $dPanel As String
 Private $rData As Result
 Private $aMyFields As String[]
+Private $ModelLst As String[]
 
 Private $sValue As String[]
 
@@ -13,6 +14,7 @@ Public Sub Run(sTitle As String, sPanel As String) As String[]
   modGeneralMain.GetOpenModalForm(Me)
   chkleftmain.Value = modBasic.$SearchBothSide
 
+  $ModelLst = modMLModels.GetAIModelsList("search_diagnosis")
   modSettings.ShowCheckBox(chkgroup, "ClinicForms/ICDGroups")
   modSettings.ShowCheckBox(chkboth, "ClinicForms/ICDBothCodes")
 
@@ -99,6 +101,11 @@ Public Sub FillICDGrid()
   Endif
   $aMyFields = New String[]
   modGridView.ReadSmallData(GridView1, $rData, $aMyFields)
+  ResizeGrid()
+
+End
+
+Private Sub ResizeGrid()
 
   With GridView1
     .Columns[0].Expand = True
@@ -163,5 +170,57 @@ End
 Public Sub btnclose_Click()
 
   Me.Close()
+
+End
+
+''-------------------- Semantic Search ------------------
+Public Sub chksemantic_Click()
+
+  btnsemantic.Visible = chksemantic.Value
+
+End
+
+Public Sub btnsemantic_Click()
+
+  Dim xstr As String
+  Dim xpanel As String
+
+  Dim strItem As String[]
+  Dim i As Integer
+
+  If chkboth.Value = True Then
+    xstr = " and fldoldcode IS NOT NULL"
+  Else
+    xstr = ""
+  Endif
+
+  If $dPanel Then
+    xpanel = db.Subst(" and fldscheme=&1", $dPanel)
+  Else
+    xpanel = ""
+  Endif
+
+  strItem = New String[]
+  If $ModelLst.Count And If txtname.Text Then
+    strItem = modClinModels.GetMatchingICDCodes($ModelLst[0], txtname.Text)
+    If strItem And If strItem.Count Then
+
+      If chkgroup.Value = True Then
+        For i = 0 To strItem.Count - 1
+          strItem[i] = "'" & strItem[i] & "'"
+        Next
+        $rData = modDatabase.$icdConn.Exec("select fldicdnme,fldicdcode,fldoldcode from tblicddisease where fldicdcode in(" & strItem.Join(",") & ")" & xstr & xpanel)
+      Else
+        For i = 0 To strItem.Count - 1
+          strItem[i] = "fldicdcode LIKE '" & strItem[i] & "%'"
+        Next
+        $rData = modDatabase.$icdConn.Exec("select fldicdnme,fldicdcode,fldoldcode from tblicddisease where (" & strItem.Join(" OR ") & ")" & xstr & xpanel)
+      Endif
+
+      $aMyFields = New String[]
+      modGridView.ReadSmallData(GridView1, $rData, $aMyFields)
+      ResizeGrid()
+    Endif
+  Endif
 
 End

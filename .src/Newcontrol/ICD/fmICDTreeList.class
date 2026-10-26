@@ -5,35 +5,43 @@ Private $FixedListGrp As Variant[]
 
 Private $Conn As Connection
 Private $sType As String
-Private $allList As String[]
 Private $sDefOPGroup As String
 Private $sDefERGroup As String
+Private $dPanel As String
+
+Private $allList As String[]
 Private $opdList As String[]
 Private $erList As String[]
 Private $sValue As String[]
 
-Private $ModelLst As String[]
+Private $xModelLst As String[]
+Private $yModelLst As String[]
 
 ' Public Sub Run(sConn As Connection, sType As String, selList As String[], erList As String[], allList As String[], sDefGroup As String) As String[]
-Public Sub Run(sConn As Connection, sType As String, allList As String[], sDefOPDGroup As String, sDefERGroup As String, OPList As String[], erList As String[]) As String[]
+Public Sub Run(sConn As Connection, sType As String, sDefOPDGroup As String, sDefERGroup As String, sPanel As String) As String[]
 
   $Conn = sConn
   $sType = sType
-  $allList = allList
   $sDefOPGroup = sDefOPDGroup
   $sDefERGroup = sDefERGroup
-  $opdList = OPList
-  $erList = erList
+  $dPanel = sPanel
 
   modGeneralMain.GetOpenModalForm(Me)
   $sValue = New String[]
   If $sType = "Disease" Then
+    $allList = modBasic.$ClinDiagnoChapterGrouped
+    $opdList = modBasic.$ClinDiagnoSelectGrouped
+    $erList = modBasic.$ClinDiagnoSelectERGroup
     SetFixedList()
     SetFixedListData()
   Else If $sType = "Procedure" Then
+    $allList = New String[]
+    $opdList = New String[]
+    $erList = New String[]
   Endif
 
-  $ModelLst = modMLModels.GetAIModelsList("text-similarity")
+  $xModelLst = modMLModels.GetAIModelsList("search_diagnosis")
+  $yModelLst = modMLModels.GetAIModelsList("text-similarity")
   chkleftsub.Value = modBasic.$SearchBothSide
   modSettings.ShowCheckBox(chkgroup, "ClinicForms/ICDGroups")
   $SubListView = New Variant[]
@@ -171,7 +179,15 @@ Private Function GetFixDiagnosisList(sGroup As String, sType As String) As Varia
   Endif
   If res.Available Then
     For Each res
-      sList.Add([res["fldcodenew"], res["fldcodeid"], res["flditemname"]])
+
+      If $dPanel Then
+        If modPathology.GetSchemeFromICDCode(res["fldcodenew"]) = $dPanel Then
+          sList.Add([res["fldcodenew"], res["fldcodeid"], res["flditemname"]])
+        Endif
+      Else
+        sList.Add([res["fldcodenew"], res["fldcodeid"], res["flditemname"]])
+      Endif
+
     Next
   Endif
   Return sList
@@ -182,19 +198,29 @@ Private Function GetICDDiagnosisList(sGroup As String) As Variant[]
 
   Dim res As Result
   Dim sList As Variant[]
+  Dim xpanel As String
+  Dim xpanel1 As String
+
+  If $dPanel Then
+    xpanel = db.Subst(" and fldscheme=&1", $dPanel)
+    xpanel1 = db.Subst(" where fldscheme=&1", $dPanel)
+  Else
+    xpanel = ""
+    xpanel1 = ""
+  Endif
 
   sList = New Variant[]
   If chkgroup.Value Then
     If cmbchapter.Text = "All Categories" Then
-      res = $Conn.Exec("select fldicdcode,fldoldcode,fldicdnme from tblicddisease where fldicdcode NOT LIKE &1", "%.%")
+      res = $Conn.Exec("select fldicdcode,fldoldcode,fldicdnme from tblicddisease where fldicdcode NOT LIKE &1" & xpanel, "%.%")
     Else
-      res = $Conn.Exec("select fldicdcode,fldoldcode,fldicdnme from tblicddisease where fldicdchpter=&1 and fldicdcode NOT LIKE &2", sGroup, "%.%")
+      res = $Conn.Exec("select fldicdcode,fldoldcode,fldicdnme from tblicddisease where fldicdchpter=&1 and fldicdcode NOT LIKE &2" & xpanel, sGroup, "%.%")
     Endif
   Else
     If cmbchapter.Text = "All Categories" Then
-      res = $Conn.Exec("select fldicdcode,fldoldcode,fldicdnme from tblicddisease")
+      res = $Conn.Exec("select fldicdcode,fldoldcode,fldicdnme from tblicddisease" & xpanel1)
     Else
-      res = $Conn.Exec("select fldicdcode,fldoldcode,fldicdnme from tblicddisease where fldicdchpter=&1", sGroup)
+      res = $Conn.Exec("select fldicdcode,fldoldcode,fldicdnme from tblicddisease where fldicdchpter=&1" & xpanel, sGroup)
     Endif
   Endif
   If res.Available Then
@@ -228,11 +254,18 @@ Private Function GetICDDiagnosisSelected(grpName As String, sItem As String) As 
   Dim res As Result
   Dim asx As String[]
   Dim sList As Variant[]
+  Dim xpanel As String
+
+  If $dPanel Then
+    xpanel = db.Subst(" and fldscheme=&1", $dPanel)
+  Else
+    xpanel = ""
+  Endif
 
   sList = New String[]
   If sItem Then
     asx = Split(sItem, "|")
-    res = $Conn.Exec("select fldicdcode,fldoldcode,fldicdnme from tblicddisease where fldicdchpter=&1 and (fldicdcode=&2 or fldicdcode like &3)", grpName, asx[0], asx[0] & "." & "%")
+    res = $Conn.Exec("select fldicdcode,fldoldcode,fldicdnme from tblicddisease where fldicdchpter=&1 and (fldicdcode=&2 or fldicdcode like &3)" & xpanel, grpName, asx[0], asx[0] & "." & "%")
     If res.Available Then
       For Each res
         sList.Add([res["fldicdcode"], res["fldoldcode"], res["fldicdnme"]])
@@ -401,8 +434,8 @@ Private Function GetProceedDiagnosis() As Boolean
     If txtfixed.Text = txtname.Text Then
       xper = 100
     Else
-      If $ModelLst.Count Then
-        xper = modClinic.GetDiagnosisMatch($ModelLst[0], txtname.Text, txtfixed.Text)
+      If $yModelLst.Count Then
+        xper = modClinModels.GetDiagnosisMatch($yModelLst[0], txtname.Text, txtfixed.Text)
       Else
         xper = 100
         Message.Warning("No Text Similarity Model specified", "OK")
@@ -422,5 +455,72 @@ Private Function GetProceedDiagnosis() As Boolean
   Endif
 
   Return xallow
+
+End
+
+''---------------------- Semantic Search ---------------------
+Public Sub chksemantic_Click()
+
+  btnsemantic.Visible = chksemantic.Value
+
+End
+
+Public Sub btnsemantic_Click()
+
+  Dim xlsfinal As Variant[]
+
+  If cmbchapter.Text And If rbicdlist.Value = True Then
+    If txtlist.Text Then
+      xlsfinal = GetICDSemanticList(cmbchapter.Text)
+      $SubListView = xlsfinal
+      FillListView()
+    Endif
+  Endif
+
+End
+
+Private Function GetICDSemanticList(sGroup As String) As Variant[]
+
+  Dim res As Result
+  Dim sList As Variant[]
+
+  Dim strItem As String[]
+  Dim i As Integer
+
+  sList = New Variant[]
+  If $xModelLst.Count Then
+    strItem = New String[]
+    strItem = modClinModels.GetMatchingICDCodes($xModelLst[0], txtlist.Text)
+    If strItem And If strItem.Count Then
+
+      If chkgroup.Value = True Then
+        For i = 0 To strItem.Count - 1
+          strItem[i] = "'" & strItem[i] & "'"
+        Next
+        If cmbchapter.Text = "All Categories" Then
+          res = $Conn.Exec("select fldicdcode,fldoldcode,fldicdnme from tblicddisease where fldicdcode in(" & strItem.Join(",") & ")")
+        Else
+          res = $Conn.Exec("select fldicdcode,fldoldcode,fldicdnme from tblicddisease where fldicdchpter=&1 and fldicdcode in(" & strItem.Join(",") & ")", sGroup)
+        Endif
+      Else
+        For i = 0 To strItem.Count - 1
+          strItem[i] = "fldicdcode LIKE '" & strItem[i] & "%'"
+        Next
+        If cmbchapter.Text = "All Categories" Then
+          res = $Conn.Exec("select fldicdcode,fldoldcode,fldicdnme from tblicddisease where (" & strItem.Join(" OR ") & ")")
+        Else
+          res = $Conn.Exec("select fldicdcode,fldoldcode,fldicdnme from tblicddisease where fldicdchpter=&1 and (" & strItem.Join(" OR ") & ")", sGroup)
+        Endif
+      Endif
+
+      If res.Available Then
+        For Each res
+          sList.Add([res["fldicdcode"], res["fldoldcode"], res["fldicdnme"]])
+        Next
+      Endif
+    Endif
+  Endif
+
+  Return sList
 
 End
