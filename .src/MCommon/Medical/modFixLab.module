@@ -537,3 +537,311 @@ Public Function GetBloodShelfLife(sBlood As String) As Integer
   Return xx
 
 End
+
+''========================== For LAB REPORTING ========================
+''for all
+Public Function GetLabQuantiConvert(sValue As Float, sUnit As String, ConvFactor As Float, TargetUnit As String) As Float
+
+  Dim metr As Float
+
+  If TargetUnit = "Metric" Then
+    If sUnit = "Metric" Then
+      metr = sValue
+    Else If sUnit = "SI" Then
+      metr = Round(sValue / ConvFactor, -3)
+    Endif
+  Else If TargetUnit = "SI" Then
+    If sUnit = "Metric" Then
+      metr = Round(sValue * ConvFactor, -3)
+    Else If sUnit = "SI" Then
+      metr = sValue
+    Endif
+  Endif
+  Return metr
+
+End
+
+''LabConversionValue(encid As String, strTest As String, Optional sMethod As String)
+Public Function GetLabConversionValue(xgender As String, agegroup As String, strTest As String, Optional sMethod As String) As Float
+
+  Dim sql As String
+  Dim res As Result
+  Dim ConvFactor As Float
+  Dim sqstr As String
+
+  If sMethod Then
+    If sMethod = "Regular" Then
+      sqstr = ""
+    Else
+      sqstr = " and fldmethod=&6"
+    Endif
+  Else
+    sqstr = ""
+  Endif
+
+  sql = "select fldconvfactor from tbltestlimit where fldtestid=&1 and (fldptsex=&2 or fldptsex=&3) and (fldagegroup=&4 or fldagegroup=&5)" & sqstr
+  res = modDatabase.$medConn.Exec(sql, strTest, xgender, "Both Sex", agegroup, "All Age", sMethod)
+  If res.Available = True Then
+    res.MoveFirst
+    If res["fldconvfactor"] Then
+      ConvFactor = res["fldconvfactor"]
+    Else
+      ConvFactor = 1
+    Endif
+  Else
+    ConvFactor = 1
+  Endif
+
+  Return ConvFactor
+
+End
+
+''LabBothLimitValue(strTest As String, encid As String, strUnit As String, Optional sMethod As String)
+Public Function GetLabBothLimitValue(xgender As String, agegroup As String, strTest As String, strUnit As String, Optional sMethod As String) As Float[]
+
+  Dim sql As String
+  Dim res As Result
+  Dim sqstr As String
+  Dim minLimit As Float
+  Dim maxLimit As Float
+  Dim xval As Float[]
+
+  If sMethod Then
+    If sMethod = "Regular" Then
+      sqstr = ""
+    Else
+      sqstr = " and fldmethod=&6"
+    Endif
+  Else
+    sqstr = ""
+  Endif
+
+  If strUnit = "Metric" Then
+    sql = "select fldmetlow as xlow,fldmethigh as xhigh from tbltestlimit where fldtestid=&1 and (fldptsex=&2 or fldptsex=&3) and (fldagegroup=&4 or fldagegroup=&5)" & sqstr
+  Else If strUnit = "SI" Then
+    sql = "select fldsilow as xlow,fldsihigh as xhigh from tbltestlimit where fldtestid=&1 and (fldptsex=&2 or fldptsex=&3) and (fldagegroup=&4 or fldagegroup=&5)" & sqstr
+  Endif
+  res = modDatabase.$medConn.Exec(sql, strTest, xgender, "Both Sex", agegroup, "All Age", sMethod)
+  If res.Available = True Then
+    res.MoveFirst
+    If res["xlow"] Then
+      minLimit = res["xlow"]
+    Else
+      minLimit = 0
+    Endif
+    If res["xhigh"] Then
+      maxLimit = res["xhigh"]
+    Else
+      maxLimit = 0
+    Endif
+  Else
+    minLimit = 0
+    maxLimit = 0
+  Endif
+
+  xval = [minLimit, maxLimit]
+  Return xval
+
+End
+
+''LabNormalValue(strTest As String, encid As String, strUnit As String, Optional sMethod As String)
+Public Function GetLabNormalValue(xgender As String, agegroup As String, strTest As String, strUnit As String, Optional sMethod As String) As Float
+
+  Dim sql As String
+  Dim res As Result
+  Dim sqstr As String
+  Dim NormalLimit As Float
+
+  If sMethod Then
+    If sMethod = "Regular" Then
+      sqstr = ""
+    Else
+      sqstr = " and fldmethod=&6"
+    Endif
+  Else
+    sqstr = ""
+  Endif
+
+  If strUnit = "Metric" Then
+    sql = "select fldmetnormal as xnormal from tbltestlimit where fldtestid=&1 and (fldptsex=&2 or fldptsex=&3) and (fldagegroup=&4 or fldagegroup=&5)" & sqstr
+  Else If strUnit = "SI" Then
+    sql = "select fldsinormal as xnormal from tbltestlimit where fldtestid=&1 and (fldptsex=&2 or fldptsex=&3) and (fldagegroup=&4 or fldagegroup=&5)" & sqstr
+  Endif
+  res = modDatabase.$medConn.Exec(sql, strTest, xgender, "Both Sex", agegroup, "All Age", sMethod)
+  If res.Available = True Then
+    res.MoveFirst
+    If res["xnormal"] Then
+      NormalLimit = res["xnormal"]
+    Else
+      NormalLimit = 0
+    Endif
+  Else
+    NormalLimit = 0
+  Endif
+
+  Return NormalLimit
+
+End
+
+''GetLabAcceptableRange(strTest As String, encid As String, strUnit As String, Optional sMethod As String)
+Public Function GetFixLabAcceptableRange(xgender As String, agegroup As String, strTest As String, strUnit As String, Optional sMethod As String) As Float[]
+
+  Dim sql As String
+  Dim res As Result
+  Dim LowerLimit As Float
+  Dim UpperLimit As Float
+  Dim sqstr As String
+  Dim xval As Float[]
+  Dim xconv As Float
+
+  If sMethod Then
+    If sMethod = "Regular" Then
+      sqstr = ""
+    Else
+      sqstr = " and fldmethod=&6"
+    Endif
+  Else
+    sqstr = ""
+  Endif
+
+  sql = "select fldminimum,fldmaximum from tbltestlimit where fldtestid=&1 and (fldptsex=&2 or fldptsex=&3) and (fldagegroup=&4 or fldagegroup=&5)" & sqstr
+  res = modDatabase.$medConn.Exec(sql, strTest, xgender, "Both Sex", agegroup, "All Age", sMethod)
+  If res.Available = True Then
+    res.MoveFirst
+    If res["fldminimum"] Then
+      LowerLimit = res["fldminimum"]
+    Else
+      LowerLimit = 0
+    Endif
+    If res["fldmaximum"] Then
+      UpperLimit = res["fldmaximum"]
+    Else
+      UpperLimit = 0
+    Endif
+  Else
+    LowerLimit = 0
+    UpperLimit = 0
+  Endif
+
+  If strUnit = "Metric" Then
+    xval = [LowerLimit, UpperLimit]
+  Else If strUnit = "SI" Then
+    If sMethod Then
+      xconv = GetLabConversionValue(xgender, agegroup, strTest, sMethod)
+    Else
+      xconv = GetLabConversionValue(xgender, agegroup, strTest)
+    Endif
+    xval = [LowerLimit * xconv, UpperLimit * xconv]
+  Endif
+
+  Return xval
+
+End
+
+''LabQuantiTableValue(sField As String, strTest As String, encid As String, Optional sMethod As String)
+Private Function GetLabQuantiTableValue(sField As String, xgender As String, agegroup As String, strTest As String, Optional sMethod As String) As Float
+
+  Dim sql As String
+  Dim res As Result
+  Dim svalue As Float
+  Dim sqstr As String
+
+  If sMethod Then
+    If sMethod = "Regular" Then
+      sqstr = ""
+    Else
+      sqstr = " and fldmethod=&6"
+    Endif
+  Else
+    sqstr = ""
+  Endif
+
+  sql = Subst("select &1 as xfld from tbltestlimit", sField) & " where fldtestid=&1 and (fldptsex=&2 or fldptsex=&3) and (fldagegroup=&4 or fldagegroup=&5)" & sqstr
+  res = modDatabase.$medConn.Exec(sql, strTest, xgender, "Both Sex", agegroup, "All Age", sMethod)
+  If res.Available = True Then
+    res.MoveFirst
+    If res["xfld"] Then
+      svalue = res["xfld"]
+    Else
+      svalue = 0
+    Endif
+  Else
+    svalue = 0
+  Endif
+
+  If svalue = 0 Then
+    svalue = modFixLab.LabFieldValue(sField, strTest)
+  Endif
+
+  Return svalue
+
+End
+
+''LabTestUnit(strTest As String, encid As String, strUnit As String, Optional sMethod As String)
+Public Function GetLabTestUnit(xgender As String, agegroup As String, strTest As String, strUnit As String, Optional sMethod As String) As String
+
+  Dim sql As String
+  Dim res As Result
+  Dim LabUnit As String
+  Dim sqstr As String
+
+  If sMethod Then
+    If sMethod = "Regular" Then
+      sqstr = ""
+    Else
+      sqstr = " and fldmethod=&6"
+    Endif
+  Else
+    sqstr = ""
+  Endif
+
+  If strUnit = "Metric" Then
+    sql = "select fldmetunit as xunit from tbltestlimit where fldtestid=&1 and (fldptsex=&2 or fldptsex=&3) and (fldagegroup=&4 or fldagegroup=&5)" & sqstr
+  Else If strUnit = "SI" Then
+    sql = "select fldsiunit as xunit from tbltestlimit where fldtestid=&1 and (fldptsex=&2 or fldptsex=&3) and (fldagegroup=&4 or fldagegroup=&5)" & sqstr
+  Endif
+  res = modDatabase.$medConn.Exec(sql, strTest, xgender, "Both Sex", agegroup, "All Age", sMethod)
+  If res.Available = True Then
+    res.MoveFirst
+    If res["xunit"] Then
+      LabUnit = res["xunit"]
+    Else
+      LabUnit = ""
+    Endif
+  Else
+    LabUnit = ""
+  Endif
+
+  Return LabUnit
+
+End
+
+''GetLabQuantiValueAll(encid As String, testName As String, sValue As Float, sUnit As String, sMethod As String, TargetUnit As String)
+Public Function GetConvertLabQuantiVal(xgender As String, agegroup As String, testName As String, sValue As Float, sUnit As String, sMethod As String, TargetUnit As String) As Float
+
+  Dim metr As Float
+
+  If TargetUnit = "Metric" Then
+    If sUnit = "Metric" Then
+      metr = sValue
+    Else If sUnit = "SI" Then
+      If sMethod Then
+        metr = Round(sValue / GetLabConversionValue(xgender, agegroup, testName, sMethod), -3)
+      Else
+        metr = Round(sValue / GetLabConversionValue(xgender, agegroup, testName), -3)
+      Endif
+    Endif
+  Else If TargetUnit = "SI" Then
+    If sUnit = "Metric" Then
+      If sMethod Then
+        metr = Round(sValue * GetLabConversionValue(xgender, agegroup, testName, sMethod), -3)
+      Else
+        metr = Round(sValue * GetLabConversionValue(xgender, agegroup, testName), -3)
+      Endif
+    Else If sUnit = "SI" Then
+      metr = sValue
+    Endif
+  Endif
+  Return metr
+
+End

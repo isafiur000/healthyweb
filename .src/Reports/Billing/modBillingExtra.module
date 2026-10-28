@@ -1104,33 +1104,41 @@ Public Function ShowUserCollectionStatusDetail($con As Connection, dtfir As Date
 
   Dim xopdhandA As Float
   Dim xopdcardA As Float
+  Dim xopdwebA As Float
   Dim xopdtotalA As Float
   Dim xopdhandB As Float
   Dim xopdcardB As Float
+  Dim xopdwebB As Float
   Dim xopdtotalB As Float
   Dim yipdhandA As Float
   Dim yipdcardA As Float
+  Dim yipdwebA As Float
   Dim yipdtotalA As Float
   Dim yipdhandB As Float
   Dim yipdcardB As Float
+  Dim yipdwebB As Float
   Dim yipdtotalB As Float
   Dim grdtotal As Float
 
   Dim popdhandA As Float
   Dim popdcardA As Float
+  Dim popdwebA As Float
   Dim popdtotalA As Float
   Dim popdhandB As Float
   Dim popdcardB As Float
+  Dim popdwebB As Float
   Dim popdtotalB As Float
   Dim qipdhandA As Float
   Dim qipdcardA As Float
+  Dim qipdwebA As Float
   Dim qipdtotalA As Float
   Dim qipdhandB As Float
   Dim qipdcardB As Float
+  Dim qipdwebB As Float
   Dim qipdtotalB As Float
   Dim pqalltotal As Float
 
-  $BillingReport = New CReportHTML([("SNO"), ("USER"), ("HAND-CASH<br>INVOICE<br>OPD"), ("CARD-CASH<br>INVOICE<br>OPD"), ("HAND-CASH<br>RECEIPT<br>OPD"), ("CARD-CASH<br>RECEIPT<br>OPD"), ("TOTAL CASH<br>OPD"), ("HAND-CASH<br>INVOICE<br>IPD"), ("CARD-CASH<br>INVOICE<br>IPD"), ("HAND-CASH<br>RECEIPT<br>IPD"), ("CARD-CASH<br>RECEIPT<br>IPD"), ("TOTAL CASH<br>IPD"), ("GRAND TOTAL")], "", "")
+  $BillingReport = New CReportHTML([("SNO"), ("USER"), ("HAND-CASH<br>INVOICE<br>OPD"), ("CARD-CASH<br>INVOICE<br>OPD"), ("WEB-CASH<br>INVOICE<br>OPD"), ("HAND-CASH<br>RECEIPT<br>OPD"), ("CARD-CASH<br>RECEIPT<br>OPD"), ("WEB-CASH<br>RECEIPT<br>OPD"), ("TOTAL CASH<br>OPD"), ("HAND-CASH<br>INVOICE<br>IPD"), ("CARD-CASH<br>INVOICE<br>IPD"), ("WEB-CASH<br>INVOICE<br>IPD"), ("HAND-CASH<br>RECEIPT<br>IPD"), ("CARD-CASH<br>RECEIPT<br>IPD"), ("WEB-CASH<br>RECEIPT<br>IPD"), ("TOTAL CASH<br>IPD"), ("GRAND TOTAL")], "", "")
   $BillingReport.UserData.Add("CASH COLLECTION REPORT", "PARAM1")
   $BillingReport.UserData.Add("Date: " & modReportVar.GetDateTimeReport(dtfir, gb.MediumDate) & " TO " & modReportVar.GetDateTimeReport(dtlast, gb.MediumDate), "PARAM2")
 
@@ -1146,30 +1154,38 @@ Public Function ShowUserCollectionStatusDetail($con As Connection, dtfir As Date
 
   popdhandA = 0
   popdcardA = 0
+  popdwebA = 0
   popdtotalA = 0
   popdhandB = 0
   popdcardB = 0
+  popdwebB = 0
   popdtotalB = 0
   qipdhandA = 0
   qipdcardA = 0
+  qipdwebA = 0
   qipdtotalA = 0
   qipdhandB = 0
   qipdcardB = 0
+  qipdwebB = 0
   qipdtotalB = 0
   pqalltotal = 0
   i = 1
   For Each xuser In xUserList
     xopdhandA = 0
     xopdcardA = 0
+    xopdwebA = 0
     xopdtotalA = 0
     xopdhandB = 0
     xopdcardB = 0
+    xopdwebB = 0
     xopdtotalB = 0
     yipdhandA = 0
     yipdcardA = 0
+    yipdwebA = 0
     yipdtotalA = 0
     yipdhandB = 0
     yipdcardB = 0
+    yipdwebB = 0
     yipdtotalB = 0
     grdtotal = 0
 
@@ -1179,18 +1195,20 @@ Public Function ShowUserCollectionStatusDetail($con As Connection, dtfir As Date
       For Each res1
         xopdtotalA = xopdtotalA + res1["xtot"]
         xopdcardA = xopdcardA + modNonMedical.GetQRPaymentAmtBill(res1["fldbillno"])
+        xopdwebA = xopdwebA + modNonMedical.GetOnlinePaymentAmtBill(res1["fldbillno"])
       Next
     Endif
-    xopdhandA = xopdtotalA - xopdcardA
+    xopdhandA = xopdtotalA - xopdcardA - xopdwebA
 
     res1x = $con.Exec("select fldbillno,(fldreceivedamt+fldcurdeposit) as xtot from " & $tbltempbilldetail & " where fldtime>=&1 and fldtime<=&2 and flduserid=&3 and fldprevdeposit=&4" & RepoStr, modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast), xuser, 1)
     If res1x.Available Then
       For Each res1x
         xopdtotalB = xopdtotalB + res1x["xtot"]
         xopdcardB = xopdcardB + modNonMedical.GetQRPaymentAmtBill(res1x["fldbillno"])
+        xopdwebB = xopdwebB + modNonMedical.GetOnlinePaymentAmtBill(res1x["fldbillno"])
       Next
     Endif
-    xopdhandB = xopdtotalB - xopdcardB
+    xopdhandB = xopdtotalB - xopdcardB - xopdwebB
 
     ''for ipd
     res2 = $con.Exec("select fldbillno,(fldreceivedamt+fldcurdeposit) as xtot from " & $tblpatbilldetail & " where fldtime>=&1 and fldtime<=&2 and flduserid=&3 and fldprevdeposit>&4" & RepoStr, modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast), xuser, 1)
@@ -1198,33 +1216,39 @@ Public Function ShowUserCollectionStatusDetail($con As Connection, dtfir As Date
       For Each res2
         yipdtotalA = yipdtotalA + res2["xtot"]
         yipdcardA = yipdcardA + modNonMedical.GetQRPaymentAmtBill(res2["fldbillno"])
+        yipdwebA = yipdwebA + modNonMedical.GetOnlinePaymentAmtBill(res2["fldbillno"])
       Next
     Endif
-    yipdhandA = yipdtotalA - yipdcardA
+    yipdhandA = yipdtotalA - yipdcardA - yipdwebA
 
     res2x = $con.Exec("select fldbillno,(fldreceivedamt+fldcurdeposit) as xtot from " & $tbltempbilldetail & " where fldtime>=&1 and fldtime<=&2 and flduserid=&3 and fldprevdeposit>&4" & RepoStr, modDate.StartSqlDate(dtfir), modDate.EndSqlDate(dtlast), xuser, 1)
     If res2x.Available Then
       For Each res2x
         yipdtotalB = yipdtotalB + res2x["xtot"]
         yipdcardB = yipdcardB + modNonMedical.GetQRPaymentAmtBill(res2x["fldbillno"])
+        yipdwebB = yipdwebB + modNonMedical.GetOnlinePaymentAmtBill(res2x["fldbillno"])
       Next
     Endif
-    yipdhandB = yipdtotalB - yipdcardB
+    yipdhandB = yipdtotalB - yipdcardB - yipdwebB
 
     grdtotal = (xopdtotalA + xopdtotalB) + (yipdtotalA + yipdtotalB)
 
     popdhandA = popdhandA + xopdhandA
     popdcardA = popdcardA + xopdcardA
+    popdwebA = popdwebA + xopdwebA
     popdtotalA = popdtotalA + xopdtotalA
     popdhandB = popdhandB + xopdhandB
     popdcardB = popdcardB + xopdcardB
+    popdwebB = popdwebB + xopdwebB
     popdtotalB = popdtotalB + xopdtotalB
 
     qipdhandA = qipdhandA + yipdhandA
     qipdcardA = qipdcardA + yipdcardA
+    qipdwebA = qipdwebA + yipdwebA
     qipdtotalA = qipdtotalA + yipdtotalA
     qipdhandB = qipdhandB + yipdhandB
     qipdcardB = qipdcardB + yipdcardB
+    qipdwebB = qipdwebB + yipdwebB
     qipdtotalB = qipdtotalB + yipdtotalB
 
     pqalltotal = pqalltotal + grdtotal
@@ -1233,13 +1257,17 @@ Public Function ShowUserCollectionStatusDetail($con As Connection, dtfir As Date
       .Add(xuser & "[" & modGeneral.GetUserFullName(xuser) & "]")
       .Add(modReportVar.GetLocaleNumberFormat(xopdhandA, gb.Currency))
       .Add(modReportVar.GetLocaleNumberFormat(xopdcardA, gb.Currency))
+      .Add(modReportVar.GetLocaleNumberFormat(xopdwebA, gb.Currency))
       .Add(modReportVar.GetLocaleNumberFormat(xopdhandB, gb.Currency))
       .Add(modReportVar.GetLocaleNumberFormat(xopdcardB, gb.Currency))
+      .Add(modReportVar.GetLocaleNumberFormat(xopdwebB, gb.Currency))
       .Add(modReportVar.GetLocaleNumberFormat((xopdtotalA + xopdtotalB), gb.Currency))
       .Add(modReportVar.GetLocaleNumberFormat(yipdhandA, gb.Currency))
       .Add(modReportVar.GetLocaleNumberFormat(yipdcardA, gb.Currency))
+      .Add(modReportVar.GetLocaleNumberFormat(yipdwebA, gb.Currency))
       .Add(modReportVar.GetLocaleNumberFormat(yipdhandB, gb.Currency))
       .Add(modReportVar.GetLocaleNumberFormat(yipdcardB, gb.Currency))
+      .Add(modReportVar.GetLocaleNumberFormat(yipdwebB, gb.Currency))
       .Add(modReportVar.GetLocaleNumberFormat((yipdtotalA + yipdtotalB), gb.Currency))
       .Add(modReportVar.GetLocaleNumberFormat(grdtotal, gb.Currency))
     End With
@@ -1253,13 +1281,17 @@ Public Function ShowUserCollectionStatusDetail($con As Connection, dtfir As Date
     .Add("<b>GRAND TOTAL</b>")
     .Add(modReportVar.GetLocaleNumberFormat(popdhandA, gb.Currency))
     .Add(modReportVar.GetLocaleNumberFormat(popdcardA, gb.Currency))
+    .Add(modReportVar.GetLocaleNumberFormat(popdwebA, gb.Currency))
     .Add(modReportVar.GetLocaleNumberFormat(popdhandB, gb.Currency))
     .Add(modReportVar.GetLocaleNumberFormat(popdcardB, gb.Currency))
+    .Add(modReportVar.GetLocaleNumberFormat(popdwebB, gb.Currency))
     .Add(modReportVar.GetLocaleNumberFormat(popdtotalA + popdtotalB, gb.Currency))
     .Add(modReportVar.GetLocaleNumberFormat(qipdhandA, gb.Currency))
     .Add(modReportVar.GetLocaleNumberFormat(qipdcardA, gb.Currency))
+    .Add(modReportVar.GetLocaleNumberFormat(qipdwebA, gb.Currency))
     .Add(modReportVar.GetLocaleNumberFormat(qipdhandB, gb.Currency))
     .Add(modReportVar.GetLocaleNumberFormat(qipdcardB, gb.Currency))
+    .Add(modReportVar.GetLocaleNumberFormat(qipdwebB, gb.Currency))
     .Add(modReportVar.GetLocaleNumberFormat(qipdtotalA + qipdtotalB, gb.Currency))
     .Add(modReportVar.GetLocaleNumberFormat(pqalltotal, gb.Currency))
   End With

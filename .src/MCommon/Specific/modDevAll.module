@@ -1028,7 +1028,7 @@ Public Function ConvertPDFToImage(sPDF As String, sType As String) As String[]
 End
 
 ''convert multiple images to pdf
-Public Function ComvertMultiImagesToPDF(sFileList As String[]) As String
+Public Function ComvertMultiImagesToPDF(sFileList As String[], xCompress As Boolean) As String
 
   Dim sPath As String
   Dim arcmd As String[]
@@ -1036,6 +1036,7 @@ Public Function ComvertMultiImagesToPDF(sFileList As String[]) As String
   Dim sPdfList As String[]
   Dim sfile As String
   Dim sPdf As String
+  Dim finPDF As String
 
   sImgList = New String[]
   sPdfList = New String[]
@@ -1084,7 +1085,49 @@ Public Function ComvertMultiImagesToPDF(sFileList As String[]) As String
       sPdf = sPdfList[0]
     Endif
   Endif
-  Return sPdf
+
+  If xCompress = True Then
+    finPDF = CompressPDFGhostScript(sPdf)
+  Else
+    finPDF = sPdf
+  Endif
+
+  Return finPDF
+
+End
+
+Public Function CompressPDFGhostScript(sInput As String) As String
+
+  Dim arcmd As String[]
+  Dim sOutput As String
+
+  If modBasic.$PDFCompression = "imagemagick" Then
+    If System.Exist("convert") Then
+      sOutput = Temp() & ".pdf"
+      arcmd = ["convert", "-density", "150", sInput, "-quality", "85", sOutput]
+      modBasic.DebugAPIString("Execute " & arcmd.Join(Space(1)))
+      Exec arcmd Wait
+    Else
+      modApplSub.InstallSelectedApplication(["imagemagick"])
+    Endif
+
+  Else
+    If System.Exist("ps2pdf") Then
+      sOutput = Temp() & ".pdf"
+      arcmd = New String[]
+      arcmd.Add("ps2pdf")
+      arcmd.Add("-dPDFSETTINGS=/ebook")
+      arcmd.Add("-dCompressPages=true")
+      arcmd.Add(sInput)
+      arcmd.Add(sOutput)
+      modBasic.DebugAPIString("Execute " & arcmd.Join(Space(1)))
+      Exec arcmd Wait
+    Else
+      modApplSub.InstallSelectedApplication(["ghostscript"])
+    Endif
+
+  Endif
+  Return sOutput
 
 End
 

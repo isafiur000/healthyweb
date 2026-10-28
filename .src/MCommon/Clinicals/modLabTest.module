@@ -296,11 +296,8 @@ End
 ''--------------------- Reference Ranges ------------------------------
 Public Function LabBothLimitValue(strTest As String, encid As String, strUnit As String, Optional sMethod As String) As Float[]
 
-  Dim sql As String
-  Dim rs As Result
   Dim minLimit As Float
   Dim maxLimit As Float
-  Dim sqstr As String
   Dim xval As Float[]
 
   Dim xgender As String
@@ -340,39 +337,17 @@ Public Function LabBothLimitValue(strTest As String, encid As String, strUnit As
         maxLimit = 0
       Endif
     Endif
+    xval = [minLimit, maxLimit]
 
   Else
-    If sMethod = "Regular" Then
-      sqstr = ""
+    If sMethod Then
+      xval = modFixLab.GetLabBothLimitValue(xgender, agegroup, strTest, strUnit, sMethod)
     Else
-      sqstr = " and fldmethod=&6"
-    Endif
-    If strUnit = "Metric" Then
-      sql = "select fldmetlow as xlow,fldmethigh as xhigh from tbltestlimit where fldtestid=&1 and (fldptsex=&2 or fldptsex=&3) and (fldagegroup=&4 or fldagegroup=&5)" & sqstr
-    Else If strUnit = "SI" Then
-      sql = "select fldsilow as xlow,fldsihigh as xhigh from tbltestlimit where fldtestid=&1 and (fldptsex=&2 or fldptsex=&3) and (fldagegroup=&4 or fldagegroup=&5)" & sqstr
-    Endif
-    rs = modDatabase.$medConn.Exec(sql, strTest, xgender, "Both Sex", agegroup, "All Age", sMethod)
-    If rs.Available = True Then
-      rs.MoveFirst
-      If rs["xlow"] Then
-        minLimit = rs["xlow"]
-      Else
-        minLimit = 0
-      Endif
-      If rs["xhigh"] Then
-        maxLimit = rs["xhigh"]
-      Else
-        maxLimit = 0
-      Endif
-    Else
-      minLimit = 0
-      maxLimit = 0
+      xval = modFixLab.GetLabBothLimitValue(xgender, agegroup, strTest, strUnit)
     Endif
 
   Endif
 
-  xval = [minLimit, maxLimit]
   Return xval
 
 End
@@ -501,10 +476,7 @@ End
 ''---------------------- Normal Value ------------------------------------
 Public Function LabNormalValue(strTest As String, encid As String, strUnit As String, Optional sMethod As String) As Float
 
-  Dim sql As String
-  Dim rs As Result
   Dim NormalLimit As Float
-  Dim sqstr As String
 
   Dim xgender As String
   Dim agegroup As String
@@ -535,28 +507,11 @@ Public Function LabNormalValue(strTest As String, encid As String, strUnit As St
     Endif
 
   Else
-    If sMethod = "Regular" Then
-      sqstr = ""
+    If sMethod Then
+      NormalLimit = modFixLab.GetLabNormalValue(xgender, agegroup, strTest, strUnit, sMethod)
     Else
-      sqstr = " and fldmethod=&6"
+      NormalLimit = modFixLab.GetLabNormalValue(xgender, agegroup, strTest, strUnit)
     Endif
-    If strUnit = "Metric" Then
-      sql = "select fldmetnormal as xnormal from tbltestlimit where fldtestid=&1 and (fldptsex=&2 or fldptsex=&3) and (fldagegroup=&4 or fldagegroup=&5)" & sqstr
-    Else If strUnit = "SI" Then
-      sql = "select fldsinormal as xnormal from tbltestlimit where fldtestid=&1 and (fldptsex=&2 or fldptsex=&3) and (fldagegroup=&4 or fldagegroup=&5)" & sqstr
-    Endif
-    rs = modDatabase.$medConn.Exec(sql, strTest, xgender, "Both Sex", agegroup, "All Age", sMethod)
-    If rs.Available = True Then
-      rs.MoveFirst
-      If rs["xnormal"] Then
-        NormalLimit = rs["xnormal"]
-      Else
-        NormalLimit = 0
-      Endif
-    Else
-      NormalLimit = 0
-    Endif
-
   Endif
 
   Return NormalLimit
@@ -566,11 +521,8 @@ End
 ''--------------------------- Acceptable Range --------------------------------
 Public Function GetLabAcceptableRange(strTest As String, encid As String, strUnit As String, Optional sMethod As String) As Float[]
 
-  Dim sql As String
-  Dim rs As Result
   Dim LowerLimit As Float
   Dim UpperLimit As Float
-  Dim sqstr As String
   Dim xval As Float[]
   Dim xconv As Float
 
@@ -599,43 +551,25 @@ Public Function GetLabAcceptableRange(strTest As String, encid As String, strUni
       UpperLimit = 0
     Endif
 
+    If strUnit = "Metric" Then
+      xval = [LowerLimit, UpperLimit]
+    Else If strUnit = "SI" Then
+      If sMethod Then
+        xconv = LabConversionValue(encid, strTest, sMethod)
+      Else
+        xconv = LabConversionValue(encid, strTest)
+      Endif
+      xval = [LowerLimit * xconv, UpperLimit * xconv]
+    Endif
+
   Else
-    If sMethod = "Regular" Then
-      sqstr = ""
-    Else
-      sqstr = " and fldmethod=&6"
-    Endif
-    sql = "select fldminimum,fldmaximum from tbltestlimit where fldtestid=&1 and (fldptsex=&2 or fldptsex=&3) and (fldagegroup=&4 or fldagegroup=&5)" & sqstr
-    rs = modDatabase.$medConn.Exec(sql, strTest, xgender, "Both Sex", agegroup, "All Age", sMethod)
-    If rs.Available = True Then
-      rs.MoveFirst
-      If rs["fldminimum"] Then
-        LowerLimit = rs["fldminimum"]
-      Else
-        LowerLimit = 0
-      Endif
-      If rs["fldmaximum"] Then
-        UpperLimit = rs["fldmaximum"]
-      Else
-        UpperLimit = 0
-      Endif
-    Else
-      LowerLimit = 0
-      UpperLimit = 0
-    Endif
-
-  Endif
-
-  If strUnit = "Metric" Then
-    xval = [LowerLimit, UpperLimit]
-  Else If strUnit = "SI" Then
     If sMethod Then
-      xconv = LabConversionValue(encid, strTest, sMethod)
+      xval = modFixLab.GetFixLabAcceptableRange(xgender, agegroup, strTest, strUnit, sMethod)
     Else
-      xconv = LabConversionValue(encid, strTest)
+      xval = modFixLab.GetFixLabAcceptableRange(xgender, agegroup, strTest, strUnit)
     Endif
-    xval = [LowerLimit * xconv, UpperLimit * xconv]
   Endif
+
   Return xval
 
 End
@@ -676,10 +610,7 @@ End
 ''------------------------ Sensitivity/Specificity ------------------
 Private Function LabQuantiTableValue(sField As String, strTest As String, encid As String, Optional sMethod As String) As Float
 
-  Dim sql As String
-  Dim rs As Result
   Dim svalue As Float
-  Dim sqstr As String
 
   Dim xgender As String
   Dim agegroup As String
@@ -701,29 +632,16 @@ Private Function LabQuantiTableValue(sField As String, strTest As String, encid 
       svalue = 0
     Endif
 
+    If svalue = 0 Then
+      svalue = modFixLab.LabFieldValue(sField, strTest)
+    Endif
+
   Else
-    If sMethod = "Regular" Then
-      sqstr = ""
+    If sMethod Then
+      svalue = modFixLab.GetLabQuantiTableValue(sField, xgender, agegroup, strTest, sMethod)
     Else
-      sqstr = " and fldmethod=&6"
+      svalue = modFixLab.GetLabQuantiTableValue(sField, xgender, agegroup, strTest)
     Endif
-    sql = Subst("select &1 as xfld from tbltestlimit", sField) & " where fldtestid=&1 and (fldptsex=&2 or fldptsex=&3) and (fldagegroup=&4 or fldagegroup=&5)" & sqstr
-    rs = modDatabase.$medConn.Exec(sql, strTest, xgender, "Both Sex", agegroup, "All Age", sMethod)
-    If rs.Available = True Then
-      rs.MoveFirst
-      If rs["xfld"] Then
-        svalue = rs["xfld"]
-      Else
-        svalue = 0
-      Endif
-    Else
-      svalue = 0
-    Endif
-
-  Endif
-
-  If svalue = 0 Then
-    svalue = modFixLab.LabFieldValue(sField, strTest)
   Endif
 
   Return svalue
@@ -767,10 +685,7 @@ End
 ''----------------------- Conversion Factor -----------------------------
 Public Function LabConversionValue(encid As String, strTest As String, Optional sMethod As String) As Float
 
-  Dim ssl As String
-  Dim rs As Result
   Dim ConvFactor As Float
-  Dim sqstr As String
 
   Dim xgender As String
   Dim agegroup As String
@@ -793,24 +708,11 @@ Public Function LabConversionValue(encid As String, strTest As String, Optional 
     Endif
 
   Else
-    If sMethod = "Regular" Then
-      sqstr = ""
+    If sMethod Then
+      ConvFactor = modFixLab.GetLabConversionValue(xgender, agegroup, strTest, sMethod)
     Else
-      sqstr = " and fldmethod=&6"
+      ConvFactor = modFixLab.GetLabConversionValue(xgender, agegroup, strTest)
     Endif
-    ssl = "select fldconvfactor from tbltestlimit where fldtestid=&1 and (fldptsex=&2 or fldptsex=&3) and (fldagegroup=&4 or fldagegroup=&5)" & sqstr
-    rs = modDatabase.$medConn.Exec(ssl, strTest, xgender, "Both Sex", agegroup, "All Age", sMethod)
-    If rs.Available = True Then
-      rs.MoveFirst
-      If rs["fldconvfactor"] Then
-        ConvFactor = rs["fldconvfactor"]
-      Else
-        ConvFactor = 1
-      Endif
-    Else
-      ConvFactor = 1
-    Endif
-
   Endif
 
   Return ConvFactor
@@ -820,10 +722,7 @@ End
 ''----------------------------------- Test Unit ---------------------------------------
 Public Function LabTestUnit(strTest As String, encid As String, strUnit As String, Optional sMethod As String) As String
 
-  Dim ssl As String
-  Dim rs As Result
   Dim LabUnit As String
-  Dim sqstr As String
 
   Dim xgender As String
   Dim agegroup As String
@@ -854,28 +753,11 @@ Public Function LabTestUnit(strTest As String, encid As String, strUnit As Strin
     Endif
 
   Else
-    If sMethod = "Regular" Then
-      sqstr = ""
+    If sMethod Then
+      LabUnit = modFixLab.GetLabTestUnit(xgender, agegroup, strTest, strUnit, sMethod)
     Else
-      sqstr = " and fldmethod=&6"
+      LabUnit = modFixLab.GetLabTestUnit(xgender, agegroup, strTest, strUnit)
     Endif
-    If strUnit = "Metric" Then
-      ssl = "select fldmetunit as xunit from tbltestlimit where fldtestid=&1 and (fldptsex=&2 or fldptsex=&3) and (fldagegroup=&4 or fldagegroup=&5)" & sqstr
-    Else If strUnit = "SI" Then
-      ssl = "select fldsiunit as xunit from tbltestlimit where fldtestid=&1 and (fldptsex=&2 or fldptsex=&3) and (fldagegroup=&4 or fldagegroup=&5)" & sqstr
-    Endif
-    rs = modDatabase.$medConn.Exec(ssl, strTest, xgender, "Both Sex", agegroup, "All Age", sMethod)
-    If rs.Available = True Then
-      rs.MoveFirst
-      If rs["xunit"] Then
-        LabUnit = rs["xunit"]
-      Else
-        LabUnit = ""
-      Endif
-    Else
-      LabUnit = ""
-    Endif
-
   Endif
 
   Return LabUnit
@@ -911,27 +793,6 @@ Public Function GetTestUnitSrting(id As Long, strUnit As String, Optional sTable
 End
 
 ''------------------------------------ OBSERVATIONS -----------------------------------
-Public Function GetLabQuantiConvert(sValue As Float, sUnit As String, ConvFactor As Float, TargetUnit As String) As Float
-
-  Dim metr As Float
-
-  If TargetUnit = "Metric" Then
-    If sUnit = "Metric" Then
-      metr = sValue
-    Else If sUnit = "SI" Then
-      metr = Round(sValue / ConvFactor, -3)
-    Endif
-  Else If TargetUnit = "SI" Then
-    If sUnit = "Metric" Then
-      metr = Round(sValue * ConvFactor, -3)
-    Else If sUnit = "SI" Then
-      metr = sValue
-    Endif
-  Endif
-  Return metr
-
-End
-
 Public Function GetLabQuantiValueAll(encid As String, testName As String, sValue As Float, sUnit As String, sMethod As String, TargetUnit As String) As Float
 
   Dim metr As Float
@@ -961,6 +822,28 @@ Public Function GetLabQuantiValueAll(encid As String, testName As String, sValue
 
 End
 
+''replacement for GetTestQuantiValueLabID(encid As String, id As Long, strUnit As String, Optional sTable As String)
+Public Function GetQuickTestQuantiValueLabID(encid As String, xgender As String, agegroup As String, xid As Long, strUnit As String, Optional sTable As String) As Float
+
+  Dim res As Result
+  Dim sql As String
+  Dim LabVal As Float
+
+  If sTable Then
+    sql = "select fldencounterval,fldtestid,fldreportquanti,fldtestunit,fldmethod from " & sTable & " where fldid=&1 and fldencounterval=&2"
+  Else
+    sql = "select fldencounterval,fldtestid,fldreportquanti,fldtestunit,fldmethod from tblpatlabtest where fldid=&1 and fldencounterval=&2"
+  Endif
+  res = modDatabase.$myConn.Exec(sql, xid, encid)
+  If res.Available Then
+    LabVal = modFixLab.GetConvertLabQuantiVal(xgender, agegroup, res["fldtestid"], res["fldreportquanti"], res["fldtestunit"], res["fldmethod"], strUnit)
+  Else
+    LabVal = 0
+  Endif
+  Return LabVal
+
+End
+
 Public Function GetTestQuantiValueLabID(encid As String, id As Long, strUnit As String, Optional sTable As String) As Float
 
   Dim res As Result
@@ -983,6 +866,128 @@ Public Function GetTestQuantiValueLabID(encid As String, id As Long, strUnit As 
 End
 
 ''--------------Observation in RichText Format
+''replacement for GetLabTestValueString(id As Long, strUnit As String, sReport As Boolean, encid As String, Optional sTable As String)
+Public Function GetQuickLabTestValueString(encid As String, xgender As String, agegroup As String, xid As Long, strUnit As String, sReport As Boolean, Optional sTable As String) As String
+
+  Dim xx As String
+  Dim res As Result
+  Dim xval As String
+  Dim xlab As Float
+  Dim xType As String
+  Dim xcaption As String
+  Dim CParam As CLabParam
+
+  Dim newval As String
+  Dim accval As Float[]
+  Dim xunit As String
+  Dim xconv As Float
+  Dim $sTable As String
+
+  If sTable Then
+    $sTable = sTable
+  Else
+    $sTable = "tblpatlabtest"
+  Endif
+
+  res = modDatabase.$myConn.Exec("select fldencounterval,fldtestid,fldreportquali,fldreportquanti,fldtest_type,fldabnormal,fldtestunit,fldmethod from " & $sTable & " where fldid=&1 and fldencounterval=&2", xid, encid)
+  If res.Available = True Then
+    xcaption = modFixLab.GetLabTestCaption(res["fldtestid"])
+    If modBasic.$SuperUser = False And If xcaption = "$Encryption" Then
+      xx = "****"
+    Else
+
+      If res["fldtest_type"] = "Quantitative" Then
+        If res["fldmethod"] Then
+          CParam = New CLabParam(xgender, agegroup, res["fldtestid"], strUnit, res["fldmethod"])
+        Else
+          CParam = New CLabParam(xgender, agegroup, res["fldtestid"], strUnit)
+        Endif
+        xunit = CParam.GetLabUnit()
+        xconv = CParam.GetConversionFactor()
+        xlab = modFixLab.GetLabQuantiConvert(res["fldreportquanti"], res["fldtestunit"], xconv, strUnit)
+        If xlab Then
+          If sReport = True Then
+            accval = CParam.GetAcceptableLimits()
+            newval = modReportVar.GetLocaleNumberFormat(xlab, 0)
+            If accval Then
+              If accval[0] Then
+                If xlab And If xlab < accval[0] Then
+                  newval = "&lt;" & modString.HTMLBlankSpace(1) & modReportVar.GetLocaleNumberFormat(accval[0], 0)
+                Endif
+              Endif
+              If accval[1] Then
+                If xlab > accval[1] Then
+                  newval = "&gt;" & modString.HTMLBlankSpace(1) & modReportVar.GetLocaleNumberFormat(accval[1], 0)
+                Endif
+              Endif
+            Endif
+            xval = newval & Space(1) & xunit
+          Else
+            xval = modReportVar.GetLocaleNumberFormat(xlab, 0) & Space(1) & xunit
+          Endif
+        Else
+          If sReport = True Then
+            newval = modReportVar.GetLocaleNumberFormat(xlab, 0)
+            xval = newval & Space(1) & xunit
+          Else
+            xval = ""
+          Endif
+        Endif
+
+      Else
+        If res["fldreportquali"] Then
+          xType = modAllExam.GetVariableOptionType("Test", res["fldtestid"])
+          If xType = "Clinical Scale" Then
+            If modBasic.$ShowScaleMedFormat = "GroupWise" Then
+              If sReport = True Then
+                xval = modString.GetJSONToDualHTMLTable(Trim(res["fldreportquali"]))
+              Else
+                xval = Trim(res["fldreportquali"])
+              Endif
+            Else
+              xval = CStr(res["fldreportquanti"])
+            Endif
+          Else If xType = "Left and Right" Then
+            If sReport = True Then
+              xval = modString.GetJSONToDualHTMLTable(Trim(res["fldreportquali"]))
+            Else
+              xval = Trim(res["fldreportquali"])
+            Endif
+          Else If xType = "Left/Right Components" Then
+            If sReport = True Then
+              xval = modString.GetJSONToDualHTMLTable(Trim(res["fldreportquali"]))
+            Else
+              xval = Trim(res["fldreportquali"])
+            Endif
+          Else
+            xval = Trim(res["fldreportquali"])
+          Endif
+
+        Else
+          xval = ""
+        Endif
+
+      Endif
+
+      If xval And If sReport = True Then
+        If res["fldabnormal"] = True And If modBasic.$AbnFormat Then
+          xx = modString.GetAbnormalFormattedString(xval)
+        Else
+          xx = xval
+        Endif
+      Else
+        xx = xval
+      Endif
+
+    Endif
+  Else
+    xx = ""
+  Endif
+
+  Return xx
+
+End
+
 ''minimal view for lab reports
 Public Function GetLabTestValueString(id As Long, strUnit As String, sReport As Boolean, encid As String, Optional sTable As String) As String
 
@@ -993,6 +998,8 @@ Public Function GetLabTestValueString(id As Long, strUnit As String, sReport As 
   Dim xType As String
   Dim xcaption As String
   Dim CParam As CLabParam
+  Dim xgender As String
+  Dim agegroup As String
 
   Dim newval As String
   Dim accval As Float[]
@@ -1017,14 +1024,16 @@ Public Function GetLabTestValueString(id As Long, strUnit As String, sReport As 
     Else
 
       If res["fldtest_type"] = "Quantitative" Then
+        xgender = modPatient.GetPatientSex(res["fldencounterval"])
+        agegroup = modPatient.GetAgeGroupFIxed(res["fldencounterval"], Now())
         If res["fldmethod"] Then
-          CParam = New CLabParam(res["fldencounterval"], res["fldtestid"], strUnit, res["fldmethod"])
+          CParam = New CLabParam(xgender, agegroup, res["fldtestid"], strUnit, res["fldmethod"])
         Else
-          CParam = New CLabParam(res["fldencounterval"], res["fldtestid"], strUnit)
+          CParam = New CLabParam(xgender, agegroup, res["fldtestid"], strUnit)
         Endif
         xunit = CParam.GetLabUnit()
         xconv = CParam.GetConversionFactor()
-        xlab = modLabTest.GetLabQuantiConvert(res["fldreportquanti"], res["fldtestunit"], xconv, strUnit)
+        xlab = modFixLab.GetLabQuantiConvert(res["fldreportquanti"], res["fldtestunit"], xconv, strUnit)
         If xlab Then
           If sReport = True Then
             accval = CParam.GetAcceptableLimits()
@@ -1117,6 +1126,8 @@ Public Function GetLabTestValueGridString(encid As String, sIndex As Variant, st
   Dim res As Result
   Dim sql As String
   Dim CParam As CLabParam
+  Dim xgender As String
+  Dim agegroup As String
 
   Dim accval As Float[]
   Dim astr As String
@@ -1144,14 +1155,16 @@ Public Function GetLabTestValueGridString(encid As String, sIndex As Variant, st
     Else
 
       If res["fldtest_type"] = "Quantitative" Then
+        xgender = modPatient.GetPatientSex(res["fldencounterval"])
+        agegroup = modPatient.GetAgeGroupFIxed(res["fldencounterval"], Now())
         If res["fldmethod"] Then
-          CParam = New CLabParam(res["fldencounterval"], res["fldtestid"], strUnit, res["fldmethod"])
+          CParam = New CLabParam(xgender, agegroup, res["fldtestid"], strUnit, res["fldmethod"])
         Else
-          CParam = New CLabParam(res["fldencounterval"], res["fldtestid"], strUnit)
+          CParam = New CLabParam(xgender, agegroup, res["fldtestid"], strUnit)
         Endif
         xunit = CParam.GetLabUnit()
         xconv = CParam.GetConversionFactor()
-        xval = modLabTest.GetLabQuantiConvert(res["fldreportquanti"], res["fldtestunit"], xconv, strUnit)
+        xval = modFixLab.GetLabQuantiConvert(res["fldreportquanti"], res["fldtestunit"], xconv, strUnit)
         If xval Then
           newval = modReportVar.GetLocaleNumberFormat(xval, 0)
           accval = CParam.GetAcceptableLimits()

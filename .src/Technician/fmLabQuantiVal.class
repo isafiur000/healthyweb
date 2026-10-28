@@ -3,13 +3,16 @@
 Private $xComp As String
 Private $id As Long
 Private $encid As String
+Private $gender As String
+Private $agegroup As String
 Private $sTable As String
 
-Public Sub _new(id As Long, strExam As String, strValue As Float, defUnt As String, xspecimen As String, xComp As String, sTable As String)
+Public Sub _new(encid As String, idx As Long, strExam As String, strValue As Float, defUnt As String, xspecimen As String, xComp As String, sTable As String)
 
-  lblitem.Text = strExam
-  $id = id
+  $encid = encid
+  $id = idx
   $xComp = xComp
+  lblitem.Text = strExam
   txtreport.Value = strValue
   txtspecimen.Text = xspecimen
   If sTable Then
@@ -17,6 +20,8 @@ Public Sub _new(id As Long, strExam As String, strValue As Float, defUnt As Stri
   Else
     $sTable = "tblpatlabtest"
   Endif
+  $gender = modPatient.GetPatientSex($encid)
+  $agegroup = modPatient.GetAgeGroupFIxed($encid, Now())
 
   If defUnt = "Metric" Then
     rbmetric.Value = True
@@ -24,7 +29,7 @@ Public Sub _new(id As Long, strExam As String, strValue As Float, defUnt As Stri
     rbsi.Value = True
   Endif
   modSettings.ShowCheckBox(chkoutlier, "Laboratory/WarnOutliers")
-  $encid = modLabTest.GetEncIDFromLabID($id, $sTable)
+
   ShowTestLImit()
   txtreport.SetFocus
 
@@ -51,15 +56,15 @@ Private Sub ShowTestLImit()
     strUnit = "Metric"
   Endif
 
-  sql = "select fldencounterval,fldtestid,fldmethod from " & $sTable & " where fldid=&1 and fldtest_type=&2"
-  res = modDatabase.$myConn.Exec(sql, $id, "Quantitative")
+  sql = "select fldencounterval,fldtestid,fldmethod from " & $sTable & " where fldid=&1 and fldencounterval=&2 and fldtest_type=&3"
+  res = modDatabase.$myConn.Exec(sql, $id, $encid, "Quantitative")
   If res.Available Then
     If res["fldmethod"] Then
-      xunit = modLabTest.LabTestUnit(res["fldtestid"], res["fldencounterval"], strUnit, res["fldmethod"])
-      xlimit = modLabTest.LabBothLimitValue(res["fldtestid"], res["fldencounterval"], strUnit, res["fldmethod"])
+      xunit = modFixLab.GetLabTestUnit($gender, $agegroup, res["fldtestid"], strUnit, res["fldmethod"])
+      xlimit = modFixLab.GetLabBothLimitValue($gender, $agegroup, res["fldtestid"], strUnit, res["fldmethod"])
     Else
-      xunit = modLabTest.LabTestUnit(res["fldtestid"], res["fldencounterval"], strUnit)
-      xlimit = modLabTest.LabBothLimitValue(res["fldtestid"], res["fldencounterval"], strUnit)
+      xunit = modFixLab.GetLabTestUnit($gender, $agegroup, res["fldtestid"], strUnit)
+      xlimit = modFixLab.GetLabBothLimitValue($gender, $agegroup, res["fldtestid"], strUnit)
     Endif
   Endif
   txtlower.Value = xlimit[0]
