@@ -109,10 +109,13 @@ End
 
 Private Sub LoadGridData()
 
-  Dim sql As String
+  Dim sql1 As String
+  Dim sql2 As String
+  Dim xFldLst As String[] = ["fldbookingval", "fldbookingval", "fldconsultdate", "fldadmitlocat", "fldpatientno", "fldptnamefir", "fldptnamelast", "fldptsex", "flddisctype", "fldpayreference", "fldencounterval", "fldinvoice", "fldconsultdate", "fldbookingval", "fldptcontact", "flduserid", "fldpatientval"]
 
-  sql = "select fldbookingval,fldbookingval,fldconsultdate,fldadmitlocat,fldpatientno,fldptnamefir,fldptnamelast,fldptsex,flddisctype,fldpayreference,fldencounterval,fldinvoice,fldconsultdate,fldbookingval,fldptcontact,flduserid,fldpatientval from tblonlinebook where flddisctype like &1 and fldconsultdate>=&2 and fldconsultdate<=&3 and fldadmitlocat like &4 and fldstate=&5"
-  $rData = modDatabase.$myConn.Exec(sql, cmbscheme.Text, modDate.StartSqlDate(dtconsult.Value), modDate.EndSqlDate(dtconsult.Value), cmbdepart.Text, "Paid")
+  sql1 = "select " & xFldLst.Join(",") & " from tblonlinebook where fldgroup=&1 and flddisctype like &2 and fldconsultdate>=&3 and fldconsultdate<=&4 and fldadmitlocat like &5 and flditemamt>&6 and fldstate=&7"
+  sql2 = "select " & xFldLst.Join(",") & " from tblonlinebook where fldgroup=&1 and flddisctype like &2 and fldconsultdate>=&3 and fldconsultdate<=&4 and fldadmitlocat like &5 and flditemamt=&6"
+  $rData = modDatabase.$myConn.Exec(sql1 & " UNION " & sql2, cmbgroup.Text, cmbscheme.Text, modDate.StartSqlDate(dtconsult.Value), modDate.EndSqlDate(dtconsult.Value), cmbdepart.Text, 0, "Paid")
   $aMyFields = New String[]
   modGridView.ReadSmallData(GridView1, $rData, $aMyFields)
 
@@ -389,13 +392,15 @@ Private Function GetRegistration(sBookID As String) As String
   Dim rsPat As Result
 
   Dim xnhis As String
-  Dim xvalid As Float
+  Dim xvalid As Date
   Dim xcrdt As Float
+  Dim xcharity As Float
   Dim xpolicy As String
   Dim xrefer As String
   Dim xmsg As Variant[]
   Dim yPackGo As Boolean
   Dim xval As String
+  Dim rsx As Result
 
   Dim xallow As Boolean
   Dim xque As Integer
@@ -458,24 +463,22 @@ Private Function GetRegistration(sBookID As String) As String
       xfollow = "New"
     Endif
 
-    ''get paid amount
-    xpdamt = 0
-    If res["fldstate"] = "Paid" Then
-      If res["flditemamt"] Then
-        xpdamt = res["flditemamt"]
-      Else
-        xpdamt = 0
-      Endif
-    Else
-      resx = modDatabase.$myConn.Exec("select fldstate,fldtransid,fldtransamt,fldtranstoken,fldfeeamt,flduserid,fldtime from tblwebpayment where fldbillno=&1 and fldencounterval=&2 and flditemid=&3", res["fldpayreference"], sBookID, "Booking")
-      If resx.Available Then
-        If resx["fldtransamt"] Then
-          xpdamt = resx["fldtransamt"]
-        Else
-          xpdamt = 0
-        Endif
-      Endif
-    Endif
+    ' If res["fldstate"] = "Paid" Then
+    '   If res["flditemamt"] Then
+    '     xpdamt = res["flditemamt"]
+    '   Else
+    '     xpdamt = 0
+    '   Endif
+    ' Else
+    '   resx = modDatabase.$myConn.Exec("select fldstate,fldtransid,fldtransamt,fldtranstoken,fldfeeamt,flduserid,fldtime from tblwebpayment where fldbillno=&1 and fldencounterval=&2 and flditemid=&3", res["fldpayreference"], sBookID, "Booking")
+    '   If resx.Available Then
+    '     If resx["fldtransamt"] Then
+    '       xpdamt = resx["fldtransamt"]
+    '     Else
+    '       xpdamt = 0
+    '     Endif
+    '   Endif
+    ' Endif
 
     ''get consultant booked
     If res["flduserid"] Then
@@ -514,6 +517,7 @@ Private Function GetRegistration(sBookID As String) As String
                 If xmsg[1] Then
                   xvalid = xmsg[1]
                 Endif
+                xcharity = 0
                 yPackGo = True
               Endif
 
@@ -529,7 +533,46 @@ Private Function GetRegistration(sBookID As String) As String
                 If xmsg[2] Then
                   xpolicy = xmsg[2]
                 Endif
+                xcharity = 0
                 yPackGo = True
+              Endif
+
+            Else If xrefer = "Staff List" Then
+              rsx = modDatabase.$myConn.Exec("select fldcategory,fldserviceid,fldjoindate,fldenddate,flduserid,fldpatientval,flddisctype,fldstatus from tblstafflist where fldptcode=&1 and fldstatus=&2 and fldjoindate<=&3 and fldenddate>&3 and fldpatientval=&4", xnhis, "Active", Now(), xoldpat)
+              If rsx.Available Then
+                xvalid = rsx["fldenddate"]
+                xcrdt = 0
+                xcharity = 0
+                yPackGo = True
+              Endif
+
+            Else If xrefer = "Social List" Then
+              rsx = modDatabase.$myConn.Exec("select fldcategory,fldserviceid,fldjoindate,fldenddate,fldactivity,fldpatientval,flddisctype,fldstatus,fldcitizen,fldidentify,fldscheme,fldservice,fldreferhosp,fldreferdist,fldreferdate,fldsocialmode,fldcreditlim,flddisclimit,fldcreditdate,flddiscdate,fldremark from tblsociallist where fldptcode=&1 and fldstatus=&2 and fldjoindate<=&3 and fldenddate>&3 and fldpatientval=&4", xnhis, "Active", Now(), xoldpat)
+              If rsx.Available Then
+                xvalid = rsx["fldenddate"]
+                If rsx["fldsocialmode"] And If rsx["fldenddate"] Then
+                  If rsx["fldsocialmode"] = "Add Credit" Then
+                    If rsx["fldcreditdate"] Then
+                      xcrdt = rsx["fldcreditlim"] - modNonMedical.GeCreditUsedCurYear(rsx["fldpatientval"], rsx["flddisctype"], rsx["fldcreditdate"], rsx["fldenddate"])
+                      yPackGo = True
+                    Endif
+                    xcharity = 0
+                  Else If rsx["fldsocialmode"] = "Add Discount" Then
+                    xcrdt = 0
+                    If rsx["flddiscdate"] Then
+                      xcharity = rsx["flddisclimit"] - modNonMedical.GetDiscUsedCurYear(rsx["fldpatientval"], rsx["flddisctype"], rsx["flddiscdate"], rsx["fldenddate"])
+                      yPackGo = True
+                    Endif
+                  Else If rsx["fldsocialmode"] = "Add Credit+Discount" Then
+                    If rsx["fldcreditdate"] Then
+                      xcrdt = rsx["fldcreditlim"] - modNonMedical.GeCreditUsedCurYear(rsx["fldpatientval"], rsx["flddisctype"], rsx["fldcreditdate"], rsx["fldenddate"])
+                    Endif
+                    If rsx["flddiscdate"] Then
+                      xcharity = rsx["flddisclimit"] - modNonMedical.GetDiscUsedCurYear(rsx["fldpatientval"], rsx["flddisctype"], rsx["flddiscdate"], rsx["fldenddate"])
+                    Endif
+                    yPackGo = True
+                  Endif
+                Endif
               Endif
 
             Endif
@@ -541,12 +584,22 @@ Private Function GetRegistration(sBookID As String) As String
 
     ''check if payment >=comnsulting fee
     If modBasic.$BillMobileCheckRegFee = "Enable" Then
+      ''get charge
       xtotamt = 0
       xtotamt = modBillings.GetAutoRegistCost(res["fldadmitlocat"], res["flddisctype"], xBillMode, "New")
-      If xpdamt >= xtotamt Then
-        xallow = True
+      ''get paid amount
+      If res["flditemamt"] Then
+        If res["fldstate"] = "Paid" Then
+          If res["flditemamt"] >= xtotamt Then
+            xallow = True
+          Else
+            xallow = False
+          Endif
+        Else
+          xallow = False
+        Endif
       Else
-        xallow = False
+        xallow = True
       Endif
     Else
       xallow = True
@@ -588,7 +641,7 @@ Private Function GetRegistration(sBookID As String) As String
             res1["flduserid"] = xuser
 
             res1["fldcashdeposit"] = 0
-            res1["fldcharity"] = 0
+            res1["fldcharity"] = xcharity
             res1["fldcashcredit"] = xcrdt
             res1["fldvalidity"] = xvalid
             res1["fldfollowdate"] = ""
@@ -654,7 +707,7 @@ Private Function GetRegistration(sBookID As String) As String
       Endif
 
     Else
-      Message.Warning("Insufficient payment", "OK")
+      Message.Warning("Not Allowed", "OK")
     Endif
   Endif
 

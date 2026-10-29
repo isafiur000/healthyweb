@@ -1,17 +1,23 @@
 ' Gambas class file
 
+Private $Conn As Connection
+Private $sType As String
+
 Private $rData As Result
 Private $aMyFields As String[]
+Private $ModelLst As String[]
 
 Private $sValue As Variant[]
 
-Public Sub Run(sTitle As String) As Variant[]
+Public Sub Run(sConn As Connection, sType As String) As Variant[]
 
-  Me.Title = sTitle
+  $Conn = sConn
+  $sType = sType
   modGeneralMain.GetOpenModalForm(Me)
   chkleftmain.Value = modBasic.$SearchBothSide
+
+  $ModelLst = modMLModels.GetAIModelsList("search_diagnosis")
   modSettings.ShowCheckBox(chkgroup, "ClinicForms/ICDGroups")
-  chkboth.Value = True
 
   $sValue = New Variant[]
   FillICDGrid()
@@ -54,32 +60,37 @@ Public Sub FillICDGrid()
   Endif
 
   If txtcode.Text Then
-    $rData = modDatabase.$icdConn.Exec("select fldicdnme,fldicdcode,fldoldcode from tblicddisease where lower(fldicdcode) like &1" & xstr & xgrp, LCase(txtcode.Text) & "%", "%.%")
+    $rData = $Conn.Exec("select fldicdnme,fldicdcode,fldoldcode from tblicddisease where lower(fldicdcode) like &1" & xstr & xgrp, LCase(txtcode.Text) & "%", "%.%")
   Else If txtname.Text Then
     If chkleftmain.Value = True Then
-      $rData = modDatabase.$icdConn.Exec("select fldicdnme,fldicdcode,fldoldcode from tblicddisease where lower(fldicdnme) like &1" & xstr & xgrp, "%" & LCase(txtname.Text) & "%", "%.%")
+      $rData = $Conn.Exec("select fldicdnme,fldicdcode,fldoldcode from tblicddisease where lower(fldicdnme) like &1" & xstr & xgrp, "%" & LCase(txtname.Text) & "%", "%.%")
     Else
-      $rData = modDatabase.$icdConn.Exec("select fldicdnme,fldicdcode,fldoldcode from tblicddisease where lower(fldicdnme) like &1" & xstr & xgrp, LCase(txtname.Text) & "%", "%.%")
+      $rData = $Conn.Exec("select fldicdnme,fldicdcode,fldoldcode from tblicddisease where lower(fldicdnme) like &1" & xstr & xgrp, LCase(txtname.Text) & "%", "%.%")
     Endif
 
   Else
     If chkgroup.Value = True Then
       If chkboth.Value = True Then
-        $rData = modDatabase.$icdConn.Exec("select fldicdnme,fldicdcode,fldoldcode from tblicddisease where fldoldcode IS NOT NULL and fldicdcode NOT LIKE &1", "%.%")
+        $rData = $Conn.Exec("select fldicdnme,fldicdcode,fldoldcode from tblicddisease where fldoldcode IS NOT NULL and fldicdcode NOT LIKE &1", "%.%")
       Else
-        $rData = modDatabase.$icdConn.Exec("select fldicdnme,fldicdcode,fldoldcode from tblicddisease where fldicdcode NOT LIKE &1", "%.%")
+        $rData = $Conn.Exec("select fldicdnme,fldicdcode,fldoldcode from tblicddisease where fldicdcode NOT LIKE &1", "%.%")
       Endif
     Else
       If chkboth.Value = True Then
-        $rData = modDatabase.$icdConn.Exec("select fldicdnme,fldicdcode,fldoldcode from tblicddisease where fldoldcode IS NOT NULL")
+        $rData = $Conn.Exec("select fldicdnme,fldicdcode,fldoldcode from tblicddisease where fldoldcode IS NOT NULL")
       Else
-        $rData = modDatabase.$icdConn.Exec("select fldicdnme,fldicdcode,fldoldcode from tblicddisease")
+        $rData = $Conn.Exec("select fldicdnme,fldicdcode,fldoldcode from tblicddisease")
       Endif
     Endif
 
   Endif
   $aMyFields = New String[]
   modGridView.ReadSmallData(GridView1, $rData, $aMyFields)
+  ResizeGrid()
+
+End
+
+Private Sub ResizeGrid()
 
   With GridView1
     .Columns[0].Expand = True
@@ -162,6 +173,50 @@ Public Sub chkall_Click()
     GridView1.SelectAll()
   Else If chkall.Value = False Then
     GridView1.UnselectAll()
+  Endif
+
+End
+
+''-------------------- Semantic Search ------------------
+Public Sub chksemantic_Click()
+
+  btnsemantic.Visible = chksemantic.Value
+
+End
+
+Public Sub btnsemantic_Click()
+
+  Dim xstr As String
+  Dim strItem As String[]
+  Dim i As Integer
+
+  If chkboth.Value = True Then
+    xstr = " and fldoldcode IS NOT NULL"
+  Else
+    xstr = ""
+  Endif
+
+  strItem = New String[]
+  If $ModelLst.Count And If txtname.Text Then
+    strItem = modClinModels.GetMatchingICDCodes($ModelLst[0], txtname.Text)
+    If strItem And If strItem.Count Then
+
+      If chkgroup.Value = True Then
+        For i = 0 To strItem.Count - 1
+          strItem[i] = "'" & strItem[i] & "'"
+        Next
+        $rData = $Conn.Exec("select fldicdnme,fldicdcode,fldoldcode from tblicddisease where fldicdcode in(" & strItem.Join(",") & ")")
+      Else
+        For i = 0 To strItem.Count - 1
+          strItem[i] = "fldicdcode LIKE '" & strItem[i] & "%'"
+        Next
+        $rData = $Conn.Exec("select fldicdnme,fldicdcode,fldoldcode from tblicddisease where (" & strItem.Join(" OR ") & ")")
+      Endif
+
+      $aMyFields = New String[]
+      modGridView.ReadSmallData(GridView1, $rData, $aMyFields)
+      ResizeGrid()
+    Endif
   Endif
 
 End

@@ -10,6 +10,8 @@ Private $tbl As String
 Private $encList As String[]
 Private $SSQLFields As String[]
 Private $obsParameters As String[]
+Private $CustomList As Boolean
+Private $CustomItems As String[]
 ' Private $ProgressBar1 As WebProgressBar
 
 Private $ColCount As Integer
@@ -62,6 +64,18 @@ Public Sub cmblocation_Click()
   cmbvalue.Clear()
   If cmblocation.Text Then
     cmbvalue.List = modDataRepo.GetRepoValueListType(cmblocation.Text)
+  Endif
+
+End
+
+Public Sub mnucustomList_Click()
+
+  If $CustomList = True Then
+    mnucustomList.Text = "Custom List"
+    $CustomList = False
+  Else If $CustomList = False Then
+    mnucustomList.Text = "Fixed List"
+    $CustomList = True
   Endif
 
 End
@@ -198,12 +212,31 @@ End
 
 Private Sub GetDiagnosisList(sType As String)
 
-  Dim sql As String
+  Dim xVar As Variant[]
+  Dim strItem As String[]
+  Dim xArr As String[]
+  Dim i As Integer
 
   $tbl = "tblpatfindings"
   $RepoStr = modDataRepo.GetWhereStringRepo(cmblocation.Text, cmbvalue.Text)
-  sql = "select fldcodenew as col,fldcodenew from tblpatfindings where fldtype=&1 and fldsave=&2 and fldcodenew IS NOT NULL" & $RepoStr & " GROUP BY fldcodenew"
-  $rData1 = modDatabase.$syConn.Exec(sql, sType, True)
+  $CustomItems = New String[]
+  If $CustomList = True Then
+    xVar = ICDMultiGrid(modDatabase.$icdConn, "Disease")
+    If xVar And If xVar.Count Then
+      For Each xArr In xVar
+        $CustomItems.Add(xArr[1])
+      Next
+      strItem = $CustomItems.Copy()
+      For i = 0 To strItem.Count - 1
+        strItem[i] = "'" & strItem[i] & "'"
+      Next
+    Else
+      strItem = New String[]
+    Endif
+    $rData1 = modDatabase.$icdConn.Exec("select fldicdcode as col,fldicdcode from tblicddisease where fldicdcode in(" & strItem.Join(",") & ")")
+  Else
+    $rData1 = modDatabase.$syConn.Exec("select fldcodenew as col,fldcodenew from tblpatfindings where fldtype=&1 and fldsave=&2 and fldcodenew IS NOT NULL" & $RepoStr & " GROUP BY fldcodenew", sType, True)
+  Endif
   $aMyFields1 = New String[]
   modGridView.ReadSmallData(listitem, $rData1, $aMyFields1)
 
@@ -2439,6 +2472,8 @@ Private Function ExecuteAllTime(xFldList As String[], sItem As String, scon As C
   Dim xdstenc As String
 
   Dim res As Result
+  Dim strItem As String[]
+  Dim i As Integer
 
   If Not cmbmethod.Text Then
     cmbmethod.Text = "%"
@@ -2455,8 +2490,17 @@ Private Function ExecuteAllTime(xFldList As String[], sItem As String, scon As C
       Else
         xdstenc = ""
       Endif
-      sql = "select " & xFldList.Join(",") & " from (tblpatfindings AS t1 inner join tblencounter AS t2 on t1.fldencounterval=t2.fldencounterval) inner join tblpatientinfo AS t3 on t2.fldpatientval=t3.fldpatientval where t1.fldtime>=&1 and t1.fldtime<=&2 and t1.fldtype=&3 and t1.fldcodenew like &4 and t1.fldcode like &5 and t3.fldptsex like &6 and " & xdtstr & ">=&7 and " & xdtstr & "<&8 and t1.fldsave=&9" & xdiagno & modDataRepo.GetWhereStringRepo(cmblocation.Text, cmbvalue.Text, "t1") & xdstenc                                   ''
-      res = scon.Exec(sql, modDate.StartSqlDate(dtfir.value), modDate.EndSqlDate(dtlast.value), cmbcategory.Text, sItem, cmbmethod.Text, cmbsex.Text, txtagefir.Value * 365, txtagelast.Value * 365, True, cmbdiagno.Tag, True)
+      If sItem = "%" And If $CustomList = True Then
+        strItem = $CustomItems.Copy()
+        For i = 0 To strItem.Count - 1
+          strItem[i] = "'" & strItem[i] & "'"
+        Next
+        sql = "select " & xFldList.Join(",") & " from (tblpatfindings AS t1 inner join tblencounter AS t2 on t1.fldencounterval=t2.fldencounterval) inner join tblpatientinfo AS t3 on t2.fldpatientval=t3.fldpatientval where t1.fldtime>=&1 and t1.fldtime<=&2 and t1.fldtype=&3 and t1.fldcodenew in(" & strItem.Join(",") & ") and t1.fldcode like &5 and t3.fldptsex like &6 and " & xdtstr & ">=&7 and " & xdtstr & "<&8 and t1.fldsave=&9" & xdiagno & modDataRepo.GetWhereStringRepo(cmblocation.Text, cmbvalue.Text, "t1") & xdstenc                                   ''
+        res = scon.Exec(sql, modDate.StartSqlDate(dtfir.value), modDate.EndSqlDate(dtlast.value), cmbcategory.Text, sItem, cmbmethod.Text, cmbsex.Text, txtagefir.Value * 365, txtagelast.Value * 365, True, cmbdiagno.Tag, True)
+      Else
+        sql = "select " & xFldList.Join(",") & " from (tblpatfindings AS t1 inner join tblencounter AS t2 on t1.fldencounterval=t2.fldencounterval) inner join tblpatientinfo AS t3 on t2.fldpatientval=t3.fldpatientval where t1.fldtime>=&1 and t1.fldtime<=&2 and t1.fldtype=&3 and t1.fldcodenew like &4 and t1.fldcode like &5 and t3.fldptsex like &6 and " & xdtstr & ">=&7 and " & xdtstr & "<&8 and t1.fldsave=&9" & xdiagno & modDataRepo.GetWhereStringRepo(cmblocation.Text, cmbvalue.Text, "t1") & xdstenc                                   ''
+        res = scon.Exec(sql, modDate.StartSqlDate(dtfir.value), modDate.EndSqlDate(dtlast.value), cmbcategory.Text, sItem, cmbmethod.Text, cmbsex.Text, txtagefir.Value * 365, txtagelast.Value * 365, True, cmbdiagno.Tag, True)
+      Endif
 
     Else If cmbcategory.Text = "Allergic Drugs" Then
       xdtstr = GetAgeStringByTable("tblpatfindings", scon)
@@ -2662,8 +2706,17 @@ Private Function ExecuteAllTime(xFldList As String[], sItem As String, scon As C
       Else
         xdstenc = ""
       Endif
-      sql = "select " & xFldList.Join(",") & " from (tblpatfindings AS t1 inner join tblencounter AS t2 on t1.fldencounterval=t2.fldencounterval) inner join tblpatientinfo AS t3 on t2.fldpatientval=t3.fldpatientval where t1.fldtime>=&1 and t1.fldtime<=&2 and t1.fldtype=&3 and t1.fldcodenew like &4 and t1.fldcode like &5 and t3.fldptsex like &6 and t1.fldsave=&7" & xdiagno & modDataRepo.GetWhereStringRepo(cmblocation.Text, cmbvalue.Text, "t1") & xdstenc                                   ''
-      res = scon.Exec(sql, modDate.StartSqlDate(dtfir.value), modDate.EndSqlDate(dtlast.value), cmbcategory.Text, sItem, cmbmethod.Text, cmbsex.Text, True, cmbdiagno.Tag, True)
+      If sItem = "%" And If $CustomList = True Then
+        strItem = $CustomItems.Copy()
+        For i = 0 To strItem.Count - 1
+          strItem[i] = "'" & strItem[i] & "'"
+        Next
+        sql = "select " & xFldList.Join(",") & " from (tblpatfindings AS t1 inner join tblencounter AS t2 on t1.fldencounterval=t2.fldencounterval) inner join tblpatientinfo AS t3 on t2.fldpatientval=t3.fldpatientval where t1.fldtime>=&1 and t1.fldtime<=&2 and t1.fldtype=&3 and t1.fldcodenew in(" & strItem.Join(",") & ") and t1.fldcode like &5 and t3.fldptsex like &6 and t1.fldsave=&7" & xdiagno & modDataRepo.GetWhereStringRepo(cmblocation.Text, cmbvalue.Text, "t1") & xdstenc                                   ''
+        res = scon.Exec(sql, modDate.StartSqlDate(dtfir.value), modDate.EndSqlDate(dtlast.value), cmbcategory.Text, sItem, cmbmethod.Text, cmbsex.Text, True, cmbdiagno.Tag, True)
+      Else
+        sql = "select " & xFldList.Join(",") & " from (tblpatfindings AS t1 inner join tblencounter AS t2 on t1.fldencounterval=t2.fldencounterval) inner join tblpatientinfo AS t3 on t2.fldpatientval=t3.fldpatientval where t1.fldtime>=&1 and t1.fldtime<=&2 and t1.fldtype=&3 and t1.fldcodenew like &4 and t1.fldcode like &5 and t3.fldptsex like &6 and t1.fldsave=&7" & xdiagno & modDataRepo.GetWhereStringRepo(cmblocation.Text, cmbvalue.Text, "t1") & xdstenc                                   ''
+        res = scon.Exec(sql, modDate.StartSqlDate(dtfir.value), modDate.EndSqlDate(dtlast.value), cmbcategory.Text, sItem, cmbmethod.Text, cmbsex.Text, True, cmbdiagno.Tag, True)
+      Endif
 
     Else If cmbcategory.Text = "Allergic Drugs" Then
       If cmbdiagno.Text Then
