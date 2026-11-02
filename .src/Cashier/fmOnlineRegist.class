@@ -401,6 +401,9 @@ Private Function GetRegistration(sBookID As String) As String
   Dim yPackGo As Boolean
   Dim xval As String
   Dim rsx As Result
+  Dim hCForm As CPAHSapi
+  Dim hrPatNo As String
+  Dim hrPack As String
 
   Dim xallow As Boolean
   Dim xque As Integer
@@ -538,40 +541,75 @@ Private Function GetRegistration(sBookID As String) As String
               Endif
 
             Else If xrefer = "Staff List" Then
-              rsx = modDatabase.$myConn.Exec("select fldcategory,fldserviceid,fldjoindate,fldenddate,flduserid,fldpatientval,flddisctype,fldstatus from tblstafflist where fldptcode=&1 and fldstatus=&2 and fldjoindate<=&3 and fldenddate>&3 and fldpatientval=&4", xnhis, "Active", Now(), xoldpat)
-              If rsx.Available Then
-                xvalid = rsx["fldenddate"]
-                xcrdt = 0
-                xcharity = 0
-                yPackGo = True
+              If modBasic.$RegistStaffFormat = "PAHS" Then
+                hCForm = New CPAHSapi(xnhis)
+                If hCForm.GetEmployeeStatus() And If hCForm.GetEmployeeStatus() = "Working" Then
+                  If hCForm.GetEmployeeHospNo() Then
+                    hrPatNo = modPatient.GetPatientNoByFileNo(hCForm.GetEmployeeHospNo())
+                    hrPack = hCForm.GetEmployeePackage()
+                    If hrPatNo = xoldpat Then
+                      If hrPack = res["flddisctype"] Then
+                        If hCForm.GetEmployeeEndDate() Then
+                          xvalid = hCForm.GetEmployeeEndDate()
+                        Else
+                          xvalid = DateAdd(Now(), gb.Year, 1)
+                        Endif
+                        xcrdt = 0
+                        xcharity = 0
+                        yPackGo = True
+                      Else
+                        Message.Warning("Scheme should be " & hrPack, "OK")
+                      Endif
+                    Else
+                      Message.Warning("Patient ID different", "OK")
+                    Endif
+                  Endif
+                Endif
+
+              Else
+                rsx = modDatabase.$myConn.Exec("select fldcategory,fldserviceid,fldjoindate,fldenddate,flduserid,fldpatientval,flddisctype,fldstatus from tblstafflist where fldptcode=&1 and fldstatus=&2 and fldjoindate<=&3 and fldenddate>&3 and fldpatientval=&4", xnhis, "Active", Now(), xoldpat)
+                If rsx.Available Then
+                  If rsx["flddisctype"] = res["flddisctype"] Then
+                    xvalid = rsx["fldenddate"]
+                    xcrdt = 0
+                    xcharity = 0
+                    yPackGo = True
+                  Else
+                    Message.Warning("Scheme should be " & rsx["flddisctype"], "OK")
+                  Endif
+                Endif
               Endif
 
             Else If xrefer = "Social List" Then
               rsx = modDatabase.$myConn.Exec("select fldcategory,fldserviceid,fldjoindate,fldenddate,fldactivity,fldpatientval,flddisctype,fldstatus,fldcitizen,fldidentify,fldscheme,fldservice,fldreferhosp,fldreferdist,fldreferdate,fldsocialmode,fldcreditlim,flddisclimit,fldcreditdate,flddiscdate,fldremark from tblsociallist where fldptcode=&1 and fldstatus=&2 and fldjoindate<=&3 and fldenddate>&3 and fldpatientval=&4", xnhis, "Active", Now(), xoldpat)
               If rsx.Available Then
-                xvalid = rsx["fldenddate"]
-                If rsx["fldsocialmode"] And If rsx["fldenddate"] Then
-                  If rsx["fldsocialmode"] = "Add Credit" Then
-                    If rsx["fldcreditdate"] Then
-                      xcrdt = rsx["fldcreditlim"] - modNonMedical.GeCreditUsedCurYear(rsx["fldpatientval"], rsx["flddisctype"], rsx["fldcreditdate"], rsx["fldenddate"])
+                If rsx["flddisctype"] = res["flddisctype"] Then
+                  xvalid = rsx["fldenddate"]
+                  If rsx["fldsocialmode"] And If rsx["fldenddate"] Then
+                    If rsx["fldsocialmode"] = "Add Credit" Then
+                      If rsx["fldcreditdate"] Then
+                        xcrdt = rsx["fldcreditlim"] - modNonMedical.GeCreditUsedCurYear(rsx["fldpatientval"], rsx["flddisctype"], rsx["fldcreditdate"], rsx["fldenddate"])
+                        yPackGo = True
+                      Endif
+                      xcharity = 0
+                    Else If rsx["fldsocialmode"] = "Add Discount" Then
+                      xcrdt = 0
+                      If rsx["flddiscdate"] Then
+                        xcharity = rsx["flddisclimit"] - modNonMedical.GetDiscUsedCurYear(rsx["fldpatientval"], rsx["flddisctype"], rsx["flddiscdate"], rsx["fldenddate"])
+                        yPackGo = True
+                      Endif
+                    Else If rsx["fldsocialmode"] = "Add Credit+Discount" Then
+                      If rsx["fldcreditdate"] Then
+                        xcrdt = rsx["fldcreditlim"] - modNonMedical.GeCreditUsedCurYear(rsx["fldpatientval"], rsx["flddisctype"], rsx["fldcreditdate"], rsx["fldenddate"])
+                      Endif
+                      If rsx["flddiscdate"] Then
+                        xcharity = rsx["flddisclimit"] - modNonMedical.GetDiscUsedCurYear(rsx["fldpatientval"], rsx["flddisctype"], rsx["flddiscdate"], rsx["fldenddate"])
+                      Endif
                       yPackGo = True
                     Endif
-                    xcharity = 0
-                  Else If rsx["fldsocialmode"] = "Add Discount" Then
-                    xcrdt = 0
-                    If rsx["flddiscdate"] Then
-                      xcharity = rsx["flddisclimit"] - modNonMedical.GetDiscUsedCurYear(rsx["fldpatientval"], rsx["flddisctype"], rsx["flddiscdate"], rsx["fldenddate"])
-                      yPackGo = True
-                    Endif
-                  Else If rsx["fldsocialmode"] = "Add Credit+Discount" Then
-                    If rsx["fldcreditdate"] Then
-                      xcrdt = rsx["fldcreditlim"] - modNonMedical.GeCreditUsedCurYear(rsx["fldpatientval"], rsx["flddisctype"], rsx["fldcreditdate"], rsx["fldenddate"])
-                    Endif
-                    If rsx["flddiscdate"] Then
-                      xcharity = rsx["flddisclimit"] - modNonMedical.GetDiscUsedCurYear(rsx["fldpatientval"], rsx["flddisctype"], rsx["flddiscdate"], rsx["fldenddate"])
-                    Endif
-                    yPackGo = True
                   Endif
+                Else
+                  Message.Warning("Scheme should be " & rsx["flddisctype"], "OK")
                 Endif
               Endif
 
